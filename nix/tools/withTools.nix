@@ -361,7 +361,8 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
-            "ARG_OPTIONAL_SINGLE([timeout], [t], [Timeout for the PostgREST process], [5])"
+            "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
+            "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring], [0])"
             "ARG_USE_ENV([PGRST_CMD], [], [PostgREST executable to run])"
           ];
         positionalCompletion = "_command";
@@ -424,6 +425,10 @@ let
 
         if [[ -n "$_arg_monitor" ]]; then
           ${monitorPid} "$pid" > "$_arg_monitor" &
+        fi
+
+        if [[ -n "$_arg_sleep" ]]; then
+          sleep "$_arg_sleep"
         fi
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
