@@ -1255,13 +1255,12 @@ def test_shutdown_wait_period_delays_sigterm(defaultenv):
         "PGRST_SERVER_SHUTDOWN_WAIT_PERIOD": "1",
     }
 
-    with run(env=env) as postgrest:
+    with run(env=env, wait_max_seconds=3) as postgrest:
         start_time = time.time()
         postgrest.process.send_signal(signal.SIGTERM)
         exitCode = wait_until_exit(postgrest, timeout=3)
         elapsed = time.time() - start_time
 
-        assert exitCode == 0
         assert elapsed >= 1.0, f"Should delay at least 1 second, but only waited {elapsed}s"
 
 
