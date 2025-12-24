@@ -166,7 +166,11 @@ observationMessage = \case
 
     showListenerException :: Either SomeException () -> Text
     showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
-    showListenerException (Left e)  = showOnSingleLine '\t' $ show e
+    showListenerException (Left e)  = errorMsg <> if isNotifyBug then notifyBugHint else mempty
+      where
+        errorMsg = showOnSingleLine '\t' $ show e
+        isNotifyBug = "could not access status of transaction" `T.isInfixOf` errorMsg
+        notifyBugHint = " HINT:  This is likely a bug in the notification queue, try executing the following to solve it: select pg_notification_queue_usage();"
 
 
 showOnSingleLine :: Char -> Text -> Text
