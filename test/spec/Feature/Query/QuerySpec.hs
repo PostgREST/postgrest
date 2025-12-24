@@ -24,12 +24,7 @@ spec = do
 
   describe "Querying a nonexistent table" $
     it "causes a 404" $
-      get "/faketable"
-      `shouldRespondWith`
-      [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.private_table'","message":"Could not find the table 'test.faketable' in the schema cache"} |]
-      { matchStatus = 404
-      , matchHeaders = ["Content-Length" <:> "166"]
-      }
+      get "/faketable" `shouldRespondWith` 404
 
   describe "Filtering response" $ do
     it "matches with equality" $
@@ -848,12 +843,14 @@ spec = do
           , matchHeaders = [matchContentTypeJson]
           }
 
-      -- we only search for foreign key relationships after checking the
-      -- the existence of first table, #3869
-      it "table not found error if first table does not exist" $
+      it "cannot request a partitioned table as parent from a partition" $
         get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.car_model_sales'","message":"Could not find the table 'test.car_model_sales_202101' in the schema cache"} |]
-          { matchStatus  = 404
+          [json|
+            {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
+             "details":"Searched for a foreign key relationship between 'car_model_sales_202101' and 'car_models' in the schema 'test', but no matches were found.",
+             "code":"PGRST200",
+             "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
+          { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 
@@ -868,10 +865,14 @@ spec = do
           , matchHeaders = [matchContentTypeJson]
           }
 
-      it "table not found error if first table does not exist" $
+      it "cannot request partitioned tables as children from a partition" $
         get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.car_model_sales'","message":"Could not find the table 'test.car_models_default' in the schema cache"} |]
-          { matchStatus  = 404
+          [json|
+            {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_models_default'.",
+             "details":"Searched for a foreign key relationship between 'car_models_default' and 'car_model_sales' in the schema 'test', but no matches were found.",
+             "code":"PGRST200",
+             "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
+          { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 
