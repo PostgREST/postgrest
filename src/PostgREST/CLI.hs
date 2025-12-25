@@ -61,10 +61,11 @@ runAppCommand conf@AppConfig{..} runCmd = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
+  pgVer <- AppState.getPgVersion appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState
-      (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+      (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
   case result of
     Left e -> do
       let observer = AppState.getObserver appState

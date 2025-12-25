@@ -83,7 +83,7 @@ main = do
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
   -- cached schema cache so most tests run fast
-  baseSchemaCache <- loadSCache pool testCfg
+  baseSchemaCache <- loadSCache pool actualPgVersion testCfg
   sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
@@ -100,7 +100,7 @@ main = do
 
     -- For tests that run with a different SchemaCache (depends on configSchemas)
     appDbs config = do
-      customSchemaCache <- loadSCache pool config
+      customSchemaCache <- loadSCache pool actualPgVersion config
       initApp customSchemaCache () config
 
   let withApp              = app testCfg
@@ -279,5 +279,5 @@ main = do
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
   where
-    loadSCache pool conf =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+    loadSCache pool pgVer conf =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVer conf)
