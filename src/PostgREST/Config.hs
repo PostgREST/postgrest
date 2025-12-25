@@ -112,6 +112,7 @@ data AppConfig = AppConfig
   , configServerPort               :: Int
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
   , configServerTimingEnabled      :: Bool
+  , configServerShutdownWaitPeriod :: Int
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerHost          :: Text
@@ -186,6 +187,7 @@ toText conf =
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
+      ,("server-shutdown-wait-period",   show . configServerShutdownWaitPeriod)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-host",         q . configAdminServerHost)
@@ -299,6 +301,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseServerPort "server-port"
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
+    <*> (fromMaybe 0 <$> optInt "server-shutdown-wait-period")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> (defaultServerHost <$> optWithAlias (optString "admin-server-host")
@@ -741,6 +744,10 @@ exampleConfigFile = S.unlines
   , ""
   , "## Allow getting the request-response timing information through the `Server-Timing` header"
   , "server-timing-enabled = false"
+  , ""
+  , "## Time in seconds to delay the shutdown after receiving SIGTERM"
+  , "## Useful for waiting on the load balancer to deregister the service"
+  , "# server-shutdown-wait-period = 0"
   , ""
   , "## Unix socket location"
   , "## if specified it takes precedence over server-port"
