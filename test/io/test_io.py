@@ -1247,6 +1247,40 @@ def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaul
         assert exitCode == 1
 
 
+def test_shutdown_wait_period_delays_sigterm(defaultenv):
+    "SIGTERM should wait server-shutdown-wait-period seconds before exiting"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_SHUTDOWN_WAIT_PERIOD": "1",
+    }
+
+    with run(env=env, wait_max_seconds=3) as postgrest:
+        start_time = time.time()
+        postgrest.process.send_signal(signal.SIGTERM)
+        wait_until_exit(postgrest, timeout=3)
+        elapsed = time.time() - start_time
+
+        assert elapsed >= 1.0, f"Should delay at least 1 second, but only waited {elapsed}s"
+
+
+def test_sigint_exits_immediately_with_shutdown_wait_period(defaultenv):
+    "SIGINT should exit immediately even with shutdown wait period configured"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_SHUTDOWN_WAIT_PERIOD": "5",
+    }
+
+    with run(env=env) as postgrest:
+        start_time = time.time()
+        postgrest.process.send_signal(signal.SIGINT)
+        wait_until_exit(postgrest, timeout=2)
+        elapsed = time.time() - start_time
+
+        assert elapsed < 1.0, f"SIGINT should exit immediately, but waited {elapsed}s"
+
+
 def test_preflight_request_with_cors_allowed_origin_config(defaultenv):
     "OPTIONS preflight request should return Access-Control-Allow-Origin equal to origin"
 

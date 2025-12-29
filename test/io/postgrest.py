@@ -176,10 +176,10 @@ def freeport(used_ports=None):
                 return port
 
 
-def wait_until_exit(postgrest):
+def wait_until_exit(postgrest, timeout=1):
     "Wait for PostgREST to exit, or times out"
     try:
-        return postgrest.process.wait(timeout=1)
+        return postgrest.process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         raise PostgrestTimedOut()
 

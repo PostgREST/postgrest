@@ -161,6 +161,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configInternalSCLoadSleep       = Nothing
   , configInternalSCRelLoadSleep    = Nothing
   , configServerTimingEnabled       = True
+  , configServerShutdownWaitPeriod  = 0
   }
 
 testCfg :: AppConfig

@@ -17,20 +17,31 @@ import           Protolude
 import           System.Directory (removeFile)
 import           System.IO.Error  (isDoesNotExistError)
 
--- | Set signal handlers, only for systems with signals
-installSignalHandlers :: ThreadId -> IO () -> IO () -> IO ()
+-- | Set signal handlers
+--
+-- SIGINT:  Immediately throws UserInterrupt to the main thread.
+-- SIGTERM: Delays shutdown by 'shutdownWaitPeriod' seconds before throwing UserInterrupt.
+--          This allows load balancers (e.g., in AWS ECS) time to deregister the service
+--          before the process terminates, reducing the risk of rejected connections.
+-- SIGUSR1: Reloads the schema cache.
+-- SIGUSR2: Reloads the configuration from the database.
+installSignalHandlers :: Int -> ThreadId -> IO () -> IO () -> IO ()
 #ifndef mingw32_HOST_OS
-installSignalHandlers tid usr1 usr2 = do
-  let interrupt = throwTo tid UserInterrupt
-  install Signals.sigINT interrupt
-  install Signals.sigTERM interrupt
+installSignalHandlers shutdownWaitPeriod tid usr1 usr2 = do
+  let interruptImmediately = throwTo tid UserInterrupt
+      interruptWithDelay = do
+        when (shutdownWaitPeriod > 0) $
+          threadDelay (shutdownWaitPeriod * 1000000)
+        throwTo tid UserInterrupt
+  install Signals.sigINT interruptImmediately
+  install Signals.sigTERM interruptWithDelay
   install Signals.sigUSR1 usr1
   install Signals.sigUSR2 usr2
   where
     install signal handler =
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
 #else
-installSignalHandlers _ _ _ = pass
+installSignalHandlers _ _ _ _ = pass
 #endif
 
 -- | Create a unix domain socket and bind it to the given path.
