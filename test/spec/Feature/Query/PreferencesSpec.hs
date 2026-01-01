@@ -236,3 +236,63 @@ spec =
           `shouldRespondWith`
           [json| {"code":"PGRST128","details":null,"hint":null,"message":"Function must return SETOF or TABLE when max-affected preference is used with handling=strict"} |]
           { matchStatus = 400 }
+
+    context "Prefer: timeout and handling=strict" $ do
+      it "should fail when timeout is less than the query time" $
+        request methodGet "/rpc/sleep?seconds=4"
+          [("Prefer", "handling=strict, timeout=3")]
+          ""
+          `shouldRespondWith`
+          [json| {"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"} |]
+          { matchStatus = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
+      it "should fail when timeout is equal to the query time" $
+        request methodGet "/rpc/sleep?seconds=3"
+          [("Prefer", "handling=strict, timeout=3")]
+          ""
+          `shouldRespondWith`
+          [json| {"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"} |]
+          { matchStatus = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
+      it "should succeed when timeout is more than the query time" $
+        request methodGet "/rpc/sleep?seconds=3"
+          [("Prefer", "handling=strict, timeout=4")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=strict, timeout=4"]
+          }
+
+    context "Prefer: timeout and handling=lenient" $
+      it "statement timeout is not applied when handling=lenient, so it should succeed in all cases" $ do
+        request methodGet "/rpc/sleep?seconds=4"
+          [("Prefer", "handling=lenient, timeout=3")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
+
+        request methodGet "/rpc/sleep?seconds=3"
+          [("Prefer", "handling=lenient, timeout=3")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
+
+        request methodGet "/rpc/sleep?seconds=3"
+          [("Prefer", "handling=lenient, timeout=4")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
