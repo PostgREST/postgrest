@@ -364,7 +364,7 @@ let
             "ARG_LEFTOVERS([command arguments])"
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
             "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
-            "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring], [0])"
+            "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring])"
             "ARG_USE_ENV([PGRST_CMD], [], [PostgREST executable to run])"
           ];
         positionalCompletion = "_command";
