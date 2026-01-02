@@ -118,7 +118,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: haskell-actions/setup@0512451d82f3ca8c147db62e30464e7c4ca63d30 # v2.9.1
+      - uses: haskell-actions/setup@7786314267139caaaf743fbdb70341b116a8d25d # v2.10.1
         with:
           # This must match the version in stack.yaml's resolver
           ghc-version: 9.6.7
@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: haskell-actions/setup@0512451d82f3ca8c147db62e30464e7c4ca63d30 # v2.9.1
+      - uses: haskell-actions/setup@7786314267139caaaf743fbdb70341b116a8d25d # v2.10.1
         with:
           ghc-version: ${{ matrix.ghc }}
       - name: Cache .cabal
