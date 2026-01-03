@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+- Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
+  + The page total is the same as the resource total in these cases, so now it only counts once to build the `Content-Range`.
 
 ### Fixed
 
