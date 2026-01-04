@@ -380,7 +380,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -848,21 +848,46 @@ resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUn
 -- and if it's a to-one relationship, it adds the right alias to the OrderRelationTerm so the generated query can succeed.
 addRelatedOrders :: ReadPlanTree -> Either Error ReadPlanTree
 addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
-  newOrder <- newRelOrder `traverse` order
-  Node rp{order=newOrder} <$> addRelatedOrders `traverse` forest
+  (newOrder, newForest) <- foldM addRelOrder ([], forest) (zip [1..] order)
+  Node rp{order=reverse newOrder} <$> addRelatedOrders `traverse` newForest
   where
-    newRelOrder cot@CoercibleOrderTerm{}                   = Right cot
-    newRelOrder cot@CoercibleOrderRelationTerm{coRelation} =
-      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> coRelation == fromMaybe relName relAlias) forest in
-      case foundRP of
-        Just ReadPlan{relName,relAlias,relAggAlias,relToParent} ->
-          let isToOne = relIsToOne <$> relToParent
-              name    = fromMaybe relName relAlias in
-          if isToOne == Just True
-            then Right $ cot{coRelation=relAggAlias}
-            else Left $ ApiRequestError $ RelatedOrderNotToOne (qiName from) name
+    addRelOrder (ords, curForest) (_idx, cot@CoercibleOrderTerm{}) =
+      Right (cot : ords, curForest)
+    addRelOrder (ords, curForest) (idx, cot@CoercibleOrderRelationTerm{coRelation, coRelTerm, coDirection, coNullOrder}) =
+      case findTarget coRelation curForest of
         Nothing ->
           Left $ ApiRequestError $ NotEmbedded coRelation
+        Just (Node ReadPlan{relName, relAlias, relAggAlias, relToParent} _) ->
+          let isToOne = relIsToOne <$> relToParent in
+          case isToOne of
+            Just True ->
+              Right (cot{coRelation=relAggAlias} : ords, curForest)
+            Just False ->
+              let
+                ordAlias = toManyOrderAlias relAggAlias idx
+                relOrder = RelOrderAgg ordAlias (CoercibleOrderTerm (unknownField (fst coRelTerm) (snd coRelTerm)) coDirection coNullOrder)
+                newForest = updateTarget coRelation (addRelOrderAgg relOrder) curForest
+                newOrder = cot{coRelation=relAggAlias, coRelTerm=(ordAlias, [])}
+              in
+              Right (newOrder : ords, newForest)
+            Nothing ->
+              Left $ ApiRequestError $ RelatedOrderNotToOne (qiName from) (fromMaybe relName relAlias)
+
+    addRelOrderAgg ro rpChild =
+      rpChild{relOrderAgg = relOrderAgg rpChild <> [ro]}
+
+    findTarget rel =
+      find (\(Node ReadPlan{relName, relAlias} _) -> rel == fromMaybe relName relAlias)
+
+    updateTarget rel f =
+      map (\node@(Node rpChild forestChild) ->
+        if rel == fromMaybe (relName rpChild) (relAlias rpChild)
+          then Node (f rpChild) forestChild
+          else node)
+
+    toManyOrderAlias :: Alias -> Integer -> FieldName
+    toManyOrderAlias relAggAlias idx =
+      relAggAlias <> "_ord_" <> show idx
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
