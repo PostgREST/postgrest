@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
 
+## [14.3] - 2026-01-03
+
 ### Fixed
 
 - Fix performance and high memory usage of relation hint calculation by @mkleczek in #4462, #4463
