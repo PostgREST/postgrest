@@ -36,12 +36,12 @@ let
         ${black}/bin/black . 2> /dev/null
       '';
 
-  # Script to check whether any uncommited changes result from postgrest-style
+  # Script to check whether any uncommitted changes result from postgrest-style
   styleCheck =
     checkedShellScript
       {
         name = "postgrest-style-check";
-        docs = "Check whether postgrest-style results in any uncommited changes.";
+        docs = "Check whether postgrest-style results in any uncommitted changes.";
         workingDir = "/";
       }
       ''

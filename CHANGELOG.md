@@ -608,7 +608,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
  - #1933, #2109, Add a minimal health check endpoint - @steve-chavez
-   + For enabling this, the `admin-server-port` config must be set explictly
+   + For enabling this, the `admin-server-port` config must be set explicitly
    + A `<host>:<admin_server_port>/live` endpoint is available for checking if postgrest is running on its port/socket. 200 OK = alive, 503 = dead.
    + A `<host>:<admin_server_port>/ready` endpoint is available for checking a correct internal state(the database connection plus the schema cache). 200 OK = ready, 503 = not ready.
  - #1988, Add the current user to the request log on stdout - @DavidLindbom, @wolfgangwalther
@@ -1091,7 +1091,7 @@ All notable changes to this project will be documented in this file. From versio
 - Customize content negotiation per route - @begriffs
 - Allow using nulls order without explicit order direction - @steve-chavez
 - Fatal error on postgres unsupported version, format supported version in error message - @steve-chavez
-- Prevent database memory cosumption by prepared statements caches - @ruslantalpa
+- Prevent database memory consumption by prepared statements caches - @ruslantalpa
 - Use specific columns in the RETURNING section - @ruslantalpa
 - Fix columns alias for RETURNING - @steve-chavez
 

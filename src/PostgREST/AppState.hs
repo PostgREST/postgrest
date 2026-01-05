@@ -262,7 +262,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
           when (Error.status (Error.PgError False err) >= HTTP.status500) $
             observer $ QueryErrorCodeHighObs err
     err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
-      -- An error on the client-side, usually indicates problems wth connection
+      -- An error on the client-side, usually indicates problems with connection
         observer $ QueryErrorCodeHighObs err
     )
 

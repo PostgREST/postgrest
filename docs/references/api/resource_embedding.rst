@@ -1244,7 +1244,7 @@ You can order the correlated arrays explicitly. For example, to order by the fil
 
 .. warning::
 
-   Aliasing spreaded columns is recommended since JSON allows duplicate keys. Example:
+   Aliasing spread columns is recommended since JSON allows duplicate keys. Example:
 
    .. code-block:: bash
 

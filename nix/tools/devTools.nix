@@ -204,7 +204,7 @@ let
                   ${git}/bin/git add .
                   ;;
                 pre-push)
-                  # Create a clean working tree without any uncomitted changes.
+                  # Create a clean working tree without any uncommitted changes.
                   ${withTools.withGit} HEAD ${style}/bin/postgrest-lint
                   ;;
               esac
@@ -231,7 +231,7 @@ let
                   ${style}/bin/postgrest-lint
                   ;;
                 pre-push)
-                  # Create a clean working tree without any uncomitted changes.
+                  # Create a clean working tree without any uncommitted changes.
                   ${withTools.withGit} HEAD ${check}
                   ;;
               esac
