@@ -64,7 +64,7 @@ data ApiRequest = ApiRequest {
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
   , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
   , iQueryParams         :: QueryParams.QueryParams
-  , iColumns             :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
+  , iColumns             :: S.Set FieldName                  -- ^ parsed columns from &columns parameter and payload
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                :: ByteString                       -- ^ Raw request path

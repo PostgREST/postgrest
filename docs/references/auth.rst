@@ -217,7 +217,7 @@ It's recommended to leave the JWT cache enabled as our load tests indicate ~20% 
 
   - If the ``jwt-secret`` is changed and the config is reloaded, the JWT cache will reset.
   - JWTs that pass :ref:`jwt_signature` are cached, regardless if they pass :ref:`jwt_claims_validation`. We do this to ensure responses stays fast under common failure cases (such as expired JWTs).
-  - You can use the :ref:`server-timing_header` to see the peformance benefit of JWT caching.
+  - You can use the :ref:`server-timing_header` to see the performance benefit of JWT caching.
 
 .. _jwt_role_extract:
 

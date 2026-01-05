@@ -639,7 +639,7 @@ However, it can work with surrogate primary keys (e.g. ``id serial primary key``
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/employees?colums=id,name,salary" \
+  curl "http://localhost:3000/employees?columns=id,name,salary" \
     -X POST -H "Content-Type: application/json" \
     -H "Prefer: resolution=merge-duplicates, missing=default" \
     -d @- << EOF

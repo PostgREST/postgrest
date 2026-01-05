@@ -15,7 +15,7 @@ Using these domains, :ref:`functions <functions>` can become handlers and `user-
 
 .. important::
 
-  - PostgREST vendor media types (``application/vnd.pgrst.plan``, ``application/vnd.pgrst.object`` and ``application/vnd.pgrst.array``) cannot be overriden.
+  - PostgREST vendor media types (``application/vnd.pgrst.plan``, ``application/vnd.pgrst.object`` and ``application/vnd.pgrst.array``) cannot be overridden.
   - Long media types like ``application/vnd.openxmlformats-officedocument.wordprocessingml.document`` cannot be expressed as domains since they surpass `PostgreSQL identifier length <https://www.postgresql.org/docs/current/limits.html#LIMITS-TABLE>`_.
     For these you can use the :ref:`any_handler`.
 
