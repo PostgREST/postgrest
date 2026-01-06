@@ -43,16 +43,16 @@ data MainQuery = MainQuery
 
 mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
 mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
-mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} authRes preReq =
+mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange=range, iPreferences=Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of
     DbCrud _ WrappedReadPlan{..} ->
       let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan in
-      genQ (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows pMedia wrHandler) (mempty, mempty, mempty)
+      genQ (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows range pMedia wrHandler) (mempty, mempty, mempty)
       (if shouldExplainCount preferCount then Just (Statements.postExplain countQuery) else Nothing)
     DbCrud _ MutateReadPlan{..} ->
       genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
     DbCrud _ CallReadPlan{..} ->
-      genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty) mempty
+      genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
     MayUseDb InspectPlan{ipSchema=tSchema} ->
       genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema) mempty
