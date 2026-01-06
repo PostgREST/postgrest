@@ -47,6 +47,137 @@ packages:
   original:
     hackage: streaming-commons-0.2.3.1
 - completed:
+    name: hs-opentelemetry-sdk
+    pantry-tree:
+      sha256: 0fb0b0c61cb211beb26cee796899ede2f79b02bd08dfd930d0eaf44e35b9b9c5
+      size: 2037
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: sdk
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.1.0.1
+  original:
+    subdir: sdk
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-api
+    pantry-tree:
+      sha256: 5a7d9216b945de2b4ae4490328e65145a047091f500ed5143ed653c66bf19d13
+      size: 4811
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: api
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.3.0.0
+  original:
+    subdir: api
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-otlp
+    pantry-tree:
+      sha256: 0c8d539041aa65c618e30253c60bfe0f9d07d2b75513770a6c7cbea36a82b14d
+      size: 3556
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: otlp
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.1.1.0
+  original:
+    subdir: otlp
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-exporter-otlp
+    pantry-tree:
+      sha256: 7fc98a86d56460051a560ddca7c108c2c99e62e384d868128724f2ca1d6702c1
+      size: 664
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: exporters/otlp
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.1.0.1
+  original:
+    subdir: exporters/otlp
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-instrumentation-wai
+    pantry-tree:
+      sha256: 5e71723064061d48f587e59a6abdf69250feec24cdaa46b4bf5b0acb730525f3
+      size: 513
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: instrumentation/wai
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.1.1.0
+  original:
+    subdir: instrumentation/wai
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-propagator-b3
+    pantry-tree:
+      sha256: 18ed492facf48b6046fbc438a9e2f2610af9036766442e144ccc74e3de4a178c
+      size: 585
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: propagators/b3
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.0.1.3
+  original:
+    subdir: propagators/b3
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-propagator-datadog
+    pantry-tree:
+      sha256: 8d13b3483afa0e8a6f54406a47e5e13cb0ee48394c4aa33ba64b019f71b2201d
+      size: 782
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: propagators/datadog
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.0.1.1
+  original:
+    subdir: propagators/datadog
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-propagator-w3c
+    pantry-tree:
+      sha256: 1fc757fb12d75f95269cc34642193e200c31d346bf0f2fc87615e2053f675285
+      size: 877
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: propagators/w3c
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.1.0.0
+  original:
+    subdir: propagators/w3c
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    name: hs-opentelemetry-instrumentation-hspec
+    pantry-tree:
+      sha256: 3c5115367cd788432fb2376be53ed646569100b2ff1b978406167cb1cba446dc
+      size: 518
+    sha256: 10a4e1213b6ff743a2d6ebe6d6ba49fc1fd09a46b291dbac6682db53fe383cbd
+    size: 633938
+    subdir: instrumentation/hspec
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+    version: 0.0.1.2
+  original:
+    subdir: instrumentation/hspec
+    url: https://github.com/iand675/hs-opentelemetry/archive/adc464b0a45e56a983fa1441be6e432b50c29e0e.tar.gz
+- completed:
+    hackage: thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+    pantry-tree:
+      sha256: 57d909a991b5e0b4c7a28121cb52ee9c2db6c09e0419b89af6c82fae52be88d4
+      size: 397
+  original:
+    hackage: thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+- completed:
+    hackage: thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+    pantry-tree:
+      sha256: 8c2c2e2e22c20bf3696ee6f30b50b3a9eeae187a22beb536441eefb0a3f9c549
+      size: 400
+  original:
+    hackage: thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+- completed:
     hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
     pantry-tree:
       sha256: 65107f0c970351b971ea1f676a5e00b61e37c298a4c83c867d937f2a774501eb

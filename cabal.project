@@ -1,2 +1,63 @@
 packages: postgrest.cabal
 tests: true
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: sdk
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: api
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: otlp
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: exporters/otlp
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: instrumentation/wai
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: instrumentation/wai
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: propagators/w3c
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: propagators/b3
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: propagators/datadog
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: adc464b0a45e56a983fa1441be6e432b50c29e0e
+  subdir: instrumentation/hspec
+
