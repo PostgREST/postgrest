@@ -163,7 +163,7 @@ observationMessage = \case
 
 
     showListenerConnError :: SQL.ConnectionError -> Text
-    showListenerConnError = showOnSingleLine '\t' . SQL.toErrorMessage
+    showListenerConnError = showOnSingleLine '\t' . SQL.toMessage
 
     showListenerException :: Either SomeException () -> Text
     showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result

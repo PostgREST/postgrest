@@ -127,7 +127,7 @@ logWithZTime loggerState txt = do
 
 logMainQ :: LoggerState -> MainQuery -> IO ()
 logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
-  let snipts  = SQL.toTemplate <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+  let snipts  = SQL.toSql <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
       logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' q in
   mapM_ logQ snipts

@@ -35,11 +35,11 @@ instance ErrorBody SQL.UsageError where
   message (SQL.SessionUsageError (SQL.DriverSessionError _)) = "Database client error. Retrying the connection."
   message (SQL.SessionUsageError (SQL.MissingTypesSessionError _)) = "Missing named types requested."
 
-  details (SQL.ConnectionUsageError e) = Just (JSON.String (SQL.toErrorMessage e))
+  details (SQL.ConnectionUsageError e) = Just (JSON.String (SQL.toMessage e))
   details SQL.AcquisitionTimeoutUsageError = Nothing
   details (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) = details serverError
   details (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) = details serverError
-  details (SQL.SessionUsageError sessionError) = Just (JSON.String (SQL.toErrorMessage sessionError))
+  details (SQL.SessionUsageError sessionError) = Just (JSON.String (SQL.toMessage sessionError))
 
   hint    (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) =
     hint serverError
