@@ -6,7 +6,7 @@ tests: true
 source-repository-package
   type: git
   location: https://github.com/nikita-volkov/hasql-dynamic-statements
-  tag: 16f4974b78041defb07717dd07b6866fa18805b1
+  tag: cef264041011bf35a4b7aa7caf1c32787f465dd2
 
 source-repository-package
   type: git

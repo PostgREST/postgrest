@@ -19,8 +19,7 @@ import           Control.Debounce
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
-import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.DynamicStatements.Snippet   as Snippet
 import qualified Hasql.Statement                   as SQL
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
@@ -127,7 +126,7 @@ logWithZTime loggerState txt = do
 
 logMainQ :: LoggerState -> MainQuery -> IO ()
 logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
-  let snipts  = SQL.toSql <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+  let snipts  = Snippet.toSql <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
       logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' q in
   mapM_ logQ snipts
