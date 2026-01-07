@@ -7,6 +7,7 @@ import           Data.Aeson.Lens
 import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
+import qualified Data.HashMap.Internal  as HM
 import qualified Data.Map.Strict        as M
 import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
@@ -261,6 +262,21 @@ testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
 
 testCfgAggregatesEnabled :: AppConfig
 testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
+
+-- | For testing different units of values of statement_timeout
+--   when testing for Prefer: timeout
+testCfgRoleSettings :: AppConfig
+testCfgRoleSettings = baseCfg {
+    configRoleSettings = HM.fromList [
+        ("postgrest_test_timeout_us", HM.fromList [("statement_timeout", "10us")]),
+        ("postgrest_test_timeout_ms", HM.fromList [("statement_timeout", "10ms")]),
+        ("postgrest_test_timeout_s", HM.fromList [("statement_timeout", "10s")]),
+        ("postgrest_test_timeout_min", HM.fromList [("statement_timeout", "1min")]),
+        ("postgrest_test_timeout_h", HM.fromList [("statement_timeout", "1h")]),
+        ("postgrest_test_timeout_d", HM.fromList [("statement_timeout", "1d")]),
+        ("postgrest_test_anonymous", HM.fromList [("statement_timeout", "0")])
+      ]
+  }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

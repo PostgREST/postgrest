@@ -271,6 +271,10 @@ Related to the HTTP request elements.
 |               |             | See :ref:`prefer_max_affected`.                             |
 | PGRST128      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst129: | 400         | ``timeout`` preference exceeds ``statement_timeout`` value  |
+|               |             | of role. See :ref:`prefer_timeout`.                         |
+| PGRST129      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 
 .. _pgrst2**:

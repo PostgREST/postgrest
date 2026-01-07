@@ -25,6 +25,7 @@ module PostgREST.Plan
   , CrudPlan(..)
   ) where
 
+import qualified Data.ByteString               as BS
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashMap.Strict.InsOrd    as HMI
 import qualified Data.List                     as L
@@ -38,6 +39,7 @@ import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
+import PostgREST.Auth.Types                  (AuthResult (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (ApiRequestError (..),
                                               Error (..),
@@ -144,29 +146,56 @@ data InfoPlan
   | RoutineInfoPlan Routine -- info about function
   | SchemaInfoPlan -- info about schema cache
 
-actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
-actionPlan act conf apiReq sCache = case act of
-  ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
+actionPlan :: Action -> AppConfig -> ApiRequest -> AuthResult -> SchemaCache -> Either Error ActionPlan
+actionPlan act conf apiReq authResult sCache = case act of
+  ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq authResult sCache
   ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
   ActRoutineInfo ident inv ->
     let crPln = callReadPlan ident conf sCache apiReq inv in
     NoDb . RoutineInfoPlan . crProc <$> crPln
   ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
 
-dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error DbActionPlan
-dbActionPlan dbAct conf apiReq sCache = case dbAct of
-  ActRelationRead identifier headersOnly ->
-    toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
-  ActRelationMut identifier mut ->
-    toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
-  ActRoutine identifier invMethod ->
-    toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
-  ActSchemaRead tSchema headersOnly ->
-    MayUseDb <$> inspectPlan apiReq headersOnly tSchema
-  where
-    toDbActPlan pl = case pMedia pl of
-      MTVndPlan{} -> DbCrud True pl
-      _           -> DbCrud False pl
+dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> AuthResult -> SchemaCache -> Either Error DbActionPlan
+dbActionPlan dbAct conf apiReq authResult sCache = do
+  failPreferTimeout (preferTimeout $ iPreferences apiReq) conf authResult
+  case dbAct of
+    ActRelationRead identifier headersOnly ->
+      toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
+    ActRelationMut identifier mut ->
+      toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
+    ActRoutine identifier invMethod ->
+      toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
+    ActSchemaRead tSchema headersOnly ->
+      MayUseDb <$> inspectPlan apiReq headersOnly tSchema
+    where
+      toDbActPlan pl = case pMedia pl of
+        MTVndPlan{} -> DbCrud True pl
+        _           -> DbCrud False pl
+
+-- | Fail when Prefer: timeout value is greater than the statement_timeout
+--   setting of the role.
+failPreferTimeout :: Maybe PreferTimeout -> AppConfig -> AuthResult -> Either Error ()
+failPreferTimeout Nothing _ _ = Right ()
+failPreferTimeout (Just (PreferTimeout t)) AppConfig{..} AuthResult{..} =
+  case roleTimeoutSecs of
+    Nothing -> Right ()
+    Just rt -> unless (t <= rt) $ Left $ ApiRequestError $ TimeoutConstraintError t (fromJust roleTimeout) authRole
+    where
+      roleTimeoutSecs = rtValueToSeconds <$> roleTimeout
+      roleTimeout = HM.lookup "statement_timeout" =<< HM.lookup authRole configRoleSettings
+      -- It is safe to use fromJust because the string being read is guaranteed
+      -- to be number after striping the unit.
+      stripUnitAndGetInt unit val = fromJust $ BS.stripSuffix unit val >>= readMaybe
+      rtValueToSeconds :: ByteString -> Int
+      rtValueToSeconds v
+        | "us"  `BS.isSuffixOf` v = stripUnitAndGetInt "us"  v `div` (1000 * 1000)
+        | "ms"  `BS.isSuffixOf` v = stripUnitAndGetInt "ms"  v `div` 1000
+        | "s"   `BS.isSuffixOf` v = stripUnitAndGetInt "s"   v
+        | "min" `BS.isSuffixOf` v = stripUnitAndGetInt "min" v * 60
+        | "h"   `BS.isSuffixOf` v = stripUnitAndGetInt "h"   v * (60 * 60)
+        | "d"   `BS.isSuffixOf` v = stripUnitAndGetInt "d"   v * (24 * 60 * 60)
+        | otherwise = maxBound -- no statement_timeout, so consider maximum int
+
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do

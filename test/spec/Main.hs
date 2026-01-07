@@ -103,31 +103,32 @@ main = do
       customSchemaCache <- loadSCache pool config
       initApp customSchemaCache () config
 
-  let withApp              = app testCfg
-      maxRowsApp           = app testMaxRowsCfg
-      disabledOpenApi      = app testDisabledOpenApiCfg
-      securityOpenApi      = app testSecurityOpenApiCfg
-      proxyApp             = app testProxyCfg
-      noAnonApp            = app testCfgNoAnon
-      noJwtSecretApp       = app testCfgNoJwtSecret
-      binaryJwtApp         = app testCfgBinaryJWT
-      audJwtApp            = app testCfgAudienceJWT
-      asymJwkApp           = app testCfgAsymJWK
-      asymJwkSetApp        = app testCfgAsymJWKSet
-      rootSpecApp          = app testCfgRootSpec
-      responseHeadersApp   = app testCfgResponseHeaders
-      disallowRollbackApp  = app testCfgDisallowRollback
-      forceRollbackApp     = app testCfgForceRollback
-      planEnabledApp       = app testPlanEnabledCfg
-      pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
-      obsApp               = app testObservabilityCfg
-      serverTiming         = app testCfgServerTiming
-      aggregatesEnabled    = app testCfgAggregatesEnabled
+  let withApp                  = app testCfg
+      maxRowsApp               = app testMaxRowsCfg
+      disabledOpenApi          = app testDisabledOpenApiCfg
+      securityOpenApi          = app testSecurityOpenApiCfg
+      proxyApp                 = app testProxyCfg
+      noAnonApp                = app testCfgNoAnon
+      noJwtSecretApp           = app testCfgNoJwtSecret
+      binaryJwtApp             = app testCfgBinaryJWT
+      audJwtApp                = app testCfgAudienceJWT
+      asymJwkApp               = app testCfgAsymJWK
+      asymJwkSetApp            = app testCfgAsymJWKSet
+      rootSpecApp              = app testCfgRootSpec
+      responseHeadersApp       = app testCfgResponseHeaders
+      disallowRollbackApp      = app testCfgDisallowRollback
+      forceRollbackApp         = app testCfgForceRollback
+      planEnabledApp           = app testPlanEnabledCfg
+      pgSafeUpdateApp          = app testPgSafeUpdateEnabledCfg
+      obsApp                   = app testObservabilityCfg
+      serverTiming             = app testCfgServerTiming
+      aggregatesEnabled        = app testCfgAggregatesEnabled
+      roleStmntTimeoutSettings = app testCfgRoleSettings
 
-      extraSearchPathApp   = appDbs testCfgExtraSearchPath
-      unicodeApp           = appDbs testUnicodeCfg
-      multipleSchemaApp    = appDbs testMultipleSchemaCfg
-      ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
+      extraSearchPathApp       = appDbs testCfgExtraSearchPath
+      unicodeApp               = appDbs testUnicodeCfg
+      multipleSchemaApp        = appDbs testMultipleSchemaCfg
+      ignorePrivOpenApi        = appDbs testIgnorePrivOpenApiCfg
 
 
   let analyze :: IO ()
@@ -278,6 +279,9 @@ main = do
     before (initApp baseSchemaCache metricsState testCfgJwtCache) $
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
+    -- Test Prefer: timeout with per-role statement_timeouts
+    before roleStmntTimeoutSettings $
+      describe "Feature.Query.PreferencesSpec.timeoutSpec" Feature.Query.PreferencesSpec.timeoutSpec
   where
     loadSCache pool conf =
       either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)

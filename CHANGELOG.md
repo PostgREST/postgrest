@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+- Add `Prefer: timeout` header for per-request `statement_timeout` by @taimoorzaeem in #4381
 
 ## [14.3] - 2026-01-03
 

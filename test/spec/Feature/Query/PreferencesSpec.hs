@@ -236,3 +236,171 @@ spec =
           `shouldRespondWith`
           [json| {"code":"PGRST128","details":null,"hint":null,"message":"Function must return SETOF or TABLE when max-affected preference is used with handling=strict"} |]
           { matchStatus = 400 }
+
+-- | Test Prefer: timeout, we created a separate function for this because
+--   it used configRoleSettings with statement_timeout set to different values.
+timeoutSpec :: SpecWith ((), Application)
+timeoutSpec =
+  describe "Prefer: timeout" $ do
+    context "Prefer: timeout and handling=strict" $ do
+      it "should fail when timeout is less than the query time" $
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=strict, timeout=1")]
+          ""
+          `shouldRespondWith`
+          [json| {"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"} |]
+          { matchStatus = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
+      it "should fail when timeout is equal to the query time" $
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=strict, timeout=2")]
+          ""
+          `shouldRespondWith`
+          [json| {"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"} |]
+          { matchStatus = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+
+      it "should succeed when timeout is more than the query time" $
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=strict, timeout=3")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=strict, timeout=3"]
+          }
+
+      context "should fail when timeout is more than role's statement_timeout" $ do
+        it "when role timeout is in micro seconds" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_us" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=15")] -- role timeout is 10us, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 15s, statement_timeout of role 'postgrest_test_timeout_us': 10us",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+        it "when role timeout is in milli seconds" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_ms" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=15")] -- role timeout is 10ms, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 15s, statement_timeout of role 'postgrest_test_timeout_ms': 10ms",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+        it "when role timeout is in seconds" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_s" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=15")] -- role timeout is 10s, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 15s, statement_timeout of role 'postgrest_test_timeout_s': 10s",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+        it "when role timeout is in minutes" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_min" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=65")] -- role timeout is 1min, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 65s, statement_timeout of role 'postgrest_test_timeout_min': 1min",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+        it "when role timeout is in hours" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_h" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=3605")] -- role timeout is 1h, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 3605s, statement_timeout of role 'postgrest_test_timeout_h': 1h",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+        it "when role timeout is in days" $ do
+          let roleClaim = [json| { "role": "postgrest_test_timeout_d" } |]
+              auth = authHeaderJWT $ generateJWT roleClaim
+          request methodGet "/rpc/sleep?seconds=2"
+            [auth, ("Prefer", "handling=strict, timeout=86405")] -- role timeout is 1d, so this should fail
+            ""
+            `shouldRespondWith`
+            [json| {
+              "code":"PGRST129",
+              "message":"Timeout preference value cannot exceed statement_timeout of role",
+              "details":"Timeout preferred: 86405s, statement_timeout of role 'postgrest_test_timeout_d': 1d",
+              "hint":null
+            } |]
+            { matchStatus = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
+
+    context "Prefer: timeout and handling=lenient" $
+      it "statement timeout is not applied when handling=lenient, so it should succeed in all cases" $ do
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=lenient, timeout=1")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
+
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=lenient, timeout=2")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
+
+        request methodGet "/rpc/sleep?seconds=2"
+          [("Prefer", "handling=lenient, timeout=3")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          }
