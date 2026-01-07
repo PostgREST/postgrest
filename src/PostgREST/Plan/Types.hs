@@ -47,7 +47,7 @@ data CoercibleField = CoercibleField
   , cfBaseType   :: Text                  -- ^ The base type of the field in case of domains, or just the type otherwise (without modifiers in case of pg_catalog types)
   , cfTransform  :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault    :: Maybe Text
-  , cfFullRow    :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spreaded resources.
+  , cfFullRow    :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spread resources.
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField

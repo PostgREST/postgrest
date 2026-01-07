@@ -163,7 +163,7 @@ Another option is to define the function with the :code:`SECURITY DEFINER` optio
 
 .. code-block:: postgres
 
-  -- login as a user wich has privileges on the private schemas
+  -- login as a user which has privileges on the private schemas
 
   -- create a sample function
   create or replace function login(email text, pass text, out token text) as $$

@@ -931,7 +931,7 @@ allViewsKeyDependencies =
             -- This leads to a smaller json result as well.
             -- Removal stops at `,` for used fields (see above) and `}` for the end of the current node.
             -- Nesting can't be parsed correctly with a regex, so we stop at `{` as well and
-            -- add an empty key for the followig node.
+            -- add an empty key for the following node.
             ), ' :[^}{,]+'       , ',"":'              , 'g'
             -- For performance, the regex also added those empty keys when hitting a `,` or `}`.
             -- Those are removed next.

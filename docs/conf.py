@@ -48,7 +48,7 @@ source_suffix = ".rst"
 # The master toctree document.
 master_doc = "index"
 
-# This is overriden by readthedocs with the version tag anyway
+# This is overridden by readthedocs with the version tag anyway
 version = "devel"
 # To avoid repetition in <title> we set this to an empty string.
 release = ""

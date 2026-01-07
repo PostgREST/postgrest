@@ -68,7 +68,7 @@ let
           bump devel
 
           # The order of operations is important here:
-          # - bump devel is run and $A is upated to the new version
+          # - bump devel is run and $A is updated to the new version
           # - the branch is created with the new A, but the commit before the devel bump
           # - the devel bump is committed
           git branch "v$A"

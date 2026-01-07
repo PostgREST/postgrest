@@ -43,7 +43,7 @@ let
         }
 
         if [ "$_arg_language" == "" ]; then
-          # clean previous build, otherwise some errors might be supressed
+          # clean previous build, otherwise some errors might be suppressed
           rm -rf "../.docs-build/html/default"
 
           if [ -d languages ]; then
@@ -54,7 +54,7 @@ let
 
           build html "../.docs-build/html/default"
         else
-          # clean previous build, otherwise some errors might be supressed
+          # clean previous build, otherwise some errors might be suppressed
           rm -rf "../.docs-build/html/$_arg_language"
 
           # update and build specific locale, can be used to create new locale

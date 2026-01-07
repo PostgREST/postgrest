@@ -264,7 +264,7 @@ db-channel-enabled
 
   When this is set to :code:`true`, the notification channel specified in :ref:`db-channel` is enabled.
 
-  You should set this to ``false`` when using PostgresSQL behind an external connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <external_connection_poolers>` for more information.
+  You should set this to ``false`` when using PostgreSQL behind an external connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <external_connection_poolers>` for more information.
 
 .. _db-config:
 
@@ -479,7 +479,7 @@ db-prepared-statements
 
   When disabled, the generated queries will be parameterized (invulnerable to SQL injection) but they will not be prepared (cached in the database session). Not using prepared statements will noticeably decrease performance, so it's recommended to always have this setting enabled.
 
-  You should only set this to ``false`` when using PostgresSQL behind an external connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <external_connection_poolers>` for more information.
+  You should only set this to ``false`` when using PostgreSQL behind an external connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <external_connection_poolers>` for more information.
 
 .. _db-root-spec:
 
