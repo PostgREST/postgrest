@@ -95,15 +95,29 @@ getJoins (Node ReadPlan{relSelect} forest) =
       ) relSelect
 
 getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
-getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
+getJoin fld node@(Node ReadPlan{relJoinType, relSpread, relOrderAgg, order} _) =
   let
     correlatedSubquery sub al cond =
       " " <> (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
-    selectSubqAgg = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
+    orderAggSelects = pgFmtRelOrderAgg (rsAggAlias fld) <$> relOrderAgg
+    jsonAggOrder =
+      if all isDirectOrderTerm order
+        then orderF (QualifiedIdentifier "" (rsAggAlias fld)) order
+        else mempty
+    jsonAgg =
+      "json_agg(" <> aggAlias <>
+      (if null order then mempty else " " <> jsonAggOrder) <>
+      ")::jsonb AS " <> aggAlias
+    selectSubqAgg =
+      "SELECT " <> jsonAgg <>
+      (if null orderAggSelects then mempty else ", " <> intercalateSnippet ", " orderAggSelects)
     fromSubqAgg = " FROM (" <> subquery <> " ) AS " <> aggAlias
     joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
+    isDirectOrderTerm ot = case ot of
+      CoercibleOrderTerm{} -> True
+      _ -> False
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
@@ -111,12 +125,23 @@ getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
       Spread{rsSpreadSel, rsAggAlias} ->
         case relSpread of
           Just (ToManySpread _ sprOrder) ->
-            let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
+            let selSpread = selectSubqAgg <>
+                  (if null rsSpreadSel then mempty else ", ") <>
+                  intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
             in correlatedSubquery (selSpread <> fromSubqAgg) aggAlias joinCondition
           _ ->
             correlatedSubquery subquery aggAlias "TRUE"
       JsonEmbed{rsEmbedMode = JsonArray} ->
         correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
+
+pgFmtRelOrderAgg :: Alias -> RelOrderAgg -> SQL.Snippet
+pgFmtRelOrderAgg aggAlias RelOrderAgg{roaAlias, roaOrderTerm} =
+  "array_agg(" <> fmtField <> " " <> fmtOrder <> ") AS " <> pgFmtIdent roaAlias
+  where
+    fmtField = case roaOrderTerm of
+      CoercibleOrderTerm{coField} -> pgFmtField (QualifiedIdentifier "" aggAlias) coField
+      CoercibleOrderRelationTerm{} -> pgFmtIdent roaAlias
+    fmtOrder = orderF (QualifiedIdentifier "" aggAlias) [roaOrderTerm]
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
