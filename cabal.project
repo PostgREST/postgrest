@@ -2,8 +2,3 @@ with-compiler: ghc-9.4.8
 
 packages: postgrest.cabal
 tests: true
-
-source-repository-package
-  type: git
-  location: https://github.com/nikita-volkov/hasql-notifications
-  tag: 6a9d08c948b6dde12304e1582dd623d8cad1e05d
