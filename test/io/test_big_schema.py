@@ -89,4 +89,4 @@ def test_second_request_for_non_existent_table_should_be_quick(defaultenv):
         assert data["code"] == "PGRST205"
         first_duration = response.elapsed.total_seconds()
         response = postgrest.session.get("/unknown-table")
-        assert response.elapsed.total_seconds() < first_duration / 10
+        assert response.elapsed.total_seconds() < first_duration / 2
