@@ -16,14 +16,11 @@ module PostgREST.Auth.Jwt
   , parseClaims) where
 
 import qualified Data.Aeson                 as JSON
-import qualified Data.Aeson.Key             as K
 import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Internal   as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Scientific            as Sci
-import qualified Data.Text                  as T
-import qualified Data.Vector                as V
 import qualified Jose.Jwk                   as JWT
 import qualified Jose.Jwt                   as JWT
 
@@ -33,12 +30,12 @@ import Data.Text               ()
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
-import PostgREST.Auth.Types (AuthResult (..))
-import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
-                             JSPathExp (..), audMatchesCfg)
-import PostgREST.Error      (Error (..),
-                             JwtClaimsError (AudClaimNotStringOrArray, ExpClaimNotNumber, IatClaimNotNumber, JWTExpired, JWTIssuedAtFuture, JWTNotInAudience, JWTNotYetValid, NbfClaimNotNumber, ParsingClaimsFailed),
-                             JwtDecodeError (..), JwtError (..))
+import PostgREST.Auth.Types    (AuthResult (..))
+import PostgREST.Config        (AppConfig (..), audMatchesCfg)
+import PostgREST.Config.JSPath (walkJSPath)
+import PostgREST.Error         (Error (..),
+                                JwtClaimsError (AudClaimNotStringOrArray, ExpClaimNotNumber, IatClaimNotNumber, JWTExpired, JWTIssuedAtFuture, JWTNotInAudience, JWTNotYetValid, NbfClaimNotNumber, ParsingClaimsFailed),
+                                JwtDecodeError (..), JwtError (..))
 
 import Data.Aeson       ((.:?))
 import Data.Aeson.Types (parseMaybe)
@@ -128,24 +125,6 @@ parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims 
            , authRole = role
            }
   where
-    walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
-    walkJSPath x                      []                = x
-    walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
-    walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EqualsCond txt)] = findFirstMatch (==) txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (NotEqualsCond txt)] = findFirstMatch (/=) txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (StartsWithCond txt)] = findFirstMatch T.isPrefixOf txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EndsWithCond txt)] = findFirstMatch T.isSuffixOf txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (ContainsCond txt)] = findFirstMatch T.isInfixOf txt ar
-    walkJSPath _                      _                 = Nothing
-
-    findFirstMatch matchWith pattern = foldr checkMatch Nothing
-      where
-        checkMatch (JSON.String txt) acc
-            | pattern `matchWith` txt = Just $ JSON.String txt
-            | otherwise = acc
-        checkMatch _ acc = acc
-
     unquoted :: JSON.Value -> BS.ByteString
     unquoted (JSON.String t) = encodeUtf8 t
     unquoted v               = LBS.toStrict $ JSON.encode v

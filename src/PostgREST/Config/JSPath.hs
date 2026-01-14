@@ -1,12 +1,19 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
+{-# LANGUAGE LambdaCase #-}
 module PostgREST.Config.JSPath
   ( JSPath
   , JSPathExp(..)
   , FilterExp(..)
   , dumpJSPath
   , pRoleClaimKey
+  , walkJSPath
   ) where
 
+import qualified Data.Aeson                    as JSON
+import qualified Data.Aeson.Key                as K
+import qualified Data.Aeson.KeyMap             as KM
+import qualified Data.Text                     as T
+import qualified Data.Vector                   as V
 import qualified Text.ParserCombinators.Parsec as P
 
 import Data.Either.Combinators       (mapLeft)
@@ -47,6 +54,22 @@ dumpJSPath (JSPFilter cond) = "[?(@" <> expr <> ")]"
         EndsWithCond text   -> " ==^ " <> show text
         ContainsCond text   -> " *== " <> show text
 
+-- | Evaluate JSPath on a JSON
+walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
+walkJSPath x                      []                = x
+walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
+walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
+walkJSPath (Just (JSON.Array ar)) [JSPFilter jspFilter] = case jspFilter of
+    EqualsCond txt     -> findFirstMatch (==) txt ar
+    NotEqualsCond txt  -> findFirstMatch (/=) txt ar
+    StartsWithCond txt -> findFirstMatch T.isPrefixOf txt ar
+    EndsWithCond txt   -> findFirstMatch T.isSuffixOf txt ar
+    ContainsCond txt   -> findFirstMatch T.isInfixOf txt ar
+  where
+    findFirstMatch matchWith pattern = find (\case
+      JSON.String txt -> pattern `matchWith` txt
+      _               -> False)
+walkJSPath _                      _                 = Nothing
 
 -- Used for the config value "role-claim-key"
 pRoleClaimKey :: Text -> Either Text JSPath
