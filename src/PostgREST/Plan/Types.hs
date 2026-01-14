@@ -48,10 +48,11 @@ data CoercibleField = CoercibleField
   , cfTransform  :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault    :: Maybe Text
   , cfFullRow    :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spread resources.
+  , cfSelfPkCols :: Maybe [FieldName]     -- ^ If the field is a self link, this holds the primary key columns of the current table needed for self links.
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
-unknownField name path = CoercibleField name path False Nothing "" "" Nothing Nothing False
+unknownField name path = CoercibleField name path False Nothing "" "" Nothing Nothing False Nothing
 
 -- | Like an API request LogicTree, but with coercible field information.
 data CoercibleLogicTree

@@ -99,6 +99,7 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
+  | SelfRequiresPrimaryKey QualifiedIdentifier
   deriving Show
 
 data QPError = QPError Text Text
@@ -142,6 +143,7 @@ instance PgrstError ApiRequestError where
   status InvalidResourcePath         = HTTP.status404
   status OpenAPIDisabled             = HTTP.status404
   status MaxAffectedRpcViolation     = HTTP.status400
+  status SelfRequiresPrimaryKey{}    = HTTP.status400
 
   headers _ = mempty
 
@@ -189,6 +191,7 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
   code MaxAffectedRpcViolation     = "PGRST128"
+  code SelfRequiresPrimaryKey{}    = "PGRST129"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -215,6 +218,7 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
   message MaxAffectedRpcViolation        = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+  message (SelfRequiresPrimaryKey qi)    = "The _self pseudo-column requires a primary key on the target table: " <> qiName qi
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
@@ -235,6 +239,7 @@ instance ErrorBody ApiRequestError where
 
   -- HINT: Maybe JSON.Value
   hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
+  hint (SelfRequiresPrimaryKey _) = Just $ JSON.String "Add a primary key to the target table or remove '_self' from the ?select parameter."
   hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
   hint (UnacceptableSchema _ schemas) = Just $ JSON.String $ "Only the following schemas are exposed: "  <> T.intercalate ", " schemas
 

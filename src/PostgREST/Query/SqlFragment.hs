@@ -272,8 +272,24 @@ pgFmtCoerceNamed CoercibleField{cfName=fn, cfTransform=(Just formatterProc)} = p
 pgFmtCoerceNamed CoercibleField{cfName=fn} = pgFmtIdent fn
 
 pgFmtSelectItem :: QualifiedIdentifier -> CoercibleSelectField -> SQL.Snippet
-pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
-  pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
+pgFmtSelectItem table CoercibleSelectField{csField=fld@CoercibleField{cfName, cfSelfPkCols}, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
+  case cfSelfPkCols of
+    Just pkCols ->
+      let -- Build an array of "key=eq.value" parts for non-null PK columns using direct column refs.
+          buildPart col =
+            SQL.sql (encodeUtf8 $ pgFmtLit (col <> "=eq.")) <> " || (" <> (fromQi table <> "." <> pgFmtIdent col) <> "::text)"
+          partsArr = "array_remove(ARRAY[" <> intercalateSnippet ", " (buildPart <$> pkCols) <> "], NULL)"
+          -- Use the base table name for the path (strip trailing _N aliases like clients_1 -> clients)
+          tblName = qiName table
+          parts = T.splitOn "_" tblName
+          baseName = case reverse parts of
+            (s:rest) | T.all isDigit s && not (null rest) -> T.intercalate "_" (reverse rest)
+            _ -> tblName
+          urlExpr = "CASE WHEN array_length(" <> partsArr <> ",1) = 0 THEN NULL ELSE " <>
+              SQL.sql (encodeUtf8 $ pgFmtLit ("/" <> baseName)) <>
+              " || '?' || array_to_string(" <> partsArr <> ", '&') END"
+      in urlExpr <> " AS " <> pgFmtIdent (fromMaybe cfName alias)
+    _ -> pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
 
 pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
 pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
