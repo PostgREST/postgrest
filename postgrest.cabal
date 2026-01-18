@@ -6,7 +6,7 @@ description:        Reads the schema of a PostgreSQL database and creates RESTfu
                     permits.
 license:            MIT
 license-file:       LICENSE
-author:             Joe Nelson, Adam Baker, Steve Chavez
+author:             Joe Nelson, Adam Baker, Steve Chavez, Wolfgang Walther
 maintainer:         Steve Chavez <stevechavezast@gmail.com>
 category:           Executable, PostgreSQL, Network APIs
 homepage:           https://postgrest.org

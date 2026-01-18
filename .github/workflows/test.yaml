@@ -48,7 +48,7 @@ jobs:
 
       - run: postgrest-cabal-update
 
-      - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
+      - name: Run coverage (IO tests and Spec tests against latest supported PostgreSQL)
         run: postgrest-coverage
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2

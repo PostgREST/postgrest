@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+- Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 
 ## [14.3] - 2026-01-03
 
