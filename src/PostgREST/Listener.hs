@@ -10,7 +10,8 @@ import qualified Hasql.Connection      as SQL
 import qualified Hasql.Notifications   as SQL
 import           PostgREST.AppState    (AppState, getConfig)
 import           PostgREST.Config      (AppConfig (..))
-import           PostgREST.Observation (Observation (..))
+import           PostgREST.Observation (Observation (..),
+                                        isDbListenerBug)
 import           PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.AppState as AppState
@@ -36,6 +37,8 @@ retryingListen appState = do
     onError err = do
       AppState.putIsListenerOn appState False
       observer $ DBListenFail dbChannel (Right err)
+      when (isDbListenerBug err) $
+        observer DBListenBugHint
       unless configDbPoolAutomaticRecovery $
         killThread mainThreadId
 
