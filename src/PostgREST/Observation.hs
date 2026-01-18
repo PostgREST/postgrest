@@ -47,7 +47,7 @@ data Observation
   | DBListenStart Text
   | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
   | DBListenRetry Int
-  | DBListenBugHint
+  | DBListenBugHint -- https://github.com/PostgREST/postgrest/issues/3147
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
   | QueryObs MainQuery Status
