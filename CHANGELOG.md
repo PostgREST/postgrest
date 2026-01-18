@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Added
+
+- Log a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
+
 ## [14.7] - 2026-03-20
 
 ### Fixed
