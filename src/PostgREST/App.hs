@@ -149,7 +149,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
+  pgVer <- lift $ AppState.getPgVersion appState
+  let mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 

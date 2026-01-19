@@ -43,6 +43,7 @@ import NeatInterpolation          (trimming)
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               toIsolationLevel)
+import PostgREST.Config.PgVersion            (PgVersion, pgVersion170)
 import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
@@ -149,13 +150,13 @@ type SqlQuery = ByteString
 maxDbTablesForFuzzySearch :: Int
 maxDbTablesForFuzzySearch = 500
 
-querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
-querySchemaCache conf@AppConfig{..} = do
+querySchemaCache :: PgVersion -> AppConfig -> SQL.Transaction SchemaCache
+querySchemaCache pgVer conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- SQL.statement conf $ allTables prepared
+  tabs    <- SQL.statement conf $ allTables pgVer prepared
   keyDeps <- SQL.statement conf $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
-  funcs   <- SQL.statement conf $ allFunctions prepared
+  funcs   <- SQL.statement conf $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement conf $ dataRepresentations prepared
   mHdlers <- SQL.statement conf $ mediaHandlers prepared
@@ -369,47 +370,61 @@ dataRepresentations = SQL.Statement sql mempty decodeRepresentations
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
-allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
+allFunctions :: PgVersion -> Bool -> SQL.Statement AppConfig RoutineMap
+allFunctions pgVer = SQL.Statement (funcsSqlQuery pgVer) params decodeFuncs
   where
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbHoistedTxSettings >$< arrayParam HE.text)
 
-baseTypesCte :: Text
-baseTypesCte = [trimming|
-  -- Recursively get the base types of domains
-  base_types AS (
-    WITH RECURSIVE
-    recurse AS (
-      SELECT
-        oid,
-        typbasetype,
-        typnamespace AS base_namespace,
-        COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
-      FROM pg_type
-      UNION
-      SELECT
-        t.oid,
-        b.typbasetype,
-        b.typnamespace AS base_namespace,
-        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
-      FROM recurse t
-      JOIN pg_type b ON t.typbasetype = b.oid
-    )
-    SELECT
-      oid,
-      base_namespace,
-      base_type
-    FROM recurse
-    WHERE typbasetype = 0
-  )
-|]
+baseTypesCte :: PgVersion -> Text
+baseTypesCte pgVer
+  | pgVer >= pgVersion170 = [trimming|
+      -- Get base types using pg_basetype() (PG 17+)
+      base_types AS (
+        SELECT
+          t.oid,
+          bt.typnamespace AS base_namespace,
+          bt.oid AS base_type
+        FROM pg_type t
+        JOIN pg_type bt ON bt.oid = pg_basetype(t.oid)
+      )
+    |]
+  | otherwise = [trimming|
+      -- Recursively get the base types of domains (PG < 17)
+      base_types AS (
+        WITH RECURSIVE
+        recurse AS (
+          SELECT
+            oid,
+            typbasetype,
+            typnamespace AS base_namespace,
+            COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
+          FROM pg_type
+          UNION
+          SELECT
+            t.oid,
+            b.typbasetype,
+            b.typnamespace AS base_namespace,
+            COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
+          FROM recurse t
+          JOIN pg_type b ON t.typbasetype = b.oid
+        )
+        SELECT
+          oid,
+          base_namespace,
+          base_type
+        FROM recurse
+        WHERE typbasetype = 0
+      )
+    |]
 
-funcsSqlQuery :: SqlQuery
-funcsSqlQuery = encodeUtf8 [trimming|
+funcsSqlQuery :: PgVersion -> SqlQuery
+funcsSqlQuery pgVer =
+  let baseCte = baseTypesCte pgVer
+  in encodeUtf8 [trimming|
   WITH
-  $baseTypesCte,
+  $baseCte,
   arguments AS (
     SELECT
       oid,
@@ -582,22 +597,23 @@ addViewPrimaryKeys tabs keyDeps =
     takeFirstPK = mapMaybe (head . snd)
     indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
-allTables :: Bool -> SQL.Statement AppConfig TablesMap
-allTables = SQL.Statement tablesSqlQuery params decodeTables
+allTables :: PgVersion -> Bool -> SQL.Statement AppConfig TablesMap
+allTables pgVer = SQL.Statement (tablesSqlQuery pgVer) params decodeTables
   where
     params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
 
 -- | Gets tables with their PK cols
-tablesSqlQuery :: SqlQuery
-tablesSqlQuery =
+tablesSqlQuery :: PgVersion -> SqlQuery
+tablesSqlQuery pgVer =
   -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
   -- we cannot use those directly as they include the following privilege filter:
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
   -- on the "columns" CTE, left joining on pg_depend and pg_class is used to obtain the sequence name as a column default in case there are GENERATED .. AS IDENTITY,
   -- generated columns are only available from pg >= 10 but the query is agnostic to versions. dep.deptype = 'i' is done because there are other 'a' dependencies on PKs
-  encodeUtf8 [trimming|
+  let baseCte = baseTypesCte pgVer
+  in encodeUtf8 [trimming|
   WITH
-  $baseTypesCte,
+  $baseCte,
   columns AS (
       SELECT
           c.oid AS relid,

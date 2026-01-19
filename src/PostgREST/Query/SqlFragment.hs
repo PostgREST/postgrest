@@ -74,6 +74,7 @@ import PostgREST.ApiRequest.Types        (AggregateFunction (..),
                                           OrderNulls (..),
                                           QuantOperator (..),
                                           SimpleOperator (..))
+import PostgREST.Config.PgVersion        (PgVersion, pgVersion170)
 import PostgREST.MediaType               (MTVndPlanFormat (..),
                                           MTVndPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
@@ -614,39 +615,60 @@ accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
   where
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
-accessibleFuncs :: Text -> SQL.Snippet
-accessibleFuncs schema = baseFuncSqlQuery <> "AND p.pronamespace = " <> encodedSchema <> "::regnamespace"
+accessibleFuncs :: PgVersion -> Text -> SQL.Snippet
+accessibleFuncs pgVer schema = baseFuncSqlQuery pgVer <> "AND p.pronamespace = " <> encodedSchema <> "::regnamespace"
   where
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
-baseFuncSqlQuery :: SQL.Snippet
-baseFuncSqlQuery = SQL.sql $ encodeUtf8 [trimming|
+baseTypesCte :: PgVersion -> Text
+baseTypesCte pgVer
+  | pgVer >= pgVersion170 = [trimming|
+      -- Get base types using pg_basetype() (PG 17+)
+      base_types AS (
+        SELECT
+          t.oid,
+          bt.typnamespace AS base_namespace,
+          bt.oid AS base_type
+        FROM pg_type t
+        JOIN pg_type bt ON bt.oid = pg_basetype(t.oid)
+      )
+    |]
+  | otherwise = [trimming|
+      -- Recursively get the base types of domains (PG < 17)
+      base_types AS (
+        WITH RECURSIVE
+        recurse AS (
+          SELECT
+            oid,
+            typbasetype,
+            typnamespace AS base_namespace,
+            COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
+          FROM pg_type
+          UNION
+          SELECT
+            t.oid,
+            b.typbasetype,
+            b.typnamespace AS base_namespace,
+            COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
+          FROM recurse t
+          JOIN pg_type b ON t.typbasetype = b.oid
+        )
+        SELECT
+          oid,
+          base_namespace,
+          base_type
+        FROM recurse
+        WHERE typbasetype = 0
+      )
+    |]
+
+-- | SQL query to get accessible functions for OpenAPI.
+baseFuncSqlQuery :: PgVersion -> SQL.Snippet
+baseFuncSqlQuery pgVer =
+  let baseCte = baseTypesCte pgVer
+  in SQL.sql $ encodeUtf8 [trimming|
   WITH
-  base_types AS (
-    WITH RECURSIVE
-    recurse AS (
-      SELECT
-        oid,
-        typbasetype,
-        typnamespace AS base_namespace,
-        COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
-      FROM pg_type
-      UNION
-      SELECT
-        t.oid,
-        b.typbasetype,
-        b.typnamespace AS base_namespace,
-        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
-      FROM recurse t
-      JOIN pg_type b ON t.typbasetype = b.oid
-    )
-    SELECT
-      oid,
-      base_namespace,
-      base_type
-    FROM recurse
-    WHERE typbasetype = 0
-  ),
+  $baseCte,
   arguments AS (
     SELECT
       oid,

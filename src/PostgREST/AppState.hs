@@ -401,9 +401,10 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      pgVer <- getPgVersion appState
       (resultTime, result) <-
         let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending

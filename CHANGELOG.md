@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Added
 
+- Use `pg_basetype()` for domain type resolution on PostgreSQL 17+ by @joelonsql in #XXXX
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
 - Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 
