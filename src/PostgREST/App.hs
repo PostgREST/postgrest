@@ -60,10 +60,11 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.List             as L
-import qualified Network.HTTP.Types    as HTTP
-import           Protolude             hiding (Handler)
+import qualified Data.ByteString.Char8     as BS
+import qualified Data.List                 as L
+import qualified Network.HTTP.Types        as HTTP
+import qualified Network.HTTP.Types.Header as HTTP (hVary)
+import           Protolude                 hiding (Handler)
 
 type Handler = ExceptT Error
 
@@ -201,7 +202,17 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
 
   where
     toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled])) bod
+    toWaiResponse timing (Response.PgrstResponse st hdrs bod) =
+      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
+
+    serverTimingHeaders :: ServerTiming -> [HTTP.Header]
+    serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
+
+    varyHeader :: HTTP.Header
+    varyHeader = (HTTP.hVary, "Accept-Encoding, Accept, Prefer, Range")
+
+    varyHeaderPresent :: [HTTP.Header] -> Bool
+    varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
 
     withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
     withTiming f = if configServerTimingEnabled
