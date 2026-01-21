@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
 - Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
+- Add `--query-to-sql` CLI flag to translate a PostgREST URL query to SQL without running the server
 
 ## [14.3] - 2026-01-03
 

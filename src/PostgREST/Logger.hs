@@ -9,6 +9,7 @@ module PostgREST.Logger
   , observationLogger
   , init
   , LoggerState
+  , renderSnippet
   ) where
 
 import           Control.AutoUpdate                (defaultUpdateSettings,

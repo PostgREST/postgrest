@@ -7,8 +7,9 @@ PostgREST provides a CLI with the options listed below:
 
 .. code:: text
 
-  Usage: postgrest [-v|--version] [-e|--example] [--dump-config | --dump-schema | --ready]
-                 [FILENAME]
+  Usage: postgrest [-v|--version] [-e|--example]
+                   [--dump-config | --dump-schema | --query-to-sql QUERY | --ready]
+                   [FILENAME]
 
     PostgREST / create a REST API to an existing Postgres
     database
@@ -20,6 +21,8 @@ PostgREST provides a CLI with the options listed below:
     --dump-config            Dump loaded configuration and exit
     --dump-schema            Dump loaded schema as JSON and exit (for debugging,
                              output structure is unstable)
+    --query-to-sql QUERY     Translate a PostgREST URL query to SQL and exit
+                             (e.g., "/items?select=id&id=gt.5")
     --ready                  Checks the health of PostgREST by doing a request on
                              the admin server /ready endpoint
     FILENAME                 Path to configuration file
@@ -73,6 +76,22 @@ Dump Schema
   $ postgrest --dump-schema
 
 Dumps the schema cache in JSON format.
+
+Query to SQL
+------------
+
+.. code:: bash
+
+  $ postgrest --query-to-sql "/items?select=id&id=gt.5"
+
+Translates a PostgREST URL query to SQL and prints the resulting query. This is useful for debugging and understanding how PostgREST translates API requests to SQL.
+
+The command connects to the database to load the schema cache, then translates the provided query without executing it.
+
+.. code-block:: bash
+
+  $ postgrest --query-to-sql "/items?select=id,name&id=gt.5"
+  WITH pgrst_source AS ( SELECT "public"."items"."id", "public"."items"."name" FROM "public"."items" WHERE "public"."items"."id" > $1 ) ...
 
 Ready Flag
 ----------

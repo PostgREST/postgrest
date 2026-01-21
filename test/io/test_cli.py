@@ -405,3 +405,36 @@ def test_cli_ready_flag_fail_when_no_admin_server(defaultenv):
             "ERROR: Admin server is not running. Please check admin-server-port config."
             in output
         )
+
+
+def test_query_to_sql_simple_select(baseenv):
+    "Test basic table select query translation."
+    output = cli(["--query-to-sql", "/cats?select=id"], env=baseenv)
+    assert "SELECT" in output
+    assert '"public"."cats"' in output
+
+
+def test_query_to_sql_with_filter(baseenv):
+    "Test query with filter operators."
+    output = cli(["--query-to-sql", "/cats?select=id,name&id=neq.null"], env=baseenv)
+    assert "SELECT" in output
+    assert '"public"."cats"."id"' in output
+
+
+def test_query_to_sql_rpc(baseenv):
+    "Test RPC function call translation."
+    output = cli(["--query-to-sql", "/rpc/default_isolation_level"], env=baseenv)
+    assert "SELECT" in output
+    assert '"public"."default_isolation_level"' in output
+
+
+def test_query_to_sql_invalid_path(baseenv):
+    "Test error on invalid resource path (too many segments)."
+    output = cli(["--query-to-sql", "/invalid/path/too/deep"], env=baseenv, expect_error=True)
+    assert "Error" in output
+
+
+def test_query_to_sql_table_not_found(baseenv):
+    "Test error when table doesn't exist."
+    output = cli(["--query-to-sql", "/nonexistent_table"], env=baseenv, expect_error=True)
+    assert "Error" in output
