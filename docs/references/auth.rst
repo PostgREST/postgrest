@@ -234,6 +234,13 @@ The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expres
 - ``==^`` selects the first array element that ends with the right operand
 - ``*==`` selects the first array element that contains the right operand
 
+The selected role value can also be sliced using the slice operator ``[a:b]``. Negative index values are also supported. The syntax is as:
+
+- ``[a:b]`` take slice from index ``a`` upto ``b``
+- ``[a:]`` take slice from index ``a`` to end
+- ``[:b]`` take slice from start to index ``b``
+- ``[:]`` select everything, no slicing
+
 Usage examples:
 
   .. code:: bash
@@ -254,6 +261,11 @@ Usage examples:
     jwt-role-claim-key = ".postgrest.roles[?(@ ^== \"aut\")]"
     jwt-role-claim-key = ".postgrest.roles[?(@ ==^ \"hor\")]"
     jwt-role-claim-key = ".postgrest.roles[?(@ *== \"utho\")]"
+
+    # {"postgrest":{"wlcg": ["/groupa", "/groupb/"]}}
+    # skip the "/" character using slice operator
+    jwt-role-claim-key = ".postgrest.wlcg[0][1:]"
+    jwt-role-claim-key = ".postgrest.wlcg[1][1:-1]"
 
 .. note::
 

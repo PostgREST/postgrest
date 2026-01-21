@@ -182,6 +182,7 @@ Untyped
 UPSERT
 Upsert
 upsert
+upto
 uri
 url
 urlencoded
