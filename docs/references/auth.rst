@@ -236,7 +236,7 @@ The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expres
 
 The selected role value can also be sliced using the slice operator ``[a:b]``. Negative index values are also supported. The syntax is as:
 
-- ``[a:b]`` take slice from index ``a`` upto ``b``
+- ``[a:b]`` take slice from index ``a`` up to ``b``
 - ``[a:]`` take slice from index ``a`` to end
 - ``[:b]`` take slice from start to index ``b``
 - ``[:]`` select everything, no slicing
