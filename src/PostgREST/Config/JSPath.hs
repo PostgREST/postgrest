@@ -29,9 +29,10 @@ type JSPath = [JSPathExp]
 -- NOTE: We only accept one JSPFilter expr (at the end of input)
 -- | jspath expression
 data JSPathExp
-  = JSPKey Text         -- .property or ."property-dash"
-  | JSPIdx Int          -- [0]
-  | JSPFilter FilterExp -- [?(@ == "match")]
+  = JSPKey Text                      -- .property or ."property-dash"
+  | JSPIdx Int                       -- [0]
+  | JSPSlice (Maybe Int) (Maybe Int) -- [0:5] or [0:] or [:5] or [:]
+  | JSPFilter FilterExp              -- [?(@ == "match")]
 
 data FilterExp
   = EqualsCond Text
@@ -44,6 +45,7 @@ dumpJSPath :: JSPathExp -> Text
 -- TODO: this needs to be quoted properly for special chars
 dumpJSPath (JSPKey k) = "." <> show k
 dumpJSPath (JSPIdx i) = "[" <> show i <> "]"
+dumpJSPath (JSPSlice s e) = "[" <> maybe "" show s <> ":" <> maybe "" show e <> "]"
 dumpJSPath (JSPFilter cond) = "[?(@" <> expr <> ")]"
   where
     expr =
@@ -59,12 +61,25 @@ walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
 walkJSPath x                      []                = x
 walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
 walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
-walkJSPath (Just (JSON.Array ar)) [JSPFilter jspFilter] = case jspFilter of
-    EqualsCond txt     -> findFirstMatch (==) txt ar
-    NotEqualsCond txt  -> findFirstMatch (/=) txt ar
-    StartsWithCond txt -> findFirstMatch T.isPrefixOf txt ar
-    EndsWithCond txt   -> findFirstMatch T.isSuffixOf txt ar
-    ContainsCond txt   -> findFirstMatch T.isInfixOf txt ar
+walkJSPath (Just (JSON.String str)) (JSPSlice start end:rest) =
+  let
+    len = T.length str
+
+    norm :: Maybe Int -> Maybe Int -- Normalize negative indices to positive
+    norm = fmap (\i -> max 0 $ min len $ if i < 0 then len + i else i)
+
+    s = fromMaybe 0 $ norm start -- normalized start index
+    e = fromMaybe len $ norm end -- normalized end index
+    slicedString = if s >= e then T.empty else T.take (e-s) $ T.drop s str
+  in
+    walkJSPath (Just $ JSON.String slicedString) rest
+
+walkJSPath (Just (JSON.Array ar)) (JSPFilter jspFilter:rest) = case jspFilter of
+    EqualsCond txt     -> walkJSPath (findFirstMatch (==) txt ar) rest
+    NotEqualsCond txt  -> walkJSPath (findFirstMatch (/=) txt ar) rest
+    StartsWithCond txt -> walkJSPath (findFirstMatch T.isPrefixOf txt ar) rest
+    EndsWithCond txt   -> walkJSPath (findFirstMatch T.isSuffixOf txt ar) rest
+    ContainsCond txt   -> walkJSPath (findFirstMatch T.isInfixOf txt ar) rest
   where
     findFirstMatch matchWith pattern = find (\case
       JSON.String txt -> pattern `matchWith` txt
@@ -80,7 +95,7 @@ pJSPath :: P.Parser JSPath
 pJSPath = P.many1 pJSPathExp <* P.eof
 
 pJSPathExp :: P.Parser JSPathExp
-pJSPathExp = pJSPKey <|> pJSPFilter <|> pJSPIdx
+pJSPathExp = P.try pJSPKey <|> P.try pJSPFilter <|> P.try pJSPIdx <|> pJSPSlice
 
 pJSPKey :: P.Parser JSPathExp
 pJSPKey = do
@@ -95,13 +110,25 @@ pJSPIdx = do
   P.char ']'
   return (JSPIdx num) <?> "pJSPIdx: JSPath array index"
 
+pJSPSlice :: P.Parser JSPathExp
+pJSPSlice = do
+  P.char '['
+  startSign <- P.optionMaybe $ P.char '-'
+  startIndex <- P.optionMaybe (read <$> P.many1 P.digit)
+  P.char ':'
+  endSign <- P.optionMaybe $ P.char '-'
+  endIndex <- P.optionMaybe (read <$> P.many1 P.digit)
+  P.char ']'
+  let start' = if isJust startSign then ((-1) *) <$> startIndex else startIndex
+      end'   = if isJust endSign   then ((-1) *) <$> endIndex   else endIndex
+  return (JSPSlice start' end') <?> "pJSPSlice: JSPath string slice"
+
 pJSPFilter :: P.Parser JSPathExp
 pJSPFilter = do
   P.try $ P.string "[?("
   condition <- pFilterConditionParser
   P.char ')'
   P.char ']'
-  P.eof -- this should be the last jspath expression
   return (JSPFilter condition) <?> "pJSPFilter: JSPath filter exp"
 
 pFilterConditionParser :: P.Parser FilterExp

@@ -194,6 +194,44 @@ roleclaims:
         roles:
           - obj_key: obj_value
     expected_status: 401 # fails because it compares an object with a string
+  - key: '.realm_access.roles[0][7:]'
+    data:
+      realm_access:
+        roles:
+          - prefix_postgrest_test_author
+    expected_status: 200 # passes because it removes the "prefix_" part using slice
+  - key: '.realm_access.roles[0][:-7]'
+    data:
+      realm_access:
+        roles:
+          - postgrest_test_author_suffix
+    expected_status: 200 # passes because it removes the "_suffix" part using slice
+  - key: '.realm_access.roles[0][7:-7]'
+    data:
+      realm_access:
+        roles:
+          - prefix_postgrest_test_author_suffix
+    expected_status: 200 # passes because it removes the "prefix_" and "_suffix" part using slice
+  - key: '.realm_access.roles[0][:]'
+    data:
+      realm_access:
+        roles:
+          - postgrest_test_author
+    expected_status: 200 # passes because nothing gets sliced
+  - key: '.realm_access.roles[?(@ *== "_test_")][7:]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - prefix_postgrest_test_author
+    expected_status: 200 # passes on both comparison operators and slicing
+  - key: '.realm_access.roles[?(@ *== "_test_")][200:]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - prefix_postgrest_test_author
+    expected_status: 401 # fails due to slicing results in empty string
 
 jwtaudroleclaims:
   - key: '.aud'
