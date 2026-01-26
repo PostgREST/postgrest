@@ -69,6 +69,26 @@ If the function doesn't modify the database, it will also run under the GET meth
 
 The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
 
+If the function is defined to have default values for the parameters then arguments for these parameters can be omitted in the request. For instance:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION greet_user(username TEXT DEFAULT 'guest')
+  RETURNS TEXT AS $$
+    SELECT 'Hello ' || username || '!';
+  $$ LANGUAGE SQL IMMUTABLE;
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/rpc/greet_user"
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Context-Type: application/json; charset=utf-8
+
+  "Hello guest!"
+
 .. _function_single_json:
 
 Functions with an array of JSON objects
