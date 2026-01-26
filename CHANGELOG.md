@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file. From versio
 - Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 - Add string slicing operator for `jwt-role-claim-key` by @taimoorzaeem in #4599
 
+### Fixed
+
+- Ensure Listener connections are released by @mkleczek in #4614
+
 ## [14.3] - 2026-01-03
 
 ### Fixed
