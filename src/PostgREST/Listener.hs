@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -47,8 +48,14 @@ retryingListen appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally handleFinally $ do
-    bracket (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri)) (`whenRight` releaseConnection) $ \dbOrError -> do
-      case dbOrError of
+    -- Make sure we don't leak connections on errors
+    bracket
+      -- acquire connection
+      (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
+      -- release connection
+      (`whenRight` releaseConnection) $
+      -- use connection
+      \case
         Right db -> do
           SQL.listen db $ SQL.toPgIdentifier dbChannel
           AppState.putIsListenerOn appState True
