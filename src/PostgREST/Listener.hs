@@ -81,4 +81,4 @@ retryingListen appState = do
     cacheReloader =
       AppState.schemaCacheLoader appState
 
-    releaseConnection = void . forkIO . SQL.release
+    releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
