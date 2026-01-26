@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -15,6 +16,7 @@ import           PostgREST.Version     (prettyVersion)
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
+import Data.Either.Combinators (whenRight)
 import Protolude
 
 -- | Starts the Listener in a thread
@@ -46,25 +48,31 @@ retryingListen appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally handleFinally $ do
-    dbOrError <- SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri)
-    case dbOrError of
-      Right db -> do
-        SQL.listen db $ SQL.toPgIdentifier dbChannel
-        AppState.putIsListenerOn appState True
+    -- Make sure we don't leak connections on errors
+    bracket
+      -- acquire connection
+      (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
+      -- release connection
+      (`whenRight` releaseConnection) $
+      -- use connection
+      \case
+        Right db -> do
+          SQL.listen db $ SQL.toPgIdentifier dbChannel
+          AppState.putIsListenerOn appState True
 
-        delay <- AppState.getNextListenerDelay appState
-        when (delay > 1) $ do -- if we did a retry
-          -- assume we lost notifications, refresh the schema cache
-          AppState.schemaCacheLoader appState
-          -- reset the delay
-          AppState.putNextListenerDelay appState 1
+          delay <- AppState.getNextListenerDelay appState
+          when (delay > 1) $ do -- if we did a retry
+            -- assume we lost notifications, refresh the schema cache
+            AppState.schemaCacheLoader appState
+            -- reset the delay
+            AppState.putNextListenerDelay appState 1
 
-        observer $ DBListenStart dbChannel
-        SQL.waitForNotifications handleNotification db
+          observer $ DBListenStart dbChannel
+          SQL.waitForNotifications handleNotification db
 
-      Left err -> do
-        observer $ DBListenFail dbChannel (Left err)
-        exitFailure
+        Left err -> do
+          observer $ DBListenFail dbChannel (Left err)
+          exitFailure
   where
     observer = AppState.getObserver appState
     mainThreadId = AppState.getMainThreadId appState
@@ -79,3 +87,5 @@ retryingListen appState = do
 
     cacheReloader =
       AppState.schemaCacheLoader appState
+
+    releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release

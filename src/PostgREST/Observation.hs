@@ -48,6 +48,7 @@ data Observation
   | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
+  | DBListenerConnectionCleanupFail SomeException
   | QueryObs MainQuery Status
   | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
@@ -118,6 +119,8 @@ observationMessage = \case
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
+  DBListenerConnectionCleanupFail ex ->
+    "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
   QueryObs{} ->
     mempty -- TODO pending refactor: The logic for printing the query cannot be done here. Join the observationMessage function into observationLogger to avoid this mempty.
   ConfigReadErrorObs usageErr ->

@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
 
+### Fixed
+
+- Ensure Listener connections are released by @mkleczek in #4614
+
 ## [14.3] - 2026-01-03
 
 ### Fixed
