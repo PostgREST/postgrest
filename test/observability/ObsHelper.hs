@@ -206,5 +206,5 @@ waitForObs (ObsChan orig copy) t msg f =
 obsDiagMessage :: Observation -> Text
 obsDiagMessage = \case
   (HasqlPoolObs o) -> show o
-  o@(DBListenStart host port channel) -> constrName o <> show (host, port, channel)
+  o@(DBListenStart host port name channel) -> constrName o <> show (host, port, name, channel)
   o -> constrName o
