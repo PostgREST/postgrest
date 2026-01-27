@@ -17,8 +17,11 @@ import           PostgREST.Version     (prettyVersion)
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
-import Data.Either.Combinators (whenRight)
-import Protolude
+import           Control.Arrow             ((&&&))
+import           Data.Bitraversable        (bisequence)
+import           Data.Either.Combinators   (whenRight)
+import qualified Database.PostgreSQL.LibPQ as LibPQ
+import           Protolude
 
 -- | Starts the Listener in a thread
 runListener :: AppState -> IO ()
@@ -70,7 +73,9 @@ retryingListen appState = do
             -- reset the delay
             AppState.putNextListenerDelay appState 1
 
-          observer $ DBListenStart dbChannel
+          (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
+          observer $ DBListenStart pqHost pqPort dbChannel
+
           SQL.waitForNotifications handleNotification db
 
         Left err -> do
