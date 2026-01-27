@@ -45,7 +45,7 @@ data Observation
   | SchemaCacheSummaryObs Text
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
-  | DBListenStart Text
+  | DBListenStart (Maybe ByteString) (Maybe ByteString) Text -- host, port, channel
   | DBListenFail Text (Either SQL.ConnectionError SomeException)
   | DBListenRetry Int
   | DBListenBugHint -- https://github.com/PostgREST/postgrest/issues/3147
@@ -114,8 +114,8 @@ observationMessage = \case
     "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
   QueryPgVersionError usageErr ->
     "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
-  DBListenStart channel -> do
-    "Listening for database notifications on the " <> show channel <> " channel"
+  DBListenStart host port channel -> do
+    "Listener connected to " <> show (fold $ host <> fmap (":" <>) port) <> " and listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
     "Failed listening for database notifications on the " <> show channel <> " channel. " <>
       either showListenerConnError showListenerException listenErr

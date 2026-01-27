@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Added
+
+- Log the actual host and port of listener database connection by @mkleczek in #4617
+
 ## [14.8] - 2026-04-03
 
 ### Added
