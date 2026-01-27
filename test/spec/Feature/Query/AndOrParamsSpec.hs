@@ -252,21 +252,39 @@ spec =
             [json|[{"id": 7, "entities":null}, {"id": 8, "entities": {"id": 2}}, {"id": 9, "entities": {"id": 3}}]|]
             { matchStatus = 201 }
 
-    context "used with PATCH" $
+    context "used with PATCH" $ do
       it "succeeds when using and/or params" $
         request methodPatch "/grandchild_entities?or=(id.eq.1,id.eq.2)&select=id,name"
           [("Prefer", "return=representation")]
           [json|{ name : "updated grandchild entity"}|] `shouldRespondWith`
           [json|[{ "id": 1, "name" : "updated grandchild entity"},{ "id": 2, "name" : "updated grandchild entity"}]|]
           { matchHeaders = [matchContentTypeJson] }
+      it "succeeds when the filtered column is modified" $
+        request methodPatch "/entities?select=id,name&or=(name.is.null,name.like.*test*)"
+          [("Prefer", "return=representation")]
+          [json|{ "name" : "updated entity" }|] `shouldRespondWith`
+          [json|[{ "id": 4, "name": "updated entity" }]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "succeeds when the filtered column is not selected in the returned representation" $
+        request methodPatch "/entities?select=id&or=(name.is.null,name.like.*test*)"
+          [("Prefer", "return=representation")]
+          [json|{ "name" : "updated entity" }|] `shouldRespondWith`
+          [json|[{ "id": 4 }]|]
+          { matchHeaders = [matchContentTypeJson] }
 
-    context "used with DELETE" $
+    context "used with DELETE" $ do
       it "succeeds when using and/or params" $
         request methodDelete "/grandchild_entities?or=(id.eq.1,id.eq.2)&select=id,name"
             [("Prefer", "return=representation")]
             ""
           `shouldRespondWith`
             [json|[{ "id": 1, "name" : "grandchild entity 1" },{ "id": 2, "name" : "grandchild entity 2" }]|]
+      it "succeeds when the filtered column is not selected in the returned representation" $
+        request methodDelete "/entities?select=id&or=(name.is.null,name.like.*test*)"
+            [("Prefer", "return=representation")]
+            ""
+          `shouldRespondWith`
+            [json|[{ "id": 4 }]|]
 
     it "can query columns that begin with and/or reserved words" $
       get "/grandchild_entities?or=(and_starting_col.eq.smth, or_starting_col.eq.smth)" `shouldRespondWith` 200
