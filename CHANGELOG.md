@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Added
 
-- Log the actual host and port of listener database connection by @mkleczek in #4617
+- Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 
 ## [14.8] - 2026-04-03
 
