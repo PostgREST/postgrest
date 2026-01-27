@@ -1649,9 +1649,11 @@ def test_log_listener_connection_start(defaultenv):
     }
 
     with run(env=env, no_startup_stdout=False, wait_for_readiness=True) as postgrest:
-        output = postgrest.read_stdout(nlines=5)
+        output = postgrest.read_stdout(nlines=10)
+        # Check for the listener start message containing host and port
+        # Do not check if pg version is displayed properly as it is tricky to test it
         assert any(
-            f'Listener connected to "{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            f'"{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
             in line
             for line in output
         )

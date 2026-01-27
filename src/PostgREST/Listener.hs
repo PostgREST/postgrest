@@ -17,10 +17,13 @@ import           PostgREST.Version     (prettyVersion)
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
-import           Control.Arrow             ((&&&))
-import           Data.Bitraversable        (bisequence)
-import           Data.Either.Combinators   (whenRight)
-import qualified Database.PostgreSQL.LibPQ as LibPQ
+import           Control.Arrow              ((&&&))
+import           Data.Bitraversable         (bisequence)
+import           Data.Either.Combinators    (whenRight)
+import qualified Database.PostgreSQL.LibPQ  as LibPQ
+import qualified Hasql.Session              as SQL
+import           PostgREST.Config.Database  (queryPgVersion)
+import           PostgREST.Config.PgVersion (pgvFullName)
 import           Protolude
 
 -- | Starts the Listener in a thread
@@ -64,6 +67,9 @@ retryingListen appState = do
       \case
         Right db -> do
           SQL.listen db $ SQL.toPgIdentifier dbChannel
+          (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
+          pgFullName <- SQL.run (queryPgVersion False) db >>= either throwIO (pure . pgvFullName)
+
           AppState.putIsListenerOn appState True
 
           delay <- AppState.getNextListenerDelay appState
@@ -73,8 +79,7 @@ retryingListen appState = do
             -- reset the delay
             AppState.putNextListenerDelay appState 1
 
-          (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
-          observer $ DBListenStart pqHost pqPort dbChannel
+          observer $ DBListenStart pqHost pqPort pgFullName dbChannel
 
           SQL.waitForNotifications handleNotification db
 
