@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Ensure Listener connections are released by @mkleczek in #4614
+- Fix incorrectly filtering the returned representation for PATCH requests when using `or/and` filters by @laurenceisla in #3707
 
 ## [14.3] - 2026-01-03
 

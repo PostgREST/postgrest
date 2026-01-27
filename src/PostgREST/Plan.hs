@@ -963,9 +963,16 @@ addRanges ApiRequest{..} rReq =
 
 addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addLogicTrees ctx ApiRequest{..} rReq =
-  foldr addLogicTreeToNode (Right rReq) qsLogic
+  foldr addLogicTreeToNode (Right rReq) logic
   where
     QueryParams.QueryParams{..} = iQueryParams
+
+    logic =
+      case iAction of
+        ActDb (ActRelationRead _  _) -> qsLogic
+        ActDb (ActRoutine _ _)       -> qsLogic
+        -- For mutations, take the non-root logic filters. These will only affect the embeddings and not the top level of the returned representation.
+        _                            -> filter (not . null . fst) qsLogic
 
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
