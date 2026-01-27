@@ -1640,6 +1640,23 @@ def test_log_listener_connection_errors(defaultenv):
         )
 
 
+def test_log_listener_connection_start(defaultenv):
+    "The logs should show the listener connection start message in a single line"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for_readiness=True) as postgrest:
+        output = postgrest.read_stdout(nlines=5)
+        assert any(
+            f'Listener connected to "{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            in line
+            for line in output
+        )
+
+
 def test_db_pre_config_with_pg_reserved_words(defaultenv):
     "The db-pre-config should not fail unexpectedly when function name is a postgres reserved word"
 
