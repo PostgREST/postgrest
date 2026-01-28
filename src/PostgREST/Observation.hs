@@ -44,7 +44,7 @@ data Observation
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
   | DBListenStart Text
-  | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
+  | DBListenFail Text (Either SQL.ConnectionError SomeException)
   | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
@@ -167,9 +167,8 @@ observationMessage = \case
     showListenerConnError :: SQL.ConnectionError -> Text
     showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
 
-    showListenerException :: Either SomeException () -> Text
-    showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
-    showListenerException (Left e)  = showOnSingleLine '\t' $ show e
+    showListenerException :: SomeException -> Text
+    showListenerException = showOnSingleLine '\t' . show
 
 
 showOnSingleLine :: Char -> Text -> Text
