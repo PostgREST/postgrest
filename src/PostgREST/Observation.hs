@@ -45,7 +45,7 @@ data Observation
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel
-  | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
+  | DBListenFail Text (Either SQL.ConnectionError SomeException)
   | DBListenRetry Int
   | DBListenBugHint -- https://github.com/PostgREST/postgrest/issues/3147
   | DBListenerGotSCacheMsg ByteString
@@ -171,14 +171,12 @@ observationMessage = \case
     showListenerConnError :: SQL.ConnectionError -> Text
     showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
 
-    showListenerException :: Either SomeException () -> Text
-    showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
-    showListenerException (Left e)  = showOnSingleLine '\t' $ show e
+    showListenerException :: SomeException -> Text
+    showListenerException = showOnSingleLine '\t' . show
 
 
 showOnSingleLine :: Char -> Text -> Text
 showOnSingleLine split txt = T.intercalate " " $ T.filter (/= split) <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"
 
-isDbListenerBug :: Either SomeException () -> Bool
-isDbListenerBug (Left e) = "could not access status of transaction" `T.isInfixOf` show e
-isDbListenerBug _        = False
+isDbListenerBug :: SomeException -> Bool
+isDbListenerBug e = "could not access status of transaction" `T.isInfixOf` show e

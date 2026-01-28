@@ -31,15 +31,16 @@ runListener :: AppState -> IO ()
 runListener appState = do
   AppConfig{..} <- getConfig appState
   when configDbChannelEnabled $
-    void . forkIO $ retryingListen appState
+    void . forkIO . void $ retryingListen appState
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
-retryingListen :: AppState -> IO ()
+-- | This function never returns (but can throw) and return type enforces that.
+retryingListen :: AppState -> IO Void
 retryingListen appState = do
   AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
-    handleFinally err = do
+    onError err = do
       AppState.putIsListenerOn appState False
       observer $ DBListenFail dbChannel (Right err)
       when (isDbListenerBug err) $
@@ -53,10 +54,11 @@ retryingListen appState = do
       threadDelay (delay * oneSecondInMicro)
       unless (delay == maxDelay) $
         AppState.putNextListenerDelay appState (delay * 2)
+      -- loop running the listener
       retryingListen appState
 
-  -- forkFinally allows to detect if the thread dies
-  void . flip forkFinally handleFinally $ do
+  -- Execute the listener with with error handling
+  handle onError $ do
     -- Make sure we don't leak connections on errors
     bracket
       -- acquire connection
@@ -81,7 +83,9 @@ retryingListen appState = do
 
           observer $ DBListenStart pqHost pqPort pgFullName dbChannel
 
-          SQL.waitForNotifications handleNotification db
+          -- wait for notifications
+          -- this will never return, in case of an error it will throw and be caught by onError
+          forever $ SQL.waitForNotifications handleNotification db
 
         Left err -> do
           observer $ DBListenFail dbChannel (Left err)
