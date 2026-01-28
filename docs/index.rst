@@ -206,7 +206,6 @@ In Production
 Here are some companies that use PostgREST in production.
 
 * `Catarse <https://www.catarse.me>`_
-* `Datrium <https://www.datrium.com>`_
 * `Drip Depot <https://www.dripdepot.com>`_
 * `Image-charts <https://www.image-charts.com>`_
 * `Netwo <https://www.netwo.io>`_

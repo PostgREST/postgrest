@@ -302,6 +302,7 @@ linkcheck_ignore = [
     r"https://blog.frankel.ch/poor-man-api",
     # Odd SSL error
     r"https://www.dripdepot.com",
+    r"https://www.euronodes.com",
     # New GitHub UI delays comment load, so anchor fails
     r"https://github.com/.*#issuecomment",
     # Random 500 Internal Server Error
