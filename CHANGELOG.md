@@ -4,15 +4,11 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
-### Added
-
-- Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
-
 ### Fixed
 
 - Ensure Listener connections are released by @mkleczek in #4614
 - Fix incorrectly filtering the returned representation for PATCH requests when using `or/and` filters by @laurenceisla in #3707
-- Fix listener running with exception masked after first failure #4615
+- Fix listener running with exception masked after first failure by @mkleczek #4615
 
 ## [14.3] - 2026-01-03
 
