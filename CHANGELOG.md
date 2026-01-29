@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.4] - 2026-01-29
+
 ### Fixed
 
 - Ensure Listener connections are released by @mkleczek in #4614
