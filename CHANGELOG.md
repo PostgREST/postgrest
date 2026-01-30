@@ -10,11 +10,10 @@ All notable changes to this project will be documented in this file. From versio
 - Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 - Add string slicing operator for `jwt-role-claim-key` by @taimoorzaeem in #4599
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
-
-### Fixed
-
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
+
+### Fixed
 
 ## [14.4] - 2026-01-29
 
