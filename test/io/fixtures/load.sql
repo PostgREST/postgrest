@@ -1,22 +1,8 @@
 \ir db_config.sql
+\ir roles.sql
 
 set check_function_bodies = false; -- to allow conditionals based on the pg version
 set search_path to public;
-
-CREATE ROLE postgrest_test_anonymous;
-ALTER ROLE :PGUSER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
-
-CREATE ROLE postgrest_test_author;
-
-CREATE ROLE postgrest_test_serializable;
-alter role postgrest_test_serializable set default_transaction_isolation = 'serializable';
-
-CREATE ROLE postgrest_test_repeatable_read;
-alter role postgrest_test_repeatable_read set default_transaction_isolation = 'REPEATABLE READ';
-
-CREATE ROLE postgrest_test_w_superuser_settings;
-alter role postgrest_test_w_superuser_settings set log_min_duration_statement = 1;
-alter role postgrest_test_w_superuser_settings set log_min_messages = 'fatal';
 
 DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 150000) THEN
@@ -24,11 +10,6 @@ DO $do$BEGIN
     GRANT SET ON PARAMETER log_min_duration_sample to postgrest_test_authenticator;
   END IF;
 END$do$;
-
-GRANT
-  postgrest_test_anonymous, postgrest_test_author,
-  postgrest_test_serializable, postgrest_test_repeatable_read,
-  postgrest_test_w_superuser_settings TO :PGUSER;
 
 CREATE SCHEMA v1;
 GRANT USAGE ON SCHEMA v1 TO postgrest_test_anonymous;
@@ -128,9 +109,6 @@ as $$
   grant all on table cats to postgrest_test_anonymous;
   notify pgrst, 'reload schema';
 $$;
-
-alter role postgrest_test_anonymous set statement_timeout to '2s';
-alter role postgrest_test_author set statement_timeout to '10s';
 
 create function change_role_statement_timeout(timeout text) returns void as $_$
 begin
