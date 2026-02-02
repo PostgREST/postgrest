@@ -140,7 +140,7 @@ library
                     , streaming-commons         >= 0.2.3.1 && < 0.3
                     , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 2.2
-                    , time                      >= 1.6 && < 1.13
+                    , time >=1.6 && <1.16
                     , unordered-containers      >= 0.2.8 && < 0.3
                     , unix-compat               >= 0.5.4 && < 0.8
                     , vault                     >= 0.3.1.5 && < 0.4
