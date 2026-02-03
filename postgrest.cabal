@@ -158,6 +158,8 @@ library
                     , stm-hamt                  >= 1.2 && < 2
                     , focus                     >= 1.0 && < 2
                     , some                      >= 1.0.4.1 && < 2
+                    , oidc-client               >= 0.8.0.0 && < 0.9
+                    , http-client-tls           >= 0.3.6.4 && < 0.4
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
