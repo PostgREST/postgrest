@@ -29,6 +29,7 @@ import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
+import qualified Feature.MetricsPoolAvailableSpec
 import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
@@ -167,6 +168,8 @@ main = do
         ]
 
   hspec $ do
+    describe "Feature.MetricsPoolAvailableSpec" Feature.MetricsPoolAvailableSpec.spec
+
     mapM_ (parallel . before withApp) specs
 
     -- we analyze to get accurate results from EXPLAIN
