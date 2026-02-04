@@ -42,7 +42,7 @@ VALUES (1, 'pulp fiction', 1),
 DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 150000) THEN
     ALTER ROLE postgrest_test_w_superuser_settings SET log_min_duration_sample = 12345;
-    GRANT SET ON PARAMETER log_min_duration_sample to postgrest_test_authenticator;
+    GRANT SET ON PARAMETER log_min_duration_sample to "Postgrest_Test_Authenticator";
   END IF;
 END$do$;
 
@@ -61,7 +61,7 @@ $$ language sql;
 create function change_max_rows_config(val int, notify bool default false) returns void as $_$
 begin
   execute format($$
-    alter role postgrest_test_authenticator set pgrst.db_max_rows = %L;
+    alter role "Postgrest_Test_Authenticator" set pgrst.db_max_rows = %L;
   $$, val);
   if notify then
     perform pg_notify('pgrst', 'reload config');
@@ -70,13 +70,13 @@ end $_$ volatile security definer language plpgsql ;
 
 create function reset_max_rows_config() returns void as $_$
 begin
-  alter role postgrest_test_authenticator reset pgrst.db_max_rows;
+  alter role "Postgrest_Test_Authenticator" reset pgrst.db_max_rows;
 end $_$ volatile security definer language plpgsql ;
 
 create function change_db_schema_and_full_reload(schemas text) returns void as $_$
 begin
   execute format($$
-    alter role postgrest_test_authenticator set pgrst.db_schemas = %L;
+    alter role "Postgrest_Test_Authenticator" set pgrst.db_schemas = %L;
   $$, schemas);
   perform pg_notify('pgrst', 'reload config');
   perform pg_notify('pgrst', 'reload schema');
@@ -84,14 +84,14 @@ end $_$ volatile security definer language plpgsql ;
 
 create function v1.reset_db_schema_config() returns void as $_$
 begin
-  alter role postgrest_test_authenticator reset pgrst.db_schemas;
+  alter role "Postgrest_Test_Authenticator" reset pgrst.db_schemas;
   perform pg_notify('pgrst', 'reload config');
   perform pg_notify('pgrst', 'reload schema');
 end $_$ volatile security definer language plpgsql ;
 
 create function invalid_role_claim_key_reload() returns void as $_$
 begin
-  alter role postgrest_test_authenticator set pgrst.jwt_role_claim_key = 'test';
+  alter role "Postgrest_Test_Authenticator" set pgrst.jwt_role_claim_key = 'test';
   perform pg_notify('pgrst', 'reload config');
 end $_$ volatile security definer language plpgsql ;
 
@@ -104,7 +104,7 @@ $_$ language sql;
 
 create function reset_invalid_role_claim_key() returns void as $_$
 begin
-  alter role postgrest_test_authenticator reset pgrst.jwt_role_claim_key;
+  alter role "Postgrest_Test_Authenticator" reset pgrst.jwt_role_claim_key;
   perform pg_notify('pgrst', 'reload config');
 end $_$ volatile security definer language plpgsql ;
 
@@ -229,12 +229,12 @@ $$ language sql;
 
 create function change_db_schemas_config() returns void as $_$
 begin
-  alter role postgrest_test_authenticator set pgrst.db_schemas = 'test';
+  alter role "Postgrest_Test_Authenticator" set pgrst.db_schemas = 'test';
 end $_$ volatile security definer language plpgsql;
 
 create function reset_db_schemas_config() returns void as $_$
 begin
-  alter role postgrest_test_authenticator reset pgrst.db_schemas;
+  alter role "Postgrest_Test_Authenticator" reset pgrst.db_schemas;
 end $_$ volatile security definer language plpgsql ;
 
 create function test.get_current_schema() returns text as $$
