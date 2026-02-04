@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Fixed
 
+- Fix `pgrst_db_pool_available` drifting below zero under connection churn by tracking availability per connection id and setting the gauge from absolute state by @nothankyouzzz in #4622.
+
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
