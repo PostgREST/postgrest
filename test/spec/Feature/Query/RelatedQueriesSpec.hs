@@ -106,35 +106,29 @@ spec = describe "related queries" $ do
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "fails when is not a to-one relationship" $ do
-      get "/clients?select=*,projects(*)&order=projects(id)" `shouldRespondWith`
-        [json|{
-          "code":"PGRST118",
-          "details":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship",
-          "hint":null,
-          "message":"A related order on 'projects' is not possible"
-        }|]
-        { matchStatus  = 400
+    it "works on a to-many relationship" $ do
+      get "/clients?select=*,projects(*)&order=projects(id)&projects.order=id.asc" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Microsoft","projects":[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]},
+          {"id":2,"name":"Apple","projects":[{"id":3,"name":"IOS","client_id":2},{"id":4,"name":"OSX","client_id":2}]}
+        ]|]
+        { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/clients?select=*,pros:projects(*)&order=pros(id)" `shouldRespondWith`
-        [json|{
-          "code":"PGRST118",
-          "details":"'clients' and 'pros' do not form a many-to-one or one-to-one relationship",
-          "hint":null,
-          "message":"A related order on 'pros' is not possible"
-        }|]
-        { matchStatus  = 400
+      get "/clients?select=*,pros:projects(*)&order=pros(id)&pros.order=id.asc" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Microsoft","pros":[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]},
+          {"id":2,"name":"Apple","pros":[{"id":3,"name":"IOS","client_id":2},{"id":4,"name":"OSX","client_id":2}]}
+        ]|]
+        { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/designers?select=id,computed_videogames(id)&order=computed_videogames(id).desc" `shouldRespondWith`
-        [json|{
-          "code":"PGRST118",
-          "details":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship",
-          "hint":null,
-          "message":"A related order on 'computed_videogames' is not possible"
-        }|]
-        { matchStatus  = 400
+      get "/designers?select=id,computed_videogames(id)&order=computed_videogames(id).desc&computed_videogames.order=id.asc" `shouldRespondWith`
+        [json|[
+          {"id":2,"computed_videogames":[{"id":3},{"id":4}]},
+          {"id":1,"computed_videogames":[{"id":1},{"id":2}]}
+        ]|]
+        { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
 
