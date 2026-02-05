@@ -149,7 +149,7 @@ actionPlan act conf apiReq sCache = case act of
   ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
   ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
   ActRoutineInfo ident inv ->
-    let crPln = callReadPlan ident conf sCache apiReq inv in
+      let crPln = callReadPlan ident conf sCache apiReq inv in
     NoDb . RoutineInfoPlan . crProc <$> crPln
   ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
 
@@ -293,7 +293,7 @@ data ResolverContext = ResolverContext
   }
 
 resolveColumnField :: Column -> Maybe ToTsVector -> CoercibleField
-resolveColumnField col toTsV = CoercibleField (colName col) mempty False toTsV (colNominalType col) (colType col) Nothing (colDefault col) False
+resolveColumnField col toTsV = CoercibleField (colName col) mempty False toTsV (colNominalType col) (colType col) Nothing (colDefault col) False Nothing
 
 resolveTableFieldName :: Table -> FieldName -> Maybe ToTsVector -> CoercibleField
 resolveTableFieldName table fieldName toTsV=
@@ -368,6 +368,7 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     addRelatedOrders =<<
     addAliases =<<
     expandStars ctx =<<
+    addSelfLinks ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
@@ -617,6 +618,9 @@ findRel schema allRels origin target hint =
             target == qiName relForeignTable && isO2M relCardinality -- /family_tree?select=children:family_tree(*)
             ||
             -- The M2O by using the column name in the target
+            -- The M2O by using the column name in the target
+
+            -- The M2O by using the column name in the target
             matchFKSingleCol target relCardinality && isM2O relCardinality -- /family_tree?select=parent(*)
           Just hnt ->
             -- /organizations?select=auditees:organizations!auditor(*)
@@ -632,9 +636,26 @@ findRel schema allRels origin target hint =
               target == qiName relForeignTable -- clients
               ||
               -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+
+              -- /projects?select=projects_client_id_fkey(*)
+              -- /projects?select=projects_client_id_fkey(*)
+
+              -- /projects?select=projects_client_id_fkey(*)
               matchConstraint target relCardinality -- projects_client_id_fkey
               && not relFTableIsView
               ||
+              -- /projects?select=client_id(*)
+              -- /projects?select=client_id(*)
+              -- /projects?select=client_id(*)
+              -- /projects?select=client_id(*)
+
               -- /projects?select=client_id(*)
               matchFKSingleCol target relCardinality -- client_id
               && not relFTableIsView
@@ -643,11 +664,25 @@ findRel schema allRels origin target hint =
             target == qiName relForeignTable -- clients
             && (
               -- /projects?select=clients!projects_client_id_fkey(*)
-              matchConstraint hnt relCardinality || -- projects_client_id_fkey
+              matchConstraint hnt relCardinality || -- projects_client_id_fkey -- projects_client_id_fkey -- projects_client_id_fkey -- projects_client_id_fkey
 
               -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
-              matchFKSingleCol hnt relCardinality      || -- client_id
-              matchFKRefSingleCol hnt relCardinality   || -- id
+
+              -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
+
+              -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
+
+              -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
+               -- projects_client_id_fkey
+
+              -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
+              matchFKSingleCol hnt relCardinality      || -- client_id -- client_id -- client_id -- client_id
+               -- client_id
+              matchFKRefSingleCol hnt relCardinality   || -- id -- id -- id
+
+              -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
+
+              -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
 
               -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
               matchJunction hnt relCardinality -- users_tasks
@@ -906,7 +941,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       where_ = [
 --         CoercibleStmnt (
 --           CoercibleFilter {
---            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False, cfSelfPkCols = Nothing},
 --            opExpr = op
 --           }
 --         )
@@ -922,7 +957,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False, cfSelfPkCols = Nothing}, opExpr = OpExpr True (Is IsNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -1116,6 +1151,23 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
       if not hasComputedRel
         then fldNames <> fkCols <> S.fromList pkCols
         else S.singleton "*" -- on computed relationships we cannot know the required columns for an embedding to succeed, so we just return all
+
+
+-- | Annotate any `_self` select fields with the primary key columns of their table
+-- so that later stages (SQL generation) can build a per-row self URL.
+addSelfLinks :: ResolverContext -> ReadPlanTree -> Either Error ReadPlanTree
+addSelfLinks (ResolverContext{tables}) = traverse addToPlan
+  where
+    addToPlan rp@ReadPlan{select, from} =
+      let pkCols = foldMap tablePKCols (HM.lookup from tables)
+          hasSelfReq = elem "_self" $ fmap (cfName . csField) select
+      in if hasSelfReq && null pkCols
+           then Left $ ApiRequestError $ SelfRequiresPrimaryKey from
+           else
+             let transformSel csf@CoercibleSelectField{csField = cf@CoercibleField{cfName}}
+                   | cfName == "_self" = csf{csField = cf{cfSelfPkCols = Just pkCols}}
+                   | otherwise = csf
+             in Right $ rp{select = fmap transformSel select}
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder

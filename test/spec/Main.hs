@@ -68,6 +68,9 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import qualified Feature.Self.SelfEdgeSpec
+import qualified Feature.Self.SelfNoPkSpec
+import qualified Feature.Self.SelfSpec
 
 
 main :: IO ()
@@ -162,6 +165,9 @@ main = do
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
+        , ("Feature.Self.SelfSpec"                       , Feature.Self.SelfSpec.spec)
+        , ("Feature.Self.SelfEdgeSpec"                   , Feature.Self.SelfEdgeSpec.spec)
+        , ("Feature.Self.SelfNoPkSpec"                   , Feature.Self.SelfNoPkSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
         ]

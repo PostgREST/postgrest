@@ -252,6 +252,9 @@ test-suite spec
                       Feature.Query.ServerTimingSpec
                       Feature.Query.SingularSpec
                       Feature.Query.SpreadQueriesSpec
+                      Feature.Self.SelfSpec
+                      Feature.Self.SelfEdgeSpec
+                      Feature.Self.SelfNoPkSpec
                       Feature.Query.UnicodeSpec
                       Feature.Query.UpdateSpec
                       Feature.Query.UpsertSpec

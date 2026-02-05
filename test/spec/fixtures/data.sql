@@ -175,6 +175,7 @@ INSERT INTO complex_items VALUES (3, 'Three', '{"foo":{"int":1,"bar":"baz"}}', '
 -- Data for Name: compound_pk; Type: TABLE DATA; Schema: test; Owner: -
 --
 TRUNCATE TABLE compound_pk CASCADE;
+INSERT INTO compound_pk VALUES (1, 'a', 7);
 
 
 --
