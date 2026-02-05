@@ -6,6 +6,7 @@ module PostgREST.Config.Database
   , queryPgVersion
   , queryRoleSettings
   , RoleSettings
+  , RoleTimeoutSettings
   , RoleIsolationLvl
   , TimezoneNames
   , toIsolationLevel
@@ -29,6 +30,7 @@ import NeatInterpolation (trimming)
 import Protolude
 
 type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+type RoleTimeoutSettings  = HM.HashMap ByteString Int64
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 type TimezoneNames    = Set Text -- cache timezone names for prefer timezone=
 
@@ -131,7 +133,7 @@ queryDbSettings preConfFunc prepared =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
+queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleTimeoutSettings, RoleIsolationLvl)
 queryRoleSettings pgVer prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
@@ -155,33 +157,46 @@ queryRoleSettings pgVer prepared =
         SELECT rolname, value
         FROM kv_settings
         WHERE key = 'default_transaction_isolation'
+      ),
+      role_timeout_setting AS (
+        SELECT rolname, extract(epoch from value::interval)::int as value -- transform to seconds
+        FROM kv_settings
+        WHERE key = 'statement_timeout'
       )
       select
         kv.rolname,
         i.value as iso_lvl,
-        coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings
+        coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings,
+        r.value as role_timeout
       from kv_settings kv
       join pg_settings ps on ps.name = kv.key and (ps.context = 'user' ${hasParameterPrivilege})
       left join iso_setting i on i.rolname = kv.rolname
-      group by kv.rolname, i.value;
+      left join role_timeout_setting r on r.rolname = kv.rolname
+      group by kv.rolname, i.value, r.value;
     |]
 
     hasParameterPrivilege
       | pgVer >= pgVersion150 = "or has_parameter_privilege(current_user::regrole::oid, ps.name, 'set')"
       | otherwise             = ""
 
-    processRows :: [(Text, Maybe Text, [(Text, Text)])] -> (RoleSettings, RoleIsolationLvl)
+    processRows :: [(Text, Maybe Text, [(Text, Text)], Maybe Int64)] -> (RoleSettings, RoleTimeoutSettings, RoleIsolationLvl)
     processRows rs =
       let
-        rowsWRoleSettings = [ (x, z) | (x, _, z) <- rs ]
-        rowsWIsolation    = [ (x, y) | (x, Just y, _) <- rs ]
+        rowsWRoleSettings        = [ (x, z)  | (x, _, z, _) <- rs ]
+        rowsWRoleTimeoutSettings = [ (x, z') | (x, _, _, Just z') <- rs ]
+        rowsWIsolation           = [ (x, y)  | (x, Just y, _, _) <- rs ]
       in
       ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
+      , HM.fromList $ first encodeUtf8 <$> rowsWRoleTimeoutSettings
       , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
       )
 
-    rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
-    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+    rows :: HD.Result [(Text, Maybe Text, [(Text, Text)], Maybe Int64)]
+    rows = HD.rowList $ (,,,)
+           <$> column HD.text
+           <*> nullableColumn HD.text
+           <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+           <*> nullableColumn HD.int8
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
