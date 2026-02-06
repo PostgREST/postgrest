@@ -99,6 +99,7 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
+  | TimeoutConstraintError Int64 ByteString ByteString
   deriving Show
 
 data QPError = QPError Text Text
@@ -142,6 +143,7 @@ instance PgrstError ApiRequestError where
   status InvalidResourcePath         = HTTP.status404
   status OpenAPIDisabled             = HTTP.status404
   status MaxAffectedRpcViolation     = HTTP.status400
+  status TimeoutConstraintError{}    = HTTP.status400
 
   headers _ = mempty
 
@@ -189,6 +191,7 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
   code MaxAffectedRpcViolation     = "PGRST128"
+  code TimeoutConstraintError{}    = "PGRST129"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -215,6 +218,7 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
   message MaxAffectedRpcViolation        = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+  message TimeoutConstraintError{}       = "Timeout preference value cannot exceed statement_timeout of role"
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
@@ -230,6 +234,7 @@ instance ErrorBody ApiRequestError where
   details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
   details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
   details (NotImplemented details') = Just $ JSON.String details'
+  details (TimeoutConstraintError t rt role) = Just $ JSON.String $ "Timeout preferred: " <> show t <> "s, statement_timeout of role '" <> T.decodeUtf8 role <> "': " <> T.decodeUtf8 rt
 
   details _ = Nothing
 

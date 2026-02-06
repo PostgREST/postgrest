@@ -451,17 +451,17 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         Right x -> pure x
     else
       pure mempty
-  (roleSettings, roleIsolationLvl) <-
+  (roleSettings, roleTimeoutSettings, roleIsolationLvl) <-
     if configDbConfig conf then do
       rSettings <- usePool appState (queryRoleSettings pgVer (configDbPreparedStatements conf))
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e
-          pure (mempty, mempty)
+          pure (mempty, mempty, mempty)
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
+  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleTimeoutSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
