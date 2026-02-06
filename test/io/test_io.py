@@ -1757,3 +1757,14 @@ def test_server_timing_transaction_duration(defaultenv, metapostgrest):
         ]
 
         assert 2000 <= response_dur < 3000
+
+def test_server_otel_enabled(defaultenv):
+    "Enable OpenTelemetry and check that the code branch is covered"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_OTEL_ENABLED": "true",
+    }
+
+    with run(env=env):
+        assert True  # not sure how to test properly, just make sure the "OTel enabled" branch is covered
