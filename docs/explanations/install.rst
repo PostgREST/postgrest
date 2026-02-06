@@ -181,6 +181,23 @@ If you want to have a visual overview of your API in your browser you can add sw
 
 With this you can see the swagger-ui in your browser on port 8080.
 
+.. _docker_cpu_contraint:
+
+Docker Resource Constraints
+---------------------------
+
+PostgREST does not support ``--cpus`` `constraint option <https://docs.docker.com/engine/containers/resource_constraints/#configure-the-default-cfs-scheduler>`_.
+
+As a workaround, you may use the `GHC RTS <https://ghc.gitlab.haskell.org/ghc/doc/users_guide/runtime_control.html#runtime-system-rts-options>`_ ``-N`` option. For instance, to limit it to 2 CPU cores, do:
+
+.. code::
+
+  # Set environment variable GHCRTS set to "-N2"
+  docker run --rm -p 3000:3000 \
+    -e PGRST_DB_URI="postgres://app_user:password@10.0.0.10/postgres" \
+    -e GHCRTS="-N2"
+    postgrest/postgrest
+
 .. _build_source:
 
 Building from Source
