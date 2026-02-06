@@ -177,6 +177,66 @@ create or replace function migrate_function() returns void as $_$
   notify pgrst, 'reload schema';
 $_$ language sql security definer;
 
+create or replace function test.create_reload_tables_test() returns void as $$
+begin
+  drop table if exists test.reload_tables_test;
+  create table test.reload_tables_test(
+    id int primary key,
+    name text
+  );
+  insert into test.reload_tables_test values (1, 'one');
+  grant select on test.reload_tables_test to postgrest_test_anonymous;
+  notify pgrst, 'reload tables';
+end;
+$$ language plpgsql security definer;
+
+create or replace function test.create_rel_tables_and_reload_tables() returns void as $$
+begin
+  drop table if exists test.rel_child;
+  drop table if exists test.rel_parent;
+  create table test.rel_parent(
+    id int primary key,
+    name text
+  );
+  create table test.rel_child(
+    id int primary key,
+    parent_id int,
+    name text
+  );
+  insert into test.rel_parent values (1, 'parent');
+  insert into test.rel_child values (1, 1, 'child');
+  grant select on test.rel_parent, test.rel_child to postgrest_test_anonymous;
+  notify pgrst, 'reload tables';
+end;
+$$ language plpgsql security definer;
+
+create or replace function test.add_rel_fk_and_reload_relationships() returns void as $$
+begin
+  alter table test.rel_child drop constraint if exists rel_child_parent_fkey;
+  alter table test.rel_child add constraint rel_child_parent_fkey
+    foreign key (parent_id) references test.rel_parent(id);
+  notify pgrst, 'reload relationships';
+end;
+$$ language plpgsql security definer;
+
+create or replace function test.add_rel_fk_and_reload_schema() returns void as $$
+begin
+  alter table test.rel_child drop constraint if exists rel_child_parent_fkey;
+  alter table test.rel_child add constraint rel_child_parent_fkey
+    foreign key (parent_id) references test.rel_parent(id);
+  notify pgrst, 'reload schema';
+end;
+$$ language plpgsql security definer;
+
+create or replace function test.drop_rel_tables_and_reload_tables() returns void as $$
+begin
+  drop table if exists test.rel_child;
+  drop table if exists test.rel_parent;
+  drop table if exists test.reload_tables_test;
+  notify pgrst, 'reload tables';
+end;
+$$ language plpgsql security definer;
+
 create or replace function get_pgrst_version() returns text
   language sql
 as $$

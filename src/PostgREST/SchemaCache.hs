@@ -20,8 +20,20 @@ These queries are executed once at startup or when PostgREST is reloaded.
 
 module PostgREST.SchemaCache
   ( SchemaCache(..)
+  , SchemaCacheTables(..)
+  , SchemaCacheRelationships(..)
+  , SchemaCachePhaseOptions(..)
+  , SchemaCacheRelationshipDeps(..)
+  , SchemaCacheTablesWithDeps(..)
+  , RelationshipsTablePrep(..)
   , TablesFuzzyIndex
   , querySchemaCache
+  , querySchemaCacheTables
+  , querySchemaCacheTablesWithDeps
+  , querySchemaCacheRelationships
+  , querySchemaCacheRelationshipsWithDeps
+  , defaultSchemaCachePhaseOptions
+  , noSchemaCachePhaseSleepOptions
   , showSummary
   , decodeFuncs
   ) where
@@ -87,6 +99,37 @@ data SchemaCache = SchemaCache
   , dbTablesFuzzyIndex :: TablesFuzzyIndex
   } deriving (Show)
 
+data SchemaCacheTables = SchemaCacheTables
+  { sctTables           :: TablesMap
+  , sctRoutines         :: RoutineMap
+  , sctRepresentations  :: RepresentationsMap
+  , sctMediaHandlers    :: MediaHandlerMap
+  , sctTimezones        :: TimezoneNames
+  , sctTablesFuzzyIndex :: TablesFuzzyIndex
+  } deriving (Show)
+
+data SchemaCacheRelationships = SchemaCacheRelationships
+  { scrTables        :: TablesMap
+  , scrRelationships :: RelationshipsMap
+  } deriving (Show)
+
+data SchemaCachePhaseOptions = SchemaCachePhaseOptions
+  { scpoApplyQuerySleep :: Bool
+  , scpoApplyLoadSleep  :: Bool
+  } deriving (Show)
+
+newtype SchemaCacheRelationshipDeps = SchemaCacheRelationshipDeps [ViewKeyDependency]
+
+data SchemaCacheTablesWithDeps = SchemaCacheTablesWithDeps
+  { sctwdTablesCache      :: SchemaCacheTables
+  , sctwdRelationshipDeps :: SchemaCacheRelationshipDeps
+  }
+
+data RelationshipsTablePrep
+  = RecomputeViewPrimaryKeys
+  | AssumeViewPrimaryKeys
+  deriving (Eq, Show)
+
 instance JSON.ToJSON SchemaCache where
   toJSON (SchemaCache tabs rels routs reps hdlers tzs _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
@@ -149,6 +192,40 @@ type SqlQuery = ByteString
 maxDbTablesForFuzzySearch :: Int
 maxDbTablesForFuzzySearch = 500
 
+buildTablesFuzzyIndex :: TablesMap -> TablesFuzzyIndex
+buildTablesFuzzyIndex tables =
+  -- Only build fuzzy index for schemas with a reasonable number of tables
+  -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
+  Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) tableNamesBySchema
+  where
+    tableNamesBySchema =
+      HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tables)
+
+buildRelationships :: TablesMap -> [ViewKeyDependency] -> [Relationship] -> [Relationship] -> RelationshipsMap
+buildRelationships tables keyDeps rels cRels =
+  let
+    relsWithViews = addViewM2OAndO2ORels keyDeps rels
+    relsWithM2M = addM2MRels tables relsWithViews
+    relsWithInverse = addInverseRels relsWithM2M
+  in
+    getOverrideRelationshipsMap relsWithInverse cRels
+
+delayEval :: Maybe Int32 -> a -> a
+delayEval confDelay result =
+  maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
+
+defaultSchemaCachePhaseOptions :: SchemaCachePhaseOptions
+defaultSchemaCachePhaseOptions = SchemaCachePhaseOptions
+  { scpoApplyQuerySleep = True
+  , scpoApplyLoadSleep = True
+  }
+
+noSchemaCachePhaseSleepOptions :: SchemaCachePhaseOptions
+noSchemaCachePhaseSleepOptions = SchemaCachePhaseOptions
+  { scpoApplyQuerySleep = False
+  , scpoApplyLoadSleep = False
+  }
+
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
@@ -164,28 +241,128 @@ querySchemaCache conf@AppConfig{..} = do
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
     for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
 
-  let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
+  let
+    tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+    rels = buildRelationships tabsWViewsPks keyDeps m2oRels cRels
 
   -- Add delay in loading schema cache when internal-schema-cache-load-sleep config is set
   return $ delayEval configInternalSCLoadSleep $ removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
     -- Add delay in loading relationships when internal-schema-cache-relationship-load-sleep config is set
-    , dbRelationships = delayEval configInternalSCRelLoadSleep $ getOverrideRelationshipsMap rels cRels
+    , dbRelationships = delayEval configInternalSCRelLoadSleep rels
     , dbRoutines = funcs
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
 
-    , dbTablesFuzzyIndex =
-        -- Only build fuzzy index for schemas with a reasonable number of tables
-        -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
-        Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
+    , dbTablesFuzzyIndex = buildTablesFuzzyIndex tabsWViewsPks
     }
   where
     schemas = toList configDbSchemas
     prepared = configDbPreparedStatements
-    delayEval confDelay result = maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
+
+querySchemaCacheTables :: AppConfig -> SQL.Transaction SchemaCacheTables
+querySchemaCacheTables conf =
+  sctwdTablesCache <$> querySchemaCacheTablesWithDeps conf defaultSchemaCachePhaseOptions
+
+querySchemaCacheTablesWithDeps :: AppConfig -> SchemaCachePhaseOptions -> SQL.Transaction SchemaCacheTablesWithDeps
+querySchemaCacheTablesWithDeps conf@AppConfig{..} SchemaCachePhaseOptions{..} = do
+  SQL.sql "set local schema ''"
+  tabs    <- SQL.statement conf $ allTables prepared
+  keyDeps <- SQL.statement conf $ allViewsKeyDependencies prepared
+  funcs   <- SQL.statement conf $ allFunctions prepared
+  reps    <- SQL.statement conf $ dataRepresentations prepared
+  mHdlers <- SQL.statement conf $ mediaHandlers prepared
+  tzones  <- SQL.statement mempty $ timezones prepared
+
+  when scpoApplyQuerySleep $
+    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
+    for_ configInternalSCQuerySleep (`SQL.statement` sleepCall)
+
+  let
+    tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+    tablesIndex = buildTablesFuzzyIndex tabsWViewsPks
+    tablesCache =
+      SchemaCacheTables
+        { sctTables = tabsWViewsPks
+        , sctRoutines = funcs
+        , sctRepresentations = reps
+        , sctMediaHandlers = HM.union mHdlers initialMediaHandlers
+        , sctTimezones = tzones
+        , sctTablesFuzzyIndex = tablesIndex
+        }
+    finalTablesCache =
+      if scpoApplyLoadSleep then
+        delayEval configInternalSCLoadSleep tablesCache
+      else
+        tablesCache
+
+  pure $ SchemaCacheTablesWithDeps
+    { sctwdTablesCache = finalTablesCache
+    , sctwdRelationshipDeps = SchemaCacheRelationshipDeps keyDeps
+    }
+  where
+    prepared = configDbPreparedStatements
+
+querySchemaCacheRelationships :: AppConfig -> TablesMap -> SQL.Transaction SchemaCacheRelationships
+querySchemaCacheRelationships conf tables =
+  querySchemaCacheRelationshipsWithDeps
+    conf
+    defaultSchemaCachePhaseOptions
+    RecomputeViewPrimaryKeys
+    tables
+    Nothing
+
+querySchemaCacheRelationshipsWithDeps ::
+  AppConfig ->
+  SchemaCachePhaseOptions ->
+  RelationshipsTablePrep ->
+  TablesMap ->
+  Maybe SchemaCacheRelationshipDeps ->
+  SQL.Transaction SchemaCacheRelationships
+querySchemaCacheRelationshipsWithDeps conf@AppConfig{..} SchemaCachePhaseOptions{..} tablePrep tables maybeKeyDeps = do
+  SQL.sql "set local schema ''"
+
+  keyDeps <- maybe
+    (SQL.statement conf $ allViewsKeyDependencies prepared)
+    (\(SchemaCacheRelationshipDeps deps) -> pure deps)
+    maybeKeyDeps
+  m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
+  cRels   <- SQL.statement mempty $ allComputedRels prepared
+
+  when scpoApplyQuerySleep $
+    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
+    for_ configInternalSCQuerySleep (`SQL.statement` sleepCall)
+
+  let
+    tablesForRels = case tablePrep of
+      RecomputeViewPrimaryKeys -> addViewPrimaryKeys tables keyDeps
+      AssumeViewPrimaryKeys    -> tables
+    rels = buildRelationships tablesForRels keyDeps m2oRels cRels
+    filtered = removeInternal schemas $ SchemaCache
+      { dbTables = tablesForRels
+      , dbRelationships = rels
+      , dbRoutines = mempty
+      , dbRepresentations = mempty
+      , dbMediaHandlers = mempty
+      , dbTimezones = mempty
+      , dbTablesFuzzyIndex = mempty
+      }
+    filteredRels = delayEval configInternalSCRelLoadSleep $ dbRelationships filtered
+    relCache =
+      SchemaCacheRelationships
+        { scrTables = dbTables filtered
+        , scrRelationships = filteredRels
+        }
+
+  pure $
+    if scpoApplyLoadSleep then
+      delayEval configInternalSCLoadSleep relCache
+    else
+      relCache
+  where
+    schemas = toList configDbSchemas
+    prepared = configDbPreparedStatements
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap
