@@ -306,7 +306,11 @@ Related to a :ref:`schema_cache`. Most of the time, these errors are solved by :
 | PGRST204      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst205: | 404         | Caused when the :ref:`table specified <tables_views>` in    |
-|               |             | the URI is not found.                                       |
+|               |             | the URI is not found. A common cause is a stale schema      |
+|               |             | cache (the table exists in PostgreSQL but is not in the     |
+|               |             | cache yet). :ref:`Reload the schema cache                   |
+|               |             | <schema_reloading>` and for table-only updates, consider    |
+|               |             | ``NOTIFY pgrst, 'reload tables'``.                          |
 | PGRST205      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 

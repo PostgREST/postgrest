@@ -99,10 +99,18 @@ retryingListen appState = do
     handleNotification channel msg =
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
+         | msg == "reload tables" -> observer (DBListenerGotSCacheMsg channel) >> cacheTablesReloader
+         | msg == "reload relationships" -> observer (DBListenerGotSCacheMsg channel) >> cacheRelationshipsReloader
          | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.readInDbConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
       AppState.schemaCacheLoader appState
+
+    cacheTablesReloader =
+      AppState.schemaCacheTablesLoader appState
+
+    cacheRelationshipsReloader =
+      AppState.schemaCacheRelationshipsLoader appState
 
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
