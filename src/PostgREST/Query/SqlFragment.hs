@@ -230,14 +230,12 @@ customFuncF _ funcQi RelAnyElement            = fromQi funcQi <> "(_postgrest_t)
 customFuncF _ funcQi (RelId target)           = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
 
 locationF :: [Text] -> SQL.Snippet
-locationF pKeys = SQL.sql $ encodeUtf8 [trimming|(
-  WITH data AS (SELECT row_to_json(_) AS row FROM ${sourceCTEName} AS _ LIMIT 1)
-  SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
-  FROM data CROSS JOIN json_each_text(data.row) AS json_data
-  WHERE json_data.key IN ('${fmtPKeys}')
-)|]
+locationF pKeys
+  | null pKeys = noLocationF
+  | otherwise  =
+      "(" <> locationBindingsFromJsonF rowJson pKeys <> ")"
   where
-    fmtPKeys = T.intercalate "','" pKeys
+    rowJson = "(SELECT row_to_json(_) FROM " <> SQL.sql (encodeUtf8 sourceCTEName) <> " AS _ LIMIT 1)"
 
 fromQi :: QualifiedIdentifier -> SQL.Snippet
 fromQi t = (if T.null s then mempty else pgFmtIdent s <> ".") <> pgFmtIdent n
@@ -276,6 +274,24 @@ pgFmtCoerceNamed CoercibleField{cfName=fn} = pgFmtIdent fn
 pgFmtSelectItem :: QualifiedIdentifier -> CoercibleSelectField -> SQL.Snippet
 pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
   pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
+pgFmtSelectItem table CoercibleSelfSelectField{cssPKCols, cssPath, cssAlias} =
+  pgFmtSelfLink table cssPath cssPKCols <> pgFmtAs (cssAlias <|> Just "_self")
+
+pgFmtSelfLink :: QualifiedIdentifier -> FieldName -> [FieldName] -> SQL.Snippet
+pgFmtSelfLink table path pKeys
+  | null pKeys = "null::text"
+  | otherwise  =
+      "('/" <> SQL.sql (encodeUtf8 path) <> "?' || " <>
+      "array_to_string((" <> locationBindingsFromJsonF rowJson pKeys <> "), '&'))"
+  where
+    rowJson = "row_to_json(" <> pgFmtIdent (qiName table) <> ")"
+
+locationBindingsFromJsonF :: SQL.Snippet -> [FieldName] -> SQL.Snippet
+locationBindingsFromJsonF rowJson pKeys =
+  "SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null')) " <>
+  "FROM (SELECT " <> rowJson <> " AS row) AS data " <>
+  "CROSS JOIN json_each_text(data.row) AS json_data " <>
+  "WHERE json_data.key IN (" <> intercalateSnippet ", " (unknownLiteral <$> pKeys) <> ")"
 
 pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
 pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
@@ -486,6 +502,9 @@ pgFmtGroup :: QualifiedIdentifier -> CoercibleSelectField -> Maybe SQL.Snippet
 pgFmtGroup _  CoercibleSelectField{csAggFunction=Just _} = Nothing
 pgFmtGroup _  CoercibleSelectField{csAlias=Just alias, csAggFunction=Nothing} = Just $ pgFmtIdent alias
 pgFmtGroup qi CoercibleSelectField{csField=fld, csAlias=Nothing, csAggFunction=Nothing} = Just $ pgFmtField qi fld
+pgFmtGroup _  CoercibleSelfSelectField{cssAlias=Just alias} = Just $ pgFmtIdent alias
+pgFmtGroup qi CoercibleSelfSelectField{cssPKCols, cssPath} =
+  Just $ pgFmtSelfLink qi cssPath cssPKCols
 
 countF :: SQL.Snippet -> SQL.Snippet -> Bool -> Maybe Integer -> NonnegRange -> (SQL.Snippet, SQL.Snippet)
 countF countQuery pageCountSelect shouldCount maxRows range

@@ -264,6 +264,60 @@ You can rename the columns by prefixing them with an alias followed by the colon
     {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
   ]
 
+.. _self_links:
+
+Self links
+~~~~~~~~~~
+
+You can use the special ``_self`` field in ``select`` to return a URI for each row.
+The URI points to that row using its primary key columns, for example:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/actors?select=first_name,last_name,_self&order=id"
+
+.. code-block:: json
+
+  [
+    {
+      "first_name": "John",
+      "last_name": "Doe",
+      "_self": "/actors?id=eq.1"
+    },
+    {
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "_self": "/actors?id=eq.2"
+    }
+  ]
+
+Like other ``select`` items, ``_self`` supports aliases:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/actors?select=first_name,row_link:_self&order=id"
+
+It also works with nested select lists:
+
+.. code-block:: bash
+
+  curl --get "http://localhost:3000/actors" \
+    -d "select=last_name,actor_details:_self(first_name,last_name,films(title,_self))" \
+    -d "order=id"
+
+And with :ref:`spread embeds <spread_embed>`:
+
+.. code-block:: bash
+
+  curl --get "http://localhost:3000/projects" \
+    -d "select=id,...clients(client_self:_self)" \
+    -d "order=id"
+
+.. important::
+
+  ``_self`` requires a primary key on the selected relation. If the relation has
+  no primary key, PostgREST returns :ref:`PGRST129 <pgrst129>`.
+
 .. _json_columns:
 
 JSON Columns

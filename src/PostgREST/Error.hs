@@ -99,6 +99,7 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
+  | SelfLinkWithoutPK Text
   deriving Show
 
 data QPError = QPError Text Text
@@ -142,6 +143,7 @@ instance PgrstError ApiRequestError where
   status InvalidResourcePath         = HTTP.status404
   status OpenAPIDisabled             = HTTP.status404
   status MaxAffectedRpcViolation     = HTTP.status400
+  status SelfLinkWithoutPK{}         = HTTP.status400
 
   headers _ = mempty
 
@@ -189,6 +191,7 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
   code MaxAffectedRpcViolation     = "PGRST128"
+  code SelfLinkWithoutPK{}         = "PGRST129"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -215,6 +218,7 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
   message MaxAffectedRpcViolation        = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+  message (SelfLinkWithoutPK relName)    = "Cannot generate _self links for relation '" <> relName <> "' because it has no primary key"
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets

@@ -87,6 +87,11 @@ data CoercibleSelectField = CoercibleSelectField
   , csCast        :: Maybe Cast
   , csAlias       :: Maybe Alias
   }
+  | CoercibleSelfSelectField
+  { cssPKCols :: [FieldName]
+  , cssPath   :: FieldName
+  , cssAlias  :: Maybe Alias
+  }
   deriving (Eq, Show)
 
 data RelJsonEmbedMode = JsonObject | JsonArray
