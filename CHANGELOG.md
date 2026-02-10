@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file. From versio
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
 
+### Fixed
+
+- Limit concurrent schema cache loads by @mkleczek in #4643
+
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359

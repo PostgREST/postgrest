@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.AppState
@@ -35,7 +36,8 @@ import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
-import qualified Hasql.Session              as SQL
+import qualified Hasql.Session              as SQL hiding (statement)
+import qualified Hasql.Transaction          as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
@@ -72,9 +74,16 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
-import Protolude
+import           Data.Functor.Contravariant ((>$<))
+import           Data.Streaming.Network     (bindPortTCP,
+                                             bindRandomPortTCP)
+import           Data.String                (IsString (..))
+import qualified Hasql.Decoders             as HD
+import qualified Hasql.Encoders             as HE
+import qualified Hasql.Statement            as SQL
+import           NeatInterpolation          (trimming)
+import           Protolude
+
 
 data AppState = AppState
   -- | Database connection pool
@@ -401,9 +410,15 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+        -- Allow 10 concurrent schema cache loads, guarded by advisory locks.
+        -- This is to prevent thundering herd problem on startup or when many PostgREST
+        -- instances receive "reload schema" notifications at the same time
+      let withTxLock = SQL.statement (50168275, 10) $
+            SQL.Statement get_lock_sql get_lock_params HD.noResult configDbPreparedStatements
+
       (resultTime, result) <-
         let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ withTxLock *> querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
@@ -421,6 +436,24 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           observer $ SchemaCacheLoadedObs t
           putSCacheStatus appState SCLoaded
           return $ Just sCache
+      where
+        -- recursive query that tries acquiring locks in order
+        -- and waits for randomly selected lock if no attempt succeeded
+        -- parameters are lock number and number of locks to try
+        get_lock_sql = encodeUtf8 [trimming|
+          WITH RECURSIVE attempts AS (
+            SELECT 1 AS lock_number, pg_try_advisory_xact_lock($$1, 1) AS success WHERE $$2 > 0
+            UNION ALL
+            SELECT next_lock_number AS lock_number, pg_try_advisory_xact_lock($$1, next_lock_number) AS success FROM (
+                SELECT lock_number + 1 AS next_lock_number FROM attempts
+                WHERE NOT success AND lock_number < $$2
+                ORDER BY lock_number DESC
+                LIMIT 1
+            ) AS previous_attempt
+          )
+          SELECT pg_advisory_xact_lock($$1, floor(random() * $$2)::int + 1) WHERE NOT EXISTS (SELECT 1 FROM attempts WHERE success) |]
+
+        get_lock_params = (fst >$< HE.param (HE.nonNullable HE.int4)) <> (snd >$< HE.param (HE.nonNullable HE.int4))
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
     shouldRetry _ (pgVer, sCache) = do
