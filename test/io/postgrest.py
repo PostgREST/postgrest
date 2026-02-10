@@ -18,7 +18,7 @@ from config import POSTGREST_BIN, hpctixfile
 
 def sleep_until_postgrest_scache_reload():
     "Sleep until schema cache reload"
-    time.sleep(0.3)
+    time.sleep(1.3)
 
 
 def sleep_until_postgrest_config_reload():
@@ -28,7 +28,7 @@ def sleep_until_postgrest_config_reload():
 
 def sleep_until_postgrest_full_reload():
     "Sleep until schema cache plus config reload"
-    time.sleep(0.3)
+    time.sleep(1.3)
 
 
 class PostgrestTimedOut(Exception):
@@ -71,7 +71,7 @@ class PostgrestProcess:
             time.sleep(0.1)
         return output
 
-    def wait_until_scache_starts_loading(self, max_seconds=1):
+    def wait_until_scache_starts_loading(self, max_seconds=2):
         "Wait for the admin /ready return a status of 503"
 
         wait_until_status_code(
