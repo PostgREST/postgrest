@@ -41,7 +41,7 @@ API than you are likely to write from scratch.
       </td>
       <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
-          <img width="296px" src="static/supabase.png">
+          <img width="296px" src="static/supabase.svg">
         </a>
       </td>
     </tr>
