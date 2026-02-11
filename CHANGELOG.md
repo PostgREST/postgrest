@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Fixed
 
+- Don't hide async exceptions in logs by @stevechavez in #4646
+
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359

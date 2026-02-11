@@ -3,6 +3,7 @@
 import re
 
 import pytest
+import requests
 
 from postgrest import run
 
@@ -52,6 +53,25 @@ def test_openapi_in_big_schema(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
         assert response.status_code == 200
+
+
+def test_stackoverflow_is_logged(defaultenv):
+    "Stack overflow errors should be logged with the Warp error message"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "apflora",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=30, no_startup_stdout=False) as postgrest:
+        with pytest.raises(requests.exceptions.ConnectionError):
+            postgrest.session.get("/")
+
+        output = postgrest.read_stdout(nlines=10)
+        output.extend(postgrest.read_stdout(nlines=10))
+
+        assert any("Warp server error: stack overflow" in line for line in output)
 
 
 # See: https://github.com/PostgREST/postgrest/issues/3329
