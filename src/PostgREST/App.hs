@@ -9,18 +9,24 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns        #-}
 module PostgREST.App
   ( postgrest
   , run
   ) where
 
 
+import GHC.IO.Exception (IOErrorType (..))
+import System.IO.Error  (ioeGetErrorType)
+
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
-import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
+import Network.Wai.Handler.Warp (defaultSettings, setHost,
+                                 setOnException, setPort,
                                  setServerName)
 
 import qualified Data.Text.Encoding       as T
@@ -63,7 +69,6 @@ type Handler = ExceptT Error
 
 run :: AppState -> IO ()
 run appState = do
-  let observer = AppState.getObserver appState
   conf@AppConfig{..} <- AppState.getConfig appState
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
@@ -79,7 +84,24 @@ run appState = do
     address <- resolveSocketToAddress (AppState.getSocketREST appState)
     observer $ AppServerAddressObs address
 
-  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
+  Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) (AppState.getSocketREST appState) app
+  where
+    observer = AppState.getObserver appState
+
+    onWarpException :: Maybe Wai.Request -> SomeException -> IO ()
+    onWarpException _ ex =
+      when (shouldDisplayException ex) $
+        observer $ WarpErrorObs $ show ex
+
+    -- Similar to wai defaultShouldDisplayException in
+    -- https://github.com/yesodweb/wai//blob/8c3882c60f6abe043889fc20c7efd3fa9747fa4a/warp/Network/Wai/Handler/Warp/Settings.hs#L251-L258
+    -- but without omitting AsyncException since it's important to log for ThreadKilled, StackOverflow and other cases.
+    -- We want to reuse this to avoid flooding the logs for some transient failure cases.
+    shouldDisplayException :: SomeException -> Bool
+    shouldDisplayException se
+        | Just (_ :: Warp.InvalidRequest) <- fromException se = False
+        | Just (ioeGetErrorType -> et) <- fromException se, et == ResourceVanished || et == InvalidArgument = False
+        | otherwise = True
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
