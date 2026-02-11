@@ -16,19 +16,14 @@ import           Test.Hspec            (SpecWith, describe,
                                         expectationFailure, it)
 import           Test.Hspec.Wai        (getState)
 
-untilM :: Int -> (a -> Bool) -> IO a -> IO (Maybe a)
+untilM :: Int -> (a -> Maybe b) -> IO a -> IO (Maybe b)
 untilM timeout cond act = rightToMaybe <$> race (threadDelay timeout) (fix $
-  \loop -> do
-    value <- act
-    if cond value then
-      pure value
-    else
-      loop)
+  \loop -> act >>= maybe loop pure . cond)
 
 waitForSchemaReload :: Int -> IO Observation -> IO (Maybe Observation)
 waitForSchemaReload timeout = untilM timeout $ \case
-  SchemaCacheLoadedObs _ -> True
-  _ -> False
+  o@(SchemaCacheLoadedObs _) -> pure o
+  _ -> empty
 
 spec :: SpecWith ((MetricsState, AppState.AppState, IO Observation), Application)
 spec = describe "Server started with metrics enabled" $

@@ -18,6 +18,7 @@ from postgrest import (
     sleep_until_postgrest_full_reload,
     sleep_until_postgrest_scache_reload,
     wait_until_exit,
+    wait_until_status_code,
 )
 
 
@@ -103,6 +104,88 @@ def test_flush_pool_no_interrupt(defaultenv):
         postgrest.process.send_signal(signal.SIGUSR1)
 
         t.join()
+
+
+def test_pool_flushes_metric(defaultenv):
+    "Should increase pool flushes metric when the pool is flushed"
+
+    with run(env=defaultenv, port=freeport()) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        before = float(
+            re.search(r"pgrst_db_pool_flushes_total ([0-9.e+-]+)", response.text).group(
+                1
+            )
+        )
+
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        after = float(
+            re.search(r"pgrst_db_pool_flushes_total ([0-9.e+-]+)", response.text).group(
+                1
+            )
+        )
+        assert after == before + 1
+
+
+def test_pool_flushes_metric_with_schema_cache_retries(defaultenv, metapostgrest):
+    "Should flush the pool exactly once even when schema cache reload retries"
+
+    role = "timeout_authenticator"
+    app_name = "pool-flush-retry"
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGAPPNAME": app_name,
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "50",
+    }
+
+    with run(env=env, port=freeport()) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        before = float(
+            re.search(r"pgrst_db_pool_flushes_total ([0-9.e+-]+)", response.text).group(
+                1
+            )
+        )
+
+        try:
+            # Force schema cache reload failures to trigger retries.
+            set_statement_timeout(metapostgrest, role, 20)
+            postgrest.process.send_signal(signal.SIGUSR1)
+
+            postgrest.wait_until_scache_starts_loading(max_seconds=2)
+
+            # Give retry loop time to run and verify it doesn't flush the pool.
+            time.sleep(1)
+
+            response = postgrest.admin.get("/metrics")
+            assert response.status_code == 200
+            during_retries = float(
+                re.search(
+                    r"pgrst_db_pool_flushes_total ([0-9.e+-]+)", response.text
+                ).group(1)
+            )
+            assert during_retries == before
+
+            reset_statement_timeout(metapostgrest, role)
+            # Ensure next retry establishes fresh sessions with the reset timeout.
+            metapostgrest.session.get(f"/rpc/terminate_pgrst?appname={app_name}")
+            wait_until_status_code(postgrest.admin.baseurl + "/ready", 12, 200)
+        finally:
+            reset_statement_timeout(metapostgrest, role)
+
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        after = float(
+            re.search(r"pgrst_db_pool_flushes_total ([0-9.e+-]+)", response.text).group(
+                1
+            )
+        )
+        assert after == before + 1
 
 
 def test_random_port_bound(defaultenv):
@@ -661,55 +744,53 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = sorted(postgrest.read_stdout(nlines=7))
+        output = postgrest.read_stdout(nlines=9)
+
+        def match_log(matchers):
+            ito = iter(output)
+            itm = iter(matchers)
+            nextMatcher = next(itm, None)
+            while nextMatcher is not None and (line := next(ito, None)) is not None:
+                if re.match(nextMatcher, line) is not None:
+                    nextMatcher = next(itm, None)
+            if nextMatcher is not None:
+                raise AssertionError(
+                    f"Expected log line matching {nextMatcher} not found in output"
+                )
 
         if level == "crit":
             assert len(output) == 0
         elif level == "error":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            match_log(
+                [r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"']
             )
             assert len(output) == 1
         elif level == "warn":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
-            )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[1],
+            match_log(
+                [
+                    r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
+                    r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
+                ]
             )
             assert len(output) == 2
         elif level == "info":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
-            )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
-                output[1],
-            )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[2],
+            match_log(
+                [
+                    r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
+                    r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
+                    r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+                ]
             )
             assert len(output) == 3
         elif level == "debug":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            match_log(
+                [
+                    r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
+                    r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
+                    r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+                ]
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
-                output[1],
-            )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[2],
-            )
-
-            assert len(output) == 7
+            assert len(output) == 9
             assert any("Connection" and "is available" in line for line in output)
             assert any("Connection" and "is used" in line for line in output)
 
@@ -1346,16 +1427,16 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         assert response.status_code == 500
 
         # ensure the message appears on the logs
-        output = sorted(postgrest.read_stdout(nlines=6))
+        output = postgrest.read_stdout(nlines=8)
 
         if level == "crit":
             assert len(output) == 0
         elif level == "debug":
-            assert " 500 " in output[0]
-            assert "canceling statement due to statement timeout" in output[5]
+            assert " 500 " in output[7]
+            assert "canceling statement due to statement timeout" in output[6]
         else:
-            assert " 500 " in output[0]
-            assert "canceling statement due to statement timeout" in output[1]
+            assert " 500 " in output[1]
+            assert "canceling statement due to statement timeout" in output[0]
 
     reset_statement_timeout(metapostgrest, role)
 
@@ -1460,6 +1541,7 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_waiting" in response.text
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
+        assert "pgrst_db_pool_flushes_total" in response.text
 
 
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
@@ -1557,10 +1639,10 @@ def test_log_pool_req_observation(level, defaultenv):
         postgrest.session.get("/authors_only", headers=headers)
 
         if level == "debug":
-            output = postgrest.read_stdout(nlines=5)
+            output = postgrest.read_stdout(nlines=7)
+            assert len(output) == 7
             assert pool_req in output[1]
-            assert pool_req_fullfill in output[4]
-            assert len(output) == 5
+            assert pool_req_fullfill in output[6]
         elif level == "info":
             output = postgrest.read_stdout(nlines=4)
             assert len(output) == 1
