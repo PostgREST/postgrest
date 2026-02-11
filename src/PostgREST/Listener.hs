@@ -18,6 +18,7 @@ import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
 import           Control.Arrow              ((&&&))
+import           Control.Monad.Random
 import           Data.Bitraversable         (bisequence)
 import           Data.Either.Combinators    (whenRight)
 import qualified Database.PostgreSQL.LibPQ  as LibPQ
@@ -102,7 +103,13 @@ retryingListen appState = do
          | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.readInDbConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
-    cacheReloader =
+      -- add a random delay between 0 and 1 second to avoid thundering herd problem
+      -- if multiple listeners receive the same notification at the same time
+      -- the cacheReloader is launched in a separate thread to avoid blocking the listener
+      -- during the random delay
+    cacheReloader = void $ forkIO $ do
+      delay <- getRandomR (0, 1000000)
+      threadDelay delay
       AppState.schemaCacheLoader appState
 
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
