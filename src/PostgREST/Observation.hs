@@ -63,6 +63,7 @@ data Observation
   | PoolRequestFullfilled
   | JwtCacheLookup Bool
   | JwtCacheEviction
+  | WarpErrorObs Text
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
 
@@ -157,6 +158,8 @@ observationMessage = \case
     "Looked up a JWT in JWT cache"
   JwtCacheEviction ->
     "Evicted entry from JWT cache"
+  WarpErrorObs txt ->
+    "Warp server error: " <> txt
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""
