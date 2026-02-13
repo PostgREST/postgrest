@@ -6,7 +6,7 @@
 --
 -- [1] https://datatracker.ietf.org/doc/html/rfc7240
 --
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
@@ -17,6 +17,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferTransaction(..)
   , PreferTimezone(..)
   , PreferMaxAffected(..)
+  , PreferTimeout(..)
   , fromHeaders
   , shouldCount
   , shouldExplainCount
@@ -43,6 +44,7 @@ import Protolude
 -- >>> deriving instance Show PreferHandling
 -- >>> deriving instance Show PreferTimezone
 -- >>> deriving instance Show PreferMaxAffected
+-- >>> deriving instance Show PreferTimeout
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -56,6 +58,7 @@ data Preferences
     , preferHandling       :: Maybe PreferHandling
     , preferTimezone       :: Maybe PreferTimezone
     , preferMaxAffected    :: Maybe PreferMaxAffected
+    , preferTimeout        :: Maybe PreferTimeout
     , invalidPrefs         :: [ByteString]
     }
 
@@ -77,12 +80,13 @@ data Preferences
 --         ( PreferTimezone "America/Los_Angeles" )
 --     , preferMaxAffected = Just
 --         ( PreferMaxAffected 100 )
+--     , preferTimeout = Nothing
 --     , invalidPrefs = []
 --     }
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999"), ("Prefer", "timeout=10")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -93,6 +97,8 @@ data Preferences
 --     , preferTimezone = Nothing
 --     , preferMaxAffected = Just
 --         ( PreferMaxAffected 5999 )
+--     , preferTimeout = Just
+--         ( PreferTimeout 10 )
 --     , invalidPrefs = [ "invalid" ]
 --     }
 --
@@ -124,6 +130,7 @@ data Preferences
 --     , preferHandling = Just Strict
 --     , preferTimezone = Nothing
 --     , preferMaxAffected = Nothing
+--     , preferTimeout = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
@@ -138,7 +145,8 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     , preferHandling       = parsePrefs [Strict, Lenient]
     , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
     , preferMaxAffected    = PreferMaxAffected <$> maxAffectedPref
-    , invalidPrefs         = filter isUnacceptable prefs
+    , preferTimeout        = PreferTimeout <$> timeoutPref
+    , invalidPrefs         = filter (not . isPrefValid) prefs
     }
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
@@ -159,10 +167,17 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     isTimezonePrefAccepted = ((S.member . decodeUtf8 <$> timezonePref) <*> pure acceptedTzNames) == Just True
 
     maxAffectedPref = listStripPrefix "max-affected=" prefs >>= readMaybe . BS.unpack
+    timeoutPref = listStripPrefix "timeout=" prefs >>= readOnlyPositiveInt . readMaybe . BS.unpack
+      where
+        -- 0 and -ve values for timeout are meaningless, we handle them leniently and ignore them
+        readOnlyPositiveInt (Just i) | i > 0 = Just i
+        readOnlyPositiveInt _ = Nothing
 
-    isUnacceptable p = p `notElem` acceptedPrefs &&
-                       (isNothing (BS.stripPrefix "timezone=" p) ||  not isTimezonePrefAccepted) &&
-                       isNothing (BS.stripPrefix "max-affected=" p)
+    isPrefValid p =
+      p `elem` acceptedPrefs ||
+      (isJust (BS.stripPrefix "timezone=" p) && isTimezonePrefAccepted) ||
+      isJust (BS.stripPrefix "max-affected=" p) ||
+      isJust (BS.stripPrefix "timeout=" p)
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
@@ -172,7 +187,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
+prefAppliedHeader Preferences{..} =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -187,6 +202,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCou
       , toHeaderValue <$> preferHandling
       , toHeaderValue <$> preferTimezone
       , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
+      , if preferHandling == Just Strict then toHeaderValue <$> preferTimeout else Nothing
       ]
 
 -- |
@@ -289,3 +305,10 @@ newtype PreferMaxAffected = PreferMaxAffected Int64
 
 instance ToHeaderValue PreferMaxAffected where
   toHeaderValue (PreferMaxAffected n) = "max-affected=" <> show n
+
+-- |
+-- Statement Timeout per request
+newtype PreferTimeout = PreferTimeout Int64
+
+instance ToHeaderValue PreferTimeout where
+  toHeaderValue (PreferTimeout n) = "timeout=" <> show n
