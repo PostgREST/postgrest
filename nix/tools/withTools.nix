@@ -354,9 +354,12 @@ let
       '';
 
   withPgrst =
+    let
+      commandName = "postgrest-with-pgrst";
+    in
     checkedShellScript
       {
-        name = "postgrest-with-pgrst";
+        name = commandName;
         docs = "Build and run PostgREST and run <command> with PGRST_SERVER_UNIX_SOCKET set.";
         args =
           [
@@ -379,7 +382,7 @@ let
           rm -f result
           build_start=$SECONDS
           if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
-            echo -n "Building postgrest (nix)... "
+            echo -n "${commandName}: Building postgrest (nix)... "
             # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
             nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
               echo "failed, output:"
@@ -388,7 +391,7 @@ let
             }
             PGRST_CMD=$(echo ./result*/bin/postgrest)
           else
-            echo -n "Building postgrest (cabal)... "
+            echo -n "${commandName}: Building postgrest (cabal)... "
             postgrest-build
             PGRST_CMD=postgrest-run
           fi
@@ -398,7 +401,7 @@ let
 
         ver=$($PGRST_CMD ${legacyConfig} --version)
 
-        echo -n "Starting $ver... "
+        echo -n "${commandName}: Starting $ver... "
 
         $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
@@ -424,6 +427,8 @@ let
         }
         wait_duration=$((SECONDS - wait_start))
         printf "done in %ss.\n" "$wait_duration"
+
+        echo "${commandName}: You can tail the server logs with: tail -f $tmpdir/run.log"
 
         if [[ -n "$_arg_monitor" ]]; then
           ${monitorPid} "$pid" > "$_arg_monitor" &
