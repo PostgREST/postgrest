@@ -50,7 +50,7 @@ init configDbPoolSize = do
 -- Only some observations are used as metrics
 observationMetrics :: MetricsState -> ObservationHandler
 observationMetrics MetricsState{..} obs = case obs of
-  (PoolAcqTimeoutObs _) -> do
+  PoolAcqTimeoutObs -> do
     incCounter poolTimeouts
   (HasqlPoolObs (SQL.ConnectionObservation _ status)) -> case status of
      SQL.ReadyForUseConnectionStatus  -> do
