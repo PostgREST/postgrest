@@ -222,7 +222,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
 
   whenLeft res (\case
     SQL.AcquisitionTimeoutUsageError ->
-      observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
+      observer PoolAcqTimeoutObs
     err@(SQL.ConnectionUsageError e) ->
       let failureMessage = BS.unpack $ fromMaybe mempty e in
       when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
