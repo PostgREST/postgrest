@@ -271,6 +271,10 @@ Related to the HTTP request elements.
 |               |             | See :ref:`prefer_max_affected`.                             |
 | PGRST128      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst129: | 400         | ``_self`` link is requested on a relation without a         |
+|               |             | primary key. See :ref:`self_links`.                         |
+| PGRST129      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 
 .. _pgrst2**:

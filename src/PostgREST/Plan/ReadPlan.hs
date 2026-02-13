@@ -45,6 +45,7 @@ data ReadPlan = ReadPlan
   , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
+  , relIsSelf    :: Bool
   , relSpread    :: Maybe SpreadType
   , relSelect    :: [RelSelectField]
   , depth        :: Depth

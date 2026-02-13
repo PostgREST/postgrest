@@ -311,6 +311,7 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy` lexeme (char ',')
   where
     pFieldTree =  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
+                  Node <$> try pSelfRelationSelect   <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> try pRelationSelect       <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> pFieldSelect <*> pure []
 
@@ -473,10 +474,25 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     name <- pFieldName
-    guard (name /= "count")
+    guard (name /= "count" && name /= "_self")
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SelectRelation name alias hint jType
+
+-- |
+-- Parse `_self` relation selects.
+--
+-- >>> P.parse pSelfRelationSelect "" "_self(*)"
+-- Right (SelectSelfRelation {selAlias = Nothing})
+--
+-- >>> P.parse pSelfRelationSelect "" "alias:_self(*)"
+-- Right (SelectSelfRelation {selAlias = Just "alias"})
+pSelfRelationSelect :: Parser SelectItem
+pSelfRelationSelect = lexeme $ do
+  alias <- optionMaybe (try (pFieldName <* aliasSeparator))
+  _ <- string "_self"
+  try (void $ lookAhead (string "("))
+  pure $ SelectSelfRelation alias
 
 
 -- |
@@ -522,6 +538,11 @@ pFieldSelect = lexeme $ try (do
     s <- pStar
     pEnd
     return $ SelectField (s, []) Nothing Nothing Nothing Nothing)
+  <|> try (do
+    alias <- optionMaybe (try (pFieldName <* aliasSeparator))
+    _ <- string "_self"
+    pEnd
+    return $ SelectSelf alias)
   <|> try (do
     alias    <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     _        <- string "count()"

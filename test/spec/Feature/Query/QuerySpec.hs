@@ -22,6 +22,74 @@ spec = do
     it "should not conflict with internal postgrest table alias" $
       get "/clashing_column?select=t" `shouldRespondWith` 200
 
+  describe "Self links" $ do
+    it "returns a self link for each selected row" $
+      get "/actors?select=name,_self&order=id" `shouldRespondWith`
+        [json|[
+          {"name":"john","_self":"/actors?id=eq.1"},
+          {"name":"mary","_self":"/actors?id=eq.2"}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "allows aliasing the _self field" $
+      get "/actors?select=name,self_link:_self&order=id" `shouldRespondWith`
+        [json|[
+          {"name":"john","self_link":"/actors?id=eq.1"},
+          {"name":"mary","self_link":"/actors?id=eq.2"}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "supports _self links with spread operator" $
+      get "/projects?select=id,...clients(client_self:_self)&order=id" `shouldRespondWith`
+        [json|[
+          {"id":1,"client_self":"/clients?id=eq.1"},
+          {"id":2,"client_self":"/clients?id=eq.1"},
+          {"id":3,"client_self":"/clients?id=eq.2"},
+          {"id":4,"client_self":"/clients?id=eq.2"},
+          {"id":5,"client_self":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "allows aliases and a nested self select list" $
+      get "/actors?select=name,actor_details:_self(name,films(title,_self))&order=id" `shouldRespondWith`
+        [json|[
+          {
+            "name":"john",
+            "actor_details":{
+              "name":"john",
+              "films":[{"title":"douze commandements","_self":"/films?id=eq.12"}]
+            }
+          },
+          {
+            "name":"mary",
+            "actor_details":{
+              "name":"mary",
+              "films":[{"title":"odyssée de l'espace","_self":"/films?id=eq.2001"}]
+            }
+          }
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "supports nested _self links with spread and aliases" $
+      get "/projects?select=id,client:clients(id,...projects(project_name:name,project_self:_self))&id=eq.1" `shouldRespondWith`
+        [json|[
+          {
+            "id":1,
+            "client":{
+              "id":1,
+              "project_name":["Windows 7","Windows 10"],
+              "project_self":["/projects?id=eq.1","/projects?id=eq.2"]
+            }
+          }
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "reports an error when requesting a root _self link for a relation without primary key" $
+      get "/no_pk?select=a,_self" `shouldRespondWith` 400
+
+    it "reports an error when requesting a nested _self link for a relation without primary key" $
+      get "/no_pk?select=a,self:_self(a)" `shouldRespondWith` 400
+
   describe "Querying a nonexistent table" $
     it "causes a 404" $
       get "/faketable"

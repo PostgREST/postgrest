@@ -354,12 +354,12 @@ resolveQueryInputField ctx field opExpr = withTextParse ctx $ resolveTypeOrUnkno
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
 readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  = do
   let
     -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
     ctx = ResolverContext dbTables dbRepresentations qi "json"
-  in
-    treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+  initReq <- initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest
+  treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
     addToManyOrderSelects =<<
     hoistSpreadAggFunctions =<<
     validateAggFunctions configDbAggregates =<<
@@ -368,35 +368,60 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     addRelatedOrders =<<
     addAliases =<<
     expandStars ctx =<<
-    addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
+    addRels qiSchema dbTables (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
     addOrders ctx apiRequest =<<
-    addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
+    addFilters ctx apiRequest initReq
 
 -- Build the initial read plan tree
-initReadRequest :: ResolverContext -> [Tree SelectItem] -> ReadPlanTree
-initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
-  foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
+initReadRequest :: ResolverContext -> [Tree SelectItem] -> Either Error ReadPlanTree
+initReadRequest ctx@ResolverContext{qi=rootQi} =
+  foldrM (treeEntry rootDepth) (Node defReadPlan{from=rootQi, relName=qiName rootQi, depth=rootDepth} [])
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth
-    treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False Nothing [] rootDepth
+    treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> Either Error ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
       case si of
+        SelectSelfRelation{..} -> do
+          _ <- ensureSelfLinkPK (from q)
+          child <- foldrM (treeEntry nxtDepth)
+            (Node defReadPlan{from=from q, relName="_self", relAlias=selAlias, relIsSelf=True, depth=nxtDepth} [])
+            fldForest
+          pure $ Node q (child:rForest)
         SelectRelation{..} ->
-          Node q $
-            foldr (treeEntry nxtDepth)
-            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
-            fldForest:rForest
+          do
+            child <- foldrM (treeEntry nxtDepth)
+              (Node defReadPlan{from=QualifiedIdentifier (qiSchema rootQi) selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, relIsSelf=False, depth=nxtDepth} [])
+              fldForest
+            pure $ Node q (child:rForest)
         SpreadRelation{..} ->
-          Node q $
-            foldr (treeEntry nxtDepth)
-            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relSpread=Just ToOneSpread} [])
-            fldForest:rForest
+          do
+            child <- foldrM (treeEntry nxtDepth)
+              (Node defReadPlan{from=QualifiedIdentifier (qiSchema rootQi) selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, relIsSelf=False, depth=nxtDepth, relSpread=Just ToOneSpread} [])
+              fldForest
+            pure $ Node q (child:rForest)
+        SelectSelf{..} -> do
+          sel <- resolveSelfSelectField ctx{qi=from q} selAlias
+          pure $ Node q{select=sel:select q} rForest
         SelectField{..} ->
-          Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
+          pure $ Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
+
+    ensureSelfLinkPK relQi =
+      if null pkCols
+      then Left . ApiRequestError $ SelfLinkWithoutPK (qiName relQi)
+      else Right ()
+      where
+        pkCols = foldMap tablePKCols $ HM.lookup relQi (tables ctx)
+
+resolveSelfSelectField :: ResolverContext -> Maybe Alias -> Either Error CoercibleSelectField
+resolveSelfSelectField ResolverContext{tables, qi} selAlias
+  | null pkCols = Left . ApiRequestError $ SelfLinkWithoutPK (qiName qi)
+  | otherwise   = Right $ CoercibleSelfSelectField pkCols (qiName qi) selAlias
+  where
+    pkCols = foldMap tablePKCols $ HM.lookup qi tables
 
 -- If an alias is explicitly specified, it is always respected. However, an alias may be
 -- determined automatically in these cases:
@@ -409,6 +434,7 @@ addAliases = Right . fmap addAliasToPlan
     addAliasToPlan rp@ReadPlan{select=sel, relSpread=spr} = rp{select=map (aliasSelectField $ isJust spr) sel}
 
     aliasSelectField :: Bool -> CoercibleSelectField -> CoercibleSelectField
+    aliasSelectField _ field@CoercibleSelfSelectField{} = field
     aliasSelectField isSpread field@CoercibleSelectField{csField=fieldDetails, csAggFunction=aggFun, csAlias=alias}
       | isJust alias = field
       | isJust aggFun = fieldAliasForSpreadAgg isSpread field
@@ -460,7 +486,9 @@ expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
     expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
     expandStarsForReadPlan hasAgg (Node rp@ReadPlan{select, from=fromQI, fromAlias=alias, relSpread=spread} children) =
       let
-        newHasAgg = hasAgg || any (isJust . csAggFunction) select || case spread of Just ToManySpread{} -> True; _ -> False
+        hasAggSelect CoercibleSelectField{csAggFunction} = isJust csAggFunction
+        hasAggSelect CoercibleSelfSelectField{}          = False
+        newHasAgg = hasAgg || any hasAggSelect select || case spread of Just ToManySpread{} -> True; _ -> False
         newCtx = adjustContext ctx fromQI alias
         newRPlan = expandStarsForTable newCtx newHasAgg rp
       in Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
@@ -482,9 +510,12 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@R
   | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField (isJust spread) knownColumns) selectFields}
   | otherwise = rp
   where
-    hasStarSelect = "*" `elem` map (cfName . csField) filteredSelectFields
-    filteredSelectFields = filter (shouldExpandOrTag . csAggFunction) selectFields
-    shouldExpandOrTag aggFunc = isNothing aggFunc || (isJust spread && aggFunc == Just Count)
+    hasStarSelect = any isStarSelect filteredSelectFields
+    filteredSelectFields = filter shouldExpandOrTag selectFields
+    shouldExpandOrTag CoercibleSelfSelectField{} = False
+    shouldExpandOrTag CoercibleSelectField{csAggFunction=aggFunc} = isNothing aggFunc || (isJust spread && aggFunc == Just Count)
+    isStarSelect CoercibleSelectField{csField=CoercibleField{cfName="*"}} = True
+    isStarSelect _ = False
     hasDataRepresentation = any hasOutputRep knownColumns
     knownColumns = knownColumnsInContext ctx
 
@@ -508,11 +539,27 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
 
 -- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode(https://stackoverflow.com/questions/22721064/get-the-parent-of-a-node-in-data-tree-haskell#comment34627048_22721064)
 -- also adds aliasing
-addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either Error ReadPlanTree
-addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,relAlias,relSpread,depth} forest) =
+addRels :: Schema -> TablesMap -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either Error ReadPlanTree
+addRels schema tables action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,relAlias,relSpread,relIsSelf,depth} forest) =
   case parentNode of
-    Just (Node ReadPlan{from=parentNodeQi, fromAlias=parentAlias} _) ->
+    Just (Node ReadPlan{from=parentNodeQi, fromAlias=parentAlias, relName=parentRelName} _) ->
       let
+        parentBaseQi = case parentNodeQi of
+          QualifiedIdentifier "" tbl | tbl == sourceCTEName -> QualifiedIdentifier schema (fromMaybe parentRelName parentAlias)
+          _                                                 -> parentNodeQi
+        parentPkCols = foldMap tablePKCols $ HM.lookup parentBaseQi tables
+        selfRel = Relationship parentNodeQi parentNodeQi True (O2O "_self" ((,)<$> parentPkCols <*> parentPkCols) False) False False
+        selfRelAlias = qiName parentNodeQi <> "_" <> show depth
+        selfAggAlias = qiName parentNodeQi <> "_" <> fromMaybe relName relAlias <> "_" <> show depth
+        selfReadPlan =
+          rPlan
+            { from=parentNodeQi
+            , relToParent=Just selfRel
+            , fromAlias=Just selfRelAlias
+            , relJoinConds=getJoinConditions (Just selfRelAlias) parentAlias selfRel
+            , relAggAlias=selfAggAlias
+            , relSpread=relSpread
+            }
         newReadPlan = (\r ->
           let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
               aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth
@@ -530,7 +577,9 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
           else qiName parentNodeQi
         rel = findRel schema allRels origin relName relHint
       in
-      Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
+      if relIsSelf
+      then Node selfReadPlan <$> updateForest (Just $ Node selfReadPlan forest)
+      else Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
     Nothing -> -- root case
       let
         newFrom  = QualifiedIdentifier mempty sourceCTEName
@@ -545,7 +594,7 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
       Node newReadPlan <$> updateForest (Just $ Node newReadPlan forest)
   where
     updateForest :: Maybe ReadPlanTree -> Either Error [ReadPlanTree]
-    updateForest rq = addRels schema action allRels rq `traverse` forest
+    updateForest rq = addRels schema tables action allRels rq `traverse` forest
 
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
 getJoinConditions _ _ ComputedRelationship{} = []
@@ -687,6 +736,8 @@ generateSpreadSelectFields ReadPlan{select, relSelect} =
     selectToSpread :: CoercibleSelectField -> SpreadSelectField
     selectToSpread CoercibleSelectField{csField = CoercibleField{cfName}, csAlias} =
       SpreadSelectField { ssSelName = fromMaybe cfName csAlias, ssSelAggFunction = Nothing, ssSelAggCast = Nothing, ssSelAlias = Nothing }
+    selectToSpread CoercibleSelfSelectField{cssAlias} =
+      SpreadSelectField { ssSelName = fromMaybe "_self" cssAlias, ssSelAggFunction = Nothing, ssSelAggCast = Nothing, ssSelAlias = Nothing }
 
     relSelectSpread = concatMap relSelectToSpread relSelect
     relSelectToSpread :: RelSelectField -> [SpreadSelectField]
@@ -761,6 +812,7 @@ hoistFromSelectFields relAggAlias fields =
           updatedField = field {csAggFunction = Nothing, csAggCast = Nothing}
           hoistedField = Just ((relAggAlias, determineFieldName), (aggFunc, csAggCast, csAlias))
       in (updatedField, hoistedField)
+    modifyField field@CoercibleSelfSelectField{} = (field, Nothing)
     modifyField field = (field, Nothing)
 
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
@@ -788,7 +840,7 @@ addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, r
   | otherwise = Node rp { order = [], relSpread = newRelSpread } <$> addToManyOrderSelects `traverse` forest
   where
     newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
-    anyAggSel = any (isJust . csAggFunction) select
+    anyAggSel = any (\case CoercibleSelectField{csAggFunction} -> isJust csAggFunction; CoercibleSelfSelectField{} -> False) select
     anyAggRelSel = any (\case Spread sels _ -> any (isJust . ssSelAggFunction) sels; _ -> False) relSelect
     (addSprExtraSelects, addSprOrder) = unzip $ zipWith ordToExtraSelsAndSprOrds [1..] order
     ordToExtraSelsAndSprOrds i = \case
@@ -806,7 +858,7 @@ addToManyOrderSelects (Node rp forest) = Node rp <$> addToManyOrderSelects `trav
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either Error ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
-  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left $ ApiRequestError AggregatesNotAllowed
+  | not aggFunctionsAllowed && any (\case CoercibleSelectField{csAggFunction} -> isJust csAggFunction; CoercibleSelfSelectField{} -> False) select = Left $ ApiRequestError AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 -- | Lookup table in the schema cache before creating read plan
@@ -886,7 +938,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         relName = "projects",
 --         relToParent = Nothing,
 --         relJoinConds = [],
---         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relSpread = Nothing, depth = 1,
+--         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relIsSelf = False, relSpread = Nothing, depth = 1,
 --         relSelect = []
 --       },
 --       subForest = []
@@ -912,7 +964,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         )
 --       ],
 --       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
---       relJoinType = Nothing, relSpread = Nothing, depth = 0,
+--       relJoinType = Nothing, relIsSelf = False, relSpread = Nothing, depth = 0,
 --       relSelect = []
 --     },
 --     subForest = subForst
@@ -1080,7 +1132,10 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `S.member` fldNames = S.singleton "*"
   | otherwise               = returnings
   where
-    fldNames = S.fromList $ cfName . csField <$> select
+    fldNames = S.fromList $ concatMap selectFieldNames select
+    selectFieldNames :: CoercibleSelectField -> [FieldName]
+    selectFieldNames CoercibleSelectField{csField=CoercibleField{cfName}} = [cfName]
+    selectFieldNames CoercibleSelfSelectField{cssPKCols} = cssPKCols
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
