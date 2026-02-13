@@ -13,14 +13,16 @@ All notable changes to this project will be documented in this file. From versio
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
 
-### Fixed
-
-- Don't hide async exceptions in logs by @stevechavez in #4646
-
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+
+## [14.5] - 2026-02-12
+
+### Fixed
+
+- Don't hide async exceptions in logs by @stevechavez in #4646
 
 ## [14.4] - 2026-01-29
 
