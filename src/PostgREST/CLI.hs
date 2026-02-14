@@ -30,7 +30,7 @@ import Protolude
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do
   conf <-
-    either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
+    either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty mempty
   case cliCommand of
     Client adminCmd -> runClientCommand conf adminCmd
     Run runCmd      -> runAppCommand conf runCmd

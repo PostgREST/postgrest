@@ -15,6 +15,7 @@ The following preferences are supported.
 - ``Prefer: missing``. See :ref:`prefer_missing`.
 - ``Prefer: max-affected``, See :ref:`prefer_max_affected`.
 - ``Prefer: tx``. See :ref:`prefer_tx`.
+- ``Prefer: timeout``. See :ref:`prefer_timeout`.
 
 .. _prefer_handling:
 
@@ -296,3 +297,62 @@ With :ref:`RPC <functions>`, the preference is honored completely on the basis o
 .. note::
 
   It is important for functions to return ``SETOF`` or ``TABLE`` when called with ``max-affected`` preference. A violation of this would cause a :ref:`PGRST128 <pgrst128>` error.
+
+.. _prefer_timeout:
+
+Timeout
+=======
+
+You can set `statement_timeout <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT>`_ for the request using this preference. This works in combination with ``handling=strict`` preference in the same header.
+
+The header only accepts integer value indicating the ``seconds`` that are set as timeout value. ``0`` and negative values are ignored and not applied. To demonstrate, see the following example:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION test.sleep(seconds)
+  RETURNS VOID AS $$
+    SELECT pg_sleep(seconds);
+  $$ LANGUAGE SQL;
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/rpc/sleep?seconds=5" \
+    -H "Prefer: handling=strict, timeout=2"
+
+.. code-block:: http
+
+  HTTP/1.1 500 Internal Server Error
+
+.. code-block:: json
+
+  {
+      "code": "57014",
+      "details": null,
+      "hint": null,
+      "message": "canceling statement due to statement timeout"
+  }
+
+It is important to note the timeout value cannot exceed the ``statement_timeout`` set :ref:`per-role <impersonated_settings>` or per-database. The role's timeout setting takes precedence over the database level timeout. This restriction prevents misuse of this feature. PostgREST returns a :ref:`PGRST129 <pgrst129>` error in this case.
+
+.. code-block:: postgres
+
+  ALTER ROLE postgrest_test_anonymous SET statement_timeout = '3s';
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/rpc/sleep?seconds=4" \
+    -H "Prefer: handling=strict, timeout=5"
+
+.. code-block:: http
+
+  HTTP/1.1 400 Bad Request
+  Content-Type: application/json; charset=utf-8
+
+.. code-block:: json
+
+  {
+      "code": "PGRST129",
+      "message": "Timeout preference exceeded maximum allowed",
+      "details": "The maximum timeout allowed is 3s",
+      "hint": "Reduce the timeout"
+  }
