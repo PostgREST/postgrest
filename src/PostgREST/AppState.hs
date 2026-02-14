@@ -35,7 +35,8 @@ import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
-import qualified Hasql.Session              as SQL
+import qualified Hasql.Session              as SQL hiding (statement)
+import qualified Hasql.Transaction          as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
@@ -72,9 +73,14 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
-import Protolude
+import           Control.Monad.Random   (MonadRandom (getRandomR))
+import           Data.Streaming.Network (bindPortTCP,
+                                         bindRandomPortTCP)
+import           Data.String            (IsString (..))
+import qualified Hasql.Decoders         as HD
+import qualified Hasql.Encoders         as HE
+import qualified Hasql.Statement        as SQL
+import           Protolude
 
 data AppState = AppState
   -- | Database connection pool
@@ -401,9 +407,16 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      withTxLock <- do
+        -- Allow 10 concurrent schema cache loads, guarded by advisory locks.
+        -- This is to prevent thundering herd problem on startup or when many PostgREST instances receive "reload schema" notifications at the same time
+        lockId <- getRandomR (50168275::Int64, 50168275 + 10)
+        let stmt = SQL.Statement "SELECT pg_catalog.pg_advisory_xact_lock($1)" (HE.param $ HE.nonNullable HE.int8) HD.noResult configDbPreparedStatements
+        pure $ SQL.statement lockId stmt
+
       (resultTime, result) <-
         let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ withTxLock *> querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
