@@ -2,6 +2,7 @@ module PostgREST.Plan.ReadPlan
   ( ReadPlanTree
   , ReadPlan(..)
   , JoinCondition(..)
+  , RelOrderAgg(..)
   , SpreadType(..)
   ) where
 
@@ -30,6 +31,12 @@ data JoinCondition =
     (QualifiedIdentifier, FieldName)
   deriving (Eq, Show)
 
+data RelOrderAgg = RelOrderAgg
+  { roaAlias     :: FieldName
+  , roaOrderTerm :: CoercibleOrderTerm
+  }
+  deriving (Eq, Show)
+
 -- TODO: Enforce uniqueness of columns by changing to a Set instead of a List where applicable
 data ReadPlan = ReadPlan
   { select       :: [CoercibleSelectField]
@@ -46,6 +53,7 @@ data ReadPlan = ReadPlan
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
   , relSpread    :: Maybe SpreadType
+  , relOrderAgg  :: [RelOrderAgg]
   , relSelect    :: [RelSelectField]
   , depth        :: Depth
   -- ^ used for aliasing
