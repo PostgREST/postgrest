@@ -88,7 +88,7 @@ shouldLogResponse logLevel = case logLevel of
 -- All observations are logged except some that depend on the log-level
 observationLogger :: LoggerState -> LogLevel -> ObservationHandler
 observationLogger loggerState logLevel obs = case obs of
-  o@(PoolAcqTimeoutObs _) -> do
+  o@PoolAcqTimeoutObs -> do
     when (logLevel >= LogError) $ do
       logWithDebounce loggerState $
         logWithZTime loggerState $ observationMessage o
