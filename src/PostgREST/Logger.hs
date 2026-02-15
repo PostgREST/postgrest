@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo     #-}
 {-|
 Module      : PostgREST.Logger
 Description : Logging based on the Observation.hs module. Access logs get sent to stdout and server diagnostic get sent to stderr.
@@ -39,29 +40,21 @@ import Protolude
 
 data LoggerState = LoggerState
   { stateGetZTime               :: IO ZonedTime  -- ^ Time with time zone used for logs
-  , stateLogDebouncePoolTimeout :: MVar (IO ())  -- ^ Logs with a debounce
+  , stateLogDebouncePoolTimeout :: IO ()         -- ^ Logs with a debounce
   }
 
 init :: IO LoggerState
-init = do
+init = mdo
+  let
+    oneSecond = 1000000
+    loggerState = LoggerState zTime debouncePoolTimeout
   zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
-  LoggerState zTime <$> newEmptyMVar
-
-logWithDebounce :: LoggerState -> IO () -> IO ()
-logWithDebounce loggerState action = do
-  debouncer <- tryReadMVar $ stateLogDebouncePoolTimeout loggerState
-  case debouncer of
-    Just d -> d
-    Nothing -> do
-      newDebouncer <-
-        let oneSecond = 1000000 in
-        mkDebounce defaultDebounceSettings
-           { debounceAction = action
-           , debounceFreq = 5*oneSecond
-           , debounceEdge = leadingEdge -- logs at the start and the end
-           }
-      putMVar (stateLogDebouncePoolTimeout loggerState) newDebouncer
-      newDebouncer
+  debouncePoolTimeout <- mkDebounce defaultDebounceSettings
+          { debounceAction = logWithZTime loggerState $ observationMessage PoolAcqTimeoutObs
+          , debounceFreq = 5*oneSecond
+          , debounceEdge = leadingEdge -- logs at the start and the end
+          }
+  pure loggerState
 
 -- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
 middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
@@ -88,10 +81,9 @@ shouldLogResponse logLevel = case logLevel of
 -- All observations are logged except some that depend on the log-level
 observationLogger :: LoggerState -> LogLevel -> ObservationHandler
 observationLogger loggerState logLevel obs = case obs of
-  o@PoolAcqTimeoutObs -> do
-    when (logLevel >= LogError) $ do
-      logWithDebounce loggerState $
-        logWithZTime loggerState $ observationMessage o
+  PoolAcqTimeoutObs -> do
+    when (logLevel >= LogError) $
+      stateLogDebouncePoolTimeout loggerState
   o@(QueryErrorCodeHighObs _) -> do
     when (logLevel >= LogError) $ do
       logWithZTime loggerState $ observationMessage o
