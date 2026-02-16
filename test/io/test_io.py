@@ -1691,7 +1691,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
     env = {
         **defaultenv,
         "PGRST_DB_POOL": "2",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5200",
     }
 
     with run(env=env, wait_max_seconds=30) as postgrest:
