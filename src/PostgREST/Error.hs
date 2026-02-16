@@ -65,8 +65,9 @@ class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
     let
       baseHeader = MediaType.toContentType MTApplicationJSON
       cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
+      pSHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
     in
-    responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : headers err) $ errorPayload err
+    responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : pSHeader (code err) : headers err) $ errorPayload err
 
 class ErrorBody a where
   code    :: a -> Text
@@ -505,9 +506,6 @@ instance PgrstError PgError where
        then [("WWW-Authenticate", "Bearer") :: Header]
        else mempty
 
-proxyStatusHeader :: Text -> Header
-proxyStatusHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
-
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = toJsonPgrstError
     (code usageError) (message usageError) (details usageError) (hint usageError)
@@ -683,11 +681,11 @@ instance PgrstError Error where
   status NoSchemaCacheError    = HTTP.status503
   status (PgErr err)           = status err
 
-  headers (ApiRequestError err)  = proxyStatusHeader (code err) : headers err
-  headers (SchemaCacheErr err)   = proxyStatusHeader (code err) : headers err
-  headers (JwtErr err)           = proxyStatusHeader (code err) : headers err
-  headers (PgErr err)            = proxyStatusHeader (code err) : headers err
-  headers err@NoSchemaCacheError = proxyStatusHeader (code err) : mempty
+  headers (ApiRequestError err) = headers err
+  headers (SchemaCacheErr err)  = headers err
+  headers (JwtErr err)          = headers err
+  headers (PgErr err)           = headers err
+  headers NoSchemaCacheError    = mempty
 
 instance JSON.ToJSON Error where
   toJSON err = toJsonPgrstError
