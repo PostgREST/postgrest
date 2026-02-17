@@ -13,17 +13,13 @@ where
 import Network.Wai (Application)
 
 import Network.HTTP.Types
-import Test.Hspec         (Expectation, SpecWith, describe, it,
-                           shouldBe)
+import Test.Hspec         (SpecWith, describe, it)
 import Test.Hspec.Wai
 
-import Data.String                     (String)
-import PostgREST.Metrics               (MetricsState (..))
-import Prometheus                      (getCounter)
+import PostgREST.Metrics   (MetricsState (..))
 import Protolude
 import SpecHelper
-import Test.Hspec.Expectations.Contrib (annotate)
-import Test.Hspec.Wai.JSON             (json)
+import Test.Hspec.Wai.JSON (json)
 
 spec :: SpecWith (MetricsState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do
@@ -143,25 +139,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       *> request methodGet "/authors_only" [jwt3] ""
 
   where
-      counterToInt = second (fmap (round @Double @Int) . getCounter)
-      expectCounters = stateCheck . fmap (\(g, h) -> StateCheck (counterToInt . g) (flip shouldBe . h))
       genToken = authHeaderJWT . generateJWT
-      requests = (,) (getF @"jwtCacheRequests")
-      hits = (,) (getF @"jwtCacheHits")
-      evictions = (,) (getF @"jwtCacheEvictions")
-
-
--- should be moved to helpers???
-getF :: forall s r a. (KnownSymbol s, HasField s r a) => r -> (String, a)
-getF r = (symbolVal (Proxy @s), getField @s r)
-
-data StateCheck st = forall a. (Show a, Eq a) => StateCheck (st -> (String, WaiSession st a)) (a -> a -> Expectation)
-
-stateCheck :: (Traversable t) => t (StateCheck st) -> WaiSession st a -> WaiSession st ()
-stateCheck checks act = do
-  metrics <- getState
-  expectations <- traverse (\(StateCheck g expect) -> let (msg, m) = g metrics in m >>= createExpectation msg m . expect) checks
-  void act
-  sequenceA_ expectations
-  where
-    createExpectation msg metrics expect = pure $ metrics >>= liftIO . annotate msg . expect
+      requests = expectCounter @"jwtCacheRequests"
+      hits = expectCounter @"jwtCacheHits"
+      evictions = expectCounter @"jwtCacheEvictions"
+      expectCounters = checkState

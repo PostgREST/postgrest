@@ -1,4 +1,10 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TypeApplications          #-}
 module SpecHelper where
 
 import           Control.Lens           ((^?))
@@ -36,8 +42,10 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..),
                                           parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+import Prometheus                        (Counter, getCounter)
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
+import Test.Hspec.Expectations.Contrib   (annotate)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
@@ -346,3 +354,29 @@ getInsertDataForTiobePlsTable rows =
 
 readFixtureFile :: FilePath -> BL.ByteString
 readFixtureFile file = unsafePerformIO $ BL.readFile $ "test/spec/fixtures/" <> file
+
+-- state check helpers
+
+data StateCheck st m = forall a. StateCheck (st -> (String, m a)) (a -> a -> Expectation)
+
+stateCheck :: (Show a, Eq a) => (c -> m a) -> (st -> (String, c)) -> (a -> a) -> StateCheck st m
+stateCheck extractValue extractComponent expect = StateCheck (second extractValue . extractComponent) (flip shouldBe . expect)
+
+expectField :: forall s st a c m. (KnownSymbol s, Show a, Eq a, HasField s st c) => (c -> m a) -> (a -> a) -> StateCheck st m
+expectField extractValue = stateCheck extractValue ((symbolVal (Proxy @s),) . getField @s)
+
+checkState :: (Traversable t) => t (StateCheck st (WaiSession st)) -> WaiSession st b -> WaiSession st ()
+checkState checks act = getState >>= flip (`checkState'` checks) act
+
+checkState' :: (Traversable t, MonadIO m) => st -> t (StateCheck st m) -> m b -> m ()
+checkState' initialState checks act = do
+  expectations <- traverse (\(StateCheck g expect) -> let (msg, m) = g initialState in m >>= createExpectation msg m . expect) checks
+  void act
+  sequenceA_ expectations
+  where
+    createExpectation msg metrics expect = pure $ metrics >>= liftIO . annotate msg . expect
+
+expectCounter :: forall s st m. (KnownSymbol s, HasField s st Counter, MonadIO m) => (Int -> Int) -> StateCheck st m
+expectCounter = expectField @s intCounter
+  where
+    intCounter = ((round @Double @Int) <$>) . getCounter
