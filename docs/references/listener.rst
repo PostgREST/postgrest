@@ -10,8 +10,10 @@ Like on cloud managed containers or on Windows systems.
 .. code:: postgresql
 
   NOTIFY pgrst, 'reload schema'; -- reload schema cache
+  NOTIFY pgrst, 'reload tables'; -- reload table/function metadata only
+  NOTIFY pgrst, 'reload relationships'; -- reload relationships only
   NOTIFY pgrst, 'reload config'; -- reload config
-  NOTIFY pgrst;                  -- reload both
+  NOTIFY pgrst;                  -- empty payload, reload schema cache
 
 By default, the LISTEN channel is enabled (:ref:`db-channel-enabled`) and named ``pgrst`` (:ref:`db-channel`).
 

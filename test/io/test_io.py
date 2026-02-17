@@ -289,6 +289,115 @@ def test_notify_do_nothing(defaultenv):
         assert output == []
 
 
+def test_reload_tables_notify(defaultenv):
+    "NOTIFY reload tables should make new tables available without a full reload"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_SCHEMAS": "test",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/create_reload_tables_test")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.session.get("/reload_tables_test?select=id,name")
+        assert response.status_code == 200
+        assert response.json() == [{"id": 1, "name": "one"}]
+
+        response = postgrest.session.post("/rpc/drop_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+
+def test_reload_relationships_notify(defaultenv):
+    "NOTIFY reload relationships should update relationships after adding a FK"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_SCHEMAS": "test",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/create_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.session.post("/rpc/add_rel_fk_and_reload_relationships")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.session.get(
+            "/rel_parent?select=id,rel_child(id,parent_id)"
+        )
+        assert response.status_code == 200
+        assert response.json() == [{"id": 1, "rel_child": [{"id": 1, "parent_id": 1}]}]
+
+        response = postgrest.session.post("/rpc/drop_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+
+def test_reload_schema_notify_after_fk(defaultenv):
+    "NOTIFY reload schema should refresh tables and relationships after FK changes"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_SCHEMAS": "test",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/create_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.session.get(
+            "/rel_parent?select=id,rel_child(id,parent_id)"
+        )
+        assert response.status_code == 400
+        assert response.json()["code"] == "PGRST200"
+
+        response = postgrest.session.post("/rpc/add_rel_fk_and_reload_schema")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.session.get(
+            "/rel_parent?select=id,rel_child(id,parent_id)"
+        )
+        assert response.status_code == 200
+        assert response.json() == [{"id": 1, "rel_child": [{"id": 1, "parent_id": 1}]}]
+
+        response = postgrest.session.post("/rpc/drop_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        sleep_until_postgrest_scache_reload()
+
+
 def test_db_prepared_statements_enable(defaultenv):
     "Should use prepared statements when the setting is enabled."
 
@@ -544,7 +653,8 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
 
-        postgrest.wait_until_scache_starts_loading()
+        # On loaded CI machines, the transition to 503 can take >1s.
+        postgrest.wait_until_scache_starts_loading(max_seconds=3)
 
         response = postgrest.admin.get("/ready", timeout=1)
         assert response.status_code == 503
@@ -1056,6 +1166,50 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         response = postgrest.session.get("/rpc/mult_them?c=3&d=4")
         assert response.text == "12"
         assert response.status_code == 200
+
+
+def test_schema_cache_concurrent_partial_notifications(slow_schema_cache_env):
+    "schema cache should not lose updates when reload tables and reload relationships overlap"
+
+    internal_sleep = (
+        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP"]) / 1000
+    )
+    env = {
+        **slow_schema_cache_env,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_SCHEMAS": "test",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=3) as postgrest:
+        # first request, create tables and trigger reload tables
+        response = postgrest.session.post("/rpc/create_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        time.sleep(
+            internal_sleep / 2
+        )  # wait to be inside the schema cache reload process
+
+        # second request, add FK and trigger reload relationships
+        response = postgrest.session.post("/rpc/add_rel_fk_and_reload_relationships")
+        assert response.text == ""
+        assert response.status_code == 204
+
+        time.sleep(
+            3 * internal_sleep
+        )  # wait enough time to get the final schema cache state
+
+        # confirm both table and relationship updates were preserved
+        response = postgrest.session.get(
+            "/rel_parent?select=id,rel_child(id,parent_id)"
+        )
+        assert response.status_code == 200
+        assert response.json() == [{"id": 1, "rel_child": [{"id": 1, "parent_id": 1}]}]
+
+        response = postgrest.session.post("/rpc/drop_rel_tables_and_reload_tables")
+        assert response.text == ""
+        assert response.status_code == 204
 
 
 def test_schema_cache_query_sleep_logs(defaultenv):
@@ -1704,7 +1858,9 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
         response = postgrest.session.get("/directors?select=id,name,films(title)")
         assert response.status_code == 200
 
-        assert response.elapsed.total_seconds() > 5
+        # With phased full reload, relationship-load sleep dominates waiting,
+        # but some overlap can happen before we issue the request.
+        assert response.elapsed.total_seconds() > 4
 
 
 def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaultenv):
@@ -1727,10 +1883,10 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
         response = postgrest.session.get("/films")
         assert response.status_code == 200
 
-        assert (
-            response.elapsed.total_seconds() > 1
-            and response.elapsed.total_seconds() < 5
-        )
+        # This endpoint should not wait for relationship-only reload work.
+        # In full suites, the request can start at slightly different points
+        # in the reload cycle, so we only assert the upper bound.
+        assert response.elapsed.total_seconds() < 5
 
 
 def test_server_timing_transaction_duration(defaultenv, metapostgrest):

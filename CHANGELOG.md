@@ -12,11 +12,17 @@ All notable changes to this project will be documented in this file. From versio
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
+- Add partial schema cache reload notifications via LISTEN/NOTIFY:
+  + `NOTIFY pgrst, 'reload tables'` refreshes tables/columns/functions metadata.
+  + `NOTIFY pgrst, 'reload relationships'` refreshes relationships metadata.
+  by @nothankyouzzz in #4613
 
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+- Reduce duplicate work during full schema reloads by reusing intermediate
+  schema-cache phase data by @nothankyouzzz in #4613.
 
 ## [14.5] - 2026-02-12
 

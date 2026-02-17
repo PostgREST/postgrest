@@ -21,6 +21,25 @@ You can do this with UNIX signals or with PostgreSQL notifications. It's also po
   - Requests will wait until the schema cache reload is done. This to prevent client errors due to an stale schema cache.
   - If you are using the :ref:`in_db_config`, a schema cache reload will :ref:`reload the configuration<config_reloading>` as well.
 
+High-Frequency DDL / Dynamic Table Creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgREST plans and validates requests using the schema cache. New or changed database objects (tables, functions, views, casts) are not visible to PostgREST until a schema cache reload completes.
+
+Reload triggers are explicit (SIGUSR1, ``NOTIFY pgrst, 'reload schema'``,
+``NOTIFY pgrst, 'reload tables'``, ``NOTIFY pgrst, 'reload relationships'``,
+or listener reconnection). While a reload is in progress, requests may wait to
+avoid stale planning.
+
+For workloads that create many tables or run frequent DDL:
+
+- Batch DDL operations and emit a single reload notification after the batch.
+- If you use event triggers, coalesce notifications at the app/orchestrator level to avoid one reload per DDL statement.
+
+.. code-block:: postgres
+
+  NOTIFY pgrst, 'reload schema';
+
 .. _schema_reloading_signals:
 
 Schema Cache Reloading with Unix Signals
@@ -49,9 +68,19 @@ Schema Cache Reloading with NOTIFY
 
 To reload the schema cache from within the database, you can use the ``NOTIFY`` command. See :ref:`listener`.
 
+Supported payloads:
+
+- ``NOTIFY pgrst, 'reload schema'``: full reload (tables metadata + relationships).
+- ``NOTIFY pgrst, 'reload tables'``: refresh tables metadata only.
+- ``NOTIFY pgrst, 'reload relationships'``: refresh relationships only, using the currently loaded tables metadata.
+
+If your migration includes both table-level changes and FK/relationship changes, emit both notifications in order (tables, then relationships), or emit a single full reload.
+
 .. code-block:: postgres
 
-  NOTIFY pgrst, 'reload schema'
+  NOTIFY pgrst, 'reload schema';
+  NOTIFY pgrst, 'reload tables';
+  NOTIFY pgrst, 'reload relationships';
 
 .. _auto_schema_reloading:
 
@@ -151,3 +180,9 @@ reloading when creating temporary tables inside functions.
   CREATE EVENT TRIGGER pgrst_drop_watch
     ON sql_drop
     EXECUTE PROCEDURE pgrst_drop_watch();
+
+For high-frequency DDL workloads, you can further optimize trigger behavior by emitting partial payloads:
+
+- ``reload tables`` for table/view/function metadata changes.
+- ``reload relationships`` for FK/relationship-only changes.
+- ``reload schema`` as a safe fallback if event classification is unclear.

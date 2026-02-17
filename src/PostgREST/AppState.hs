@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections   #-}
 
 module PostgREST.AppState
   ( AppState
@@ -25,6 +26,8 @@ module PostgREST.AppState
   , usePool
   , readInDbConfig
   , schemaCacheLoader
+  , schemaCacheTablesLoader
+  , schemaCacheRelationshipsLoader
   , getObserver
   , isLoaded
   , isPending
@@ -53,8 +56,8 @@ import Control.Debounce
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
                            exponentialBackoff, retrying,
                            rsPreviousDelay)
-import Data.IORef         (IORef, atomicWriteIORef, newIORef,
-                           readIORef)
+import Data.IORef         (IORef, atomicModifyIORef',
+                           atomicWriteIORef, newIORef, readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
@@ -66,8 +69,17 @@ import PostgREST.Config.Database         (queryDbSettings,
                                           queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           minimumPgVersion)
-import PostgREST.SchemaCache             (SchemaCache (..),
-                                          querySchemaCache,
+import PostgREST.SchemaCache             (RelationshipsTablePrep (..),
+                                          SchemaCache (..),
+                                          SchemaCacheRelationships (..),
+                                          SchemaCacheTables (..),
+                                          SchemaCacheTablesWithDeps (..),
+                                          defaultSchemaCachePhaseOptions,
+                                          noSchemaCachePhaseSleepOptions,
+                                          querySchemaCacheRelationships,
+                                          querySchemaCacheRelationshipsWithDeps,
+                                          querySchemaCacheTables,
+                                          querySchemaCacheTablesWithDeps,
                                           showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
@@ -87,6 +99,10 @@ data AppState = AppState
   , stateSCacheStatus      :: IORef SchemaCacheStatus
   -- | State of the LISTEN channel
   , stateIsListenerOn      :: IORef Bool
+  -- | Pending schema cache reload request, coalesced before running
+  , stateSCacheReloadReq   :: IORef (Maybe SchemaCacheReload)
+  -- | Serializes schema cache loader executions
+  , stateSCacheLoaderLock  :: MVar ()
   -- | starts the connection worker with a debounce
   , debouncedSCacheLoader  :: IO ()
   -- | Config that can change at runtime
@@ -117,6 +133,17 @@ data SchemaCacheStatus
   | SCPending
   deriving Eq
 
+data SchemaCacheReload
+  = ReloadSchema
+  | ReloadTables
+  | ReloadRelationships
+  deriving (Eq)
+
+data SchemaCacheLoadResult
+  = LoadedSchemaCachePhased SchemaCacheTables SchemaCacheRelationships
+  | LoadedSchemaCacheTables SchemaCache SchemaCacheTables
+  | LoadedSchemaCacheRelationships SchemaCache SchemaCacheRelationships
+
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
 init :: AppConfig -> IO AppState
@@ -140,6 +167,8 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> newIORef Nothing
     <*> newIORef SCPending
     <*> newIORef False
+    <*> newIORef Nothing
+    <*> newMVar ()
     <*> pure (pure ())
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
@@ -156,7 +185,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
   deb <-
     let decisecond = 100000 in
     mkDebounce defaultDebounceSettings
-       { debounceAction = retryingSchemaCacheLoad appState
+       { debounceAction = schemaCacheLoaderWorker appState
        , debounceFreq = decisecond
        , debounceEdge = leadingEdge -- runs the worker at the start and the end
        }
@@ -290,7 +319,67 @@ putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
 putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
 
 schemaCacheLoader :: AppState -> IO ()
-schemaCacheLoader = debouncedSCacheLoader
+schemaCacheLoader appState = requestSchemaCacheReload appState ReloadSchema
+
+schemaCacheTablesLoader :: AppState -> IO ()
+schemaCacheTablesLoader appState = requestSchemaCacheReload appState ReloadTables
+
+schemaCacheRelationshipsLoader :: AppState -> IO ()
+schemaCacheRelationshipsLoader appState = requestSchemaCacheReload appState ReloadRelationships
+
+requestSchemaCacheReload :: AppState -> SchemaCacheReload -> IO ()
+requestSchemaCacheReload appState reloadType = do
+  atomicModifyIORef' (stateSCacheReloadReq appState) $ \case
+    Nothing -> (Just reloadType, ())
+    Just pending -> (Just (mergeSchemaCacheReload pending reloadType), ())
+  debouncedSCacheLoader appState
+
+schemaCacheLoaderWorker :: AppState -> IO ()
+schemaCacheLoaderWorker appState@AppState{stateSCacheLoaderLock=loaderLock} =
+  withMVar loaderLock $ const drainPending
+  where
+    drainPending = do
+      pending <- atomicModifyIORef' (stateSCacheReloadReq appState) (Nothing,)
+      case pending of
+        Nothing -> pure ()
+        Just req -> retryingSchemaCacheLoad appState req >> drainPending
+
+mergeSchemaCacheReload :: SchemaCacheReload -> SchemaCacheReload -> SchemaCacheReload
+mergeSchemaCacheReload ReloadSchema _                   = ReloadSchema
+mergeSchemaCacheReload _ ReloadSchema                   = ReloadSchema
+mergeSchemaCacheReload ReloadTables ReloadRelationships = ReloadSchema
+mergeSchemaCacheReload ReloadRelationships ReloadTables = ReloadSchema
+mergeSchemaCacheReload pending _                        = pending
+
+mergeSchemaCacheTables :: SchemaCache -> SchemaCacheTables -> SchemaCache
+mergeSchemaCacheTables sCache SchemaCacheTables{..} =
+  sCache
+    { dbTables = sctTables
+    , dbRoutines = sctRoutines
+    , dbRepresentations = sctRepresentations
+    , dbMediaHandlers = sctMediaHandlers
+    , dbTimezones = sctTimezones
+    , dbTablesFuzzyIndex = sctTablesFuzzyIndex
+    }
+
+mergeSchemaCacheRelationships :: SchemaCache -> SchemaCacheRelationships -> SchemaCache
+mergeSchemaCacheRelationships sCache SchemaCacheRelationships{..} =
+  sCache
+    { dbTables = scrTables
+    , dbRelationships = scrRelationships
+    }
+
+schemaCacheFromTables :: SchemaCacheTables -> SchemaCache
+schemaCacheFromTables SchemaCacheTables{..} =
+  SchemaCache
+    { dbTables = sctTables
+    , dbRelationships = mempty
+    , dbRoutines = sctRoutines
+    , dbRepresentations = sctRepresentations
+    , dbMediaHandlers = sctMediaHandlers
+    , dbTimezones = sctTimezones
+    , dbTablesFuzzyIndex = sctTablesFuzzyIndex
+    }
 
 getNextDelay :: AppState -> IO Int
 getNextDelay = readIORef . stateNextDelay
@@ -358,8 +447,8 @@ getObserver = stateObserver
 --
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
-retryingSchemaCacheLoad :: AppState -> IO ()
-retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
+retryingSchemaCacheLoad :: AppState -> SchemaCacheReload -> IO ()
+retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} reloadType =
   void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
@@ -368,7 +457,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
 
     flushPool appState
 
-    (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
+    (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache reloadType)
   )
   where
     qPgVersion :: IO (Maybe PgVersion)
@@ -398,13 +487,51 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       AppConfig{..} <- getConfig appState
       when configDbConfig $ readInDbConfig False appState
 
-    qSchemaCache :: IO (Maybe SchemaCache)
-    qSchemaCache = do
+    qSchemaCache :: SchemaCacheReload -> IO (Maybe SchemaCache)
+    qSchemaCache reloadReq = do
       conf@AppConfig{..} <- getConfig appState
+      existingCache <- getSchemaCache appState
+      let
+        effectiveReload = case (reloadReq, existingCache) of
+          (ReloadSchema, _) -> ReloadSchema
+          (_, Nothing)      -> ReloadSchema
+          _                 -> reloadReq
+        transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction
+        fullReloadPhase2Opts = noSchemaCachePhaseSleepOptions
+        loadSchemaPhases = do
+          tablesWithDeps <- querySchemaCacheTablesWithDeps conf defaultSchemaCachePhaseOptions
+          let tablesCache = sctwdTablesCache tablesWithDeps
+          relationshipsCache <- querySchemaCacheRelationshipsWithDeps
+            conf
+            fullReloadPhase2Opts
+            AssumeViewPrimaryKeys
+            (sctTables tablesCache)
+            (Just $ sctwdRelationshipDeps tablesWithDeps)
+          pure $ LoadedSchemaCachePhased tablesCache relationshipsCache
+
       (resultTime, result) <-
-        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
-      case result of
+        case (effectiveReload, existingCache) of
+          (ReloadSchema, _) ->
+            timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read loadSchemaPhases)
+          (ReloadTables, Just sCache) ->
+            timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ LoadedSchemaCacheTables sCache <$> querySchemaCacheTables conf)
+          (ReloadRelationships, Just sCache) ->
+            timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ LoadedSchemaCacheRelationships sCache <$> querySchemaCacheRelationships conf (dbTables sCache))
+          _ ->
+            timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read loadSchemaPhases)
+
+      let
+        mergedResult = case result of
+          Left e ->
+            Left e
+          Right (LoadedSchemaCachePhased tablesCache relationshipsCache) ->
+            Right $ mergeSchemaCacheRelationships (schemaCacheFromTables tablesCache) relationshipsCache
+          Right (LoadedSchemaCacheTables sCache tablesCache) ->
+            Right $ mergeSchemaCacheTables sCache tablesCache
+          Right (LoadedSchemaCacheRelationships sCache relsCache) ->
+            Right $ mergeSchemaCacheRelationships sCache relsCache
+
+      case mergedResult of
         Left e -> do
           putSCacheStatus appState SCPending
           putSchemaCache appState Nothing
@@ -412,7 +539,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           return Nothing
 
         Right sCache -> do
-          -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
+          -- IMPORTANT: While the pending schema cache state starts from running the above schema cache loading queries, only at this stage we block API requests due to the usage of an
           -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
           putSCacheStatus appState SCPending
           putSchemaCache appState $ Just sCache
