@@ -22,6 +22,7 @@ import Protolude
 data MetricsState =
   MetricsState {
     poolTimeouts         :: Counter,
+    poolFlushes          :: Counter,
     poolAvailable        :: Gauge,
     poolWaiting          :: Gauge,
     poolMaxSize          :: Gauge,
@@ -36,6 +37,7 @@ init :: Int -> IO MetricsState
 init configDbPoolSize = do
   metricState <- MetricsState <$>
     register (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts")) <*>
+    register (counter (Info "pgrst_db_pool_flushes_total" "The total number of times the pool was flushed")) <*>
     register (gauge (Info "pgrst_db_pool_available" "Available connections in the pool")) <*>
     register (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection")) <*>
     register (gauge (Info "pgrst_db_pool_max" "Max pool connections")) <*>
@@ -64,6 +66,8 @@ observationMetrics MetricsState{..} obs = case obs of
     incGauge poolWaiting
   PoolRequestFullfilled ->
     decGauge poolWaiting
+  PoolFlushed ->
+    incCounter poolFlushes
   SchemaCacheLoadedObs resTime -> do
     withLabel schemaCacheLoads "SUCCESS" incCounter
     setGauge schemaCacheQueryTime resTime
