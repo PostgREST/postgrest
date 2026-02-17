@@ -177,6 +177,15 @@ pgrst_db_pool_timeouts_total
 
 The total number of pool connection timeouts.
 
+pgrst_db_pool_flushes_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of times the pool was flushed.
+
 pgrst_db_pool_available
 ~~~~~~~~~~~~~~~~~~~~~~~
 
