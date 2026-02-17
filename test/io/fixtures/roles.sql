@@ -21,5 +21,5 @@ ALTER ROLE postgrest_test_repeatable_read SET default_transaction_isolation = 'R
 ALTER ROLE postgrest_test_w_superuser_settings SET log_min_duration_statement = 1;
 ALTER ROLE postgrest_test_w_superuser_settings SET log_min_messages = 'fatal';
 
-ALTER ROLE postgrest_test_anonymous SET statement_timeout TO '2s';
+ALTER ROLE postgrest_test_anonymous SET statement_timeout TO '5s';
 ALTER ROLE postgrest_test_author SET statement_timeout TO '10s';
