@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. From versio
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
+- Add `_self` links in `select` projections, including aliases, nesting and spread embeds by @mkleczek in #4601
 
 ### Changed
 

@@ -102,12 +102,18 @@ data SelectItem
     , selCast              :: Maybe Cast
     , selAlias             :: Maybe Alias
     }
+  | SelectSelf
+    { selAlias :: Maybe Alias
+    }
 -- | The value in `/tbl?select=alias:another_tbl(*)`
   | SelectRelation
     { selRelation :: FieldName
     , selAlias    :: Maybe Alias
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
+    }
+  | SelectSelfRelation
+    { selAlias :: Maybe Alias
     }
 -- | The value in `/tbl?select=...another_tbl(*)`
   | SpreadRelation
