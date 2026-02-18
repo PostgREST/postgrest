@@ -66,6 +66,7 @@ library
                       PostgREST.SchemaCache.Representations
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
+                      PostgREST.Error.Types
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx

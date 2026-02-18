@@ -51,6 +51,9 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
+
+import PostgREST.Error.Types
+
 import Protolude
 
 class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
@@ -74,48 +77,6 @@ class ErrorBody a where
   message :: a -> Text
   details :: a -> Maybe JSON.Value
   hint    :: a -> Maybe JSON.Value
-
-data ApiRequestError
-  = AggregatesNotAllowed
-  | MediaTypeError [ByteString]
-  | InvalidBody ByteString
-  | InvalidFilters
-  | InvalidPreferences [ByteString]
-  | InvalidRange RangeError
-  | InvalidRpcMethod ByteString
-  | NotEmbedded Text
-  | NotImplemented Text
-  | PutLimitNotAllowedError
-  | QueryParamError QPError
-  | RelatedOrderNotToOne Text Text
-  | UnacceptableFilter Text
-  | UnacceptableSchema Text [Text]
-  | UnsupportedMethod ByteString
-  | GucHeadersError
-  | GucStatusError
-  | PutMatchingPkError
-  | SingularityError Integer
-  | PGRSTParseError RaiseError
-  | MaxAffectedViolationError Integer
-  | InvalidResourcePath
-  | OpenAPIDisabled
-  | MaxAffectedRpcViolation
-  deriving Show
-
-data QPError = QPError Text Text
-  deriving Show
-
-data RaiseError
-  = MsgParseError ByteString
-  | DetParseError ByteString
-  | NoDetail
-  deriving Show
-
-data RangeError
-  = NegativeLimit
-  | LowerGTUpper
-  | OutOfBounds Text Text
-  deriving Show
 
 instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
@@ -244,15 +205,6 @@ instance ErrorBody ApiRequestError where
 instance JSON.ToJSON ApiRequestError where
   toJSON err = toJsonPgrstError
     (code err) (message err) (details err) (hint err)
-
-data SchemaCacheError
-  = AmbiguousRelBetween Text Text [Relationship]
-  | AmbiguousRpc [Routine]
-  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
-  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
-  | ColumnNotFound Text Text
-  | TableNotFound Text Text SchemaCache
-  deriving Show
 
 instance PgrstError SchemaCacheError where
   status AmbiguousRelBetween{} = HTTP.status300
@@ -486,11 +438,6 @@ pgrstParseErrorHint err = case err of
   MsgParseError _ -> "MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."
   _               -> "DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."
 
-data PgError = PgError Authenticated SQL.UsageError
-  deriving Show
-
-type Authenticated = Bool
-
 instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
@@ -637,43 +584,6 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
     _                       -> HTTP.status500
 
 
-data Error
-  = ApiRequestError ApiRequestError
-  | SchemaCacheErr SchemaCacheError
-  | JwtErr JwtError
-  | NoSchemaCacheError
-  | PgErr PgError
-  deriving Show
-
-data JwtError
-  = JwtDecodeErr JwtDecodeError
-  | JwtSecretMissing
-  | JwtTokenRequired
-  | JwtClaimsErr JwtClaimsError
-  deriving Show
-
-data JwtDecodeError
-  = EmptyAuthHeader
-  | UnexpectedParts Int
-  | KeyError Text
-  | BadAlgorithm Text
-  | BadCrypto
-  | UnsupportedTokenType
-  | UnreachableDecodeError
-  deriving Show
-
-data JwtClaimsError
-  = JWTExpired
-  | JWTNotYetValid
-  | JWTIssuedAtFuture
-  | JWTNotInAudience
-  | ParsingClaimsFailed
-  | ExpClaimNotNumber
-  | NbfClaimNotNumber
-  | IatClaimNotNumber
-  | AudClaimNotStringOrArray
-  deriving Show
-
 instance PgrstError Error where
   status (ApiRequestError err) = status err
   status (SchemaCacheErr err)  = status err
@@ -774,18 +684,6 @@ requiredTokenHeader :: Header
 requiredTokenHeader = ("WWW-Authenticate", "Bearer")
 
 -- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Maybe Text,
-  getHint    :: Maybe Text
-}
-
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus     :: Int,
-  getStatusText :: Maybe Text,
-  getHeaders    :: Map Text Text
-}
 
 instance JSON.FromJSON PgRaiseErrMessage where
   parseJSON (JSON.Object m) =
