@@ -33,7 +33,7 @@ jobs:
     name: Nix - Linux x86-64 static
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -62,7 +62,7 @@ jobs:
     name: Nix - MacOS
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -117,8 +117,8 @@ jobs:
     name: Stack - ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: haskell-actions/setup@dc63c94789664bb2910876ec3dfeeaa24d23b96b # v2.10.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: haskell-actions/setup@f9150cb1d140e9a9271700670baa38991e6fa25c # v2.10.3
         with:
           # This must match the version in stack.yaml's resolver
           ghc-version: 9.6.7
@@ -159,7 +159,7 @@ jobs:
     name: Stack - FreeBSD from CirrusCI
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/artifact-from-cirrus
         with:
           token: ${{ github.token }}
@@ -176,8 +176,8 @@ jobs:
     name: Cabal - Linux x86-64 - GHC ${{ matrix.ghc }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: haskell-actions/setup@dc63c94789664bb2910876ec3dfeeaa24d23b96b # v2.10.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: haskell-actions/setup@f9150cb1d140e9a9271700670baa38991e6fa25c # v2.10.3
         with:
           ghc-version: ${{ matrix.ghc }}
       - name: Cache .cabal
