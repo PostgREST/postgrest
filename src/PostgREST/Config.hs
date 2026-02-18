@@ -67,6 +67,9 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           toQi)
 
 import Protolude hiding (Proxy, toList)
+import Web.OIDC.Client (Provider(..), discover)
+import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Client (HttpException (InvalidUrlException))
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg =  maybe (const True) (==) . configJwtAudience
@@ -247,6 +250,7 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
     decodeLoadFiles parsedConfig = try $
       decodeJWKS =<<
       decodeSecret =<<
+      oidcConnectDiscovery =<<
       readSecretFile =<<
       readDbUriFile prevDbUri parsedConfig
 
@@ -478,6 +482,18 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     defaultServerHost :: Maybe Text -> Text
     defaultServerHost = fromMaybe "!4"
 
+oidcConnectDiscovery :: AppConfig -> IO AppConfig
+oidcConnectDiscovery conf = maybe (pure conf) (performDiscovery . decodeUtf8) (configJwtSecret conf)
+  where
+    performDiscovery uri = oidcDiscover uri `catches` [
+      Handler (\case
+        InvalidUrlException _ _ -> pure conf
+        _ -> fail "OIDC discovery failed")
+      ]
+    oidcDiscover uri = do
+      manager <- newTlsManager
+      (Provider _ keys) <- discover uri manager
+      pure $ conf { configJWKS = Just $ JWT.JwkSet keys }
 -- | Read the JWT secret from a file if configJwtSecret is actually a
 -- filepath(has @ as its prefix). To check if the JWT secret is provided is
 -- in fact a file path, it must be decoded as 'Text' to be processed.
