@@ -5,7 +5,9 @@ module PostgREST.Config.Database
   , queryDbSettings
   , queryPgVersion
   , queryRoleSettings
+  , queryRoleTimeoutSettings
   , RoleSettings
+  , RoleTimeoutSettings
   , RoleIsolationLvl
   , TimezoneNames
   , toIsolationLevel
@@ -29,6 +31,7 @@ import NeatInterpolation (trimming)
 import Protolude
 
 type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+type RoleTimeoutSettings  = HM.HashMap ByteString Int64
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 type TimezoneNames    = Set Text -- cache timezone names for prefer timezone=
 
@@ -182,6 +185,70 @@ queryRoleSettings pgVer prepared =
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
     rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+
+-- | Query Statement Timeout values for all roles
+--
+-- For roles without statement_timeout, we fetch database/cluster
+-- statement_timeout as an implicit timeout for that role.
+--
+-- In our logic, we cache statement_timeout values after transforming
+-- them to seconds. The transformation results in having a case of:
+--
+-- +----------+--------------------+---------------------------+
+-- |   Role   |   Timeout Setting  | Cached Timeout in Seconds |
+-- +----------+--------------------+---------------------------+
+-- |   role1  |     0s             |             0             |
+-- +----------+--------------------+---------------------------+
+-- |   role2  |     300ms          | (0.3 gets truncated to 0) |
+-- +----------+--------------------+---------------------------+
+--
+-- For role1, 0s setting mean statement_timeout is "disabled".
+-- For role2, statement_timeout is 300ms
+--
+-- However, both get cached to zero. So, to differentiate these
+-- two distinct cases, the query caches "disabled" timeout as NULL
+-- and < 1s timeouts as 0.
+--
+-- Final Query Output:
+-- +----------+--------------------+---------------------------+
+-- |   Role   |   Timeout Setting  | Cached Timeout in Seconds |
+-- +----------+--------------------+---------------------------+
+-- |   role1  |     0s             |           NULL            |
+-- +----------+--------------------+---------------------------+
+-- |   role2  |     300ms          |            0              |
+-- +----------+--------------------+---------------------------+
+queryRoleTimeoutSettings :: Bool -> Session RoleTimeoutSettings
+queryRoleTimeoutSettings prepared =
+  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
+  where
+    sql = encodeUtf8 [trimming|
+      WITH role_timeouts AS (
+        SELECT
+          r.rolname,
+          CASE
+            WHEN s.setting IS NOT NULL THEN substr(s.setting, strpos(s.setting, '=') + 1)
+            ELSE (SELECT setting || unit FROM pg_settings WHERE name = 'statement_timeout')
+          END AS statement_timeout
+        FROM pg_auth_members m
+        JOIN pg_roles r ON r.oid = m.roleid
+        LEFT JOIN LATERAL unnest(r.rolconfig) AS s(setting) ON true
+        WHERE m.member = current_user::regrole::oid
+          AND (s.setting LIKE 'statement_timeout=%' OR s.setting IS NULL)
+      )
+      SELECT
+        rolname,
+        nullif(extract(epoch FROM statement_timeout::interval)::numeric, 0)::int as statement_timeout_in_seconds
+      FROM role_timeouts
+    |]
+
+    processRows :: [(Text, Maybe Int64)] -> RoleTimeoutSettings
+    processRows rs = HM.fromList $ first encodeUtf8 <$> rowsWRoleTimeouts
+      where
+        rowsWRoleTimeouts = [ (x, y) | (x, Just y) <- rs ]
+
+    rows :: HD.Result [(Text, Maybe Int64)]
+    rows = HD.rowList $ (,) <$> column HD.text <*> nullableColumn HD.int8
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable

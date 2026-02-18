@@ -57,7 +57,8 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.Database         (RoleIsolationLvl,
-                                          RoleSettings)
+                                          RoleSettings,
+                                          RoleTimeoutSettings)
 import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
                                           JSPathExp (..), dumpJSPath,
                                           pRoleClaimKey)
@@ -117,6 +118,10 @@ data AppConfig = AppConfig
   , configAdminServerHost          :: Text
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
+  -- Cached statement timeout settings converted to number of seconds. They
+  -- are never applied, only used to check max allowed timeout for a role
+  -- when "Prefer: timeout=" header is used.
+  , configRoleTimeoutSettings      :: RoleTimeoutSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCQuerySleep     :: Maybe Int32
   , configInternalSCLoadSleep      :: Maybe Int32
@@ -227,13 +232,13 @@ instance JustIfMaybe a (Maybe a) where
 
 -- | Reads and parses the config and overrides its parameters from env vars,
 -- files or db settings.
-readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> IO (Either Text AppConfig)
-readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
+readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleTimeoutSettings -> RoleIsolationLvl -> IO (Either Text AppConfig)
+readAppConfig dbSettings optPath prevDbUri roleSettings roleTimeoutSettings roleIsolationLvl = do
   env <- readPGRSTEnvironment
   -- if no filename provided, start with an empty map to read config from environment
   conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
+  case C.runParser (parser optPath env dbSettings roleSettings roleTimeoutSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
@@ -250,8 +255,8 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
       readSecretFile =<<
       readDbUriFile prevDbUri parsedConfig
 
-parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
-parser optPath env dbSettings roleSettings roleIsolationLvl =
+parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleTimeoutSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
+parser optPath env dbSettings roleSettings roleTimeoutSettings roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
     <*> (fromMaybe False <$> optBool "db-aggregates-enabled")
@@ -305,6 +310,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
                                             (optString "server-host"))
     <*> parseAdminServerPort "admin-server-port"
     <*> pure roleSettings
+    <*> pure roleTimeoutSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-query-sleep"
     <*> optInt "internal-schema-cache-load-sleep"

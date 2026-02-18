@@ -169,7 +169,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
       prefs = ApiRequest.userPreferences conf req timezones
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq authResult sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
