@@ -29,7 +29,7 @@ import PostgREST.SchemaCache.Routine      (Routine (..))
 import Protolude
 
 data Error
-  = ApiRequestError ApiRequestError
+  = ApiRequestErr ApiRequestError
   | SchemaCacheErr SchemaCacheError
   | JwtErr JwtError
   | NoSchemaCacheError

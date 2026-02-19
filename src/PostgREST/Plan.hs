@@ -172,8 +172,8 @@ wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
   qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
-  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
+  (handler, mediaType)  <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly qi
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
@@ -181,8 +181,8 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
   qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
   mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
+  (handler, mediaType)  <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CrudPlan
@@ -204,15 +204,15 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
           (Inv, Routine.Immutable) -> SQL.Read
           (Inv, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
+  (handler, mediaType)  <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   failMaxAffectedRpcReturnsSingle (preferMaxAffected, preferHandling) proc
   return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod identifier
   where
     qsParams' = QueryParams.qsParams iQueryParams
 
     failMaxAffectedRpcReturnsSingle :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> Routine -> Either Error ()
-    failMaxAffectedRpcReturnsSingle (Just (PreferMaxAffected _), Just Strict) rout = if funcReturnsSingle rout then Left $ ApiRequestError MaxAffectedRpcViolation else Right ()
+    failMaxAffectedRpcReturnsSingle (Just (PreferMaxAffected _), Just Strict) rout = if funcReturnsSingle rout then Left $ ApiRequestErr MaxAffectedRpcViolation else Right ()
     failMaxAffectedRpcReturnsSingle _ _ = Right ()
 
 hasDefaultSelect :: ReadPlanTree -> Bool
@@ -225,7 +225,7 @@ inspectPlan apiRequest headersOnly schema = do
       accepts     = iAcceptMediaType apiRequest
   mediaType <- if not . null $ L.intersect accepts producedMTs
     then Right MTOpenAPI
-    else Left . ApiRequestError . MediaTypeError $ MediaType.toMime <$> accepts
+    else Left . ApiRequestErr . MediaTypeError $ MediaType.toMime <$> accepts
   return $ InspectPlan mediaType SQL.Read headersOnly schema
 
 {-|
@@ -784,7 +784,7 @@ hoistIntoRelSelectFields _ r = r
 --   to order once it's aggregated if it's not selected in the inner query beforehand.
 addToManyOrderSelects :: ReadPlanTree -> Either Error ReadPlanTree
 addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, relSpread = Just ToManySpread {}} forest)
-  | anyAggSel || anyAggRelSel = Left $ ApiRequestError $ NotImplemented "Aggregates are not implemented for one-to-many or many-to-many spreads."
+  | anyAggSel || anyAggRelSel = Left $ ApiRequestErr $ NotImplemented "Aggregates are not implemented for one-to-many or many-to-many spreads."
   | otherwise = Node rp { order = [], relSpread = newRelSpread } <$> addToManyOrderSelects `traverse` forest
   where
     newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
@@ -806,7 +806,7 @@ addToManyOrderSelects (Node rp forest) = Node rp <$> addToManyOrderSelects `trav
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either Error ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
-  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left $ ApiRequestError AggregatesNotAllowed
+  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left $ ApiRequestErr AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 -- | Lookup table in the schema cache before creating read plan
@@ -860,9 +860,9 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
               name    = fromMaybe relName relAlias in
           if isToOne == Just True
             then Right $ cot{coRelation=relAggAlias}
-            else Left $ ApiRequestError $ RelatedOrderNotToOne (qiName from) name
+            else Left $ ApiRequestErr $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
-          Left $ ApiRequestError $ NotEmbedded coRelation
+          Left $ ApiRequestErr $ NotEmbedded coRelation
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
@@ -956,7 +956,7 @@ addRanges ApiRequest{..} rReq =
     _                          -> foldr addRangeToNode (Right rReq) =<< ranges
   where
     ranges :: Either Error [(EmbedPath, NonnegRange)]
-    ranges = first (ApiRequestError . QueryParamError) $ QueryParams.pRequestRange `traverse` HM.toList iRange
+    ranges = first (ApiRequestErr . QueryParamError) $ QueryParams.pRequestRange `traverse` HM.toList iRange
 
     addRangeToNode :: (EmbedPath, NonnegRange) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
@@ -990,7 +990,7 @@ updateNode f ([], a) rr = f a <$> rr
 updateNode _ _ (Left e) = Left e
 updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
   case findNode of
-    Nothing -> Left $ ApiRequestError $ NotEmbedded targetNodeName
+    Nothing -> Left $ ApiRequestErr $ NotEmbedded targetNodeName
     Just target ->
       (\node -> Node rootNode $ node : delete target forest) <$>
       updateNode f (remainingPath, a) (Right target)
@@ -1014,7 +1014,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
               _                                                   -> False) qsFiltersRoot
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
-          Left $ ApiRequestError InvalidFilters
+          Left $ ApiRequestErr InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
   where
     ctx = ResolverContext dbTables dbRepresentations qi "json"

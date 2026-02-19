@@ -585,46 +585,46 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
 
 
 instance PgrstError Error where
-  status (ApiRequestError err) = status err
-  status (SchemaCacheErr err)  = status err
-  status (JwtErr err)          = status err
-  status NoSchemaCacheError    = HTTP.status503
-  status (PgErr err)           = status err
+  status (ApiRequestErr err)  = status err
+  status (SchemaCacheErr err) = status err
+  status (JwtErr err)         = status err
+  status NoSchemaCacheError   = HTTP.status503
+  status (PgErr err)          = status err
 
-  headers (ApiRequestError err) = headers err
-  headers (SchemaCacheErr err)  = headers err
-  headers (JwtErr err)          = headers err
-  headers (PgErr err)           = headers err
-  headers NoSchemaCacheError    = mempty
+  headers (ApiRequestErr err)  = headers err
+  headers (SchemaCacheErr err) = headers err
+  headers (JwtErr err)         = headers err
+  headers (PgErr err)          = headers err
+  headers NoSchemaCacheError   = mempty
 
 instance JSON.ToJSON Error where
   toJSON err = toJsonPgrstError
     (code err) (message err) (details err) (hint err)
 
 instance ErrorBody Error where
-  code (ApiRequestError err) = code err
-  code (SchemaCacheErr err)  = code err
-  code (JwtErr err)          = code err
-  code NoSchemaCacheError    = "PGRST002"
-  code (PgErr err)           = code err
+  code (ApiRequestErr err)  = code err
+  code (SchemaCacheErr err) = code err
+  code (JwtErr err)         = code err
+  code NoSchemaCacheError   = "PGRST002"
+  code (PgErr err)          = code err
 
-  message (ApiRequestError err) = message err
+  message (ApiRequestErr err) = message err
   message (SchemaCacheErr err)  = message err
   message (JwtErr err)          = message err
   message NoSchemaCacheError    = "Could not query the database for the schema cache. Retrying."
   message (PgErr err)           = message err
 
-  details (ApiRequestError err) = details err
-  details (SchemaCacheErr err)  = details err
-  details (JwtErr err)          = details err
-  details NoSchemaCacheError    = Nothing
-  details (PgErr err)           = details err
+  details (ApiRequestErr err)  = details err
+  details (SchemaCacheErr err) = details err
+  details (JwtErr err)         = details err
+  details NoSchemaCacheError   = Nothing
+  details (PgErr err)          = details err
 
-  hint (ApiRequestError err) = hint err
-  hint (SchemaCacheErr err)  = hint err
-  hint (JwtErr err)          = hint err
-  hint NoSchemaCacheError    = Nothing
-  hint (PgErr err)           = hint err
+  hint (ApiRequestErr err)  = hint err
+  hint (SchemaCacheErr err) = hint err
+  hint (JwtErr err)         = hint err
+  hint NoSchemaCacheError   = Nothing
+  hint (PgErr err)          = hint err
 
 instance PgrstError JwtError where
   status JwtDecodeErr{}   = HTTP.unauthorized401
