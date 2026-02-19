@@ -526,7 +526,7 @@ db-tx-end
   **In-Database** pgrst.db_tx_end
   =============== =================================
 
-  Specifies how to terminate the database transactions.
+  Specifies how to terminate the database transactions. See :ref:`prefer_tx`.
 
   .. code:: bash
 
