@@ -111,6 +111,11 @@ end $_$ volatile security definer language plpgsql ;
 create function reload_pgrst_config() returns void as $_$
 begin
   perform pg_notify('pgrst', 'reload config');
+end $_$ language plpgsql;
+
+create function reload_pgrst_schema() returns void as $_$
+begin
+  perform pg_notify('pgrst', 'reload schema');
 end $_$ language plpgsql ;
 
 create or replace function sleep(seconds double precision) returns void as $$

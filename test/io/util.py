@@ -1,5 +1,6 @@
 import threading
 import jwt
+import os
 
 
 class Thread(threading.Thread):
@@ -46,3 +47,12 @@ def parse_server_timings_header(header):
         _, duration = duration_text.split("=")
         timings[name.strip()] = float(duration)
     return timings
+
+
+def execute_sql_statement_using_superuser(env, statement):
+    "Execute SQL statement with psql using superuser"
+
+    superuser = "postgres"
+    os.system(
+        f'psql -d {env["PGDATABASE"]} -U {superuser} -h {env["PGHOST"]} --set ON_ERROR_STOP=1 -a -c "{statement}"'
+    )

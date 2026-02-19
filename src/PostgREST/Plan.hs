@@ -38,6 +38,7 @@ import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
+import PostgREST.Auth.Types                  (AuthResult (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (ApiRequestError (..),
                                               Error (..),
@@ -144,29 +145,42 @@ data InfoPlan
   | RoutineInfoPlan Routine -- info about function
   | SchemaInfoPlan -- info about schema cache
 
-actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
-actionPlan act conf apiReq sCache = case act of
-  ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
+actionPlan :: Action -> AppConfig -> ApiRequest -> AuthResult -> SchemaCache -> Either Error ActionPlan
+actionPlan act conf apiReq authResult sCache = case act of
+  ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq authResult sCache
   ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
   ActRoutineInfo ident inv ->
     let crPln = callReadPlan ident conf sCache apiReq inv in
     NoDb . RoutineInfoPlan . crProc <$> crPln
   ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
 
-dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error DbActionPlan
-dbActionPlan dbAct conf apiReq sCache = case dbAct of
-  ActRelationRead identifier headersOnly ->
-    toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
-  ActRelationMut identifier mut ->
-    toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
-  ActRoutine identifier invMethod ->
-    toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
-  ActSchemaRead tSchema headersOnly ->
-    MayUseDb <$> inspectPlan apiReq headersOnly tSchema
-  where
-    toDbActPlan pl = case pMedia pl of
-      MTVndPlan{} -> DbCrud True pl
-      _           -> DbCrud False pl
+dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> AuthResult -> SchemaCache -> Either Error DbActionPlan
+dbActionPlan dbAct conf apiReq authResult sCache = do
+  failPreferTimeout (iPreferences apiReq) conf authResult
+  case dbAct of
+    ActRelationRead identifier headersOnly ->
+      toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
+    ActRelationMut identifier mut ->
+      toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
+    ActRoutine identifier invMethod ->
+      toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
+    ActSchemaRead tSchema headersOnly ->
+      MayUseDb <$> inspectPlan apiReq headersOnly tSchema
+    where
+      toDbActPlan pl = case pMedia pl of
+        MTVndPlan{} -> DbCrud True pl
+        _           -> DbCrud False pl
+
+-- | Fail when Prefer: timeout value is greater than the statement_timeout
+--   setting of the role.
+failPreferTimeout :: Preferences -> AppConfig -> AuthResult -> Either Error ()
+failPreferTimeout Preferences{preferTimeout=(Just (PreferTimeout t)), preferHandling=Just Strict} AppConfig{..} AuthResult{..} =
+  case roleTimeout of
+    Nothing -> Right ()
+    Just rt -> when (t > rt) $ Left $ ApiRequestError $ TimeoutConstraintError rt
+    where
+      roleTimeout = HM.lookup authRole configRoleTimeoutSettings
+failPreferTimeout _ _ _ = Right ()
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do

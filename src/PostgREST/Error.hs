@@ -100,6 +100,7 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
+  | TimeoutConstraintError Int64
   deriving Show
 
 data QPError = QPError Text Text
@@ -143,6 +144,7 @@ instance PgrstError ApiRequestError where
   status InvalidResourcePath         = HTTP.status404
   status OpenAPIDisabled             = HTTP.status404
   status MaxAffectedRpcViolation     = HTTP.status400
+  status TimeoutConstraintError{}    = HTTP.status400
 
   headers _ = mempty
 
@@ -190,6 +192,7 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
   code MaxAffectedRpcViolation     = "PGRST128"
+  code TimeoutConstraintError{}    = "PGRST129"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -216,6 +219,7 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
   message MaxAffectedRpcViolation        = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+  message TimeoutConstraintError{}       = "Timeout preference exceeded maximum allowed"
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
@@ -231,6 +235,7 @@ instance ErrorBody ApiRequestError where
   details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
   details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
   details (NotImplemented details') = Just $ JSON.String details'
+  details (TimeoutConstraintError t) = Just $ JSON.String $ "The maximum timeout allowed is " <> show t <> "s"
 
   details _ = Nothing
 
@@ -238,6 +243,7 @@ instance ErrorBody ApiRequestError where
   hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
   hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
   hint (UnacceptableSchema _ schemas) = Just $ JSON.String $ "Only the following schemas are exposed: "  <> T.intercalate ", " schemas
+  hint TimeoutConstraintError{} = Just $ JSON.String "Reduce the timeout"
 
   hint _ = Nothing
 
