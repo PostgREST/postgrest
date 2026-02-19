@@ -40,6 +40,7 @@ class PostgrestSession(requests_unixsocket.Session):
 
     def __init__(self, baseurl, *args, **kwargs):
         super(PostgrestSession, self).__init__(*args, **kwargs)
+        disable_env_proxy(self)
         self.baseurl = baseurl
 
     def request(self, method, url, *args, **kwargs):
@@ -47,6 +48,20 @@ class PostgrestSession(requests_unixsocket.Session):
         # well with our 'http+unix://' unix domain socket urls.
         fullurl = self.baseurl + url
         return super(PostgrestSession, self).request(method, fullurl, *args, **kwargs)
+
+
+def disable_env_proxy(session):
+    # `trust_env` controls whether proxy/env vars are honored by the client.
+    # Ref: https://www.python-httpx.org/environment_variables/
+    # We disable it so local probes never use HTTP(S)_PROXY/NO_PROXY.
+    session.trust_env = False
+    _ = session.trust_env
+    return session
+
+
+def new_local_session():
+    "Session used by local test helpers, ignoring host proxy env vars."
+    return disable_env_proxy(requests_unixsocket.Session())
 
 
 @dataclasses.dataclass
@@ -186,7 +201,8 @@ def wait_until_exit(postgrest):
 
 def wait_until_status_code(url, max_seconds, status_code):
     "Wait for the given HTTP endpoint to return a status code"
-    session = requests_unixsocket.Session()
+    session = new_local_session()
+    response = None
 
     for _ in range(max_seconds * 10):
         try:
@@ -198,7 +214,7 @@ def wait_until_status_code(url, max_seconds, status_code):
 
         time.sleep(0.1)
 
-    if response:
+    if response is not None:
         raise PostgrestTimedOut(f"{response.status_code}: {response.text}")
     else:
         raise PostgrestTimedOut()
@@ -206,7 +222,7 @@ def wait_until_status_code(url, max_seconds, status_code):
 
 def sleep_pool_connection(url, seconds):
     "Sleep a pool connection by calling an RPC that uses pg_sleep"
-    session = requests_unixsocket.Session()
+    session = new_local_session()
 
     # The try/except is a hack for not waiting for the response,
     # taken from https://stackoverflow.com/a/45601591/4692662
