@@ -364,7 +364,6 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
       observer $ ConnectionRetryObs delay
-      putNextListenerDelay appState delay
 
     flushPool appState
 
