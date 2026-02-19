@@ -25,6 +25,7 @@ module PostgREST.Query.SqlFragment
   , orderF
   , pageCountSelectF
   , pgFmtColumn
+  , pgFmtField
   , pgFmtFilter
   , pgFmtIdent
   , pgFmtJoinCondition
