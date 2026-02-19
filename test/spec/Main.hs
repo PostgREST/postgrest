@@ -29,6 +29,7 @@ import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
+import qualified Feature.MetricsSpec
 import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
@@ -87,6 +88,7 @@ main = do
   sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
+  obsChan <- newChan
 
   let
     initApp sCache st config = do
@@ -94,6 +96,12 @@ main = do
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return (st, postgrest (configLogLevel config) appState (pure ()))
+
+    initMetricsApp sCache config = do
+      appState <- AppState.initWithPool sockets pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
+      AppState.putPgVersion appState actualPgVersion
+      AppState.putSchemaCache appState (Just sCache)
+      return ((metricsState, appState, readChan obsChan), postgrest (configLogLevel config) appState (pure ()))
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache ()
@@ -123,6 +131,7 @@ main = do
       obsApp               = app testObservabilityCfg
       serverTiming         = app testCfgServerTiming
       aggregatesEnabled    = app testCfgAggregatesEnabled
+      metricsApp           = initMetricsApp baseSchemaCache testCfg
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -277,6 +286,9 @@ main = do
 
     before (initApp baseSchemaCache metricsState testCfgJwtCache) $
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
+
+    before metricsApp $
+      describe "Feature.MetricsSpec" Feature.MetricsSpec.spec
 
   where
     loadSCache pool conf =
