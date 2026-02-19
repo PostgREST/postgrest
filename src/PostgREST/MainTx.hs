@@ -222,7 +222,7 @@ failPut :: ResultSet -> DbHandler ()
 failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError $ Error.ApiRequestError Error.PutMatchingPkError
+    throwError $ Error.ApiRequestErr Error.PutMatchingPkError
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
@@ -231,13 +231,13 @@ failNotSingular :: MediaType -> ResultSet -> DbHandler ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
   when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError $ Error.ApiRequestError . Error.SingularityError $ toInteger queryTotal
+    throwError $ Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
 
 failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
 failExceedsMaxAffectedPref (Nothing,_) _ = pure ()
 failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
   lift SQL.condemn
-  throwError $ Error.ApiRequestError . Error.MaxAffectedViolationError $ toInteger queryTotal
+  throwError $ Error.ApiRequestErr . Error.MaxAffectedViolationError $ toInteger queryTotal
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()

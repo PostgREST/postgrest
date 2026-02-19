@@ -79,7 +79,7 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly
       ++ cLHeader
       ++ contentTypeHeaders pMedia ctxApiRequest
       ++ prefHeader
-    bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ Error.InvalidRange $
+    bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestErr $ Error.InvalidRange $
                                      Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         | headersOnly              = mempty
         | otherwise                = LBS.fromStrict rsBody
@@ -183,7 +183,7 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crPr
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     rsOrErrBody = if status == HTTP.status416
-      then Error.errorPayload $ Error.ApiRequestError $ Error.InvalidRange
+      then Error.errorPayload $ Error.ApiRequestErr $ Error.InvalidRange
         $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
       else LBS.fromStrict rsBody
     isHeadMethod = invMethod == InvRead True
@@ -247,11 +247,11 @@ overrideStatusHeaders rsGucStatus rsGucHeaders pgrstStatus pgrstHeaders = do
 
 decodeGucHeaders :: Maybe BS.ByteString -> Either Error.Error [GucHeader]
 decodeGucHeaders =
-  maybe (Right []) $ first (const . Error.ApiRequestError $ Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
+  maybe (Right []) $ first (const . Error.ApiRequestErr $ Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
 
 decodeGucStatus :: Maybe Text -> Either Error.Error (Maybe HTTP.Status)
 decodeGucStatus =
-  maybe (Right Nothing) $ first (const . Error.ApiRequestError $ Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
+  maybe (Right Nothing) $ first (const . Error.ApiRequestErr $ Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
 
 contentLengthHeader :: LBS.ByteString -> HTTP.Header
 contentLengthHeader body = ("Content-Length", show (LBS.length body))
