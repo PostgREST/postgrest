@@ -1,6 +1,8 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE QuasiQuotes      #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TypeApplications #-}
 
 module PostgREST.AppState
   ( AppState
@@ -35,7 +37,8 @@ import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
-import qualified Hasql.Session              as SQL
+import qualified Hasql.Session              as SQL hiding (statement)
+import qualified Hasql.Transaction          as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
@@ -72,9 +75,22 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
-import Protolude
+import           Control.Arrow          ((&&&))
+import           Data.Bitraversable     (bisequenceA)
+import           Data.Streaming.Network (bindPortTCP,
+                                         bindRandomPortTCP)
+import           Data.String            (IsString (..))
+import           Data.Tuple.Extra       (both)
+import           Data.UUID              hiding (fromString)
+import qualified Focus
+import qualified Hasql.Decoders         as HD
+import qualified Hasql.Encoders         as HE
+import           Hasql.Pool.Observation
+import qualified Hasql.Statement        as SQL
+import           NeatInterpolation      (trimming)
+import           Protolude
+import qualified StmHamt.SizedHamt      as SH
+
 
 data AppState = AppState
   -- | Database connection pool
@@ -109,6 +125,7 @@ data AppState = AppState
   , stateJwtCache          :: JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
+  , stateConnTrack         :: ConnTrack
   }
 
 -- | Schema cache status
@@ -123,7 +140,7 @@ init :: AppConfig -> IO AppState
 init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
-  let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
+  let observer = Logger.observationLogger loggerState configLogLevel <> Metrics.observationMetrics metricsState
 
   observer $ AppStartObs prettyVersion
 
@@ -135,6 +152,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
 
+  connTrack <- ConnTrack <$> SH.newIO <*> SH.newIO
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -148,10 +166,11 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> newIORef 1
     <*> pure sock
     <*> pure adminSock
-    <*> pure observer
+    <*> pure (observer <> trackConnections connTrack)
     <*> JwtCache.init conf observer
     <*> pure loggerState
     <*> pure metricsState
+    <*> pure connTrack
 
   deb <-
     let decisecond = 100000 in
@@ -401,9 +420,25 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      -- Throttle concurrent schema cache loads, guarded by advisory locks.
+      -- This is to prevent thundering herd problem on startup or when many PostgREST
+      -- instances receive "reload schema" notifications at the same time
+      -- schema reloading session + listener session
+      -- See get_lock_sql for details of the algorithm.
+      -- Here we calculate the number of open connections passed to the query.
+      (connected, inUse) <- sessionCounts appState
+      -- Determine whether schema cache loading will create a new session
+      let
+        scLoadingSessions = case (connected <= inUse, inUse >= configDbPoolSize) of
+          (True, False) -> 1 -- all connections in use but pool not full - schema cache loading will create session
+          _             -> 0
+        withTxLock = SQL.statement
+          (fromIntegral $ connected + scLoadingSessions)
+          (SQL.Statement get_lock_sql get_lock_params HD.noResult configDbPreparedStatements)
+
       (resultTime, result) <-
         let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ withTxLock *> querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
@@ -421,6 +456,43 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           observer $ SchemaCacheLoadedObs t
           putSCacheStatus appState SCLoaded
           return $ Just sCache
+      where
+        -- Recursive query that tries acquiring locks in order
+        -- and waits for randomly selected lock if no attempt succeeded.
+        -- It has a single parameter: this node open connection count.
+        -- It is used to estimate the number of nodes
+        -- by counting the number of active sessions for current session_user
+        -- and dividing it by this node open connections.
+        -- Assuming load is uniform among cluster nodes, all should have
+        -- statistically the same number of open connections.
+        -- Once the number of nodes is known we calculate the number
+        -- of locks as ceil(log(2, number_of_nodes))
+        get_lock_sql = encodeUtf8 [trimming|
+          WITH RECURSIVE attempts AS (
+            SELECT 1 AS lock_number, pg_try_advisory_xact_lock(lock_id, 1) AS success FROM parameters
+            UNION ALL
+            SELECT next_lock_number AS lock_number, pg_try_advisory_xact_lock(lock_id, next_lock_number) AS success
+            FROM
+              parameters CROSS JOIN LATERAL (
+                  SELECT lock_number + 1 AS next_lock_number FROM attempts
+                  WHERE NOT success AND lock_number < locks_count
+                  ORDER BY lock_number DESC
+                  LIMIT 1
+                ) AS previous_attempt
+          ),
+          counts AS (
+            SELECT round(log(2, round(count(*)::double precision/$$1)::numeric))::int AS locks_count
+            FROM
+              pg_stat_activity WHERE usename = SESSION_USER
+          ),
+          parameters AS (
+            SELECT locks_count, 50168275 AS lock_id FROM counts WHERE locks_count > 0
+          )
+          SELECT pg_advisory_xact_lock(lock_id, floor(random() * locks_count)::int + 1)
+          FROM
+            parameters WHERE NOT EXISTS (SELECT 1 FROM attempts WHERE success) |]
+
+        get_lock_params = HE.param (HE.nonNullable HE.int4)
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
     shouldRetry _ (pgVer, sCache) = do
@@ -478,3 +550,21 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         pass
       else
         observer ConfigSucceededObs
+
+
+data ConnTrack = ConnTrack { connTrackConnected :: SH.SizedHamt UUID, connTrackInUse :: SH.SizedHamt UUID }
+
+trackConnections :: ConnTrack -> ObservationHandler
+trackConnections ConnTrack{..} (HasqlPoolObs (ConnectionObservation uuid status)) = case status of
+  ReadyForUseConnectionStatus -> atomically $
+    SH.insert identity uuid connTrackConnected *>
+    SH.focus Focus.delete identity uuid connTrackInUse
+  TerminatedConnectionStatus _ -> atomically $
+    SH.focus Focus.delete identity uuid connTrackConnected *>
+    SH.focus Focus.delete identity uuid connTrackInUse
+  InUseConnectionStatus -> atomically $ SH.insert identity uuid connTrackInUse
+  _ -> mempty
+trackConnections _ _ = mempty
+
+sessionCounts :: AppState -> IO (Int, Int)
+sessionCounts = atomically . bisequenceA . both SH.size . (connTrackConnected &&& connTrackInUse) . stateConnTrack
