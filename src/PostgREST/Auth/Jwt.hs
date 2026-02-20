@@ -92,13 +92,10 @@ checkForErrors time audMatches = mconcat
 parseToken :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JWT.JwtContent
 parseToken _ "" = throwError $ JwtErr $ JwtDecodeErr EmptyAuthHeader
 parseToken secret tkn = do
-  -- secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
   tknWith3Parts <- hasThreeParts tkn
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
   liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
-  --liftEither $ mapLeft JwtErr $ verifyClaims content
   where
-      --hasThreeParts :: ByteString -> Either Error ByteString
       hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
         3 -> pure token
         n -> throwError $ JwtErr $ JwtDecodeErr $ UnexpectedParts n
