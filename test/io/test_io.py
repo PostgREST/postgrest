@@ -1060,9 +1060,11 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         assert response.status_code == 200
 
 
-@pytest.mark.parametrize("instance_count", [10, 11])
+@pytest.mark.parametrize(
+    "instance_count, expected_concurrency", [(2, 2), (4, 3), (6, 4), (8, 4), (16, 5)]
+)
 def test_schema_cache_reload_throttled_with_advisory_locks(
-    instance_count, slow_schema_cache_env
+    instance_count, expected_concurrency, slow_schema_cache_env
 ):
     "schema cache reloads should be throttled across instances if instance count > 10"
 
@@ -1112,7 +1114,7 @@ def test_schema_cache_reload_throttled_with_advisory_locks(
         reload_durations_ms = []
         for postgrest in instances:
             output_lines = []
-            for _ in range(5):
+            for _ in range(instance_count * 2):
                 output_lines.extend(read_available_output_lines(postgrest))
                 if any(query_log_pattern.search(line) for line in output_lines):
                     break
@@ -1131,14 +1133,15 @@ def test_schema_cache_reload_throttled_with_advisory_locks(
 
         # 10 instances should be fast, remaining instances should be slow
         assert (
-            len(
+            instance_count
+            - len(
                 [
                     duration
                     for duration in reload_durations_ms
                     if duration > lock_wait_threshold_ms
                 ]
             )
-            == instance_count - 10
+            == expected_concurrency
         )
 
 
