@@ -56,21 +56,31 @@ import PostgREST.Error.Types
 
 import Protolude
 
-class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
-  status   :: a -> HTTP.Status
-  headers  :: a -> [Header]
+-- | Encode Error to ByteString
+errorPayload :: (ErrorBody a, ErrorHeaders a) => a -> LByteString
+errorPayload = JSON.encode . toJsonPgrstError
+  where
+    toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => a -> JSON.Value
+    toJsonPgrstError err = JSON.object [
+        "code"    .= code err
+      , "message" .= message err
+      , "details" .= details err
+      , "hint"    .= hint err
+      ]
 
-  errorPayload :: a -> LByteString
-  errorPayload = JSON.encode
+-- | Create HTTP response from Error
+errorResponseFor :: (ErrorBody a, ErrorHeaders a) => a -> Response
+errorResponseFor err =
+  let
+    baseHeader = MediaType.toContentType MTApplicationJSON
+    cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
+    pSHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
+  in
+  responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : pSHeader (code err) : headers err) $ errorPayload err
 
-  errorResponseFor :: a -> Response
-  errorResponseFor err =
-    let
-      baseHeader = MediaType.toContentType MTApplicationJSON
-      cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
-      pSHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
-    in
-    responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : pSHeader (code err) : headers err) $ errorPayload err
+class ErrorHeaders a where
+  status  :: a -> HTTP.Status
+  headers :: a -> [Header]
 
 class ErrorBody a where
   code    :: a -> Text
@@ -78,7 +88,7 @@ class ErrorBody a where
   details :: a -> Maybe JSON.Value
   hint    :: a -> Maybe JSON.Value
 
-instance PgrstError ApiRequestError where
+instance ErrorHeaders ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
   status MediaTypeError{}            = HTTP.status406
   status InvalidBody{}               = HTTP.status400
@@ -202,11 +212,7 @@ instance ErrorBody ApiRequestError where
 
   hint _ = Nothing
 
-instance JSON.ToJSON ApiRequestError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
-
-instance PgrstError SchemaCacheError where
+instance ErrorHeaders SchemaCacheError where
   status AmbiguousRelBetween{} = HTTP.status300
   status AmbiguousRpc{}        = HTTP.status300
   status NoRelBetween{}        = HTTP.status400
@@ -269,18 +275,6 @@ instance ErrorBody SchemaCacheError where
   hint (TableNotFound schemaName relName schemaCache) = JSON.String <$> tableNotFoundHint schemaName relName schemaCache
 
   hint _ = Nothing
-
-instance JSON.ToJSON SchemaCacheError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
-
-toJsonPgrstError :: Text -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value
-toJsonPgrstError code' message' details' hint' = JSON.object [
-    "code"     .= code'
-  , "message"  .= message'
-  , "details"  .= details'
-  , "hint"     .= hint'
-  ]
 
 -- |
 -- If no relationship is found then:
@@ -438,7 +432,7 @@ pgrstParseErrorHint err = case err of
   MsgParseError _ -> "MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."
   _               -> "DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."
 
-instance PgrstError PgError where
+instance ErrorHeaders PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
   headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
@@ -453,19 +447,11 @@ instance PgrstError PgError where
        then [("WWW-Authenticate", "Bearer") :: Header]
        else mempty
 
-instance JSON.ToJSON PgError where
-  toJSON (PgError _ usageError) = toJsonPgrstError
-    (code usageError) (message usageError) (details usageError) (hint usageError)
-
 instance ErrorBody PgError where
   code    (PgError _ usageError) = code usageError
   message (PgError _ usageError) = message usageError
   details (PgError _ usageError) = details usageError
   hint    (PgError _ usageError) = hint usageError
-
-instance JSON.ToJSON SQL.UsageError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
 
 instance ErrorBody SQL.UsageError where
   code    (SQL.ConnectionUsageError _)                   = "PGRST000"
@@ -483,10 +469,6 @@ instance ErrorBody SQL.UsageError where
   hint    (SQL.ConnectionUsageError _)                   = Nothing
   hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
   hint    SQL.AcquisitionTimeoutUsageError               = Nothing
-
-instance JSON.ToJSON SQL.CommandError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
 
 instance ErrorBody SQL.CommandError where
   -- Special error raised with code PGRST, to allow full response control
@@ -584,7 +566,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
     _                       -> HTTP.status500
 
 
-instance PgrstError Error where
+instance ErrorHeaders Error where
   status (ApiRequestErr err)  = status err
   status (SchemaCacheErr err) = status err
   status (JwtErr err)         = status err
@@ -596,10 +578,6 @@ instance PgrstError Error where
   headers (JwtErr err)         = headers err
   headers (PgErr err)          = headers err
   headers NoSchemaCacheError   = mempty
-
-instance JSON.ToJSON Error where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
 
 instance ErrorBody Error where
   code (ApiRequestErr err)  = code err
@@ -626,7 +604,7 @@ instance ErrorBody Error where
   hint NoSchemaCacheError   = Nothing
   hint (PgErr err)          = hint err
 
-instance PgrstError JwtError where
+instance ErrorHeaders JwtError where
   status JwtDecodeErr{}   = HTTP.unauthorized401
   status JwtSecretMissing = HTTP.status500
   status JwtTokenRequired = HTTP.unauthorized401
@@ -636,10 +614,6 @@ instance PgrstError JwtError where
   headers JwtTokenRequired   = [requiredTokenHeader]
   headers e@(JwtClaimsErr _) = [invalidTokenHeader $ message e]
   headers _                  = mempty
-
-instance JSON.ToJSON JwtError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
 
 instance ErrorBody JwtError where
   code JwtSecretMissing = "PGRST300"
