@@ -598,8 +598,14 @@ handlerF rout = \case
   NoAgg                      -> "''::text"
 
 schemaDescription :: Text -> SQL.Snippet
-schemaDescription schema =
-  "SELECT pg_catalog.obj_description(" <> encoded <> "::regnamespace, 'pg_namespace')"
+schemaDescription schema = SQL.sql (encodeUtf8 [trimming|
+  SELECT
+    description
+  FROM
+    pg_namespace n
+    left join pg_description d on d.objoid = n.oid
+  WHERE
+    n.nspname = |]) <> encoded
   where
     encoded = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 schema
 
@@ -611,7 +617,7 @@ accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND c.relnamespace = |]) <> encodedSchema <> "::regnamespace " <> SQL.sql (encodeUtf8 [trimming|
+  AND n.nspname = |]) <> encodedSchema <> " " <> SQL.sql (encodeUtf8 [trimming|
   AND (
     pg_has_role(c.relowner, 'USAGE')
     or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -623,7 +629,7 @@ accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
 accessibleFuncs :: Text -> SQL.Snippet
-accessibleFuncs schema = baseFuncSqlQuery <> "AND p.pronamespace = " <> encodedSchema <> "::regnamespace"
+accessibleFuncs schema = baseFuncSqlQuery <> "AND pn.nspname = " <> encodedSchema
   where
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 

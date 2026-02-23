@@ -759,8 +759,10 @@ def test_log_query(level, defaultenv):
         )
         infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
         root_tables_regx = r".+: SELECT   n.nspname AS table_schema, .+ FROM pg_class c .+ ORDER BY table_schema, table_name"
-        root_procs_regx = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND p.pronamespace = \$1::regnamespace"
-        root_descr_regx = r".+: SELECT pg_catalog\.obj_description\(\$1::regnamespace, 'pg_namespace'\)"
+        root_procs_regx = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND pn.nspname = \$1"
+        root_descr_regx = (
+            r".+: SELECT.+description.+FROM.+pg_namespace n.+WHERE.+n.nspname =\$1"
+        )
         set_config_regx = (
             r".+: select set_config\('search_path', \$1, true\), set_config\("
         )
@@ -1602,23 +1604,30 @@ def test_allow_configs_to_be_set_to_empty(defaultenv):
         assert response.status_code == 200
 
 
-def test_schema_cache_error_observation(defaultenv):
+def test_schema_cache_error_observation(defaultenv, metapostgrest):
     "schema cache error observation should be logged with invalid db-schemas or db-extra-search-path"
+
+    role = "timeout_authenticator"
 
     env = {
         **defaultenv,
-        "PGRST_DB_EXTRA_SEARCH_PATH": "x",
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "500",
     }
 
     with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
         # TODO: postgrest should exit here, instead it keeps retrying
         # exitCode = wait_until_exit(postgrest)
         # assert exitCode == 1
+        set_statement_timeout(metapostgrest, role, 400)
 
-        output = postgrest.read_stdout(nlines=9)
+        output = postgrest.read_stdout(nlines=10)
+
         assert (
-            "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
-            in output[7]
+            "Failed to load the schema cache using db-schemas=public and db-extra-search-path=public"
+            in line
+            for line in output
         )
 
 
