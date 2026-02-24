@@ -24,6 +24,7 @@ import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
 import           Numeric                    (showFFloat)
+import           PostgREST.Config           (Verbosity (..))
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
 import           PostgREST.Query            (MainQuery)
@@ -94,7 +95,7 @@ observationMessage = \case
   ExitDBFatalError ServerError08P01 usageErr ->
     "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
   SchemaCacheEmptyObs ->
-    T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.NoSchemaCacheError
+    T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.NoSchemaCacheError
   SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
     "Failed to load the schema cache using "
       <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)
@@ -167,7 +168,7 @@ observationMessage = \case
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""
 
-    jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
+    jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.PgError False err
 
 
     showListenerConnError :: SQL.ConnectionError -> Text

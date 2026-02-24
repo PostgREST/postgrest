@@ -25,7 +25,6 @@ import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Relationship (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..))
-
 import Protolude
 
 data Error

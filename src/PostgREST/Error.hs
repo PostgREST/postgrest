@@ -42,6 +42,7 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.MediaType (MediaType (..))
 import qualified PostgREST.MediaType as MediaType
 
+import PostgREST.Config                   (Verbosity (..))
 import PostgREST.SchemaCache              (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
@@ -57,26 +58,30 @@ import PostgREST.Error.Types
 import Protolude
 
 -- | Encode Error to ByteString
-errorPayload :: (ErrorBody a, ErrorHeaders a) => a -> LByteString
-errorPayload = JSON.encode . toJsonPgrstError
+errorPayload :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> LByteString
+errorPayload verb = JSON.encode . toJsonPgrstError verb
   where
-    toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => a -> JSON.Value
-    toJsonPgrstError err = JSON.object [
+    toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> JSON.Value
+    toJsonPgrstError Verbose err = JSON.object [
         "code"    .= code err
       , "message" .= message err
       , "details" .= details err
       , "hint"    .= hint err
       ]
+    toJsonPgrstError Minimal err = JSON.object [
+        "code"    .= code err
+      , "message" .= message err
+      ]
 
 -- | Create HTTP response from Error
-errorResponseFor :: (ErrorBody a, ErrorHeaders a) => a -> Response
-errorResponseFor err =
+errorResponseFor :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> Response
+errorResponseFor verb err =
   let
     baseHeader = MediaType.toContentType MTApplicationJSON
     cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
     pSHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
   in
-  responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : pSHeader (code err) : headers err) $ errorPayload err
+  responseLBS (status err) (baseHeader : cLHeader (errorPayload verb err) : pSHeader (code err) : headers err) $ errorPayload verb err
 
 class ErrorHeaders a where
   status  :: a -> HTTP.Status

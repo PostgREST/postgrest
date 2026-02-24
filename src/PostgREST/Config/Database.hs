@@ -46,6 +46,7 @@ dbSettingsNames :: [Text]
 dbSettingsNames =
   (prefix <>) <$>
   ["db_aggregates_enabled"
+  ,"client_error_verbosity"
   ,"db_anon_role"
   ,"db_pre_config"
   ,"db_extra_search_path"

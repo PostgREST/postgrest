@@ -62,7 +62,7 @@ data PgrstResponse = PgrstResponse {
 
 actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
-actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ _ _ = do
   let
     (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     cLHeader = if headersOnly then mempty else [ contentLengthHeader bod ]
@@ -79,7 +79,7 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly
       ++ cLHeader
       ++ contentTypeHeaders pMedia ctxApiRequest
       ++ prefHeader
-    bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestErr $ Error.InvalidRange $
+    bod | status == HTTP.status416 = Error.errorPayload configClientErrorVerbosity $ Error.ApiRequestErr $ Error.InvalidRange $
                                      Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         | headersOnly              = mempty
         | otherwise                = LBS.fromStrict rsBody
@@ -178,12 +178,12 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationDelete, pMed
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ _ _ = do
   let
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     rsOrErrBody = if status == HTTP.status416
-      then Error.errorPayload $ Error.ApiRequestErr $ Error.InvalidRange
+      then Error.errorPayload configClientErrorVerbosity $ Error.ApiRequestErr $ Error.InvalidRange
         $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
       else LBS.fromStrict rsBody
     isHeadMethod = invMethod == InvRead True

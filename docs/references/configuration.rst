@@ -195,6 +195,53 @@ app.settings.*
 
   The :code:`current_setting` function has `an optional boolean second <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET>`_ argument to avoid it from raising an error if the value was not defined. Default values to :code:`app.settings` can then be given by combining this argument with :code:`coalesce` and :code:`nullif` : :code:`coalesce(nullif(current_setting('app.settings.my_custom_variable', true), ''), 'default value')`. The use of :code:`nullif` is necessary because if set in a transaction, the setting is sometimes not "rolled back" to :code:`null`. See also :ref:`this section <guc_req_headers_cookies_claims>` for more information on this behaviour.
 
+.. _client-error-verbosity:
+
+client-error-verbosity
+----------------------
+
+  =============== =======================
+  **Type**        String
+  **Default**     verbose
+  **Reloadable**  Y
+  **Environment** PGRST_CLIENT_ERROR_VERBOSITY
+  **In-Database** pgrst.client_error_verbosity
+  =============== =======================
+
+  Specifies the verbosity of PostgREST errors.
+
+  With ``verbose``, ``code``, ``message``, ``details`` and ``hint`` are returned.
+
+  .. code:: bash
+
+    curl "localhost:3000/itemsxx"
+
+  .. code-block:: json
+
+    {
+        "code": "PGRST205",
+        "message": "Could not find the table 'public.itemsxx' in the schema cache",
+        "details": "Perhaps you meant the table 'public.items'",
+        "hint": null
+    }
+
+  With ``minimal``, just ``code`` and ``message`` are returned.
+
+  .. code:: bash
+
+    curl "localhost:3000/itemsxx"
+
+  .. code-block:: json
+
+    {
+        "code": "PGRST205",
+        "message": "Could not find the table 'public.itemsxx' in the schema cache"
+    }
+
+  .. note::
+
+    This setting only affects client side error messages. Server side logs are not affected by this setting.
+
 .. _db-aggregates-enabled:
 
 db-aggregates-enabled
