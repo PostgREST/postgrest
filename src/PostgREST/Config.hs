@@ -29,6 +29,7 @@ module PostgREST.Config
   , addTargetSessionAttrs
   , exampleConfigFile
   , audMatchesCfg
+  , Verbosity (..)
   ) where
 
 import qualified Data.Aeson             as JSON
@@ -73,6 +74,7 @@ audMatchesCfg =  maybe (const True) (==) . configJwtAudience
 
 data AppConfig = AppConfig
   { configAppSettings              :: [(Text, Text)]
+  , configClientErrorVerbosity     :: Verbosity
   , configDbAggregates             :: Bool
   , configDbAnonRole               :: Maybe BS.ByteString
   , configDbChannel                :: Text
@@ -134,6 +136,15 @@ dumpLogLevel = \case
   LogInfo  -> "info"
   LogDebug -> "debug"
 
+data Verbosity
+  = Minimal
+  | Verbose
+
+dumpClientErrorVerbosity :: Verbosity -> Text
+dumpClientErrorVerbosity = \case
+  Minimal -> "minimal"
+  Verbose -> "verbose"
+
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
 
@@ -150,7 +161,8 @@ toText conf =
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-aggregates-enabled",         T.toLower . show . configDbAggregates)
+      [("client-error-verbosity",    q . dumpClientErrorVerbosity . configClientErrorVerbosity)
+      ,("db-aggregates-enabled",         T.toLower . show . configDbAggregates)
       ,("db-anon-role",              q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
@@ -254,6 +266,7 @@ parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> Rol
 parser optPath env dbSettings roleSettings roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
+    <*> parseErrorVerbosity "client-error-verbosity"
     <*> (fromMaybe False <$> optBool "db-aggregates-enabled")
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
@@ -310,6 +323,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> optInt "internal-schema-cache-load-sleep"
     <*> optInt "internal-schema-cache-relationship-load-sleep"
   where
+    parseErrorVerbosity :: C.Key -> C.Parser C.Config Verbosity
+    parseErrorVerbosity k =
+      optString k >>= \case
+        Nothing        -> pure Verbose -- default
+        Just "minimal" -> pure Minimal
+        Just "verbose" -> pure Verbose
+        Just _         -> fail "Invalid client-error-verbosity. Check your configuration."
+
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
       where
@@ -641,6 +662,9 @@ exampleConfigFile :: [Char]
 exampleConfigFile = S.unlines
   [ "## Admin server used for checks. It's disabled by default unless a port is specified."
   , "# admin-server-port = 3001"
+  , ""
+  , "# PostgREST error json verbosity config"
+  , "# client-error-verbosity = \"verbose\""
   , ""
   , "## The database role to use when no client authentication is provided"
   , "# db-anon-role = \"anon\""

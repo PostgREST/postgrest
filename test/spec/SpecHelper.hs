@@ -40,7 +40,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
-                                          parseSecret)
+                                          Verbosity (..), parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Prometheus                        (Counter, getCounter)
 import Protolude                         hiding (get, toS)
@@ -121,6 +121,7 @@ baseCfg :: AppConfig
 baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
     configAppSettings               = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
+  , configClientErrorVerbosity      = Verbose
   , configDbAggregates              = False
   , configDbAnonRole                = Just "postgrest_test_anonymous"
   , configDbChannel                 = mempty

@@ -2,6 +2,7 @@ CREATE ROLE db_config_authenticator LOGIN NOINHERIT;
 
 -- reloadable config options
 -- these settings will override the values in configs/no-defaults.config, so they must be different
+ALTER ROLE db_config_authenticator SET pgrst.client_error_verbosity = 'minimal';
 ALTER ROLE db_config_authenticator SET pgrst.db_aggregates_enabled = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.db_anon_role = 'anonymous';
 ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, extensions';
@@ -56,6 +57,7 @@ ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket_mode = 'ignored'
 -- other authenticator reloadable config options
 -- these settings will override the values in configs/no-defaults.config, so they must be different
 CREATE ROLE other_authenticator LOGIN NOINHERIT;
+ALTER ROLE other_authenticator SET pgrst.client_error_verbosity = 'minimal';
 ALTER ROLE other_authenticator SET pgrst.db_aggregates_enabled = 'false';
 ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensions, other';
 ALTER ROLE other_authenticator SET pgrst.db_max_rows = '100';

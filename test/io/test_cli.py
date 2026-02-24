@@ -286,6 +286,17 @@ def test_jwt_secret_min_length(defaultenv):
     assert "The JWT secret must be at least 32 characters long." in error
 
 
+def test_invalid_client_error_verbosity(defaultenv):
+    "Given an invalid value for client-error-verbosity, Postgrest should exit with a non-zero exit code."
+    env = {
+        **defaultenv,
+        "PGRST_CLIENT_ERROR_VERBOSITY": "invalid",
+    }
+
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "Invalid client-error-verbosity. Check your configuration." in error
+
+
 @pytest.mark.parametrize("restricted_schema", FIXTURES["restrictedschemas"])
 def test_restricted_db_schemas(restricted_schema, defaultenv):
     "Should print error when db-schemas config contain pg_catalog or information_schema"
