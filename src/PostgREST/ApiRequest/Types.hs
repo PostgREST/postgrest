@@ -205,9 +205,14 @@ data LogicOperator
 
 data Filter
   = Filter
-  { field  :: Field
-  , opExpr :: OpExpr
-  }
+    { field  :: Field
+    , opExpr :: OpExpr
+    }
+  | RelFilter
+    { relation :: FieldName
+    , field    :: Field
+    , opExpr   :: OpExpr
+    }
   deriving (Eq, Show)
 
 data OpExpr
