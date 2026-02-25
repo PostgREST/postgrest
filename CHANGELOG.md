@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
+- Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 
 ### Changed
 
