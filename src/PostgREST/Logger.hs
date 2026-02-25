@@ -111,6 +111,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
+  o@PoolFlushed ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessages o
   o@JwtCacheEviction ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
@@ -224,6 +227,8 @@ observationMessages = \case
     pure "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
     pure "Borrowed a connection from the pool"
+  PoolFlushed ->
+    pure "Database connection pool flushed"
   JwtCacheLookup _ ->
     pure "Looked up a JWT in JWT cache"
   JwtCacheEviction ->
