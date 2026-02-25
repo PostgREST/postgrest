@@ -1811,10 +1811,6 @@ def test_server_timing_transaction_duration(defaultenv, metapostgrest):
         assert 2000 <= response_dur < 3000
 
 
-@pytest.mark.xfail(
-    reason="pgrst_db_pool_available should not go negative on pg network failures",
-    strict=True,
-)
 def test_positive_pool_metric(defaultenv):
     "When a network failure is caused on the pg connection, pgrst_db_pool_available stays positive"
 
