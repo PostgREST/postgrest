@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
 - Implement connection tracking in metrics by @mkleczek in #4672 
+- Limit concurrent schema cache loads by @mkleczek in #4643
 
 ### Changed
 
