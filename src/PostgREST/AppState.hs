@@ -18,6 +18,7 @@ module PostgREST.AppState
   , init
   , initSockets
   , initWithPool
+  , putConfig -- For tests TODO refactoring
   , putNextListenerDelay
   , putSchemaCache
   , putPgVersion
@@ -270,10 +271,14 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
+-- | Emits PoolFlushed observation
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool AppState{..} = do
+  SQL.release statePool
+  stateObserver PoolFlushed
 
 -- | Destroy the pool on shutdown.
+-- | Differs from flushPool in not emiting PoolFlushed observation.
 destroyPool :: AppState -> IO ()
 destroyPool AppState{..} = SQL.release statePool
 
@@ -366,8 +371,6 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       observer $ ConnectionRetryObs delay
       putNextListenerDelay appState delay
 
-    flushPool appState
-
     (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
   )
   where
@@ -416,6 +419,10 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
           putSCacheStatus appState SCPending
           putSchemaCache appState $ Just sCache
+          -- Flush the pool after loading the schema cache to reset any stale session cache entries
+          -- We do it after successfully querying the schema cache
+          -- and after marking sCacheStatus as pending,
+          flushPool appState
           observer $ SchemaCacheQueriedObs resultTime
           (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
           observer $ SchemaCacheLoadedObs t
