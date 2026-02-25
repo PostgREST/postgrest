@@ -29,6 +29,7 @@ import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
+import qualified Feature.MetricsSpec
 import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
@@ -68,16 +69,24 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import qualified Feature.SchemaCacheSpec
+import           PostgREST.Observation                 (Observation (HasqlPoolObs))
 
 
 main :: IO ()
 main = do
+  poolChan <- newChan
+  -- make sure poolChan is not growing indefinitely
+  void $ forkIO $ fix (readChan poolChan *>)
+  metricsState <- Metrics.init (configDbPoolSize testCfg)
   pool <- P.acquire $ P.settings
     [ P.size 3
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
     , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    -- make sure metrics are updated and pool observations published to poolChan
+    , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
     ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
@@ -86,7 +95,6 @@ main = do
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
-  metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
     initApp sCache st config = do
@@ -94,6 +102,14 @@ main = do
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return (st, postgrest (configLogLevel config) appState (pure ()))
+
+    initObservationsApp sCache config = do
+      -- duplicate poolChan as a starting point
+      obsChan <- dupChan poolChan
+      appState <- AppState.initWithPool sockets pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
+      AppState.putPgVersion appState actualPgVersion
+      AppState.putSchemaCache appState (Just sCache)
+      return (((appState, metricsState), obsChan), postgrest (configLogLevel config) appState (pure ()))
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache ()
@@ -123,6 +139,7 @@ main = do
       obsApp               = app testObservabilityCfg
       serverTiming         = app testCfgServerTiming
       aggregatesEnabled    = app testCfgAggregatesEnabled
+      observationsApp      = initObservationsApp baseSchemaCache testCfg
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -277,6 +294,12 @@ main = do
 
     before (initApp baseSchemaCache metricsState testCfgJwtCache) $
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
+
+    before observationsApp $
+      describe "Feature.MetricsSpec" Feature.MetricsSpec.spec
+
+    before observationsApp $
+      describe "Feature.SchemaCacheSpec" Feature.SchemaCacheSpec.spec
 
   where
     loadSCache pool conf =
