@@ -1,6 +1,8 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE QuasiQuotes      #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE TypeApplications #-}
 
 module PostgREST.AppState
   ( AppState
@@ -36,7 +38,8 @@ import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
-import qualified Hasql.Session              as SQL
+import qualified Hasql.Session              as SQL hiding (statement)
+import qualified Hasql.Transaction          as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
@@ -73,9 +76,16 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
-import Protolude
+import           Data.Streaming.Network (bindPortTCP,
+                                         bindRandomPortTCP)
+import           Data.String            (IsString (..))
+import qualified Hasql.Decoders         as HD
+import qualified Hasql.Encoders         as HE
+import qualified Hasql.Statement        as SQL
+import           NeatInterpolation      (trimming)
+import           PostgREST.Metrics      (MetricsState (connTrack))
+import           Protolude
+
 
 data AppState = AppState
   -- | Database connection pool
@@ -360,7 +370,7 @@ getObserver = stateObserver
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
 retryingSchemaCacheLoad :: AppState -> IO ()
-retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
+retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId, stateMetrics} =
   void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
@@ -402,9 +412,23 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      -- Throttle concurrent schema cache loads, guarded by advisory locks.
+      -- This is to prevent thundering herd problem on startup or when many PostgREST
+      -- instances receive "reload schema" notifications at the same time
+      -- See get_lock_sql for details of the algorithm.
+      -- Here we calculate the number of open connections passed to the query.
+      Metrics.ConnStats connected inUse <- Metrics.connectionCounts $ connTrack stateMetrics
+      -- Determine whether schema cache loading will create a new session
+      let
+        -- if all connections in use but pool not full - schema cache loading will create session
+        scLoadingSessions = if connected <= inUse && inUse < configDbPoolSize then 1 else 0
+        withTxLock = SQL.statement
+          (fromIntegral $ connected + scLoadingSessions)
+          (SQL.Statement get_lock_sql get_lock_params HD.noResult configDbPreparedStatements)
+
       (resultTime, result) <-
         let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ withTxLock *> querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
@@ -422,6 +446,43 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           observer $ SchemaCacheLoadedObs t
           putSCacheStatus appState SCLoaded
           return $ Just sCache
+      where
+        -- Recursive query that tries acquiring locks in order
+        -- and waits for randomly selected lock if no attempt succeeded.
+        -- It has a single parameter: this node open connection count.
+        -- It is used to estimate the number of nodes
+        -- by counting the number of active sessions for current session_user
+        -- and dividing it by this node open connections.
+        -- Assuming load is uniform among cluster nodes, all should have
+        -- statistically the same number of open connections.
+        -- Once the number of nodes is known we calculate the number
+        -- of locks as ceil(log(2, number_of_nodes))
+        get_lock_sql = encodeUtf8 [trimming|
+          WITH RECURSIVE attempts AS (
+            SELECT 1 AS lock_number, pg_try_advisory_xact_lock(lock_id, 1) AS success FROM parameters
+            UNION ALL
+            SELECT next_lock_number AS lock_number, pg_try_advisory_xact_lock(lock_id, next_lock_number) AS success
+            FROM
+              parameters CROSS JOIN LATERAL (
+                  SELECT lock_number + 1 AS next_lock_number FROM attempts
+                  WHERE NOT success AND lock_number < locks_count
+                  ORDER BY lock_number DESC
+                  LIMIT 1
+                ) AS previous_attempt
+          ),
+          counts AS (
+            SELECT round(log(2, round(count(*)::double precision/$$1)::numeric))::int AS locks_count
+            FROM
+              pg_stat_activity WHERE usename = SESSION_USER
+          ),
+          parameters AS (
+            SELECT locks_count, 50168275 AS lock_id FROM counts WHERE locks_count > 0
+          )
+          SELECT pg_advisory_xact_lock(lock_id, floor(random() * locks_count)::int + 1)
+          FROM
+            parameters WHERE NOT EXISTS (SELECT 1 FROM attempts WHERE success) |]
+
+        get_lock_params = HE.param (HE.nonNullable HE.int4)
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
     shouldRetry _ (pgVer, sCache) = do
