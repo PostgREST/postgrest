@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
 - Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
 - Fix admin server crashing without a way to recover by @taimoorzaeem in #5096
+- Limit concurrent schema cache loads by @mkleczek in #4643
 
 ### Changed
 
