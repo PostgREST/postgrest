@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE RankNTypes                #-}
@@ -41,10 +42,13 @@ import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
                                           parseSecret)
+import PostgREST.Observation             (Observation,
+                                          observationMessage)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Prometheus                        (Counter, getCounter)
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
+import System.Timeout                    (timeout)
 import Test.Hspec.Expectations.Contrib   (annotate)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
@@ -380,3 +384,45 @@ expectCounter :: forall s st m. (KnownSymbol s, HasField s st Counter, MonadIO m
 expectCounter = expectField @s intCounter
   where
     intCounter = ((round @Double @Int) <$>) . getCounter
+
+data TimeoutException = TimeoutException deriving (Show, Exception)
+
+accumulateUntilTimeout :: Int -> (s -> a -> s) -> s -> IO a -> IO s
+accumulateUntilTimeout t f start act = do
+  tid <- myThreadId
+  -- mask to make sure TimeoutException is not thrown before starting the loop
+  mask $ \unmask -> do
+    -- start timeout thread unmasking exceptions
+    ttid <- forkIOWithUnmask ($ (threadDelay t *> throwTo tid TimeoutException))
+    -- unmask effect
+    unmask $ fix (\loop accum -> (act >>= loop . f accum) `onTimeout` pure accum) start
+      -- make sure we catch timeout if happens bifore entering the loop
+      `onTimeout` pure start
+      -- make sure timer thread is killed on other exceptions
+      -- so that it won't throw TimeoutException later
+      `onException` killThread ttid
+  where
+    onTimeout m a = m `catch` \TimeoutException -> a
+
+
+prepareState :: HasCallStack => Traversable f => WaiSession (f (Chan Observation)) (f (Int -> String -> (Observation -> Maybe a) -> IO ()))
+prepareState = getState >>= traverse (liftA2 (<$>) waitFor (liftIO . dupChan))
+  where
+    -- read messages from copy chan and once condition is met drain original to the same point
+    -- upon timeout report error and messages remaining in the original chan
+    -- that way we report messages since last successful read
+    waitFor orig copy t msg f =
+      timeout t (readUntil copy *> readUntil orig) >>= maybe failTimeout mempty
+      where
+        failTimeout =
+          takeUntilTimeout 100000 (readChan orig)
+            >>= expectationFailure
+            . ("Timeout waiting for " <> msg <> " at " <> loc <> ". Remaining observations:\n" ++)
+            . foldMap ((++ "\n") . show . observationMessage)
+        readUntil = void . untilM (pure . isJust . f) . readChan
+    loc = fold (head (prettySrcLoc . snd <$> getCallStack callStack))
+    -- execute effectful computation until result meets provided condition
+    untilM cond m = fix $ \loop -> m >>= \a -> ifM (cond a) (pure a) loop
+    -- duplicate the provided channel and construct wairFor function binding both channels
+    -- accumulate effecful computation results into a list for specified time
+    takeUntilTimeout t = fmap reverse . accumulateUntilTimeout t (flip (:)) []
