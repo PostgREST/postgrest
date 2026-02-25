@@ -53,6 +53,7 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | PoolFlushed
   | JwtCacheLookup Bool
   | JwtCacheEviction
   | TerminationUnixSignalObs Text
