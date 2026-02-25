@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file. From versio
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client_error_verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 
+### Fixed
+
+- Limit concurrent schema cache loads by @mkleczek in #4643
+
 ### Changed
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
