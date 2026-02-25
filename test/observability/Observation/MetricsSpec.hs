@@ -6,17 +6,21 @@
 
 module Observation.MetricsSpec where
 
-import           Data.List             (lookup)
-import           Network.Wai           (Application)
+import           Data.List              (lookup)
+import qualified Hasql.Pool.Observation as SQL
+import           Network.Wai            (Application)
 import           ObsHelper
-import qualified PostgREST.AppState    as AppState
-import           PostgREST.Config      (AppConfig (configDbSchemas))
-import qualified PostgREST.Metrics     as Metrics
+import qualified PostgREST.AppState     as AppState
+import           PostgREST.Config       (AppConfig (configDbSchemas))
+import           PostgREST.Metrics      (ConnStats (..),
+                                         MetricsState (..),
+                                         connectionCounts)
 import           PostgREST.Observation
-import           Prometheus            (getCounter, getVectorWith)
-import           Protolude
-import           Test.Hspec            (SpecWith, describe, it)
-import           Test.Hspec.Wai        (getState)
+import           Prometheus             (getCounter, getVectorWith)
+import           Test.Hspec             (SpecWith, describe, it)
+import           Test.Hspec.Wai         (getState)
+
+import Protolude
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do
@@ -71,9 +75,40 @@ spec = describe "Server started with metrics enabled" $ do
         -- (there should be none but we need to verify that)
         threadDelay $ 1 * sec
 
+  -- The test verifies we properly count in use connections
+  -- The idea is to fork a worker thread that
+  -- borrows connection from the pool and waits for a signal to release it
+  -- Main thread checks that
+  -- in use connections counter is incremented by worker
+  -- then it signals the worker to release the connection
+  -- and finally verifies that in use connection counter is back to original value
+  it "Should track in use connections" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO $ checkState' metrics [
+        -- we expect in use connections to be the same once finished
+        inUseConnections (+ 0)
+      ] $ do
+        signal <- newEmptyMVar
+        -- make sure waiting thread is signaled
+        (`finally` tryPutMVar signal ()) $
+          -- expecting one more connection in use
+          checkState' metrics [
+            inUseConnections (+ 1)
+          ] $ do
+            -- start a thread hanging on a single connection until signaled
+            void $ forkIO $ void $ AppState.usePool appState $ liftIO (readMVar signal)
+            -- main thread waits for ConnectionObservation with InUseConnectionStatus
+            -- after which used connections count should be incremented
+            waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [ o | o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.InUseConnectionStatus)) <- pure x]
+
+        -- hanging thread was signaled and should return the connection
+        waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [ o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
 
   where
     -- prometheus-client api to handle vectors is convoluted
     schemaCacheLoads label = expectField @"schemaCacheLoads" $
       fmap (maybe (0::Int) round . lookup label) . (`getVectorWith` getCounter)
+    inUseConnections = expectField @"connTrack" ((inUse <$>) . connectionCounts)
     sec = 1000000
