@@ -17,10 +17,11 @@ import           PostgREST.SchemaCache     (querySchemaCache)
 import qualified Observation.JwtCache
 import qualified Observation.MetricsSpec
 
-import ObsHelper
-import PostgREST.Observation (Observation (HasqlPoolObs))
-import Protolude             hiding (toList, toS)
-import Test.Hspec
+import qualified Observation.SchemaCacheSpec
+import           ObsHelper
+import           PostgREST.Observation       (Observation (HasqlPoolObs))
+import           Protolude                   hiding (toList, toS)
+import           Test.Hspec
 
 main :: IO ()
 main = do
@@ -64,6 +65,8 @@ main = do
       describe "Observation.JwtCacheObs" Observation.JwtCache.spec
     before (initApp baseSchemaCache testCfg) $
       describe "Feature.MetricsSpec" Observation.MetricsSpec.spec
+    before (initApp baseSchemaCache testCfg) $
+      describe "Feature.SchemaCacheSpec" Observation.SchemaCacheSpec.spec
 
   where
     loadSCache pool conf =
