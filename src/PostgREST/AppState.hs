@@ -18,6 +18,7 @@ module PostgREST.AppState
   , init
   , initSockets
   , initWithPool
+  , putConfig -- For tests TODO refactoring
   , putNextListenerDelay
   , putSchemaCache
   , putPgVersion
