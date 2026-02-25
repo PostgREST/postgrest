@@ -271,10 +271,14 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
+-- | Emits PoolFlushed observation
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool AppState{..} = do
+  SQL.release statePool
+  stateObserver PoolFlushed
 
 -- | Destroy the pool on shutdown.
+-- | Differs from flushPool in not emiting PoolFlushed observation.
 destroyPool :: AppState -> IO ()
 destroyPool AppState{..} = SQL.release statePool
 

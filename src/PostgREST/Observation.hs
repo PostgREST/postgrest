@@ -63,6 +63,7 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | PoolFlushed
   | JwtCacheLookup Bool
   | JwtCacheEviction
   | WarpErrorObs Text
@@ -157,6 +158,8 @@ observationMessage = \case
     "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
     "Borrowed a connection from the pool"
+  PoolFlushed ->
+    "Database connection pool flushed"
   JwtCacheLookup _ ->
     "Looked up a JWT in JWT cache"
   JwtCacheEviction ->

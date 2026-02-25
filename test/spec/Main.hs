@@ -69,6 +69,7 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import qualified Feature.SchemaCacheSpec
 import           PostgREST.Observation                 (Observation (HasqlPoolObs))
 
 
@@ -296,6 +297,9 @@ main = do
 
     before observationsApp $
       describe "Feature.MetricsSpec" Feature.MetricsSpec.spec
+
+    before observationsApp $
+      describe "Feature.SchemaCacheSpec" Feature.SchemaCacheSpec.spec
 
   where
     loadSCache pool conf =
