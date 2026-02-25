@@ -15,19 +15,30 @@ import qualified PostgREST.Metrics         as Metrics
 import           PostgREST.SchemaCache     (querySchemaCache)
 
 import qualified Observation.JwtCache
+import qualified Observation.MetricsSpec
 
 import ObsHelper
-import Protolude  hiding (toList, toS)
+import PostgREST.Observation (Observation (HasqlPoolObs))
+import Protolude             hiding (toList, toS)
 import Test.Hspec
 
 main :: IO ()
 main = do
+  poolChan <- newChan
+  -- make sure poolChan is not growing indefinitely
+  -- start a thread that drains the channel
+  -- this is necessary because test cases operate on
+  -- copies so poolChan is never read from
+  void $ forkIO $ forever $ readChan poolChan
+  metricsState <- Metrics.init (configDbPoolSize testCfg)
   pool <- P.acquire $ P.settings
     [ P.size 3
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
     , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    -- make sure metrics are updated and pool observations published to poolChan
+    , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
     ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
@@ -35,19 +46,23 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
   loggerState <- Logger.init
-  metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    initApp sCache st config = do
-      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState)
+    initApp sCache config = do
+      -- duplicate poolChan as a starting point
+      obsChan <- dupChan poolChan
+      stateObsChan <- newObsChan obsChan
+      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return (st, postgrest (configLogLevel config) appState (pure ()))
+      return (SpecState appState metricsState stateObsChan, postgrest (configLogLevel config) appState (pure ()))
 
   -- Run all test modules
   hspec $ do
-    before (initApp baseSchemaCache metricsState testCfgJwtCache) $
+    before (initApp baseSchemaCache testCfgJwtCache) $
       describe "Observation.JwtCacheObs" Observation.JwtCache.spec
+    before (initApp baseSchemaCache testCfg) $
+      describe "Feature.MetricsSpec" Observation.MetricsSpec.spec
 
   where
     loadSCache pool conf =
