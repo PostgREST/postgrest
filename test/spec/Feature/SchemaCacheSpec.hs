@@ -28,7 +28,7 @@ spec = describe "Server started with metrics enabled" $ do
       waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@SchemaCacheLoadedObs{} <- pure x ]
 
 
-  it "Should flush pool multiple times when schema reloading retries" $ do
+  it "Should flush pool once when schema reloading retries" $ do
     ((appState, _), waitFor) <- prepareState
 
     liftIO $ do
@@ -36,14 +36,13 @@ spec = describe "Server started with metrics enabled" $ do
           AppState.putConfig appState $ cfg { configDbSchemas = pure "bad_schema" }
           AppState.schemaCacheLoader appState
 
-          waitFor (1 * sec) "PoolFlushed 1" $ \x -> [ o | o@PoolFlushed <- pure x ]
           waitFor (1 * sec) "SchemaCacheErrorObs" $ \x -> [ o | o@SchemaCacheErrorObs{} <- pure x ]
 
           -- Restore configuration
           AppState.putConfig appState cfg
 
         -- Wait for 2 seconds so that retry can happen
-        waitFor (2 * sec) "PoolFlushed 2" $ \x -> [ o | o@PoolFlushed <- pure x ]
+        waitFor (2 * sec) "PoolFlushed" $ \x -> [ o | o@PoolFlushed <- pure x ]
         waitFor (1 * sec) "SchemaCacheQueriedObs" $ \x -> [ o | o@SchemaCacheQueriedObs{} <- pure x ]
         waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@SchemaCacheLoadedObs{} <- pure x ]
 

@@ -674,7 +674,7 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = postgrest.read_stdout(nlines=7)
+        output = postgrest.read_stdout(nlines=9)
 
         if level == "crit":
             assert len(output) == 0
@@ -712,7 +712,7 @@ def test_log_level(level, defaultenv):
                     r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
                 ],
             )
-            assert len(output) == 7
+            assert len(output) == 9
             assert any("Connection" and "is available" in line for line in output)
             assert any("Connection" and "is used" in line for line in output)
 
@@ -1349,7 +1349,7 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         assert response.status_code == 500
 
         # ensure the message appears on the logs
-        output = postgrest.read_stdout(nlines=6)
+        output = postgrest.read_stdout(nlines=8)
 
         if level == "crit":
             assert len(output) == 0
@@ -1566,7 +1566,7 @@ def test_log_pool_req_observation(level, defaultenv):
 
         if level == "debug":
             output = postgrest.read_stdout(nlines=7)
-            assert len(output) == 6
+            assert len(output) == 7
             match_log(output, [pool_req, pool_req_fullfill])
         elif level == "info":
             output = postgrest.read_stdout(nlines=4)
