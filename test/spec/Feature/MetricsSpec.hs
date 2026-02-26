@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE TypeApplications    #-}
 
 module Feature.MetricsSpec where
@@ -17,11 +18,11 @@ import           SpecHelper
 import           Test.Hspec            (SpecWith, describe, it)
 import           Test.Hspec.Wai        (getState)
 
-spec :: SpecWith ((AppState.AppState, Metrics.MetricsState, ObsChan), Application)
+spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do
   it "Should update pgrst_schema_cache_loads_total[SUCCESS]" $ do
-    (appState, metrics, obsChan) <- getState
-    let waitFor = waitForObs obsChan
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
 
     liftIO $ checkState' metrics [
         schemaCacheLoads "SUCCESS" (+1)
@@ -30,8 +31,8 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
   it "Should update pgrst_schema_cache_loads_total[ERROR]" $ do
-    (appState, metrics, obsChan) <- getState
-    let waitFor = waitForObs obsChan
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
 
     liftIO $ checkState' metrics [
         schemaCacheLoads "FAIL" (+1),

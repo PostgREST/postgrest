@@ -69,6 +69,7 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import qualified Feature.ToxiSpec
 import           PostgREST.Observation                 (Observation (HasqlPoolObs))
 
 
@@ -91,6 +92,16 @@ main = do
     , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
     ]
 
+  toxicPool <- P.acquire $ P.settings
+    [ P.size 3
+    , P.acquisitionTimeout 10
+    , P.agingTimeout 60
+    , P.idlenessTimeout 60
+    , P.staticConnectionSettings (toUtf8 $ configDbUri toxicCfg)
+    -- make sure metrics are updated and pool observations published to poolChan
+    , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
+    ]
+
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
   -- cached schema cache so most tests run fast
@@ -109,10 +120,10 @@ main = do
       -- duplicate poolChan as a starting point
       obsChan <- dupChan poolChan
       stateObsChan <- newObsChan obsChan
-      appState <- AppState.initWithPool sockets pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
+      appState <- AppState.initWithPool sockets toxicPool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return ((appState, metricsState, stateObsChan), postgrest (configLogLevel config) appState (pure ()))
+      return (SpecState appState metricsState stateObsChan testToxiProxy, postgrest (configLogLevel config) appState (pure ()))
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache ()
@@ -298,8 +309,10 @@ main = do
     before (initApp baseSchemaCache metricsState testCfgJwtCache) $
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
-    before observationsApp $
-      describe "Feature.MetricsSpec" Feature.MetricsSpec.spec
+    traverse_ (before observationsApp . uncurry describe) [
+        ("Feature.MetricsSpec", Feature.MetricsSpec.spec)
+      , ("Feature.ToxiSpec", Feature.ToxiSpec.spec)
+      ]
 
   where
     loadSCache pool conf =
