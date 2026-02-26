@@ -116,14 +116,14 @@ main = do
       AppState.putSchemaCache appState (Just sCache)
       return (st, postgrest (configLogLevel config) appState (pure ()))
 
-    initObservationsApp sCache config = do
+    initObservationsApp sCache = do
       -- duplicate poolChan as a starting point
       obsChan <- dupChan poolChan
       stateObsChan <- newObsChan obsChan
-      appState <- AppState.initWithPool sockets toxicPool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
+      appState <- AppState.initWithPool sockets toxicPool toxicCfg loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return (SpecState appState metricsState stateObsChan testToxiProxy, postgrest (configLogLevel config) appState (pure ()))
+      return (SpecState appState metricsState stateObsChan testToxiProxy, postgrest (configLogLevel toxicCfg) appState (pure ()))
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache ()
@@ -153,7 +153,7 @@ main = do
       obsApp               = app testObservabilityCfg
       serverTiming         = app testCfgServerTiming
       aggregatesEnabled    = app testCfgAggregatesEnabled
-      observationsApp      = initObservationsApp baseSchemaCache testCfg
+      observationsApp      = initObservationsApp baseSchemaCache
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg

@@ -8,8 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeApplications          #-}
-{-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module SpecHelper where
@@ -44,11 +44,11 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.Internal
 import Text.Heredoc
 
+import           Control.Monad.Base
+import           Control.Monad.Trans.Control
 import qualified Data.List                         as DL
 import           Data.String                       (String)
 import qualified Data.Text                         as T
-import           Control.Monad.Base
-import           Control.Monad.Trans.Control
 import qualified PostgREST.AppState                as AppState
 import           PostgREST.Config                  (AppConfig (..),
                                                     JSPathExp (..),
@@ -149,7 +149,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configClientErrorVerbosity      = Verbose
   , configDbAggregates              = False
   , configDbAnonRole                = Just "postgrest_test_anonymous"
-  , configDbChannel                 = mempty
+  , configDbChannel                 = "pgrst"
   , configDbChannelEnabled          = True
   , configDbExtraSearchPath         = []
   , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]

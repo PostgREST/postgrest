@@ -1,8 +1,11 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE MultiWayIf          #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
-module PostgREST.Listener (runListener) where
+module PostgREST.Listener (runListener, runListener') where
 
 import qualified Data.ByteString.Char8 as BS
 
@@ -19,28 +22,54 @@ import qualified PostgREST.Config   as Config
 import           Control.Arrow              ((&&&))
 import           Data.Bitraversable         (bisequence)
 import           Data.Either.Combinators    (whenRight)
+import           Data.IORef                 (IORef, newIORef,
+                                             readIORef, writeIORef)
 import qualified Data.Text                  as T
+import           Data.Time                  (UTCTime, diffUTCTime,
+                                             nominalDiffTimeToSeconds)
 import qualified Database.PostgreSQL.LibPQ  as LibPQ
 import qualified Hasql.Session              as SQL
 import           PostgREST.Config.Database  (queryPgVersion)
 import           PostgREST.Config.PgVersion (pgvFullName)
 import           Protolude
+import           System.IO.Error            (isResourceVanishedError)
 
 -- | Starts the Listener in a thread
-runListener :: AppState -> IO ()
-runListener appState = do
+-- | Returns IO action to stop the listener thread.
+runListener :: AppState -> IO (IO ())
+runListener appState = runListener' appState (15 * minute) (30 * minute)
+  where
+    minute = 60
+
+data ListenerStopped = ListenerStopped deriving (Show, Exception)
+
+runListener' :: AppState -> Int -> Int -> IO (IO ())
+runListener' appState initialTcpKeepAlivesIdleSec maxTcpKeepAlivesIdleSec = do
   AppConfig{..} <- getConfig appState
-  when configDbChannelEnabled $
-    void . forkIO . void $ retryingListen appState
+  if configDbChannelEnabled then do
+    started <- newIORef Nothing
+    listenerThreadId <- forkIO . void $ retryingListen started initialTcpKeepAlivesIdleSec maxTcpKeepAlivesIdleSec False appState
+    pure $ throwTo listenerThreadId ListenerStopped
+  else
+    mempty
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
 -- | This function never returns (but can throw) and return type enforces that.
-retryingListen :: AppState -> IO Void
-retryingListen appState = do
+retryingListen :: IORef (Maybe UTCTime) -> Int -> Int -> Bool -> AppState -> IO ()
+retryingListen lastActivity currentKeepalivesIdle maxKeepalivesIdle retryingOnIdleTimeout appState = do
   AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
     onError err = do
+      -- ResourceVanished should be reported when reading from socket fails
+      -- as long as hasql-notifications does not wrap IOException in something else...
+      let resourceVanished = maybe False isResourceVanishedError (fromException @IOException err)
+      (newTcpIdle, newMaxKeepalivesIdle) <-
+        if resourceVanished then do
+          readIORef lastActivity >>= maybe (pure (currentKeepalivesIdle, maxKeepalivesIdle)) adjustTcpIdle
+        else
+          pure (currentKeepalivesIdle, maxKeepalivesIdle)
+      writeIORef lastActivity Nothing
       AppState.putIsListenerOn appState False
       observer $ DBListenFail dbChannel (Right err)
       when (isDbListenerBug err) $
@@ -55,14 +84,14 @@ retryingListen appState = do
       unless (delay == maxDelay) $
         AppState.putNextListenerDelay appState (delay * 2)
       -- loop running the listener
-      retryingListen appState
+      retryingListen lastActivity newTcpIdle newMaxKeepalivesIdle resourceVanished appState
 
   -- Execute the listener with with error handling
-  handle onError $ do
+  handle onError $ handle (\ListenerStopped -> pure ()) $ do
     -- Make sure we don't leak connections on errors
     bracket
       -- acquire connection
-      (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
+      (SQL.acquire $ toUtf8 (addKeepalivesOptions $ Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
       -- release connection
       (`whenRight` releaseConnection) $
       -- use connection
@@ -82,6 +111,7 @@ retryingListen appState = do
             AppState.putNextListenerDelay appState 1
 
           observer $ DBListenStart pqHost pqPort pgFullName dbChannel
+          AppState.getTime appState >>= writeIORef lastActivity . pure
 
           -- wait for notifications
           -- this will never return, in case of an error it will throw and be caught by onError
@@ -96,11 +126,13 @@ retryingListen appState = do
     oneSecondInMicro = 1000000
     maxDelay = 32
 
-    handleNotification channel msg =
+    handleNotification channel msg = do
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.readInDbConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
+      AppState.getTime appState >>= writeIORef lastActivity . Just
+
 
     cacheReloader =
       AppState.schemaCacheLoader appState
@@ -108,3 +140,32 @@ retryingListen appState = do
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
 
     isDbListenerBug e = "could not access status of transaction" `T.isInfixOf` show e
+
+    adjustTcpIdle lastActiveTime = do
+        currentIdleSeconds <- AppState.getTime appState <&> round . nominalDiffTimeToSeconds . (`diffUTCTime` lastActiveTime)
+        let currentIdleTimeout = currentKeepalivesIdle + keepalivesInterval * keepalivesCount
+        -- if our idle time == current idle timeout setting it means
+        -- we have to make it shorter
+        if currentIdleSeconds `div` currentIdleTimeout <= 1 then
+          -- only adjust if this is the second idle timeout failure
+          -- this is to eliminate spurious adjustments (TODO rethink if it is really needed)
+          if retryingOnIdleTimeout then
+            -- try with 1/2 of current keepalive idle
+            -- remember that it is the new maximum we can try later
+            pure (max 1 $ currentKeepalivesIdle `div` 2, currentKeepalivesIdle)
+          else
+            pure (currentKeepalivesIdle, maxKeepalivesIdle)
+        else
+          pure (currentKeepalivesIdle + (maxKeepalivesIdle - currentKeepalivesIdle) `div` 2, maxKeepalivesIdle)
+
+    keepalivesInterval = max 1 $ currentKeepalivesIdle `div` (5 * keepalivesCount)
+    keepalivesCount = 5
+
+    -- (Config.addConnStringOption opt val) is an endomorphism
+    -- so it is a Monoid under function composition
+    -- Haskell is awesome
+    addKeepalivesOptions = appEndo $ foldMap (Endo . uncurry Config.addConnStringOption . fmap show) [
+        ("keepalives_count", keepalivesCount)
+      , ("keepalives_interval", keepalivesInterval)
+      , ("keepalives_idle", currentKeepalivesIdle)
+      ]
