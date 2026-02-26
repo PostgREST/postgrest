@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file. From versio
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client_error_verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
+- Add `Vary` header to responses by @develop7 in #4609
 
 ### Changed
 

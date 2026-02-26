@@ -258,3 +258,10 @@ $_$ language sql;
 create or replace function notify_pgrst() returns void as $$
   notify pgrst;
 $$ language sql;
+
+
+create or replace function custom_vary_hdr() returns void as $$
+  begin
+    perform set_config('response.headers', '[{"Vary": "Accept-Encoding"}]', false);
+  end
+$$ language plpgsql;

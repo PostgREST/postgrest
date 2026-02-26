@@ -1789,3 +1789,19 @@ def test_client_error_verbosity_config(defaultenv):
             "details": None,
             "hint": "Perhaps you meant the table 'public.items'",
         }
+
+
+def test_vary_custom_header_set(defaultenv):
+    env = {**defaultenv, "PGRST_DB_PRE_REQUEST": "custom_vary_hdr"}
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+
+        assert response.headers["Vary"] == "Accept-Encoding"
+
+
+def test_vary_default_header_set(defaultenv):
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.get("/projects")
+
+        assert response.headers["Vary"] == "Accept-Encoding, Accept, Prefer, Range"
