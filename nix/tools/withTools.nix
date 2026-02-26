@@ -5,10 +5,12 @@
 , lib
 , postgresqlVersions
 , postgrest
+, python3
 , python3Packages
 , slocat
 , writeText
 , writers
+, toxiproxy
 }:
 let
   withTmpDb =
@@ -35,7 +37,7 @@ let
         positionalCompletion = "_command";
         workingDir = "/";
         redirectTixFiles = false;
-        withPath = [ postgresql ];
+        withPath = [ postgresql toxiproxy ];
         withTmpDir = true;
       }
       ''
@@ -55,6 +57,8 @@ let
 
           export PGDATA="$tmpdir/db"
           export PGHOST="$tmpdir/socket"
+          PGPORT=$(${python3}/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+          export PGPORT
           export PGUSER
           export PGDATABASE
           export PGRST_DB_SCHEMAS
@@ -63,8 +67,18 @@ let
 
           HBA_FILE="$tmpdir/pg_hba.conf"
           echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
-          echo "local $PGDATABASE all trust" >> "$HBA_FILE"
-          echo "local replication all trust" >> "$HBA_FILE"
+          {
+            echo "local $PGDATABASE all trust"
+            echo "local replication all trust"
+            echo "host $PGDATABASE some_protected_user localhost scram-sha-256"
+            echo "host $PGDATABASE all localhost trust"
+          } >> "$HBA_FILE"
+
+          UNIX_PGHOST="$PGHOST"
+          export TCP_PGHOST="localhost"
+          REAL_PGPORT="$PGPORT"
+          TOXI_PGPORT=$(${python3}/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+          export TOXI_PGPORT
 
           log "Initializing database cluster..."
           # We try to make the database cluster as independent as possible from the host
@@ -81,8 +95,13 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c port=$REAL_PGPORT -c hba_file=$HBA_FILE -k $UNIX_PGHOST -c log_statement=\"all\" " \
             >> "$setuplog"
+
+          LOG_LEVEL=error toxiproxy-server&
+          TOXIPROXY_PID=$!
+          sleep 1 # give the server a moment to start
+          toxiproxy-cli create -l "$TCP_PGHOST:$TOXI_PGPORT" -u "$TCP_PGHOST:$REAL_PGPORT" pg
 
           log "Creating a minimally privileged $PGUSER connection role..."
           createuser "$PGUSER" -U postgres --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
@@ -94,6 +113,9 @@ let
             replica_slot="replica_$RANDOM"
             replica_dir="$tmpdir/$replica_slot"
             replica_host="$tmpdir/socket_$replica_slot"
+            replica_port=$(${python3}/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+            TOXI_REPLICA_PGPORT=$(${python3}/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+            export TOXI_REPLICA_PGPORT
 
             mkdir -p "$replica_host"
 
@@ -106,15 +128,17 @@ let
 
             log "Starting replica on $replica_host"
 
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c port=$replica_port -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
               >> "$setuplog"
+            toxiproxy-cli create -l "$TCP_PGHOST:$TOXI_REPLICA_PGPORT" -u "$TCP_PGHOST:$replica_port" pg_replica
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
             >&2 echo "${commandName}: You can tail the replica logs with: tail -f $replica_dblog"
 
-            export PGREPLICAHOST="$replica_host"
+            export PGREPLICAHOST="$TCP_PGHOST"
+            export PGREPLICAPORT="$TOXI_REPLICA_PGPORT"
             export PGREPLICASLOT="$replica_slot"
-            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST"
+            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$TCP_PGHOST&port=$PGREPLICAPORT,$TOXI_PGPORT"
           fi
 
           # shellcheck disable=SC2317
@@ -127,6 +151,8 @@ let
               pg_ctl -D "$replica_dir" stop --mode=immediate >> "$setuplog"
               rm -rf "$replica_dir"
             fi
+            kill "$TOXIPROXY_PID" || true
+            wait "$TOXIPROXY_PID" || true
           }
           trap stop EXIT
         fi
@@ -140,6 +166,7 @@ let
         fi
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
+        #(PGHOST="$TCP_PGHOST" PGPORT="$TOXI_PGPORT" "$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
   # Helper script for running a command against all PostgreSQL versions.
@@ -203,22 +230,22 @@ let
         withTmpDir = true;
       }
       ''
-        delay="''${PGDELAY:-0ms}"
-        echo "delaying data to/from postgres by $delay"
+        delay="''${PGDELAY:-"0ms"}"
+        delay="''${delay::(-2)}"
+        echo "delaying data to/from postgres by $delay ms"
 
-        REALPGHOST="$PGHOST"
-        export PGHOST="$tmpdir/socket"
-        mkdir -p "$PGHOST"
+        export PGHOST="$TCP_PGHOST"
+        export PGPORT="$TOXI_PGPORT"
 
-        ${slocat}/bin/slocat -delay "$delay" -src "$PGHOST/.s.PGSQL.5432" -dst "$REALPGHOST/.s.PGSQL.5432" &
-        SLOCAT_PID=$!
+        toxiproxy-cli toxic add --type latency --downstream --toxicName latency_downstream --attribute latency="$delay" pg
+        toxiproxy-cli toxic add --type latency --upstream --toxicName latency_upstream --attribute latency="$delay" pg
+
         # shellcheck disable=SC2317
-        stop_slocat() {
-          kill "$SLOCAT_PID" || true
-          wait "$SLOCAT_PID" || true
+        delete_toxic() {
+          toxiproxy-cli toxic remove -n latency_downstream pg || true
+          toxiproxy-cli toxic remove -n latency_upstream pg || true
         }
-        trap stop_slocat EXIT
-        sleep 1 # should wait for socket file to appear instead
+        trap delete_toxic EXIT
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';

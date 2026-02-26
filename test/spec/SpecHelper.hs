@@ -3,11 +3,15 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module SpecHelper where
 
 import           Control.Lens           ((^?))
@@ -27,7 +31,8 @@ import Data.Aeson           ((.=))
 import Data.CaseInsensitive (CI (..), mk, original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
-import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus),
+                             Session)
 import System.IO.Unsafe     (unsafePerformIO)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
@@ -36,11 +41,14 @@ import Text.Regex.TDFA      ((=~))
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.Internal
 import Text.Heredoc
 
 import qualified Data.List                         as DL
 import           Data.String                       (String)
 import qualified Data.Text                         as T
+import           Control.Monad.Base
+import           Control.Monad.Trans.Control
 import qualified PostgREST.AppState                as AppState
 import           PostgREST.Config                  (AppConfig (..),
                                                     JSPathExp (..),
@@ -57,6 +65,12 @@ import           Protolude                         hiding (get, toS)
 import           Protolude.Conv                    (toS)
 import           System.Timeout                    (timeout)
 import           Test.Hspec.Expectations.Contrib   (annotate)
+import qualified Toxiproxy
+import           Toxiproxy                         (Proxy (proxyEnabled),
+                                                    proxyListen,
+                                                    proxyName,
+                                                    proxyToxics,
+                                                    proxyUpstream)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
@@ -185,6 +199,9 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
 
 testCfg :: AppConfig
 testCfg = baseCfg
+
+toxicCfg :: AppConfig
+toxicCfg = baseCfg { configDbUri = "postgresql://localhost:7432" }
 
 testCfgDisallowRollback :: AppConfig
 testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
@@ -440,10 +457,35 @@ waitForObs (ObsChan orig copy) t msg f =
     decisecond = 100000
 
 data SpecState = SpecState {
-  specAppState :: AppState.AppState,
-  specMetrics  :: Metrics.MetricsState,
-  specObsChan  :: ObsChan
+  specAppState  :: AppState.AppState,
+  specMetrics   :: Metrics.MetricsState,
+  specObsChan   :: ObsChan,
+  specToxiProxy :: Toxiproxy.Proxy
 }
+
+testToxiProxy :: Toxiproxy.Proxy
+testToxiProxy = Toxiproxy.Proxy {
+  proxyName = "pg",
+  proxyEnabled = True,
+  proxyToxics = mempty,
+  -- we don't create proxies
+  -- as they are already created
+  -- so these don't matter
+  proxyListen = "localhost:7432",
+  proxyUpstream = "localhost:6432"
+}
+
+instance MonadBaseControl IO (WaiSession st) where
+  type StM (WaiSession st) a = StM Session a
+  liftBaseWith f = WaiSession $
+    liftBaseWith $ \runInBase ->
+      f $ \k -> runInBase (unWaiSession k)
+  restoreM = WaiSession . restoreM
+  {-# INLINE liftBaseWith #-}
+  {-# INLINE restoreM #-}
+
+instance MonadBase IO (WaiSession st) where
+  liftBase = liftIO
 
 -- helpers used to produce observation diagnostics in waitForObs
 constrName :: (HasConstructor (Rep a), Generic a)=> a -> Text
