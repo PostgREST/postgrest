@@ -85,7 +85,7 @@ run appState = do
         NS.close mainSocket
   Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-  Listener.runListener appState
+  void $ Listener.runListener appState
 
   Admin.runAdmin appState adminSocket mainSocket (serverSettings conf)
 
