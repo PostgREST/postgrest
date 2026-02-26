@@ -22,7 +22,7 @@ import GHC.IO.Exception (IOErrorType (..))
 import System.IO.Error  (ioeGetErrorType)
 
 import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft, whenLeft)
+import Data.Either.Combinators  (mapLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost,
@@ -176,26 +176,24 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming $ do
+  (txTime, txResultE) <- withTiming $ do
     case tx of
-      MainTx.NoDbTx r -> pure r
+      MainTx.NoDbTx r -> pure $ Right r
       MainTx.DbTx{..} -> do
         dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
-
-        -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
-        -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
-        -- This needs refactoring so only the below obsQuery is used.
-        lift $ whenLeft eitherResp $ obsQuery . Error.status
-        liftEither eitherResp
+        pure eitherResp
 
   (respTime, resp) <- withTiming $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
-        status' = either Error.status Response.pgrstStatus response
+    let responseE = case txResultE of
+          Left err ->
+            Left err
+          Right txResult ->
+            Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+        status' = either Error.status Response.pgrstStatus responseE
 
-    -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
     lift $ obsQuery status'
-    liftEither response
+    liftEither responseE
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
 
