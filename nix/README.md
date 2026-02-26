@@ -98,7 +98,7 @@ postgrest-lint                    postgrest-with-pg-16
 postgrest-loadtest                postgrest-with-pg-17
 postgrest-loadtest-against        postgrest-with-slow-pg
 postgrest-loadtest-report         postgrest-with-slow-postgrest
-postgrest-nixpkgs-upgrade
+postgrest-nixpkgs-upgrade         postgrest-changelog-check
 ...
 
 [nix-shell]$
