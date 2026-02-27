@@ -59,7 +59,7 @@ init = mdo
     loggerState = LoggerState zTime debouncePoolTimeout
   zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
   debouncePoolTimeout <- mkDebounce defaultDebounceSettings
-          { debounceAction = logWithZTime loggerState $ observationMessage PoolAcqTimeoutObs
+          { debounceAction = logWithZTime loggerState $ observationMessages PoolAcqTimeoutObs
           , debounceFreq = 5*oneSecond
           , debounceEdge = leadingEdge -- logs at the start and the end
           }
@@ -95,41 +95,41 @@ observationLogger loggerState logLevel obs = case obs of
       stateLogDebouncePoolTimeout loggerState
   o@(QueryErrorCodeHighObs _) -> do
     when (logLevel >= LogError) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   o@SchemaCacheEmptyObs ->
     when (logLevel >= LogError) $ do
-    logWithZTime loggerState $ observationMessage o
+    logWithZTime loggerState $ observationMessages o
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   QueryObs gq status -> do
     when (shouldLogResponse logLevel status) $
       logMainQ loggerState gq
   o@PoolRequest ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   o@JwtCacheEviction ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   o@(JwtCacheLookup _) ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime loggerState $ observationMessages o
   o ->
-    logWithZTime loggerState $ observationMessage o
+    logWithZTime loggerState $ observationMessages o
 
-logWithZTime :: LoggerState -> Text -> IO ()
-logWithZTime loggerState txt = do
+logWithZTime :: LoggerState -> [Text] -> IO ()
+logWithZTime loggerState txts = do
   zTime <- stateGetZTime loggerState
-  hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
+  traverse_ (hPutStrLn stderr . (toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <>)) txts
 
 logMainQ :: LoggerState -> MainQuery -> IO ()
 logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
   let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
-      logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' $ T.decodeUtf8 q in
+      logQ q = when (q /= mempty) $ logWithZTime loggerState $ pure $ showOnSingleLine '\n' $ T.decodeUtf8 q in
   mapM_ logQ snipts
 
 -- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
@@ -142,78 +142,79 @@ renderSnippet snippet =
   in
     sql
 
-observationMessage :: Observation -> Text
-observationMessage = \case
+observationMessages :: Observation -> [Text]
+observationMessages = \case
   AdminStartObs address ->
-    "Admin server listening on " <> address
+    pure $ "Admin server listening on " <> address
   AppStartObs ver ->
-    "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
+    pure $ "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerAddressObs address ->
-    "API server listening on " <> address
+    pure $ "API server listening on " <> address
   DBConnectedObs ver ->
-    "Successfully connected to " <> ver
+    pure $ "Successfully connected to " <> ver
   ExitUnsupportedPgVersion pgVer minPgVer ->
-    "Cannot run in this PostgreSQL version (" <> pgvName pgVer <> "), PostgREST needs at least " <> pgvName minPgVer
+    pure $ "Cannot run in this PostgreSQL version (" <> pgvName pgVer <> "), PostgREST needs at least " <> pgvName minPgVer
   ExitDBNoRecoveryObs ->
-    "Automatic recovery disabled, exiting."
+    pure "Automatic recovery disabled, exiting."
   ExitDBFatalError ServerAuthError usageErr ->
-    "Failed to establish a connection. " <> jsonMessage usageErr
+    pure $ "Failed to establish a connection. " <> jsonMessage usageErr
   ExitDBFatalError ServerPgrstBug usageErr ->
-    "This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues. " <> jsonMessage usageErr
+    pure $ "This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues. " <> jsonMessage usageErr
   ExitDBFatalError ServerError42P05 usageErr ->
-    "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false. " <> jsonMessage usageErr
+    pure $ "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false. " <> jsonMessage usageErr
   ExitDBFatalError ServerError08P01 usageErr ->
-    "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
+    pure $ "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
   SchemaCacheEmptyObs ->
-    T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.NoSchemaCacheError
+    pure $ T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.NoSchemaCacheError
   SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
-    "Failed to load the schema cache using "
+    pure $ "Failed to load the schema cache using "
       <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)
       <> " and "
       <> "db-extra-search-path=" <> T.intercalate "," extraPaths
       <> ". " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
-    "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
-  SchemaCacheSummaryObs summary ->
-    "Schema cache loaded " <> summary
-  SchemaCacheLoadedObs resultTime ->
-    "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
+    pure $ "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
+  SchemaCacheLoadedObs resultTime summary ->
+    [
+      "Schema cache loaded " <> summary
+    , "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
+    ]
   ConnectionRetryObs delay ->
-    "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
+    pure $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
   QueryPgVersionError usageErr ->
-    "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
+    pure $ "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
   DBListenStart host port fullName channel -> do
-    "Listener connected to " <> fullName <> " on " <> show (fold $ host <> fmap (":" <>) port) <> " and listening for database notifications on the " <> show channel <> " channel"
+    pure $ "Listener connected to " <> fullName <> " on " <> show (fold $ host <> fmap (":" <>) port) <> " and listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
-    "Failed listening for database notifications on the " <> show channel <> " channel. " <>
+    pure $ "Failed listening for database notifications on the " <> show channel <> " channel. " <>
       either showListenerConnError showListenerException listenErr
   DBListenRetry delay ->
-    "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
+    pure $ "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
   DBListenBugHint ->
-    "HINT:  This is likely a bug in the notification queue, try executing the following to solve it: select pg_notification_queue_usage();"
+    pure "HINT:  This is likely a bug in the notification queue, try executing the following to solve it: select pg_notification_queue_usage();"
   DBListenerGotSCacheMsg channel ->
-    "Received a schema cache reload message on the " <> show channel <> " channel"
+    pure $ "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
-    "Received a config reload message on the " <> show channel <> " channel"
+    pure $ "Received a config reload message on the " <> show channel <> " channel"
   DBListenerConnectionCleanupFail ex ->
-    "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
+    pure $ "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
   QueryObs{} ->
-    mempty -- TODO pending refactor: The logic for printing the query cannot be done here. Join the observationMessage function into observationLogger to avoid this mempty.
+    mempty -- TODO pending refactor: The logic for printing the query cannot be done here. Join the observationMessages function into observationLogger to avoid this mempty.
   ConfigReadErrorObs usageErr ->
-    "Failed to query database settings for the config parameters." <> jsonMessage usageErr
+    pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
-    "Failed to query the role settings. " <> jsonMessage usageErr
+    pure $ "Failed to query the role settings. " <> jsonMessage usageErr
   QueryErrorCodeHighObs usageErr ->
-    jsonMessage usageErr
+    pure $ jsonMessage usageErr
   ConfigInvalidObs err ->
-    "Failed reloading config: " <> err
+    pure $ "Failed reloading config: " <> err
   ConfigSucceededObs ->
-     "Config reloaded"
+     pure "Config reloaded"
   PoolInit poolSize ->
-     "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
-  PoolAcqTimeoutObs -> jsonMessage SQL.AcquisitionTimeoutUsageError
+     pure $ "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
+  PoolAcqTimeoutObs -> pure $ jsonMessage SQL.AcquisitionTimeoutUsageError
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
-    "Connection " <> show uuid <> (
+    pure $ "Connection " <> show uuid <> (
       case status of
         SQL.ConnectingConnectionStatus   -> " is being established"
         SQL.ReadyForUseConnectionStatus  -> " is available"
@@ -225,15 +226,15 @@ observationMessage = \case
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
     )
   PoolRequest ->
-    "Trying to borrow a connection from pool"
+    pure "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
-    "Borrowed a connection from the pool"
+    pure "Borrowed a connection from the pool"
   JwtCacheLookup _ ->
-    "Looked up a JWT in JWT cache"
+    pure "Looked up a JWT in JWT cache"
   JwtCacheEviction ->
-    "Evicted entry from JWT cache"
+    pure "Evicted entry from JWT cache"
   WarpErrorObs txt ->
-    "Warp server error: " <> txt
+    pure $ "Warp server error: " <> txt
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""

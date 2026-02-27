@@ -31,8 +31,7 @@ data Observation
   | SchemaCacheEmptyObs
   | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
   | SchemaCacheQueriedObs Double
-  | SchemaCacheSummaryObs Text
-  | SchemaCacheLoadedObs Double
+  | SchemaCacheLoadedObs Double Text
   | ConnectionRetryObs Int
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel
   | DBListenFail Text (Either SQL.ConnectionError SomeException)
