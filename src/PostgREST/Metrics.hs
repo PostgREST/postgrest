@@ -64,7 +64,7 @@ observationMetrics MetricsState{..} obs = case obs of
     incGauge poolWaiting
   PoolRequestFullfilled ->
     decGauge poolWaiting
-  SchemaCacheLoadedObs resTime -> do
+  SchemaCacheLoadedObs resTime _ -> do
     withLabel schemaCacheLoads "SUCCESS" incCounter
     setGauge schemaCacheQueryTime resTime
   SchemaCacheErrorObs{} -> do

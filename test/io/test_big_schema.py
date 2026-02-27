@@ -34,7 +34,9 @@ def test_schema_cache_load_max_duration(defaultenv):
         assert match, f"unexpected log format: {schema_cache_lines[-1]}"
         duration_ms = float(match.group(1))
 
-        assert duration_ms < max_duration
+        # check that loading takes long enough
+        # to make sure we measure the time correctly
+        assert 100 < duration_ms < max_duration
 
 
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122

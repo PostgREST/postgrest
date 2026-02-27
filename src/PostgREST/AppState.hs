@@ -416,8 +416,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           putSCacheStatus appState SCPending
           putSchemaCache appState $ Just sCache
           observer $ SchemaCacheQueriedObs resultTime
-          (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
-          observer $ SchemaCacheLoadedObs t
+          observer . uncurry SchemaCacheLoadedObs =<< timeItT (evaluate $ showSummary sCache)
           putSCacheStatus appState SCLoaded
           return $ Just sCache
 
