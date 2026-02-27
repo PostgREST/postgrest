@@ -10,8 +10,7 @@ import qualified Hasql.Connection      as SQL
 import qualified Hasql.Notifications   as SQL
 import           PostgREST.AppState    (AppState, getConfig)
 import           PostgREST.Config      (AppConfig (..))
-import           PostgREST.Observation (Observation (..),
-                                        isDbListenerBug)
+import           PostgREST.Observation (Observation (..))
 import           PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.AppState as AppState
@@ -20,6 +19,7 @@ import qualified PostgREST.Config   as Config
 import           Control.Arrow              ((&&&))
 import           Data.Bitraversable         (bisequence)
 import           Data.Either.Combinators    (whenRight)
+import qualified Data.Text                  as T
 import qualified Database.PostgreSQL.LibPQ  as LibPQ
 import qualified Hasql.Session              as SQL
 import           PostgREST.Config.Database  (queryPgVersion)
@@ -106,3 +106,5 @@ retryingListen appState = do
       AppState.schemaCacheLoader appState
 
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
+
+    isDbListenerBug e = "could not access status of transaction" `T.isInfixOf` show e
