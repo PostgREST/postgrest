@@ -102,9 +102,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
-  QueryObs gq status -> do
+  o@(QueryObs _ status) -> do
     when (shouldLogResponse logLevel status) $
-      logMainQ loggerState gq
+      logWithZTime loggerState $ observationMessages o
   o@PoolRequest ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
@@ -124,13 +124,6 @@ logWithZTime :: LoggerState -> [Text] -> IO ()
 logWithZTime loggerState txts = do
   zTime <- stateGetZTime loggerState
   traverse_ (hPutStrLn stderr . (toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <>)) txts
-
-logMainQ :: LoggerState -> MainQuery -> IO ()
-logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
-  let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
-      -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
-      logQ q = when (q /= mempty) $ logWithZTime loggerState $ pure $ showOnSingleLine '\n' $ T.decodeUtf8 q in
-  mapM_ logQ snipts
 
 -- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
 -- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
@@ -198,8 +191,10 @@ observationMessages = \case
     pure $ "Received a config reload message on the " <> show channel <> " channel"
   DBListenerConnectionCleanupFail ex ->
     pure $ "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
-  QueryObs{} ->
-    mempty -- TODO pending refactor: The logic for printing the query cannot be done here. Join the observationMessages function into observationLogger to avoid this mempty.
+  (QueryObs MainQuery{mqOpenAPI=(x, y, z),..} _) ->
+      let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+      in
+        showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
   ConfigReadErrorObs usageErr ->
     pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
