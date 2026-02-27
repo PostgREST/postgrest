@@ -473,3 +473,38 @@ For example, doing a request on a table with high count (say 30_000_000), we get
   Proxy-Status: PostgREST; error=57014
 
 The PostgreSQL error code ``57014`` (`ref <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_) reveals that the error is due to a short ``statement_timeout`` value.
+
+.. _client_error_verbosity:
+
+Client Error Verbosity
+======================
+
+For HTTP clients, the error verbosity can be set via :ref:`client-error-verbosity` config.
+
+With ``verbose``, it returns ``code``, ``message``, ``details`` and ``hint``.
+
+.. code:: bash
+
+  curl "localhost:3000/itemsxx"
+
+.. code-block:: json
+
+  {
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.itemsxx' in the schema cache",
+      "details": "Perhaps you meant the table 'public.items'",
+      "hint": null
+  }
+
+With ``minimal``, just ``code`` and ``message`` is returned.
+
+.. code:: bash
+
+  curl "localhost:3000/itemsxx"
+
+.. code-block:: json
+
+  {
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.itemsxx' in the schema cache"
+  }
