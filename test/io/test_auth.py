@@ -165,7 +165,7 @@ def test_jwt_errors(defaultenv):
 
 def test_fail_with_invalid_password(defaultenv):
     "Connecting with an invalid password should fail without retries."
-    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
+    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&port={defaultenv["PGPORT"]}&user=some_protected_user&password=invalid_pass'
     env = {**defaultenv, "PGRST_DB_URI": uri}
     with run(env=env, wait_for_readiness=False) as postgrest:
         exitCode = wait_until_exit(postgrest)

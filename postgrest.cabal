@@ -219,6 +219,7 @@ test-suite spec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.ExtraSearchPathSpec
+                      Feature.MetricsSpec
                       Feature.NoSuperuserSpec
                       Feature.ObservabilitySpec
                       Feature.OpenApi.DisabledOpenApiSpec
@@ -258,7 +259,9 @@ test-suite spec
                       Feature.Query.UpsertSpec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
+                      Feature.ToxiSpec
                       SpecHelper
+                      Toxiproxy
   build-depends:      base              >= 4.9 && < 4.20
                     , aeson             >= 2.0.3 && < 2.3
                     , aeson-qq          >= 0.8.1 && < 0.9
@@ -289,6 +292,9 @@ test-suite spec
                     , transformers-base >= 0.4.4 && < 0.5
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.2
+                    , servant-client    >= 0.20.3.0 && < 0.21
+                    , servant           >= 0.20.3.0 && < 0.21
+                    , http-client       >= 0.7.19 && < 0.8
   ghc-options:        -threaded -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
                       -fno-warn-missing-signatures

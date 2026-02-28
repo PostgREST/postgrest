@@ -1,10 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module SpecHelper where
 
 import           Control.Lens           ((^?))
@@ -24,7 +29,8 @@ import Data.Aeson           ((.=))
 import Data.CaseInsensitive (CI (..), mk, original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
-import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus),
+                             Session)
 import System.IO.Unsafe     (unsafePerformIO)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
@@ -33,19 +39,35 @@ import Text.Regex.TDFA      ((=~))
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.Internal
 import Text.Heredoc
 
-import Data.String                       (String)
-import PostgREST.Config                  (AppConfig (..),
-                                          JSPathExp (..),
-                                          LogLevel (..),
-                                          OpenAPIMode (..),
-                                          Verbosity (..), parseSecret)
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import Prometheus                        (Counter, getCounter)
-import Protolude                         hiding (get, toS)
-import Protolude.Conv                    (toS)
-import Test.Hspec.Expectations.Contrib   (annotate)
+import           Control.Monad.Base
+import           Control.Monad.Trans.Control
+import           Data.String                       (String)
+import qualified PostgREST.AppState                as AppState
+import           PostgREST.Config                  (AppConfig (..),
+                                                    JSPathExp (..),
+                                                    LogLevel (..),
+                                                    OpenAPIMode (..),
+                                                    Verbosity (..),
+                                                    parseSecret)
+import qualified PostgREST.Metrics                 as Metrics
+import           PostgREST.Observation             (Observation,
+                                                    observationMessage)
+import           PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+import           Prometheus                        (Counter,
+                                                    getCounter)
+import           Protolude                         hiding (get, toS)
+import           Protolude.Conv                    (toS)
+import           System.Timeout                    (timeout)
+import           Test.Hspec.Expectations.Contrib   (annotate)
+import qualified Toxiproxy
+import           Toxiproxy                         (Proxy (proxyEnabled),
+                                                    proxyListen,
+                                                    proxyName,
+                                                    proxyToxics,
+                                                    proxyUpstream)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
@@ -174,6 +196,9 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
 
 testCfg :: AppConfig
 testCfg = baseCfg
+
+toxicCfg :: AppConfig
+toxicCfg = baseCfg { configDbUri = "postgresql://localhost:7432" }
 
 testCfgDisallowRollback :: AppConfig
 testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
@@ -381,3 +406,79 @@ expectCounter :: forall s st m. (KnownSymbol s, HasField s st Counter, MonadIO m
 expectCounter = expectField @s intCounter
   where
     intCounter = ((round @Double @Int) <$>) . getCounter
+
+data TimeoutException = TimeoutException deriving (Show, Exception)
+
+accumulateUntilTimeout :: Int -> (s -> a -> s) -> s -> IO a -> IO s
+accumulateUntilTimeout t f start act = do
+  tid <- myThreadId
+  -- mask to make sure TimeoutException is not thrown before starting the loop
+  mask $ \unmask -> do
+    -- start timeout thread unmasking exceptions
+    ttid <- forkIOWithUnmask ($ (threadDelay t *> throwTo tid TimeoutException))
+    -- unmask effect
+    unmask (fix (\loop accum -> (act >>= loop . f accum) `onTimeout` pure accum) start)
+      -- make sure we catch timeout if happens before entering the loop
+      `onTimeout` pure start
+      -- make sure timer thread is killed on other exceptions
+      -- so that it won't throw TimeoutException later
+      `onException` killThread ttid
+  where
+    onTimeout m a = m `catch` \TimeoutException -> a
+
+data ObsChan = ObsChan (Chan Observation) (Chan Observation)
+
+newObsChan :: Chan Observation -> IO ObsChan
+newObsChan = fmap <$> ObsChan <*> dupChan
+
+-- read messages from copy chan and once condition is met drain original to the same point
+-- upon timeout report error and messages remaining in the original chan
+-- that way we report messages since last successful read
+waitForObs :: HasCallStack => ObsChan -> Int -> String -> (Observation -> Maybe a) -> IO ()
+waitForObs (ObsChan orig copy) t msg f =
+  timeout t (readUntil copy *> readUntil orig) >>= maybe failTimeout mempty
+  where
+    failTimeout =
+      takeUntilTimeout decisecond (readChan orig)
+        >>= expectationFailure
+        . ("Timeout waiting for " <> msg <> " at " <> loc <> ". Remaining observations:\n" ++)
+        . foldMap ((++ "\n") . show . observationMessage)
+    readUntil = void . untilM (pure . not . null . f) . readChan
+    loc = fromMaybe "(unknown)" . head $ (prettySrcLoc . snd <$> getCallStack callStack)
+    -- execute effectful computation until result meets provided condition
+    untilM cond m = fix $ \loop -> m >>= \a -> ifM (cond a) (pure a) loop
+    -- duplicate the provided channel and construct wairFor function binding both channels
+    -- accumulate effecful computation results into a list for specified time
+    takeUntilTimeout t' = fmap reverse . accumulateUntilTimeout t' (flip (:)) []
+    decisecond = 100000
+
+data SpecState = SpecState {
+  specAppState  :: AppState.AppState,
+  specMetrics   :: Metrics.MetricsState,
+  specObsChan   :: ObsChan,
+  specToxiProxy :: Toxiproxy.Proxy
+}
+
+testToxiProxy :: Toxiproxy.Proxy
+testToxiProxy = Toxiproxy.Proxy {
+  proxyName = "pg",
+  proxyEnabled = True,
+  proxyToxics = mempty,
+  -- we don't create proxies
+  -- as they are already created
+  -- so these don't matter
+  proxyListen = "localhost:7432",
+  proxyUpstream = "localhost:6432"
+}
+
+instance MonadBaseControl IO (WaiSession st) where
+  type StM (WaiSession st) a = StM Session a
+  liftBaseWith f = WaiSession $
+    liftBaseWith $ \runInBase ->
+      f $ \k -> runInBase (unWaiSession k)
+  restoreM = WaiSession . restoreM
+  {-# INLINE liftBaseWith #-}
+  {-# INLINE restoreM #-}
+
+instance MonadBase IO (WaiSession st) where
+  liftBase = liftIO
