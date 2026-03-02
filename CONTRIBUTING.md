@@ -40,12 +40,12 @@ For questions on how to use PostgREST, please use
 We have a fully nix-based development environment with many tools for a smooth development workflow available.
 Check the [development docs](https://github.com/PostgREST/postgrest/blob/main/nix/README.md) on how to set it up and use it.
 
-### Haskell Conventions
-
 * All contributions must pass the tests before being merged. When
   you create a pull request your code will automatically be tested.
 
-* All code must also pass [hlint](http://community.haskell.org/~ndm/hlint/) and [stylish-haskell](https://github.com/jaspervdj/stylish-haskell)
+* All fixes or features must have a test proving the improvement.
+
+* All code must also pass a [linter](http://community.haskell.org/~ndm/hlint/) and [styler](https://github.com/jaspervdj/stylish-haskell)
   with no warnings. This helps enforce a uniform style for all committers. Continuous integration will check this as well on every
   pull request. There are useful tools in the nix-shell that help with checking this locally. You can run `postgrest-check` to do this manually but
   we recommend adding it to `.git/hooks/pre-commit` as `nix-shell --run postgrest-check` to automatically check this before doing a commit.
