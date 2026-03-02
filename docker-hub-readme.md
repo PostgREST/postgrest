@@ -41,6 +41,11 @@ write from scratch.
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.svg">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://www.bytebase.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/bytebase.svg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
