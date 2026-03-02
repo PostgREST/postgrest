@@ -35,6 +35,11 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
           <img width="296px" src="static/supabase.svg">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://www.bytebase.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/bytebase.svg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
