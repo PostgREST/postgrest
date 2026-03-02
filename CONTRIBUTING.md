@@ -1,18 +1,5 @@
 # Contributing to PostgREST
 
-**First:** if you're unsure or afraid of _anything_, just ask or
-submit the issue or pull request anyways. You won't be yelled at
-for giving your best effort. The worst that can happen is that
-you'll be politely asked to change something. We appreciate any
-sort of contributions, and don't want a wall of rules to get in the
-way of that.
-
-However, for those individuals who want a bit more guidance on the
-best way to contribute to the project, read on. This document will
-cover what we're looking for. By addressing all the points we're
-looking for, it raises the chances we can quickly merge or address
-your contributions.
-
 ## Issues
 
 For questions on how to use PostgREST, please use
@@ -65,3 +52,11 @@ To simplify reviews, make it easy to split pull requests if deemed necessary, an
 * Tests, documentation, and changelog updates should be contained in the same commits as the actual code changes they relate to. An exception to this rule is when test or documentation changes are made in separate PR.
 * Commit messages must be prefixed with one of the prefixes defined in [the list used by commit verification scripts](https://github.com/PostgREST/postgrest/blob/main/nix/tools/gitTools.nix#L11).
 * Commit messages should contain a longer description of the purpose of the changes contained in the commit and, for non-trivial changes, a description of the changes themselves.
+
+## AI Policy
+
+We adhere to [Gentoo's AI policy](https://wiki.gentoo.org/wiki/Project:Council/AI_policy):
+
+> It is expressly forbidden to contribute [...] any content that has been created with the assistance of Natural Language Processing artificial intelligence tools. This motion can be revisited, should a case been made over such a tool that does not pose copyright, ethical and quality concerns.
+
+You can find more about its rationale [here](https://wiki.gentoo.org/wiki/Project:Council/AI_policy#Rationale).
