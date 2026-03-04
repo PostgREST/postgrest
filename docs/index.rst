@@ -40,31 +40,6 @@ Sponsors
 
   .. container:: img-dark
 
-    .. image:: ../static/neon-dark.jpg
-      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
-
-  .. container:: img-light
-
-    .. image:: ../static/neon.jpg
-      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
-
-  .. image:: ../static/tembo.png
-    :target: https://www.tembo.io/?utm_source=sponsor&utm_campaign=postgrest
-
-  |
-
-  .. container:: img-dark
-
-    .. image:: ../static/euronodes.svg
-      :target: https://www.euronodes.com/postgrest
-
-  .. container:: img-light
-
-    .. image:: ../static/euronodes.svg
-      :target: https://www.euronodes.com/postgrest
-
-  .. container:: img-dark
-
     .. image:: ../static/supabase-dark.svg
       :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
 
@@ -72,6 +47,28 @@ Sponsors
 
     .. image:: ../static/supabase.svg
       :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+
+  .. container:: img-dark
+
+    .. image:: ../static/euronodes.svg
+      :target: https://www.euronodes.com/postgrest
+
+  .. container:: img-light
+
+    .. image:: ../static/euronodes.svg
+      :target: https://www.euronodes.com/postgrest
+
+  |
+
+  .. container:: img-dark
+
+    .. image:: ../static/neon-dark.jpg
+      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
+
+  .. container:: img-light
+
+    .. image:: ../static/neon.jpg
+      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-dark
 
