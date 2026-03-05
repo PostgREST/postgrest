@@ -4,13 +4,19 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module ObsHelper where
 
+import           Control.Monad.Base              (MonadBase (liftBase))
+import           Control.Monad.Trans.Control
 import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Base64          as B64
 import qualified Data.ByteString.Lazy            as BL
@@ -22,6 +28,7 @@ import qualified Jose.Jwa                        as JWT
 import qualified Jose.Jws                        as JWT
 import qualified Jose.Jwt                        as JWT
 import           Network.HTTP.Types
+import           Network.Wai.Test
 import qualified PostgREST.AppState              as AppState
 import           PostgREST.Config                (AppConfig (..),
                                                   JSPathExp (..),
@@ -36,6 +43,13 @@ import           Protolude                       hiding (get, toS)
 import           System.Timeout                  (timeout)
 import           Test.Hspec
 import           Test.Hspec.Expectations.Contrib (annotate)
+import           Test.Hspec.Wai.Internal
+import qualified Toxiproxy
+import           Toxiproxy                       (proxyEnabled,
+                                                  proxyListen,
+                                                  proxyName,
+                                                  proxyToxics,
+                                                  proxyUpstream)
 
 -- helpers used to produce observation diagnostics in waitForObs
 -- Implementing the Show instance for Observation is hard due to having many different parameters so instead we use generic programming (`conName`) to obtain the constructor name as `Text`
@@ -52,10 +66,23 @@ instance (HasConstructor x, HasConstructor y) => HasConstructor (x :+: y) where
 instance Constructor c => HasConstructor (C1 c f) where
   genericConstrName = T.pack . conName
 
+instance MonadBaseControl IO (WaiSession st) where
+  type StM (WaiSession st) a = StM Session a
+  liftBaseWith f = WaiSession $
+    liftBaseWith $ \runInBase ->
+      f $ \k -> runInBase (unWaiSession k)
+  restoreM = WaiSession . restoreM
+  {-# INLINE liftBaseWith #-}
+  {-# INLINE restoreM #-}
+
+instance MonadBase IO (WaiSession st) where
+  liftBase = liftIO
+
 data SpecState = SpecState {
-  specAppState :: AppState.AppState,
-  specMetrics  :: Metrics.MetricsState,
-  specObsChan  :: ObsChan
+  specAppState  :: AppState.AppState,
+  specMetrics   :: Metrics.MetricsState,
+  specObsChan   :: ObsChan,
+  specToxiProxy :: Toxiproxy.Proxy
 }
 
 data StateCheck st m = forall a. StateCheck (st -> (String, m a)) (a -> a -> Expectation)
@@ -74,7 +101,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configClientErrorVerbosity      = Verbose
   , configDbAggregates              = False
   , configDbAnonRole                = Just "postgrest_test_anonymous"
-  , configDbChannel                 = mempty
+  , configDbChannel                 = "pgrst"
   , configDbChannelEnabled          = True
   , configDbExtraSearchPath         = []
   , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]
@@ -126,13 +153,26 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
 testCfg :: AppConfig
 testCfg = baseCfg
 
-testCfgJwtCache :: AppConfig
-testCfgJwtCache =
-  baseCfg {
+testCfgJwtCache :: AppConfig -> AppConfig
+testCfgJwtCache base =
+  base {
     configJwtSecret = Just generateSecret
   , configJWKS = rightToMaybe $ parseSecret generateSecret
   , configJwtCacheMaxEntries = 2
   }
+
+testToxiProxy :: Text -> Text -> Text -> Toxiproxy.Proxy
+testToxiProxy name proxyPort pgPort = Toxiproxy.Proxy {
+  proxyName = Toxiproxy.ProxyName name,
+  proxyEnabled = True,
+  proxyToxics = mempty,
+  -- we don't create proxies
+  -- as they are already created
+  -- but we have to be careful not to override
+  -- the values
+  proxyListen = "localhost:" <> proxyPort,
+  proxyUpstream = "localhost:" <> pgPort
+}
 
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
