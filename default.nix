@@ -44,7 +44,6 @@ let
       allOverlays.checked-shell-script
       allOverlays.gitignore
       (allOverlays.haskell-packages { inherit compiler; })
-      allOverlays.slocat
     ];
 
   # Evaluated expression of the Nixpkgs repository.
