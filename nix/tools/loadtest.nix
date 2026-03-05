@@ -14,7 +14,8 @@ let
         docs = "Run vegeta. Assume PostgREST to be running.";
         args = [
           "ARG_LEFTOVERS([additional vegeta arguments])"
-          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to connect to running PostgREST instance])"
+          "ARG_USE_ENV([PGRST_SERVER_HOST], [], [PostgREST host (host name)])"
+          "ARG_USE_ENV([PGRST_SERVER_PORT], [], [PostgREST port])"
         ];
       }
       ''
@@ -23,11 +24,12 @@ let
         # ARG_USE_ENV only adds defaults or docs for environment variables
         # We manually implement a required check here
         # See also: https://github.com/matejak/argbash/issues/80
-        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
+        : "''${PGRST_SERVER_HOST:?PGRST_SERVER_HOST is required}"
+        : "''${PGRST_SERVER_PORT:?PGRST_SERVER_PORT is required}"
 
         ${vegeta}/bin/vegeta -cpus 1 attack \
                                      -dns-ttl -1 \
-                                     -unix-socket "$PGRST_SERVER_UNIX_SOCKET" \
+                                     -connect-to "postgrest:80:$PGRST_SERVER_HOST:$PGRST_SERVER_PORT" \
                                      -max-workers 1 \
                                      -workers 1 \
                                      -rate 0 \
