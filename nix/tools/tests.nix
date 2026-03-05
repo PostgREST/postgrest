@@ -42,7 +42,8 @@ let
       }
       ''
         ${withTools.withPg} -f test/observability/fixtures/load.sql \
-          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability -- "''${_arg_leftovers[@]}"
+          ${withTools.withToxiproxyPg} \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability -- "''${_arg_leftovers[@]}"
       '';
 
   testDoctests =
