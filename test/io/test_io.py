@@ -1653,7 +1653,7 @@ def test_log_listener_connection_start(defaultenv):
         # Check for the listener start message containing host and port
         # Do not check if pg version is displayed properly as it is tricky to test it
         assert any(
-            f'"{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            f'"{defaultenv["PGHOST"]}:{defaultenv["PGPORT"]}" and listening for database notifications on the "pgrst" channel'
             in line
             for line in output
         )
