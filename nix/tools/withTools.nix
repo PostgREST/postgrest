@@ -6,7 +6,6 @@
 , postgresqlVersions
 , postgrest
 , python3Packages
-, socat
 , writeText
 , writers
 , toxiproxy
@@ -233,50 +232,23 @@ let
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
-            "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [PostgREST host (socket name)])"
+            "ARG_USE_ENV([PGRST_SERVER_HOST], [], [PostgREST host (host name)])"
+            "ARG_USE_ENV([PGRST_SERVER_PORT], [], [PostgREST port])"
             "ARG_USE_ENV([PGRST_DELAY], [0ms], [extra PostgREST latency (duration)])"
           ];
         positionalCompletion = "_command";
         workingDir = "/";
         redirectTixFiles = false;
         withTmpDir = true;
-        withPath = [ socat ];
       }
       ''
-        # Toxiproxy cannot connect to unix sockets
-        # so we start socat to make Pgrst available on TCP
-        # and another socat to make Toxiproxy available on Unix socket
-        # TODO maybe simply change withPgrst to start PostgREST on TCP socket
-        socatPort=''$(${randomPort})
         proxyPort=''$(${randomPort})
-        slowPgrstSocket="$tmpdir/postgrest.socket"
-
-        socat TCP-LISTEN:"$socatPort",reuseaddr,fork UNIX-CONNECT:"$PGRST_SERVER_UNIX_SOCKET" &
-        UPSTREAM_SOCAT_PID=$!
-        echo "Started upstream socat"
-
-        socat UNIX-LISTEN:"$slowPgrstSocket",fork,unlink-early TCP:localhost:"$proxyPort" &
-        DOWNSTREAM_SOCAT_PID=$!
-        echo "Started downstream socat"
-
-        # shellcheck disable=SC2317
-        stop() {
-          kill "$UPSTREAM_SOCAT_PID" || true
-          kill "$DOWNSTREAM_SOCAT_PID" || true
-          wait "$UPSTREAM_SOCAT_PID" || true
-          wait "$DOWNSTREAM_SOCAT_PID" || true
-        }
-        trap stop EXIT
-
-        sleep 1
 
         # Execute command with Toxiproxy and environment having
-        # PGRST_SERVER_UNIX_SOCKET variable set to "$slowPgrstSocket"
-        # and PGRST_SERVER_HOST/PGRST_SERVER_PORT set to localhost/$proxyPort
+        # PGRST_SERVER_HOST/PGRST_SERVER_PORT set to localhost/$proxyPort
         (${withToxiproxyServer} \
-         ${withToxiproxyProxy} -l "localhost:$proxyPort" -u "localhost:$socatPort" \
-          env "PGRST_SERVER_UNIX_SOCKET=$slowPgrstSocket" \
-              "PGRST_SERVER_HOST=localhost" \
+         ${withToxiproxyProxy} -l "localhost:$proxyPort" -u "$PGRST_SERVER_HOST:$PGRST_SERVER_PORT" \
+          env "PGRST_SERVER_HOST=localhost" \
               "PGRST_SERVER_PORT=$proxyPort" \
           ${withToxiproxyLatency} "$PGRST_DELAY" "$_arg_command" "''${_arg_leftovers[@]}")
       '';
@@ -330,7 +302,8 @@ let
         db-schema="$(PGRST_DB_SCHEMAS)"
         db-anon-role="$(PGRST_DB_ANON_ROLE)"
         db-pool="$(PGRST_DB_POOL)"
-        server-unix-socket="$(PGRST_SERVER_UNIX_SOCKET)"
+        server_host="$(PGRST_SERVER_HOST)"
+        server_port="$(PGRST_SERVER_PORT)"
         log-level="$(PGRST_LOG_LEVEL)"
       '';
 
@@ -340,17 +313,19 @@ let
         name = "postgrest-wait-for-pgrst-ready";
         docs = "Wait for PostgREST to be ready to serve requests. Needs to be a separate command for timeout to work below.";
         args = [
-          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to check for running PostgREST instance])"
+          "ARG_USE_ENV([PGRST_SERVER_HOST], [], [PostgREST host (host name)]) to check for running instance"
+          "ARG_USE_ENV([PGRST_SERVER_PORT], [], [PostgREST port]) to check for running instance"
         ];
       }
       ''
         # ARG_USE_ENV only adds defaults or docs for environment variables
         # We manually implement a required check here
         # See also: https://github.com/matejak/argbash/issues/80
-        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
+        : "''${PGRST_SERVER_HOST:?PGRST_SERVER_HOST is required}"
+        : "''${PGRST_SERVER_PORT:?PGRST_SERVER_PORT is required}"
 
         function check_status () {
-          ${curl}/bin/curl -s -o /dev/null -w "%{http_code}" --unix-socket "$PGRST_SERVER_UNIX_SOCKET" http://localhost/
+          ${curl}/bin/curl -s -o /dev/null -w "%{http_code}" "http://$PGRST_SERVER_HOST:$PGRST_SERVER_PORT/"
         }
 
         while [[ "$(check_status)" != "200" ]];
@@ -381,7 +356,7 @@ let
     checkedShellScript
       {
         name = commandName;
-        docs = "Build and run PostgREST and run <command> with PGRST_SERVER_UNIX_SOCKET set.";
+        docs = "Build and run PostgREST and run <command> with PGRST_SERVER_HOST and PGRST_SERVER_PORT set.";
         args =
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
@@ -397,7 +372,7 @@ let
         withTmpDir = true;
       }
       ''
-        export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
+        pgrst_port=''$(${randomPort})
 
         if [ -z "''${PGRST_CMD:-}" ]; then
           rm -f result
@@ -424,7 +399,7 @@ let
 
         echo -n "${commandName}: Starting $ver... "
 
-        $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+        PGRST_SERVER_HOST=localhost PGRST_SERVER_PORT="$pgrst_port" $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2317
         cleanup() {
@@ -441,7 +416,7 @@ let
         trap cleanup EXIT
 
         wait_start=$SECONDS
-        timeout -s TERM "$_arg_timeout" ${waitForPgrstReady} || {
+        timeout -s TERM "$_arg_timeout" env "PGRST_SERVER_HOST=localhost" "PGRST_SERVER_PORT=$pgrst_port" ${waitForPgrstReady} || {
           echo "timed out, output:"
           cat "$tmpdir"/run.log
           exit 1
@@ -459,7 +434,7 @@ let
           sleep "$_arg_sleep"
         fi
 
-        ("$_arg_command" "''${_arg_leftovers[@]}")
+        (PGRST_SERVER_HOST=localhost PGRST_SERVER_PORT="$pgrst_port" "$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
   monitorPid =
