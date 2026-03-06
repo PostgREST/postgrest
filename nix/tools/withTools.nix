@@ -6,9 +6,9 @@
 , postgresqlVersions
 , postgrest
 , python3Packages
-, slocat
 , writeText
 , writers
+, toxiproxy
 }:
 let
   withTmpDb =
@@ -55,6 +55,8 @@ let
 
           export PGDATA="$tmpdir/db"
           export PGHOST="$tmpdir/socket"
+          PGPORT=$(${randomPort})
+          export PGPORT
           export PGUSER
           export PGDATABASE
           export PGRST_DB_SCHEMAS
@@ -62,9 +64,16 @@ let
           export PGOPTIONS
 
           HBA_FILE="$tmpdir/pg_hba.conf"
-          echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
-          echo "local $PGDATABASE all trust" >> "$HBA_FILE"
-          echo "local replication all trust" >> "$HBA_FILE"
+          {
+            echo "local $PGDATABASE some_protected_user password"
+            echo "local $PGDATABASE all trust"
+            echo "local replication all trust"
+            echo "host $PGDATABASE some_protected_user localhost password"
+            echo "host $PGDATABASE all localhost trust"
+          } >> "$HBA_FILE"
+
+          UNIX_PGHOST="$PGHOST"
+          export TCP_PGHOST="localhost"
 
           log "Initializing database cluster..."
           # We try to make the database cluster as independent as possible from the host
@@ -81,7 +90,7 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c hba_file=$HBA_FILE -k $UNIX_PGHOST -c log_statement=\"all\" " \
             >> "$setuplog"
 
           log "Creating a minimally privileged $PGUSER connection role..."
@@ -94,6 +103,7 @@ let
             replica_slot="replica_$RANDOM"
             replica_dir="$tmpdir/$replica_slot"
             replica_host="$tmpdir/socket_$replica_slot"
+            replica_port=$(${randomPort})
 
             mkdir -p "$replica_host"
 
@@ -106,15 +116,16 @@ let
 
             log "Starting replica on $replica_host"
 
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c port=$replica_port -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
               >> "$setuplog"
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
             >&2 echo "${commandName}: You can tail the replica logs with: tail -f $replica_dblog"
 
             export PGREPLICAHOST="$replica_host"
+            export PGREPLICAPORT="$replica_port"
             export PGREPLICASLOT="$replica_slot"
-            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST"
+            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST&port=$replica_port,$PGPORT"
           fi
 
           # shellcheck disable=SC2317
@@ -195,6 +206,8 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_USE_ENV([PGHOST], [], [PG host (socket name)])"
+            "ARG_USE_ENV([TCP_PGHOST], [], [PG TCP host (host name)])"
+            "ARG_USE_ENV([PGPORT], [], [PG listen port])"
             "ARG_USE_ENV([PGDELAY], [0ms], [extra PG latency (duration)])"
           ];
         positionalCompletion = "_command";
@@ -203,24 +216,11 @@ let
         withTmpDir = true;
       }
       ''
-        delay="''${PGDELAY:-0ms}"
-        echo "delaying data to/from postgres by $delay"
-
-        REALPGHOST="$PGHOST"
-        export PGHOST="$tmpdir/socket"
-        mkdir -p "$PGHOST"
-
-        ${slocat}/bin/slocat -delay "$delay" -src "$PGHOST/.s.PGSQL.5432" -dst "$REALPGHOST/.s.PGSQL.5432" &
-        SLOCAT_PID=$!
-        # shellcheck disable=SC2317
-        stop_slocat() {
-          kill "$SLOCAT_PID" || true
-          wait "$SLOCAT_PID" || true
-        }
-        trap stop_slocat EXIT
-        sleep 1 # should wait for socket file to appear instead
-
-        ("$_arg_command" "''${_arg_leftovers[@]}")
+        proxyPort=''$(${randomPort})
+        (${withToxiproxyServer} \
+         ${withToxiproxyProxy} -l "$TCP_PGHOST:$proxyPort" -u "$TCP_PGHOST:$PGPORT" \
+         ${withToxiproxyLatency} "$PGDELAY" env "PGHOST=$TCP_PGHOST" "PGPORT=$proxyPort" \
+         "$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
   withSlowPgrst =
@@ -232,7 +232,8 @@ let
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
-            "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [PostgREST host (socket name)])"
+            "ARG_USE_ENV([PGRST_SERVER_HOST], [], [PostgREST host (host name)])"
+            "ARG_USE_ENV([PGRST_SERVER_PORT], [], [PostgREST port])"
             "ARG_USE_ENV([PGRST_DELAY], [0ms], [extra PostgREST latency (duration)])"
           ];
         positionalCompletion = "_command";
@@ -241,23 +242,15 @@ let
         withTmpDir = true;
       }
       ''
-        delay="''${PGRST_DELAY:-0ms}"
-        echo "delaying data to/from PostgREST by $delay"
+        proxyPort=''$(${randomPort})
 
-        REAL_PGRST_SERVER_UNIX_SOCKET="$PGRST_SERVER_UNIX_SOCKET"
-        export PGRST_SERVER_UNIX_SOCKET="$tmpdir/postgrest.socket"
-
-        ${slocat}/bin/slocat -delay "$delay" -src "$PGRST_SERVER_UNIX_SOCKET" -dst "$REAL_PGRST_SERVER_UNIX_SOCKET" &
-        SLOCAT_PID=$!
-        # shellcheck disable=SC2317
-        stop_slocat() {
-          kill "$SLOCAT_PID" || true
-          wait "$SLOCAT_PID" || true
-        }
-        trap stop_slocat EXIT
-        sleep 1 # should wait for socket file to appear instead
-
-        ("$_arg_command" "''${_arg_leftovers[@]}")
+        # Execute command with Toxiproxy and environment having
+        # PGRST_SERVER_HOST/PGRST_SERVER_PORT set to localhost/$proxyPort
+        (${withToxiproxyServer} \
+         ${withToxiproxyProxy} -l "localhost:$proxyPort" -u "$PGRST_SERVER_HOST:$PGRST_SERVER_PORT" \
+          env "PGRST_SERVER_HOST=localhost" \
+              "PGRST_SERVER_PORT=$proxyPort" \
+          ${withToxiproxyLatency} "$PGRST_DELAY" "$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
   withGit =
@@ -309,7 +302,8 @@ let
         db-schema="$(PGRST_DB_SCHEMAS)"
         db-anon-role="$(PGRST_DB_ANON_ROLE)"
         db-pool="$(PGRST_DB_POOL)"
-        server-unix-socket="$(PGRST_SERVER_UNIX_SOCKET)"
+        server_host="$(PGRST_SERVER_HOST)"
+        server_port="$(PGRST_SERVER_PORT)"
         log-level="$(PGRST_LOG_LEVEL)"
       '';
 
@@ -319,17 +313,19 @@ let
         name = "postgrest-wait-for-pgrst-ready";
         docs = "Wait for PostgREST to be ready to serve requests. Needs to be a separate command for timeout to work below.";
         args = [
-          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to check for running PostgREST instance])"
+          "ARG_USE_ENV([PGRST_SERVER_HOST], [], [PostgREST host (host name)]) to check for running instance"
+          "ARG_USE_ENV([PGRST_SERVER_PORT], [], [PostgREST port]) to check for running instance"
         ];
       }
       ''
         # ARG_USE_ENV only adds defaults or docs for environment variables
         # We manually implement a required check here
         # See also: https://github.com/matejak/argbash/issues/80
-        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
+        : "''${PGRST_SERVER_HOST:?PGRST_SERVER_HOST is required}"
+        : "''${PGRST_SERVER_PORT:?PGRST_SERVER_PORT is required}"
 
         function check_status () {
-          ${curl}/bin/curl -s -o /dev/null -w "%{http_code}" --unix-socket "$PGRST_SERVER_UNIX_SOCKET" http://localhost/
+          ${curl}/bin/curl -s -o /dev/null -w "%{http_code}" "http://$PGRST_SERVER_HOST:$PGRST_SERVER_PORT/"
         }
 
         while [[ "$(check_status)" != "200" ]];
@@ -360,7 +356,7 @@ let
     checkedShellScript
       {
         name = commandName;
-        docs = "Build and run PostgREST and run <command> with PGRST_SERVER_UNIX_SOCKET set.";
+        docs = "Build and run PostgREST and run <command> with PGRST_SERVER_HOST and PGRST_SERVER_PORT set.";
         args =
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
@@ -376,7 +372,7 @@ let
         withTmpDir = true;
       }
       ''
-        export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
+        pgrst_port=''$(${randomPort})
 
         if [ -z "''${PGRST_CMD:-}" ]; then
           rm -f result
@@ -403,7 +399,7 @@ let
 
         echo -n "${commandName}: Starting $ver... "
 
-        $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+        PGRST_SERVER_HOST=localhost PGRST_SERVER_PORT="$pgrst_port" $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2317
         cleanup() {
@@ -420,7 +416,7 @@ let
         trap cleanup EXIT
 
         wait_start=$SECONDS
-        timeout -s TERM "$_arg_timeout" ${waitForPgrstReady} || {
+        timeout -s TERM "$_arg_timeout" env "PGRST_SERVER_HOST=localhost" "PGRST_SERVER_PORT=$pgrst_port" ${waitForPgrstReady} || {
           echo "timed out, output:"
           cat "$tmpdir"/run.log
           exit 1
@@ -438,7 +434,7 @@ let
           sleep "$_arg_sleep"
         fi
 
-        ("$_arg_command" "''${_arg_leftovers[@]}")
+        (PGRST_SERVER_HOST=localhost PGRST_SERVER_PORT="$pgrst_port" "$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
   monitorPid =
@@ -447,6 +443,114 @@ let
         libraries = [ python3Packages.pandas python3Packages.tabulate python3Packages.psutil ];
       }
       (builtins.readFile ./monitor_pid.py);
+
+  randomPort =
+    writers.writePython3 "postgrest-random-port"
+      {
+        # Quick one-liner: ignore linting errors
+        flakeIgnore = [ "E702" "W292" "E501" ];
+      }
+      ''import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'';
+
+  withToxiproxyProxy =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-proxy";
+        docs = "Run <command> with Toxiproxy proxy created. Proxy name passed as TOXI_PROXY_NAME env variable.";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_OPTIONAL_SINGLE([listen], [l], [Proxy will listen on this address])"
+            "ARG_OPTIONAL_SINGLE([upstream], [u], [Proxy will forward to this address])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+        withPath = [ toxiproxy ];
+      }
+      ''
+        proxyname="tp$RANDOM"
+        toxiproxy-cli create -l "$_arg_listen" -u "$_arg_upstream" "$proxyname"
+
+        # shellcheck disable=SC2317
+        stop () {
+          toxiproxy-cli delete "$proxyname" || true
+        }
+        trap stop EXIT
+
+        (TOXI_PROXY_NAME="$proxyname" "$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
+  withToxiproxyLatency =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-latency";
+        docs = "Run <command> with Toxiproxy latency toxic for both upstream and downstream";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([latency], [Latency])"
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_USE_ENV([TOXI_PROXY_NAME], [], [Toxiproxy proxy name to create toxic in])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+        withPath = [ toxiproxy ];
+      }
+      ''
+        proxyname="$TOXI_PROXY_NAME"
+        upstream_toxicname="toxic$RANDOM"
+        downstream_toxicname="toxic$RANDOM"
+        # calculate delay in milliseconds
+        # version accepting only milliseconds
+        # TODO implement delay in seconds/minutes/hours
+        #read -r delay unit <<<''$(echo "$_arg_latency" | sed -r 's/([0-9]+)(.*)/\1 \2/g')
+        delay=''$(echo "$_arg_latency" | sed -r 's/([0-9]+)(.*)/\1/g')
+
+        toxiproxy-cli toxic add -t latency --upstream -n "$upstream_toxicname" -a latency="$delay" "$proxyname"
+        toxiproxy-cli toxic add -t latency --downstream -n "$downstream_toxicname" -a latency="$delay" "$proxyname"
+
+        # shellcheck disable=SC2317
+        stop () {
+          toxiproxy-cli toxic delete -n "$downstream_toxicname" "$proxyname" || true
+          toxiproxy-cli toxic delete -n "$upstream_toxicname" "$proxyname" || true
+        }
+        trap stop EXIT
+
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
+  withToxiproxyServer =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-server";
+        docs = "Run <command> with toxiproxy-server";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+        withPath = [ toxiproxy ];
+      }
+      ''
+        if ! test -v TOXI_PROXY; then
+          export TOXI_PROXY=""
+          LOG_LEVEL=error toxiproxy-server&
+          TOXIPROXY_PID=$!
+          sleep 1 # give the server a moment to start
+
+          # shellcheck disable=SC2317
+          stop () {
+            kill "$TOXIPROXY_PID" || true
+            wait "$TOXIPROXY_PID" || true
+          }
+          trap stop EXIT  
+        fi
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
 in
 buildToolbox
 {
