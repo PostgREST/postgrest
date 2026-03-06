@@ -1768,11 +1768,11 @@ def test_client_error_verbosity_config(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/itemsxx")
+        response = postgrest.session.get("/itemsx")
         assert response.status_code == 404
         assert response.json() == {
             "code": "PGRST205",
-            "message": "Could not find the table 'public.itemsxx' in the schema cache",
+            "message": "Could not find the table 'public.itemsx' in the schema cache",
         }
 
     env = {
@@ -1781,11 +1781,11 @@ def test_client_error_verbosity_config(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/itemsxx")
+        response = postgrest.session.get("/itemsx")
         assert response.status_code == 404
         assert response.json() == {
             "code": "PGRST205",
-            "message": "Could not find the table 'public.itemsxx' in the schema cache",
+            "message": "Could not find the table 'public.itemsx' in the schema cache",
             "details": None,
             "hint": "Perhaps you meant the table 'public.items'",
         }
