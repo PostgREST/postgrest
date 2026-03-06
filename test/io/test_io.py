@@ -1,5 +1,6 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
+import contextlib
 import os
 import re
 import signal
@@ -18,6 +19,7 @@ from postgrest import (
     sleep_until_postgrest_full_reload,
     sleep_until_postgrest_scache_reload,
     wait_until_exit,
+    wait_until_status_code,
 )
 
 
@@ -1058,6 +1060,91 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         assert response.status_code == 200
 
 
+@pytest.mark.parametrize(
+    "instance_count, expected_concurrency", [(2, 2), (4, 3), (6, 4), (8, 4), (16, 5)]
+)
+def test_schema_cache_reload_throttled_with_advisory_locks(
+    instance_count, expected_concurrency, slow_schema_cache_env
+):
+    "schema cache reloads should be throttled across instances if instance count > 10"
+
+    internal_sleep_ms = int(
+        slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP"]
+    )
+    lock_wait_threshold_ms = internal_sleep_ms * 2
+    query_log_pattern = re.compile(r"Schema cache queried in ([\d.]+) milliseconds")
+
+    def read_available_output_lines(postgrest):
+        try:
+            output = postgrest.process.stdout.read()
+        except BlockingIOError:
+            return []
+
+        if not output:
+            return []
+        return output.decode().splitlines()
+
+    with contextlib.ExitStack() as stack:
+        instances = [
+            stack.enter_context(
+                run(
+                    env=slow_schema_cache_env,
+                    wait_for_readiness=False,
+                    wait_max_seconds=10,
+                )
+            )
+            for _ in range(instance_count)
+        ]
+
+        for postgrest in instances:
+            wait_until_status_code(
+                postgrest.admin.baseurl + "/ready", max_seconds=10, status_code=200
+            )
+
+        # Drop startup logs so only reload logs are parsed.
+        for postgrest in instances:
+            read_available_output_lines(postgrest)
+
+        response = instances[0].session.get("/rpc/notify_pgrst")
+        assert response.status_code == 204
+
+        # Wait long enough for the lock-throttled cache reloads to finish.
+        time.sleep((internal_sleep_ms / 1000) * 2)
+
+        reload_durations_ms = []
+        for postgrest in instances:
+            output_lines = []
+            for _ in range(instance_count * 2):
+                output_lines.extend(read_available_output_lines(postgrest))
+                if any(query_log_pattern.search(line) for line in output_lines):
+                    break
+                time.sleep(0.2)
+
+            durations = []
+            for line in output_lines:
+                match = query_log_pattern.search(line)
+                if match:
+                    durations.append(float(match.group(1)))
+
+            assert durations
+            reload_durations_ms.append(max(durations))
+
+        assert len(reload_durations_ms) == instance_count
+
+        # 10 instances should be fast, remaining instances should be slow
+        assert (
+            instance_count
+            - len(
+                [
+                    duration
+                    for duration in reload_durations_ms
+                    if duration > lock_wait_threshold_ms
+                ]
+            )
+            == expected_concurrency
+        )
+
+
 def test_schema_cache_query_sleep_logs(defaultenv):
     """Schema cache sleep should be reflected in the logged query duration."""
 
@@ -1691,7 +1778,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
     env = {
         **defaultenv,
         "PGRST_DB_POOL": "2",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5200",
     }
 
     with run(env=env, wait_max_seconds=30) as postgrest:
