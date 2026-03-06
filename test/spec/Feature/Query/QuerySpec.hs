@@ -26,9 +26,9 @@ spec = do
     it "causes a 404" $
       get "/faketable"
       `shouldRespondWith`
-      [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.private_table'","message":"Could not find the table 'test.faketable' in the schema cache"} |]
+      [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.faketable' in the schema cache"} |]
       { matchStatus = 404
-      , matchHeaders = ["Content-Length" <:> "166"]
+      , matchHeaders = ["Content-Length" <:> "120"]
       }
 
   describe "Filtering response" $ do
@@ -852,7 +852,7 @@ spec = do
       -- the existence of first table, #3869
       it "table not found error if first table does not exist" $
         get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.car_model_sales'","message":"Could not find the table 'test.car_model_sales_202101' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_model_sales_202101' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -870,7 +870,7 @@ spec = do
 
       it "table not found error if first table does not exist" $
         get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.car_model_sales'","message":"Could not find the table 'test.car_models_default' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_models_default' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }

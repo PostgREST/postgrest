@@ -386,7 +386,7 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
 -- Just "Perhaps you meant to call the function api.test"
 --
 -- >>> noRpcHint "api" "other" [] procs []
--- Just "Perhaps you meant to call the function api.another"
+-- Nothing
 --
 -- >>> noRpcHint "api" "noclosealternative" [] procs []
 -- Nothing
@@ -423,8 +423,8 @@ noRpcHint schema procName params allProcs overloadedProcs =
     -- E.g. ["val", "param", "name"] into "(name, param, val)"
     listToText       = ("(" <>) . (<> ")") . T.intercalate ", " . sort
     possibleProcs
-      | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
-      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
+      | null overloadedProcs = getFuzzyHint HintProcedure fuzzySetOfProcs procName
+      | otherwise            = (procName <>) <$> getFuzzyHint HintParams fuzzySetOfParams (listToText params)
 
 -- |
 -- Do a fuzzy search in all tables in the same schema and return closest result
@@ -432,7 +432,21 @@ tableNotFoundHint :: Text -> Text -> SchemaCache -> Maybe Text
 tableNotFoundHint schema tblName SchemaCache{dbTablesFuzzyIndex}
   = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
     where
-      perhapsTable = (`Fuzzy.getOne` tblName) =<< HM.lookup schema dbTablesFuzzyIndex
+      perhapsTable = (\fuzzySet -> getFuzzyHint HintTable fuzzySet tblName) =<< HM.lookup schema dbTablesFuzzyIndex
+
+data HintType
+  = HintTable
+  | HintProcedure
+  | HintParams
+
+-- | Get hint using Fuzzy Search with at least 0.75 similarity score
+getFuzzyHint :: HintType -> Fuzzy.FuzzySet -> Text -> Maybe Text
+getFuzzyHint hintType =
+  let minScore = 0.75 :: Double -- used for table and procedure name hints
+  in case hintType of
+    HintTable     -> Fuzzy.getOneWithMinScore minScore
+    HintProcedure -> Fuzzy.getOneWithMinScore minScore
+    HintParams    -> Fuzzy.getOne -- For params, we stick to `getOne` which defaults to 0.33 min score, not a security risk to reveal params
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

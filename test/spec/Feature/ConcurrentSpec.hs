@@ -25,7 +25,7 @@ spec =
       raceTest 10 $
         get "/fakefake"
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fakefake' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.fakefake' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = []
           }

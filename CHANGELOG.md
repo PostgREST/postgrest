@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- Fix leaking table and function names when calculating error hint by @taimoorzaeem in #4675
+
 ## [14.5] - 2026-02-12
 
 ### Fixed
