@@ -74,7 +74,7 @@ run appState = do
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-  Listener.runListener appState
+  void $ Listener.runListener appState
 
   Admin.runAdmin appState (serverSettings conf)
 
