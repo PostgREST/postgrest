@@ -117,6 +117,7 @@ let
           fi
 
           # shellcheck disable=SC2317
+          # shellcheck disable=SC2329
           stop () {
             log "Stopping the database cluster..."
             pg_ctl stop --mode=immediate >> "$setuplog"
@@ -330,6 +331,7 @@ let
         $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2317
+        # shellcheck disable=SC2329
         cleanup() {
           # Send INT to all postgrest processes.
           # Workaround to trigger dumping postgrest.prof for postgrest-profiled-run
