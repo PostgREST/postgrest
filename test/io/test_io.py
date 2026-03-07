@@ -1789,3 +1789,17 @@ def test_client_error_verbosity_config(defaultenv):
             "details": None,
             "hint": "Perhaps you meant the table 'public.items'",
         }
+
+
+def test_server_otel_enabled(defaultenv):
+    "Enable OpenTelemetry and check that the code branch is covered"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_OTEL_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+
+        assert response.status_code == 200
