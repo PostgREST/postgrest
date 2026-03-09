@@ -190,7 +190,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
         liftEither eitherResp
 
   (respTime, resp) <- withTiming $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
         status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)

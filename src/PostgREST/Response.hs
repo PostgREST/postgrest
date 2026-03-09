@@ -60,9 +60,9 @@ data PgrstResponse = PgrstResponse {
 , pgrstBody    :: LBS.ByteString
 }
 
-actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
+actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Either Error.Error PgrstResponse
 
-actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ _ _ = do
+actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ = do
   let
     (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     cLHeader = if headersOnly then mempty else [ contentLengthHeader bod ]
@@ -88,7 +88,7 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationCreate, pMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationCreate, pMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ = do
   let
     prefHeader = prefAppliedHeader $ responsePreferences plan ctxApiRequest
 
@@ -123,7 +123,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationCreate, pMed
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ = do
   let
     contentRangeHeader =
       Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
@@ -144,7 +144,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationUpdate, pMed
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationSingleUpsert, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationSingleUpsert, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ = do
   let
     prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
     lbsBody = LBS.fromStrict rsBody
@@ -162,7 +162,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationSingleUpsert
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationDelete, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationDelete, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ = do
   let
     contentRangeHeader = RangeQuery.contentRangeH 1 0 $ if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
     prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
@@ -178,7 +178,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationDelete, pMed
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ _ _ = do
+actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{..} _ AppConfig{..} _ = do
   let
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
@@ -202,18 +202,18 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crPr
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbPlanResult media plan) ctxApiRequest _ _ _ _ _ =
+actionResponse (DbPlanResult media plan) ctxApiRequest _ _ _ =
   let body = LBS.fromStrict plan in
   Right $ PgrstResponse HTTP.status200 (contentLengthHeader body : contentTypeHeaders media ctxApiRequest) body
 
-actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versions conf sCache schema negotiatedByProfile =
+actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) ApiRequest{..} versions conf sCache =
   let
     rsBody = maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body
     cLHeader = if headersOnly then mempty else [contentLengthHeader rsBody]
   in
-  Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader schema negotiatedByProfile)) rsBody
+  Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader iSchema iNegotiatedByProfile)) rsBody
 
-actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@SchemaCache{dbTables} _ _ =
+actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@SchemaCache{dbTables} =
   case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
     Nothing  -> Left $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName sc
@@ -227,11 +227,11 @@ actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@Sc
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
 
-actionResponse (NoDbResult (RoutineInfoPlan proc)) _ _ _ _ _ _
+actionResponse (NoDbResult (RoutineInfoPlan proc)) _ _ _ _
   | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
   | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
 
-actionResponse (NoDbResult SchemaInfoPlan) _ _ _ _ _ _ = respondInfo "OPTIONS,GET,HEAD"
+actionResponse (NoDbResult SchemaInfoPlan) _ _ _ _ = respondInfo "OPTIONS,GET,HEAD"
 
 respondInfo :: ByteString -> Either Error.Error PgrstResponse
 respondInfo allowHeader =
