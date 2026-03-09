@@ -9,7 +9,7 @@ import Data.Function (id)
 import Test.Hspec
 
 import PostgREST.App             (postgrest)
-import PostgREST.Config          (AppConfig (..))
+import PostgREST.Config          (AppConfig (..), toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
@@ -69,8 +69,6 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
-
-
 main :: IO ()
 main = do
   pool <- P.acquire $ P.settings
@@ -78,7 +76,7 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    , P.staticConnectionSettings $ toConnectionSettings testCfg
     ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
