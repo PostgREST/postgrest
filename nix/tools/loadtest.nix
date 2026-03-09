@@ -63,10 +63,6 @@ let
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
         export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
-        # set previous PGRST_JWT_CACHE_MAX_LIFETIME configuration so that
-        # load test works across branches
-        # TODO clean once PGRST_JWT_CACHE_MAX_ENTRIES merged and released
-        export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
@@ -74,7 +70,6 @@ let
         case "$_arg_kind" in
           jwt-hs)
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
-            export PGRST_JWT_CACHE_MAX_LIFETIME="0"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -104,7 +99,6 @@ let
 
           jwt-rsa)
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
-            export PGRST_JWT_CACHE_MAX_LIFETIME="0"
 
             ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
