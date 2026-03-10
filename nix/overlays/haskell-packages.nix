@@ -59,6 +59,43 @@ let
       postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
       text-builder = prev.text-builder_0_6_10;
       text-builder-dev = prev.text-builder-dev_0_3_10;
+
+      http2 =
+        prev.callHackageDirect
+          {
+            pkg = "http2";
+            ver = "5.4.0";
+            sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+          }
+          { };
+
+      http-semantics =
+        prev.callHackageDirect
+          {
+            pkg = "http-semantics";
+            ver = "0.4.0";
+            sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+          }
+          { };
+
+      network-run =
+        prev.callHackageDirect
+          {
+            pkg = "network-run";
+            ver = "0.5.0";
+            sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+          }
+          { };
+
+      warp =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "warp";
+            ver = "3.4.13";
+            sha256 = "sha256-jmr8kpeSPDkOhT0i9PhozZapX4nUs92cOX7POAGb7/M=";
+          }
+          { });
+
     };
 in
 {

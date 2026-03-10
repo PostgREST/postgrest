@@ -156,7 +156,7 @@ library
                     -- for unix sockets; this is tested in test/io/test_io.py. See
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
-                    , warp                      >= 3.3.19 && < 3.5
+                    , warp                      >= 3.4.13 && < 3.5
                     , stm                       >= 2.5 && < 3
                     , stm-hamt                  >= 1.2 && < 2
                     , focus                     >= 1.0 && < 2
