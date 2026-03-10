@@ -105,7 +105,6 @@ def test_flush_pool_no_interrupt(defaultenv):
         t.join()
 
 
-@pytest.mark.xfail(reason="Graceful shutdown is currently failing", strict=True)
 def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):
     "SIGTERM should allow in-flight requests to finish before exiting"
 
