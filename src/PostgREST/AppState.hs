@@ -13,10 +13,7 @@ module PostgREST.AppState
   , getNextListenerDelay
   , getTime
   , getJwtCacheState
-  , getSocketREST
-  , getSocketAdmin
   , init
-  , initSockets
   , initWithPool
   , putNextListenerDelay
   , putSchemaCache
@@ -32,13 +29,11 @@ module PostgREST.AppState
 
 import qualified Data.ByteString.Char8      as BS
 import           Data.Either.Combinators    (whenLeft)
-import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
-import qualified Network.Socket             as NS
 import qualified PostgREST.Auth.JwtCache    as JwtCache
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
@@ -70,10 +65,7 @@ import PostgREST.SchemaCache             (SchemaCache (..),
                                           querySchemaCache,
                                           showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
-import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
 import Protolude
 
 data AppState = AppState
@@ -99,10 +91,6 @@ data AppState = AppState
   , stateNextDelay         :: IORef Int
   -- | Keeps track of the next delay for the listener
   , stateNextListenerDelay :: IORef Int
-  -- | Network socket for REST API
-  , stateSocketREST        :: NS.Socket
-  -- | Network socket for the admin UI
-  , stateSocketAdmin       :: Maybe NS.Socket
   -- | Observation handler
   , stateObserver          :: ObservationHandler
   -- | JWT Cache
@@ -117,8 +105,6 @@ data SchemaCacheStatus
   | SCPending
   deriving Eq
 
-type AppSockets = (NS.Socket, Maybe NS.Socket)
-
 init :: AppConfig -> IO AppState
 init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   loggerState  <- Logger.init
@@ -128,12 +114,10 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
-  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
+  initWithPool pool conf loggerState metricsState observer --{ stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
+initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
+initWithPool pool conf loggerState metricsState observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -146,8 +130,6 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
-    <*> pure sock
-    <*> pure adminSock
     <*> pure observer
     <*> JwtCache.init conf observer
     <*> pure loggerState
@@ -165,40 +147,6 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
 
 destroy :: AppState -> IO ()
 destroy = destroyPool
-
-initSockets :: AppConfig -> IO AppSockets
-initSockets AppConfig{..} = do
-  let
-    cfg'usp = configServerUnixSocket
-    cfg'uspm = configServerUnixSocketMode
-    cfg'host = configServerHost
-    cfg'port = configServerPort
-    cfg'adminHost = configAdminServerHost
-    cfg'adminPort = configAdminServerPort
-
-  sock <- case cfg'usp of
-    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
-    -- but we need to have runtime error if we try to use it in Windows, not compile time error
-    Just path -> createAndBindDomainSocket path cfg'uspm
-    Nothing -> do
-      (_, sock) <-
-        if cfg'port /= 0
-          then do
-            sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
-            pure (cfg'port, sock)
-          else do
-            -- explicitly bind to a random port, returning bound port number
-            (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
-            pure (num, sock)
-      pure sock
-
-  adminSock <- case cfg'adminPort of
-    Just adminPort -> do
-      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'adminHost)
-      pure $ Just adminSock
-    Nothing -> pure Nothing
-
-  pure (sock, adminSock)
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool AppConfig{..} observer = do
@@ -312,12 +260,6 @@ getTime = stateGetTime
 
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
-
-getSocketREST :: AppState -> NS.Socket
-getSocketREST = stateSocketREST
-
-getSocketAdmin :: AppState -> Maybe NS.Socket
-getSocketAdmin = stateSocketAdmin
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId

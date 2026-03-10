@@ -60,10 +60,15 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.List             as L
-import qualified Network.HTTP.Types    as HTTP
-import           Protolude             hiding (Handler)
+import qualified Data.ByteString.Char8  as BS
+import qualified Data.List              as L
+import           Data.Streaming.Network (bindPortTCP,
+                                         bindRandomPortTCP)
+import qualified Data.Text              as T
+import qualified Network.HTTP.Types     as HTTP
+import qualified Network.Socket         as NS
+import           PostgREST.Unix         (createAndBindDomainSocket)
+import           Protolude              hiding (Handler)
 
 type Handler = ExceptT Error
 
@@ -72,19 +77,21 @@ run appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
+  (mainSocket, adminSocket) <- initSockets conf
+
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
   Listener.runListener appState
 
-  Admin.runAdmin appState (serverSettings conf)
+  Admin.runAdmin appState adminSocket mainSocket (serverSettings conf)
 
   let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
 
   do
-    address <- resolveSocketToAddress (AppState.getSocketREST appState)
+    address <- resolveSocketToAddress mainSocket
     observer $ AppServerAddressObs address
 
-  Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) (AppState.getSocketREST appState) app
+  Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) mainSocket app
   where
     observer = AppState.getObserver appState
 
@@ -229,3 +236,40 @@ addRetryHint delay response = do
 
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
+
+type AppSockets = (NS.Socket, Maybe NS.Socket)
+
+initSockets :: AppConfig -> IO AppSockets
+initSockets AppConfig{..} = do
+  let
+    cfg'usp = configServerUnixSocket
+    cfg'uspm = configServerUnixSocketMode
+    cfg'host = configServerHost
+    cfg'port = configServerPort
+    cfg'adminHost = configAdminServerHost
+    cfg'adminPort = configAdminServerPort
+
+  sock <- case cfg'usp of
+    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
+    -- but we need to have runtime error if we try to use it in Windows, not compile time error
+    Just path -> createAndBindDomainSocket path cfg'uspm
+    Nothing -> do
+      (_, sock) <-
+        if cfg'port /= 0
+          then do
+            sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
+            pure (cfg'port, sock)
+          else do
+            -- explicitly bind to a random port, returning bound port number
+            (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
+            pure (num, sock)
+      pure sock
+
+  adminSock <- case cfg'adminPort of
+    Just adminPort -> do
+      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'adminHost)
+      pure $ Just adminSock
+    Nothing -> pure Nothing
+
+  pure (sock, adminSock)
+
