@@ -27,6 +27,7 @@ module PostgREST.AppState
   , getObserver
   , isLoaded
   , isPending
+  , waitForSchemaCacheLoaded
   ) where
 
 import qualified Data.ByteString.Char8      as BS
@@ -384,6 +385,9 @@ markSchemaCacheLoaded = void . (`tryPutMVar` ()) . getSCStatusMVar . stateSCache
 
 isSchemaCacheLoaded :: AppState -> IO Bool
 isSchemaCacheLoaded = fmap not . isEmptyMVar . getSCStatusMVar . stateSCacheStatus
+
+waitForSchemaCacheLoaded :: AppState -> IO ()
+waitForSchemaCacheLoaded = void . readMVar . getSCStatusMVar . stateSCacheStatus
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
