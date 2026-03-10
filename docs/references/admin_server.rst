@@ -16,9 +16,15 @@ Two endpoints ``live`` and ``ready`` will then be available. Both these endpoint
 
 .. important::
 
-  If you have a machine with multiple network interfaces and multiple PostgREST instances in the same port, you need to specify a unique :ref:`hostname <server-host>`
-  in the configuration of each PostgREST instance for the health check to work correctly. Don't use the special values(``!4``, ``*``, etc) in this case because the health check
-  could report a false positive.
+  Multiple PostgREST instances can share the same public API host and port on
+  operating systems that support ``SO_REUSEPORT``. Admin ports are not shared:
+  give each instance a different :ref:`admin-server-port`, otherwise the new
+  instance will fail to start.
+
+  If the machine has multiple network interfaces, configure concrete
+  :ref:`server-host` and :ref:`admin-server-host` values when you need health
+  checks to target a specific process. Avoid special values (``!4``, ``*``, etc)
+  in this case because the health check could report a false positive.
 
 Live
 ----
