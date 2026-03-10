@@ -83,13 +83,12 @@ main = do
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
-  sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
     initApp sCache st config = do
-      appState <- AppState.initWithPool sockets pool config loggerState metricsState (Metrics.observationMetrics metricsState)
+      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return (st, postgrest (configLogLevel config) appState (pure ()))
