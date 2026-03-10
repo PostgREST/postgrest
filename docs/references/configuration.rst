@@ -540,6 +540,21 @@ db-schemas
 
   The list of database schemas to expose to clients. See :ref:`schemas`.
 
+.. _db-timezone-enabled:
+
+db-timezone-enabled
+-------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_TIMEZONE_ENABLED
+  **In-Database** pgrst.db_timezone_enabled
+  =============== =================================
+
+  Enables the use of :ref:`prefer_timezone` preference header. Disabled when set to ``false``.
+
 .. _db-tx-end:
 
 db-tx-end

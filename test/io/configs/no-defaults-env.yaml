@@ -20,6 +20,7 @@ PGRST_DB_ROOT_SPEC: openapi_v3
 PGRST_DB_SCHEMAS: multi,   tenant,setup
 PGRST_DB_CONFIG: false
 PGRST_DB_PRE_CONFIG: "postgrest.pre_config"
+PGRST_DB_TIMEZONE_ENABLED: false
 PGRST_DB_TX_END: rollback-allow-override
 PGRST_DB_URI: tmp_db
 PGRST_DB_USE_LEGACY_GUCS: false
