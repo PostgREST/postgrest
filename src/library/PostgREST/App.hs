@@ -68,7 +68,9 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 import           Control.Monad.Writer
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
-import           Data.Streaming.Network    (bindPortTCP)
+import           Data.Streaming.Network    (HostPreference,
+                                            bindPortGenEx,
+                                            bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
 import           Network.HTTP.Types.Header (hVary, hWarning)
@@ -81,7 +83,7 @@ import System.Directory (doesPathExist)
 
 run :: AppState -> Weak ThreadId -> IO ()
 run appState mainThreadIdRef = do
-  conf <- AppState.getConfig appState
+  conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
   let setMainSocketRef = atomicWriteIORef mainSocketRef . Just
@@ -101,7 +103,10 @@ run appState mainThreadIdRef = do
     -- Kick off and wait for the initial SchemaCache load before creating the
     -- main API socket.
     AppState.schemaCacheLoader appState
-    AppState.waitForSchemaCacheInit appState
+    if configServerReusePort then
+      AppState.waitForSchemaCacheLoaded appState
+    else
+      AppState.waitForSchemaCacheInit appState
 
     bracket (initServerSocket conf) NS.close $ \mainSocket -> do
 
@@ -296,11 +301,11 @@ addRetryHint delay response = do
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
 
-initSocket :: (Applicative f, Traversable f) => Maybe String -> FileMode -> Text -> f Int -> IO (f NS.Socket)
-initSocket unixSocket unixSocketMode tcpHost tcpPort =
+initSocket :: (Applicative f, Traversable f) => Maybe String -> FileMode -> Text -> f Int -> (Int -> HostPreference -> IO NS.Socket) -> IO (f NS.Socket)
+initSocket unixSocket unixSocketMode tcpHost tcpPort bindTCP =
   maybe initTCPSocket initDomainSocket unixSocket
   where
-    initTCPSocket = traverse (`bindPortTCP` (fromString $ T.unpack tcpHost)) tcpPort
+    initTCPSocket = traverse (`bindTCP` (fromString $ T.unpack tcpHost)) tcpPort
     -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
     -- but we need to have runtime error if we try to use it in Windows, not compile time error
     initDomainSocket = fmap pure . (`createAndBindDomainSocket` unixSocketMode)
@@ -310,12 +315,20 @@ initServerSocket AppConfig{..} =
   runIdentity <$> initSocket
     configServerUnixSocket configServerUnixSocketMode
     configServerHost (pure configServerPort)
+    (if configServerReusePort then bindPortTCPWithReusePort else bindPortTCP)
 
 initAdminServerSocket :: AppConfig -> IO (Maybe NS.Socket)
 initAdminServerSocket AppConfig{..} =
   initSocket
     configAdminServerUnixSocket configAdminServerUnixSocketMode
     configAdminServerHost configAdminServerPort
+    bindPortTCP
+
+bindPortTCPWithReusePort :: Int -> HostPreference -> IO NS.Socket
+bindPortTCPWithReusePort port hostPreference =
+  bindPortGenEx [(NS.ReusePort, 1)] NS.Stream port hostPreference >>= listenSocket
+  where
+    listenSocket sock = NS.listen sock (max 2048 NS.maxListenQueue) $> sock
 
 checkMainAppLive :: IO (Maybe NS.Socket) -> Weak ThreadId -> IO Bool
 checkMainAppLive getMainSocket mainThreadIdRef =

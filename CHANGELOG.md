@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file. From versio
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
 - Support running the admin server on a unix socket by @wolfgangwalther in #5003
+- Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
 
 ### Fixed
 

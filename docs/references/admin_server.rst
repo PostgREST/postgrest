@@ -5,6 +5,8 @@ Admin Server
 
 PostgREST provides an admin server that can be enabled by setting :ref:`admin-server-port` or `:ref:`admin-server-unix-socket`.
 
+Multiple PostgREST instances can share the same public API host and port when :ref:`server-reuseport` is enabled. Admin ports are not shared: give each instance a different :ref:`admin-server-port`, otherwise the new instance will fail to start.
+
 .. _health_check:
 
 Health Check

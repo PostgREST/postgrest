@@ -172,6 +172,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerCorsAllowedOrigins  = []
   , configServerHost                = "localhost"
   , configServerPort                = 3000
+  , configServerReusePort           = False
   , configServerTraceHeader         = Nothing
   , configServerUnixSocket          = Nothing
   , configServerUnixSocketMode      = 432
