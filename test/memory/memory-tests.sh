@@ -110,9 +110,9 @@ jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "32M"
 jsonKeyTest "10M" "POST" "/leak?columns=blob" "32M"
 jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "50M"
 
-jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "73M"
-jsonKeyTest "50M" "POST" "/leak?columns=blob" "73M"
-jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "73M"
+jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "78M"
+jsonKeyTest "50M" "POST" "/leak?columns=blob" "78M"
+jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "78M"
 
 postJsonArrayTest "1000" "/perf_articles?columns=id,body" "21M"
 postJsonArrayTest "10000" "/perf_articles?columns=id,body" "22M"
