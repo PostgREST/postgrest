@@ -65,7 +65,9 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
-import           Data.Streaming.Network    (bindPortTCP)
+import           Data.Streaming.Network    (HostPreference,
+                                            bindPortGenEx,
+                                            bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
 import qualified Network.HTTP.Types.Header as HTTP
@@ -75,7 +77,7 @@ import           Protolude                 hiding (Handler)
 
 run :: AppState -> IO ()
 run appState = do
-  conf <- AppState.getConfig appState
+  conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
   adminSocket <- initAdminServerSocket conf
@@ -92,7 +94,10 @@ run appState = do
   -- Kick off and wait for the initial SchemaCache load before creating the
   -- main API socket.
   AppState.schemaCacheLoader appState
-  AppState.waitForSchemaCacheInit appState
+  if configServerReusePort then
+    AppState.waitForSchemaCacheLoaded appState
+  else
+    AppState.waitForSchemaCacheInit appState
 
   mainSocket <- initServerSocket conf
   atomicWriteIORef mainSocketRef $ Just mainSocket
@@ -272,7 +277,9 @@ initServerSocket AppConfig{..} = case configServerUnixSocket of
   -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
   -- but we need to have runtime error if we try to use it in Windows, not compile time error
   Just path -> createAndBindDomainSocket path configServerUnixSocketMode
-  Nothing -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
+  Nothing
+    | configServerReusePort -> bindPortTCPWithReusePort configServerPort (fromString $ T.unpack configServerHost)
+    | otherwise             -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
 
 initAdminServerSocket :: AppConfig -> IO (Maybe NS.Socket)
 initAdminServerSocket AppConfig{..} =
@@ -280,3 +287,8 @@ initAdminServerSocket AppConfig{..} =
   where
     adminHost = fromString $ T.unpack configAdminServerHost
 
+bindPortTCPWithReusePort :: Int -> HostPreference -> IO NS.Socket
+bindPortTCPWithReusePort port hostPreference =
+  bindPortGenEx [(NS.ReusePort, 1)] NS.Stream port hostPreference >>= listenSocket
+  where
+    listenSocket sock = NS.listen sock (max 2048 NS.maxListenQueue) $> sock

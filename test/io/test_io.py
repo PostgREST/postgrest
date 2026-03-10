@@ -11,6 +11,7 @@ import requests
 from config import CONFIGSDIR, FIXTURES, SECRET
 from util import Thread, jwtauthheader, parse_server_timings_header, relativeSeconds
 from postgrest import (
+    PostgrestTimedOut,
     freeport,
     is_ipv6,
     reset_statement_timeout,
@@ -176,7 +177,6 @@ def test_random_port_bound(defaultenv):
         assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
 
 
-@pytest.mark.xfail(reason="PostgREST should not start on a used port", strict=True)
 def test_so_reuseport_zero_downtime_handover(defaultenv):
     "A second PostgREST instance should take over on the same main/admin ports without request failures."
 
@@ -204,7 +204,7 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
     # 6. Stop second PostgREST instance
     # 7. Verify client did not get any errors
     with run(
-        env={**defaultenv},
+        env={**defaultenv, "PGRST_SERVER_REUSEPORT": "true"},
         port=port,
         host=host,
         admin_port=admin_port,
@@ -226,10 +226,11 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
         try:
             time.sleep(1)
             with run(
-                env={**defaultenv},
+                env={**defaultenv, "PGRST_SERVER_REUSEPORT": "true"},
                 port=port,
                 host=host,
-                admin_port=admin_port,
+                # we do not set SO_REUSEPORT on admin socket
+                admin_port=freeport(used_ports=[port, admin_port]),
             ):
                 time.sleep(1)
                 first.process.terminate()
@@ -241,6 +242,30 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
             requester.join()
 
     assert failures == []
+
+
+def test_so_reuseport_defaults_to_false(defaultenv):
+    "A second PostgREST instance should not bind to the same port by default."
+
+    host = "0.0.0.0"
+    port = freeport()
+    admin_port = freeport(used_ports=[port])
+
+    with run(
+        env={**defaultenv},
+        port=port,
+        host=host,
+        admin_port=admin_port,
+    ):
+        with pytest.raises(PostgrestTimedOut):
+            with run(
+                env={**defaultenv},
+                port=port,
+                host=host,
+                admin_port=freeport(used_ports=[port, admin_port]),
+                wait_max_seconds=1,
+            ):
+                pass
 
 
 def test_app_settings_reload(tmp_path, defaultenv):

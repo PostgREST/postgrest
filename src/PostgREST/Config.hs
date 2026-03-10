@@ -118,6 +118,7 @@ data AppConfig = AppConfig
   , configServerCorsAllowedOrigins :: Maybe [Text]
   , configServerHost               :: Text
   , configServerPort               :: Int
+  , configServerReusePort          :: Bool
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
   , configServerTimingEnabled      :: Bool
   , configServerUnixSocket         :: Maybe FilePath
@@ -203,6 +204,7 @@ toText conf =
       ,("server-cors-allowed-origins",      q . maybe "" (T.intercalate ",") . configServerCorsAllowedOrigins)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
+      ,("server-reuseport",              T.toLower . show . configServerReusePort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
@@ -318,6 +320,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
     <*> (defaultServerHost <$> optString "server-host")
     <*> parseServerPort "server-port"
+    <*> (fromMaybe False <$> optBool "server-reuseport")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
@@ -779,6 +782,7 @@ exampleConfigFile = S.unlines
   , ""
   , "server-host = \"!4\""
   , "server-port = 3000"
+  , "server-reuseport = false"
   , ""
   , "## Allow getting the request-response timing information through the `Server-Timing` header"
   , "server-timing-enabled = false"
