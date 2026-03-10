@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Shutdown should wait for in flight requests by @mkleczek in #4702
+- Use SO_REUSEPORT on platforms supporting it by @mkleczek in #4703 #4694
 
 ### Changed
 
