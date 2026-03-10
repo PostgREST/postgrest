@@ -105,6 +105,28 @@ def test_flush_pool_no_interrupt(defaultenv):
         t.join()
 
 
+@pytest.mark.xfail(reason="Graceful shutdown is currently failing")
+def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):
+    "SIGTERM should allow in-flight requests to finish before exiting"
+
+    with run(env=defaultenv, wait_max_seconds=5) as postgrest:
+
+        def sleep():
+            response = postgrest.session.get("/rpc/sleep?seconds=3", timeout=10)
+            assert response.text == ""
+            assert response.status_code == 204
+
+        t = Thread(target=sleep)
+        t.start()
+
+        # Wait for the request to be in-flight before shutting down.
+        time.sleep(1)
+
+        postgrest.process.terminate()
+
+        t.join()
+
+
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
