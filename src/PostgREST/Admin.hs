@@ -19,22 +19,23 @@ import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
 
-import Protolude
+import qualified Network.Socket as NS
+import           Protolude
 
-runAdmin :: AppState -> Warp.Settings -> IO ()
-runAdmin appState settings = do
-  whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
+runAdmin :: AppState -> Maybe NS.Socket -> NS.Socket -> Warp.Settings -> IO ()
+runAdmin appState maybeAdminSocket socketREST settings = do
+  whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
     observer $ AdminStartObs address
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
-    adminApp = admin appState
+    adminApp = admin appState socketREST
     observer = AppState.getObserver appState
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> Wai.Application
-admin appState req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
+admin :: AppState.AppState -> NS.Socket -> Wai.Application
+admin appState socketREST req respond  = do
+  isMainAppReachable  <- isRight <$> reachMainApp socketREST
   isLoaded <- AppState.isLoaded appState
   isPending <- AppState.isPending appState
 
