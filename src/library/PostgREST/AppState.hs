@@ -26,6 +26,7 @@ module PostgREST.AppState
   , isLoaded
   , isPending
   , waitForSchemaCacheInit
+  , waitForSchemaCacheLoaded
   ) where
 
 import qualified Data.ByteString.Char8      as BS
@@ -386,6 +387,9 @@ isSchemaCacheLoaded = atomically . (pure . fromMaybe False <=< tryReadTMVar) . g
 -- | We wait until scStatusTMVar is not empty.
 waitForSchemaCacheInit :: AppState -> IO ()
 waitForSchemaCacheInit = atomically . void . readTMVar . getSCStatusTMVar . stateSCacheStatus
+
+waitForSchemaCacheLoaded :: AppState -> IO ()
+waitForSchemaCacheLoaded = atomically . (check <=< readTMVar) . getSCStatusTMVar . stateSCacheStatus
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.

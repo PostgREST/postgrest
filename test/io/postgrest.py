@@ -266,7 +266,7 @@ def wait_until_status_code(url, max_seconds, status_code):
 
         time.sleep(0.1)
 
-    if response:
+    if response is not None:
         raise PostgrestTimedOut(f"{response.status_code}: {response.text}")
     else:
         raise PostgrestTimedOut()
