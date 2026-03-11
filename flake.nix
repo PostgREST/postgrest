@@ -46,5 +46,52 @@
           meta.description = "REST API for any Postgres database";
         };
       });
+
+      devShells = genSystems (attrs:
+        let
+          inherit (attrs) pkgs;
+          inherit (pkgs) lib;
+          toolboxes = [
+            attrs.cabalTools
+            attrs.devTools
+            attrs.docs
+            attrs.gitTools
+            attrs.loadtest
+            attrs.nixpkgsTools
+            attrs.release
+            attrs.style
+            attrs.tests
+            attrs.withTools
+          ];
+        in
+        {
+          default = lib.overrideDerivation attrs.env (base: {
+            buildInputs =
+              base.buildInputs ++ [
+                pkgs.cabal-install
+                pkgs.cabal2nix
+                pkgs.git
+                pkgs.postgresql
+                pkgs.update-nix-fetchgit
+                attrs.hsie.bin
+              ]
+              ++ toolboxes;
+
+            shellHook =
+              ''
+                export HISTFILE=.history
+
+                source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
+                source ${pkgs.git}/share/git/contrib/completion/git-completion.bash
+                source ${attrs.hsie.bash-completion}
+
+              ''
+              + builtins.concatStringsSep "\n" (
+                builtins.map (bash-completion: "source ${bash-completion}") (
+                  builtins.concatLists (builtins.map (toolbox: toolbox.bash-completion) toolboxes)
+                )
+              );
+          });
+        });
     };
 }
