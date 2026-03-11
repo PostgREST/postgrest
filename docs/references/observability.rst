@@ -90,7 +90,7 @@ Restart the database and watch the log file in real-time to understand how HTTP 
 Metrics
 =======
 
-The ``metrics`` endpoint on the :ref:`admin_server` endpoint provides metrics in `Prometheus text format <https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format>`_.
+The ``metrics`` endpoint on the :ref:`admin_server` endpoint provides metrics in `Prometheus text format <https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format>`_.
 
 .. code-block:: bash
 
