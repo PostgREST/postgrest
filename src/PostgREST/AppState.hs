@@ -84,7 +84,7 @@ data AppState = AppState
   -- | Schema cache
   , stateSchemaCache       :: IORef (Maybe SchemaCache)
   -- | The schema cache status
-  , stateSCacheStatus      :: IORef SchemaCacheStatus
+  , stateSCacheStatus      :: SchemaCacheStatus
   -- | State of the LISTEN channel
   , stateIsListenerOn      :: IORef Bool
   -- | starts the connection worker with a debounce
@@ -111,11 +111,11 @@ data AppState = AppState
   , stateMetrics           :: Metrics.MetricsState
   }
 
--- | Schema cache status
-data SchemaCacheStatus
-  = SCLoaded
-  | SCPending
-  deriving Eq
+-- | Schema cache status.
+-- Empty means pending and full means loaded.
+newtype SchemaCacheStatus = SchemaCacheStatus
+  { getSCStatusMVar :: MVar ()
+  }
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
@@ -138,7 +138,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
-    <*> newIORef SCPending
+    <*> newSchemaCacheStatus
     <*> newIORef False
     <*> pure (pure ())
     <*> newIORef conf
@@ -335,18 +335,15 @@ putIsListenerOn = atomicWriteIORef . stateIsListenerOn
 
 isLoaded :: AppState -> IO Bool
 isLoaded x = do
-  scacheStatus <- readIORef $ stateSCacheStatus x
+  scacheLoaded <- isSchemaCacheLoaded x
   connEstablished <- isConnEstablished x
-  return $ scacheStatus == SCLoaded && connEstablished
+  return $ scacheLoaded && connEstablished
 
 isPending :: AppState -> IO Bool
 isPending x = do
-  scacheStatus <- readIORef $ stateSCacheStatus x
+  scacheLoaded <- isSchemaCacheLoaded x
   connEstablished <- isConnEstablished x
-  return $ scacheStatus == SCPending || not connEstablished
-
-putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
-putSCacheStatus = atomicWriteIORef . stateSCacheStatus
+  return $ not scacheLoaded || not connEstablished
 
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
@@ -405,19 +402,19 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
         timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do
-          putSCacheStatus appState SCPending
+          markSchemaCachePending appState
           putSchemaCache appState Nothing
           observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
           return Nothing
 
         Right sCache -> do
           -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
-          -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
-          putSCacheStatus appState SCPending
+          -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
+          markSchemaCachePending appState
           putSchemaCache appState $ Just sCache
           observer $ SchemaCacheQueriedObs resultTime
           observer . uncurry SchemaCacheLoadedObs =<< timeItT (evaluate $ showSummary sCache)
-          putSCacheStatus appState SCLoaded
+          markSchemaCacheLoaded appState
           return $ Just sCache
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
@@ -432,6 +429,18 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 
     oneSecondInUs = 1000000 -- one second in microseconds
+
+newSchemaCacheStatus :: IO SchemaCacheStatus
+newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyMVar
+
+markSchemaCachePending :: AppState -> IO ()
+markSchemaCachePending = void . tryTakeMVar . getSCStatusMVar . stateSCacheStatus
+
+markSchemaCacheLoaded :: AppState -> IO ()
+markSchemaCacheLoaded = void . (`tryPutMVar` ()) . getSCStatusMVar . stateSCacheStatus
+
+isSchemaCacheLoaded :: AppState -> IO Bool
+isSchemaCacheLoaded = fmap not . isEmptyMVar . getSCStatusMVar . stateSCacheStatus
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
