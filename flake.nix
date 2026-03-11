@@ -46,5 +46,9 @@
           meta.description = "REST API for any Postgres database";
         };
       });
+
+      devShells = genSystems (postgrest: {
+        default = import ./shell.nix { inherit postgrest; };
+      });
     };
 }

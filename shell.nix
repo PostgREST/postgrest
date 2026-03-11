@@ -7,11 +7,9 @@
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
 { docker ? false
+, postgrest ? import ./default.nix { }
 }:
 let
-  postgrest =
-    import ./default.nix { };
-
   inherit (postgrest) pkgs;
 
   inherit (pkgs) lib;
