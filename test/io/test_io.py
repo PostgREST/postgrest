@@ -5,6 +5,7 @@ import re
 import signal
 import time
 import pytest
+import requests
 
 from config import CONFIGSDIR, FIXTURES, SECRET
 from util import Thread, jwtauthheader, parse_server_timings_header
@@ -105,7 +106,6 @@ def test_flush_pool_no_interrupt(defaultenv):
         t.join()
 
 
-@pytest.mark.xfail(reason="Graceful shutdown is currently failing", strict=True)
 def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):
     "SIGTERM should allow in-flight requests to finish before exiting"
 
@@ -132,6 +132,68 @@ def test_random_port_bound(defaultenv):
 
     with run(env=defaultenv, port="0"):
         assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
+
+
+def test_so_reuseport_zero_downtime_handover(defaultenv):
+    "A second PostgREST instance should take over on the same main/admin ports without request failures."
+
+    # set host to _all_ addresses to force port conflict without SO_REUSEPORT
+    # setting to localhost (which is the default)
+    # might allow running multiple instances on the same port
+    # as the name might be resolved to many IP addresses
+    host = "0.0.0.0"
+    port = freeport()
+    admin_port = freeport(used_ports=[port])
+    failures = []
+    # mutable location shared between threads
+    keep_running = {"value": True}
+
+    # 1. Start first PostgREST instance
+    # 2. Start a "client" thread issuing requests in a loop
+    #    remembering all received errors
+    # 3. Start second PostgREST instance on the same port as the first one
+    # 4. Wait a little and terminate the first instance
+    # 5. Stop client thread
+    # 6. Stop second PostgREST instance
+    # 7. Verify client did not get any errors
+    with run(
+        env={**defaultenv},
+        port=port,
+        host=host,
+        admin_port=admin_port,
+    ) as first:
+
+        def continuously_request():
+            while keep_running["value"]:
+                try:
+                    response = first.session.get("/projects", timeout=1)
+                    assert response.status_code == 200
+                except Exception as exc:
+                    failures.append(exc)
+                    break
+                time.sleep(0.2)
+
+        requester = Thread(target=continuously_request)
+        requester.start()
+
+        try:
+            time.sleep(1)
+            with run(
+                env={**defaultenv},
+                port=port,
+                host=host,
+                admin_port=admin_port,
+            ):
+                time.sleep(1)
+                first.process.terminate()
+                wait_until_exit(first, 2)
+
+                time.sleep(1)
+        finally:
+            keep_running["value"] = False
+            requester.join()
+
+    assert failures == []
 
 
 def test_app_settings_reload(tmp_path, defaultenv):
@@ -1194,14 +1256,21 @@ def test_log_postgrest_host_and_port(host, defaultenv):
     with run(
         env=defaultenv, host=host, port=port, no_startup_stdout=False
     ) as postgrest:
-        output = postgrest.read_stdout(nlines=10)
+        output = postgrest.read_stdout(nlines=20)
 
         if is_unix:
-            re.match(r'API server listening on "/tmp/.*\.sock"', output[2])
+            assert any(
+                "API server listening on" in line and "postgrest.sock" in line
+                for line in output
+            )
         elif is_ipv6(host):
-            assert f"API server listening on [{host}]:{port}" in output[2]
+            assert any(
+                f"API server listening on [{host}]:{port}" in line for line in output
+            )
         else:  # IPv4
-            assert f"API server listening on {host}:{port}" in output[2]
+            assert any(
+                f"API server listening on {host}:{port}" in line for line in output
+            )
 
 
 def test_succeed_w_role_having_superuser_settings(defaultenv):
@@ -1520,27 +1589,6 @@ def test_pgrst_log_503_client_error_to_stderr(defaultenv):
         assert any(log_message in line for line in output)
 
 
-def test_log_error_when_empty_schema_cache_on_startup_to_stderr(defaultenv):
-    "Should log the 503 error message when there is an empty schema cache on startup"
-
-    env = {
-        **defaultenv,
-        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "300",
-    }
-
-    with run(env=env, wait_for_readiness=False) as postgrest:
-        postgrest.wait_until_scache_starts_loading()
-
-        response = postgrest.session.get("/projects")
-        assert response.status_code == 503
-
-        output_start = postgrest.read_stdout(nlines=10)
-
-        log_err_message = '{"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}'
-
-        assert any(log_err_message in line for line in output_start)
-
-
 def test_no_double_schema_cache_reload_on_empty_schema(defaultenv):
     "Should only load the schema cache once on a 503 error when there's an empty schema cache on startup"
 
@@ -1552,8 +1600,8 @@ def test_no_double_schema_cache_reload_on_empty_schema(defaultenv):
     with run(env=env, port=freeport(), wait_for_readiness=False) as postgrest:
         postgrest.wait_until_scache_starts_loading()
 
-        response = postgrest.session.get("/projects")
-        assert response.status_code == 503
+        with pytest.raises(requests.ConnectionError):
+            postgrest.session.get("/projects")
 
         # Should wait enough time to load the schema cache twice to guarantee that the test is valid
         time.sleep(1)
@@ -1638,9 +1686,10 @@ def test_schema_cache_error_observation(defaultenv):
         # assert exitCode == 1
 
         output = postgrest.read_stdout(nlines=9)
-        assert (
+        assert any(
             "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
-            in output[7]
+            in line
+            for line in output
         )
 
 
