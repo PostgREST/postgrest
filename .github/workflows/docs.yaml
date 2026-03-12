@@ -15,8 +15,8 @@ jobs:
     name: Build docs
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-    - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: cachix/install-nix-action@1ca7d21a94afc7c957383a2d217460d980de4934 # v31
     - run: nix-env -f docs/default.nix -iA build
     - run: postgrest-docs-build
 
@@ -24,8 +24,8 @@ jobs:
     name: Run spellcheck
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-    - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: cachix/install-nix-action@1ca7d21a94afc7c957383a2d217460d980de4934 # v31
     - run: nix-env -f docs/default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
 
@@ -33,8 +33,8 @@ jobs:
     name: Run dictcheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: cachix/install-nix-action@1ca7d21a94afc7c957383a2d217460d980de4934 # v31
       - run: nix-env -f docs/default.nix -iA dictcheck
       - run: postgrest-docs-dictcheck
 
@@ -43,8 +43,8 @@ jobs:
     if: github.base_ref == 'main'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-    - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: cachix/install-nix-action@1ca7d21a94afc7c957383a2d217460d980de4934 # v31
     - run: nix-env -f docs/default.nix -iA linkcheck
     - run: postgrest-docs-linkcheck
     
