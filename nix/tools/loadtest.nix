@@ -140,9 +140,7 @@ let
           mixed)
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withSlowPg} \
             ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withTools.withSlowPgrst} \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
