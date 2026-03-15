@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-|
 Module      : PostgREST.Observation
 Description : This module holds an Observation type which is the core of Observability for PostgREST.
@@ -52,9 +53,11 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | PoolFlushed
   | JwtCacheLookup Bool
   | JwtCacheEviction
   | WarpErrorObs Text
+  deriving (Generic)
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
 
