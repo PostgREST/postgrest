@@ -47,6 +47,10 @@ lib.overrideDerivation postgrest.env (
       ''
         export HISTFILE=.history
 
+        # Bypass proxy for all hosts, it prevents HTTP client failures used in test
+        # suites. See: https://github.com/PostgREST/postgrest/issues/4633 for more info
+        export NO_PROXY=*
+
         source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
         source ${pkgs.git}/share/git/contrib/completion/git-completion.bash
         source ${postgrest.hsie.bash-completion}
