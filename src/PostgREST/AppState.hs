@@ -5,6 +5,7 @@
 module PostgREST.AppState
   ( AppState
   , destroy
+  , flushPool
   , getConfig
   , getSchemaCache
   , getMainThreadId
@@ -15,6 +16,7 @@ module PostgREST.AppState
   , getJwtCacheState
   , init
   , initWithPool
+  , putConfig -- For tests TODO refactoring
   , putNextListenerDelay
   , putSchemaCache
   , putPgVersion

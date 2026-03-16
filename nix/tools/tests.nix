@@ -29,7 +29,8 @@ let
       }
       ''
         ${withTools.withPg} -f test/spec/fixtures/load.sql \
-          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec -- "''${_arg_leftovers[@]}"
+          ${withTools.withToxiproxyPgProxy} \
+              ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec -- "''${_arg_leftovers[@]}"
       '';
 
   testDoctests =
