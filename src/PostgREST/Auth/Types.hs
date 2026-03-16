@@ -6,7 +6,9 @@ import qualified Data.Aeson        as JSON
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString   as BS
 
--- | Parse result for JWT Claims
+-- |
+-- Parse and store result for JWT Claims. Can be accessed in
+-- db through GUCs (for RLS etc)
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
   , authRole   :: BS.ByteString

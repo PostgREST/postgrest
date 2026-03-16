@@ -16,7 +16,6 @@ module PostgREST.Auth.Jwt
   , parseClaims) where
 
 import qualified Data.Aeson                 as JSON
-import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Internal   as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
@@ -118,7 +117,7 @@ parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims 
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
     unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
   pure AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
+           { authClaims = mclaims
            , authRole = role
            }
   where

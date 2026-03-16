@@ -10,6 +10,7 @@ module PostgREST.Query.PreQuery
   ) where
 
 import qualified Data.Aeson                      as JSON
+import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.ByteString.Lazy.Char8      as LBS
 import qualified Data.HashMap.Strict             as HM
 import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
@@ -46,7 +47,10 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     pathSql = setConfigWithConstantName ("request.path", iPath)
     headersSql = setConfigWithConstantNameJSON "request.headers" iHeaders
     cookiesSql = setConfigWithConstantNameJSON "request.cookies" iCookies
-    claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode authClaims)]
+    claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
+      where
+        claims = authClaims & KM.insert "role" (JSON.String $ decodeUtf8 authRole) -- insert "role" to claims as well
+
     roleSql = [setConfigWithConstantName ("role", authRole)]
     roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup authRole configRoleSettings)
     appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings
