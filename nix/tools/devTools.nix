@@ -82,6 +82,7 @@ let
       }
       ''
         ${tests}/bin/postgrest-test-spec
+        ${tests}/bin/postgrest-test-observability
         ${tests}/bin/postgrest-test-doctests
         ${tests}/bin/postgrest-test-io
         ${tests}/bin/postgrest-test-big-schema
