@@ -57,6 +57,7 @@ HMAC
 htmx
 Htmx
 Homebrew
+hs
 hstore
 HTTP
 HTTPS
@@ -84,6 +85,7 @@ localhost
 login
 lookups
 Logins
+Loadtest
 LIBPQ
 logins
 lon
@@ -107,6 +109,10 @@ Observability
 Okta
 OpenAPI
 openapi
+OpenTelemetry
+opentelemetry
+otel
+OTLP
 ov
 parametrized
 passphrase
