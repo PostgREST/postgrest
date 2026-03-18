@@ -32,8 +32,7 @@ import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), audMatchesCfg)
 import PostgREST.Config.JSPath (walkJSPath)
-import PostgREST.Error         (Error (..),
-                                JwtClaimsError (AudClaimNotStringOrArray, ExpClaimNotNumber, IatClaimNotNumber, JWTExpired, JWTIssuedAtFuture, JWTNotInAudience, JWTNotYetValid, NbfClaimNotNumber, ParsingClaimsFailed),
+import PostgREST.Error         (Error (..), JwtClaimsError (..),
                                 JwtDecodeError (..), JwtError (..))
 
 import Data.Aeson       ((.:?))
