@@ -219,6 +219,7 @@ test-suite spec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.ExtraSearchPathSpec
+                      Feature.MetricsSpec
                       Feature.NoSuperuserSpec
                       Feature.ObservabilitySpec
                       Feature.OpenApi.DisabledOpenApiSpec
@@ -258,6 +259,7 @@ test-suite spec
                       Feature.Query.UpsertSpec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
+                      Feature.SchemaCacheSpec
                       SpecHelper
   build-depends:      base              >= 4.9 && < 4.20
                     , aeson             >= 2.0.3 && < 2.3
