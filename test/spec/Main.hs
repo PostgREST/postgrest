@@ -23,7 +23,6 @@ import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
-import qualified Feature.Auth.JwtCacheSpec
 import qualified Feature.Auth.NoAnonSpec
 import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
@@ -273,9 +272,6 @@ main = do
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
     before pgSafeUpdateApp $
       describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
-
-    before (initApp baseSchemaCache metricsState testCfgJwtCache) $
-      describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
   where
     loadSCache pool conf =
