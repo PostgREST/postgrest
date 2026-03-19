@@ -150,6 +150,7 @@ rec {
       ghc = pkgs.haskell.compiler."${compiler}";
       inherit (pkgs.haskell.packages."${compiler}") hpc-codecov;
       inherit (pkgs.haskell.packages."${compiler}") weeder;
+      otelcol = pkgs.opentelemetry-collector;
     };
 } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux rec {
   # Static executable.
