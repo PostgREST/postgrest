@@ -78,6 +78,53 @@ let
       hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
       hasql-transaction = lib.dontCheck prev.hasql-transaction_1_1_0_1;
       postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
+
+      http2 =
+        prev.callHackageDirect
+          {
+            pkg = "http2";
+            ver = "5.4.0";
+            sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+          }
+          { };
+
+      http-semantics =
+        prev.callHackageDirect
+          {
+            pkg = "http-semantics";
+            ver = "0.4.0";
+            sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+          }
+          { };
+
+      network-run =
+        prev.callHackageDirect
+          {
+            pkg = "network-run";
+            ver = "0.5.0";
+            sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+          }
+          { };
+
+      time-manager =
+        prev.callHackageDirect
+          {
+            pkg = "time-manager";
+            ver = "0.2.4";
+            sha256 = "sha256-sAt/331YLQ2IU3z90aKYSq1nxoazv87irsuJp7ZG3pw=";
+          }
+          { };
+
+      warp =
+        lib.dontCheck (prev.callCabal2nixWithOptions "warp"
+          (super.fetchFromGitHub {
+            owner = "mkleczek";
+            repo = "wai";
+            rev = "e9c9e784dee1b54461b94089175a969eb647d262";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-q8vgvsNeKM/fHp3H6+W/tR4HicioqeaU9Eo3rb13bLo=";
+          }) "--subpath=warp"
+          { });
     };
 in
 {

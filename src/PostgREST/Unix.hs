@@ -18,10 +18,9 @@ import           System.Directory (removeFile)
 import           System.IO.Error  (isDoesNotExistError)
 
 -- | Set signal handlers, only for systems with signals
-installSignalHandlers :: ThreadId -> IO () -> IO () -> IO ()
+installSignalHandlers :: IO () -> IO () -> IO () -> IO ()
 #ifndef mingw32_HOST_OS
-installSignalHandlers tid usr1 usr2 = do
-  let interrupt = throwTo tid UserInterrupt
+installSignalHandlers interrupt usr1 usr2 = do
   install Signals.sigINT interrupt
   install Signals.sigTERM interrupt
   install Signals.sigUSR1 usr1
