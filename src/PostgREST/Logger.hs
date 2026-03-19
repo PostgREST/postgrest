@@ -228,6 +228,8 @@ observationMessages = \case
     pure "Looked up a JWT in JWT cache"
   JwtCacheEviction ->
     pure "Evicted entry from JWT cache"
+  TerminationUnixSignalObs signal ->
+    pure $ "Received termination unix signal " <> signal
   WarpErrorObs txt ->
     pure $ "Warp server error: " <> txt
   where

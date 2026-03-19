@@ -54,6 +54,7 @@ data Observation
   | PoolRequestFullfilled
   | JwtCacheLookup Bool
   | JwtCacheEviction
+  | TerminationUnixSignalObs Text
   | WarpErrorObs Text
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01

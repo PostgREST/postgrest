@@ -80,7 +80,7 @@ run appState = do
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   (mainSocket, adminSocket) <- initSockets conf
 
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+  Unix.installSignalHandlers observer (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
   Listener.runListener appState
 
@@ -283,4 +283,3 @@ initSockets AppConfig{..} = do
     Nothing -> pure Nothing
 
   pure (sock, adminSock)
-

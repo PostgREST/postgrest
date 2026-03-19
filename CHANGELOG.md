@@ -15,6 +15,10 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `client_error_verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
 
+### Fixed
+
+- Fix not logging SIGTERM and SIGINT by @steve-chavez in #4728
+
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
