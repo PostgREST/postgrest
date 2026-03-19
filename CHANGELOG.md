@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- Fix not logging SIGTERM and SIGINT by @steve-chavez in #4728
+
 ## [14.6] - 2026-03-06
 
 ### Fixed

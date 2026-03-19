@@ -63,6 +63,7 @@ data Observation
   | PoolRequestFullfilled
   | JwtCacheLookup Bool
   | JwtCacheEviction
+  | TerminationUnixSignalObs Text
   | WarpErrorObs Text
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
@@ -158,6 +159,8 @@ observationMessage = \case
     "Looked up a JWT in JWT cache"
   JwtCacheEviction ->
     "Evicted entry from JWT cache"
+  TerminationUnixSignalObs signal ->
+    "Received termination unix signal " <> signal
   WarpErrorObs txt ->
     "Warp server error: " <> txt
   where

@@ -72,7 +72,7 @@ run appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+  Unix.installSignalHandlers observer (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
   Listener.runListener appState
 
