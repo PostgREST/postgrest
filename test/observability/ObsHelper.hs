@@ -135,6 +135,9 @@ testCfgJwtCache =
   , configJwtCacheMaxEntries = 2
   }
 
+testCfgOTel :: AppConfig
+testCfgOTel = baseCfg { configServerOtelEnabled = True }
+
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
   (hAuthorization, typ <> " " <> creds)
