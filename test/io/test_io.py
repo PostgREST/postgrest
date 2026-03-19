@@ -127,6 +127,24 @@ def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):
         t.join()
 
 
+def test_termination_unix_signal_logging(defaultenv):
+    "Server logs when handling termination unix signals."
+
+    with run(env=defaultenv) as postgrest:
+        postgrest.process.send_signal(signal.SIGTERM)
+        lines = postgrest.read_stdout(nlines=1)
+        wait_until_exit(postgrest)
+
+    assert any("SIGTERM" in line for line in lines)
+
+    with run(env=defaultenv) as postgrest:
+        postgrest.process.send_signal(signal.SIGINT)
+        lines = postgrest.read_stdout(nlines=1)
+        wait_until_exit(postgrest)
+
+    assert any("SIGINT" in line for line in lines)
+
+
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
