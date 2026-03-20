@@ -1,14 +1,6 @@
-{-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE ImpredicativeTypes        #-}
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE TypeApplications          #-}
-module Feature.Auth.JwtCacheSpec
-
-where
+{-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE TypeApplications #-}
+module Observation.JwtCache where
 
 import Network.Wai (Application)
 
@@ -16,9 +8,9 @@ import Network.HTTP.Types
 import Test.Hspec         (SpecWith, describe, it)
 import Test.Hspec.Wai
 
+import ObsHelper
 import PostgREST.Metrics   (MetricsState (..))
 import Protolude
-import SpecHelper
 import Test.Hspec.Wai.JSON (json)
 
 spec :: SpecWith (MetricsState, Application)
@@ -32,7 +24,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       , hits     (+ 0)
       ] $
 
-         request methodGet "/authors_only" [auth] ""
+         request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
 
   it "Should have JWT in cache" $ do
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe2"}|]
