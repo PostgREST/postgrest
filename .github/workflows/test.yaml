@@ -83,13 +83,17 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests.testSpec.bin tests.testIO.bin tests.testBigSchema.bin withTools.pg-${{ matrix.pgVersion }}.bin cabalTools.update.bin
+          tools: tests.testSpec.bin tests.testObservability.bin tests.testIO.bin tests.testBigSchema.bin withTools.pg-${{ matrix.pgVersion }}.bin cabalTools.update.bin
 
       - run: postgrest-cabal-update
 
       - name: Run spec tests
         if: always()
         run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-spec
+
+      - name: Run observability tests
+        if: always()
+        run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-observability
 
       - name: Run IO tests
         if: always()

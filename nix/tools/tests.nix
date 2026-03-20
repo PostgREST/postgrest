@@ -32,6 +32,20 @@ let
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec -- "''${_arg_leftovers[@]}"
       '';
 
+  testObservability =
+    checkedShellScript
+      {
+        name = "postgrest-test-observability";
+        docs = "Run the Haskell observability test suite.";
+        args = [ "ARG_LEFTOVERS([hspec arguments])" ];
+        workingDir = "/";
+        withEnv = postgrest.env;
+      }
+      ''
+        ${withTools.withPg} -f test/observability/fixtures/load.sql \
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability -- "''${_arg_leftovers[@]}"
+      '';
+
   testDoctests =
     checkedShellScript
       {
@@ -155,7 +169,7 @@ let
           rm -rf coverage/*
 
           # build once before running all the tests
-          ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec
+          ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability
 
           (
             trap 'echo Found dead code: Check file list above.' ERR ;
@@ -179,11 +193,16 @@ let
             ${withTools.withPg} -f test/spec/fixtures/load.sql \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 
+          HPCTIXFILE="$tmpdir"/observability.tix \
+            ${withTools.withPg} -f test/observability/fixtures/load.sql \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability
+
           # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
           # collect all the tix files
           ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
-            "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix
+            "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix \
+            "$tmpdir"/observability.tix
 
           # prepare the overlay
           ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
@@ -250,6 +269,7 @@ buildToolbox
   tools = {
     inherit
       testSpec
+      testObservability
       testDoctests
       testSpecIdempotence
       testIO
