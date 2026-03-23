@@ -15,16 +15,18 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `client_error_verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
 
-### Fixed
-
-- Fix not logging SIGTERM and SIGINT by @steve-chavez in #4728
-
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+
+## [14.7] - 2026-03-20
+
+### Fixed
+
+- Fix not logging SIGTERM and SIGINT by @steve-chavez in #4728
 
 ## [14.6] - 2026-03-06
 
