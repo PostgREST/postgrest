@@ -52,7 +52,9 @@ import qualified Feature.Query.NullsStripSpec
 import qualified Feature.Query.PgSafeUpdateSpec
 import qualified Feature.Query.PlanSpec
 import qualified Feature.Query.PostGISSpec
-import qualified Feature.Query.PreferencesSpec
+import qualified Feature.Query.Preferences.HandlingSpec
+import qualified Feature.Query.Preferences.MaxAffectedSpec
+import qualified Feature.Query.Preferences.TimezoneSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
@@ -153,7 +155,9 @@ main = do
         , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)
         , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
         , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
-        , ("Feature.Query.PreferencesSpec"               , Feature.Query.PreferencesSpec.spec)
+        , ("Feature.Query.Preferences.HandlingSpec"      , Feature.Query.Preferences.HandlingSpec.spec)
+        , ("Feature.Query.Preferences.MaxAffectedSpec"   , Feature.Query.Preferences.MaxAffectedSpec.spec)
+        , ("Feature.Query.Preferences.TimezoneSpec"      , Feature.Query.Preferences.TimezoneSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)

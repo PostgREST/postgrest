@@ -242,7 +242,9 @@ test-suite spec
                       Feature.Query.PgSafeUpdateSpec
                       Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
-                      Feature.Query.PreferencesSpec
+                      Feature.Query.Preferences.HandlingSpec
+                      Feature.Query.Preferences.MaxAffectedSpec
+                      Feature.Query.Preferences.TimezoneSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec
                       Feature.Query.RangeSpec
