@@ -53,6 +53,19 @@ To reload the schema cache from within the database, you can use the ``NOTIFY`` 
 
   NOTIFY pgrst, 'reload schema'
 
+Debouncing
+~~~~~~~~~~
+
+PostgREST does not reload the schema cache for each notification when several ``NOTIFY pgrst`` events are generated quickly after one another.
+
+There are two cases to consider: when notifications are sent within a single transaction and when they are sent across multiple transactions.
+
+In the first case, PostgreSQL deduplicates identical ``NOTIFY`` events within the same transaction. This means that even if multiple ``NOTIFY pgrst`` statements are executed before a ``COMMIT``, only a single notification is delivered to PostgREST.
+
+In the second case, when notifications are sent from separate transactions in a short time span, PostgREST applies a debouncing mechanism to avoid excessive schema cache reloads.
+
+Instead of reloading the schema cache for each notification, events are grouped within a small time window of 100 milliseconds. The reload function is executed once immediately when the first notification is received and once more after the burst of events settles, resulting in at most two executions within that time window.
+
 .. _auto_schema_reloading:
 
 Automatic Schema Cache Reloading
