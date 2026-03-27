@@ -128,6 +128,7 @@ main = do
       unicodeApp           = appDbs testUnicodeCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
       ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
+      timezoneEnabled      = appDbs testCfgTimezoneEnabled
 
 
   let analyze :: IO ()
@@ -157,7 +158,6 @@ main = do
         , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
         , ("Feature.Query.Preferences.HandlingSpec"      , Feature.Query.Preferences.HandlingSpec.spec)
         , ("Feature.Query.Preferences.MaxAffectedSpec"   , Feature.Query.Preferences.MaxAffectedSpec.spec)
-        , ("Feature.Query.Preferences.TimezoneSpec"      , Feature.Query.Preferences.TimezoneSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
@@ -256,6 +256,15 @@ main = do
 
     parallel $ before withApp $
       describe "Feature.Query.AggregateFunctionsDisallowedSpec." Feature.Query.AggregateFunctionsSpec.disallowed
+
+    -- this test runs with db-timezone-enabled = true
+    parallel $ before timezoneEnabled $
+      describe "Feature.Query.Preferences.TimezoneSpec.enabledSpec" Feature.Query.Preferences.TimezoneSpec.enabledSpec
+
+    -- this test runs with db-timezone-enabled = false
+    parallel $ before withApp $
+      describe "Feature.Query.Preferences.TimezoneSpec.disabledSpec" Feature.Query.Preferences.TimezoneSpec.disabledSpec
+
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

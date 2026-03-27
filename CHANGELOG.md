@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client_error_verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
+- Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 
 ### Changed
 
@@ -21,6 +22,8 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+- Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
+  + By default, `Prefer: timezone` is disabled. To enable it, set `db-timezone-enabled=true`.
 
 ## [14.7] - 2026-03-20
 

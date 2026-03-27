@@ -256,7 +256,12 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
 def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
     "Dump of schema cache should match snapshot."
 
-    schema_cache = yaml.load(cli(["--dump-schema"], env=baseenv), Loader=yaml.Loader)
+    if key == "dbTimezones":
+        env = {**baseenv, "PGRST_DB_TIMEZONE_ENABLED": "true"}
+    else:
+        env = baseenv
+
+    schema_cache = yaml.load(cli(["--dump-schema"], env=env), Loader=yaml.Loader)
     formatted = yaml.dump(
         schema_cache[key],
         encoding="utf8",

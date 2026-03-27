@@ -132,6 +132,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbSchemas                 = fromList ["test"]
   , configDbConfig                  = False
   , configDbPreConfig               = Nothing
+  , configDbTimezoneEnabled         = False
   , configDbUri                     = "postgresql://"
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
@@ -253,6 +254,9 @@ testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
 
 testCfgAggregatesEnabled :: AppConfig
 testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
+
+testCfgTimezoneEnabled :: AppConfig
+testCfgTimezoneEnabled = baseCfg { configDbTimezoneEnabled = True }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =
