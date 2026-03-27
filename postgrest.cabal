@@ -121,7 +121,7 @@ library
                     , hasql-transaction         >= 1.0.1 && < 1.2
                     , http-client               >= 0.7.19 && < 0.8
                     , http-types                >= 0.12.2 && < 0.13
-                    , insert-ordered-containers >= 0.2.2 && < 0.3
+                    , insert-ordered-containers >=0.2.2 && <0.4
                     , jose-jwt                  >= 0.9.6 && < 0.11
                     , lens                      >= 4.14 && < 5.4
                     , lens-aeson                >= 1.0.1 && < 1.3
