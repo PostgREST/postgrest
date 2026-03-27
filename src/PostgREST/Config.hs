@@ -94,6 +94,7 @@ data AppConfig = AppConfig
   , configDbSchemas                :: NonEmpty Text
   , configDbConfig                 :: Bool
   , configDbPreConfig              :: Maybe QualifiedIdentifier
+  , configDbTimezoneEnabled        :: Bool
   , configDbTxAllowOverride        :: Bool
   , configDbTxRollbackAll          :: Bool
   , configDbUri                    :: Text
@@ -181,6 +182,7 @@ toText conf =
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                     T.toLower . show . configDbConfig)
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
+      ,("db-timezone-enabled",           T.toLower . show . configDbTimezoneEnabled)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
@@ -290,6 +292,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseDbSchemas "db-schemas" "db-schema"
     <*> (fromMaybe True <$> optBool "db-config")
     <*> (fmap toQi <$> optString "db-pre-config")
+    <*> (fromMaybe False <$> optBool "db-timezone-enabled")
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
@@ -714,6 +717,9 @@ exampleConfigFile = S.unlines
   , ""
   , "## The name of which database schema to expose to REST clients"
   , "db-schemas = \"public\""
+  , ""
+  , "## Enable quering pg_timezone_names from db"
+  , "# db-timezone-enabled = false"
   , ""
   , "## How to terminate database transactions"
   , "## Possible values are:"

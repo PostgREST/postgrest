@@ -64,6 +64,9 @@ Timezone
 
 The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
 
+.. important::
+
+  By default, ``timezone`` preference is disabled. Make sure to enable it by setting :ref:`db-timezone-enabled`.
 
 .. code-block:: bash
 

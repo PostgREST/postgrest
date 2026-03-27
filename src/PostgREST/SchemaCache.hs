@@ -159,7 +159,9 @@ querySchemaCache conf@AppConfig{..} = do
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement conf $ dataRepresentations prepared
   mHdlers <- SQL.statement conf $ mediaHandlers prepared
-  tzones  <- SQL.statement mempty $ timezones prepared
+  tzones  <- if configDbTimezoneEnabled
+    then SQL.statement mempty $ timezones prepared
+    else pure S.empty
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
     for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
