@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file. From versio
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
+- Introduced producing OpenTelemetry traces by @develop7 in #3140
+  + Requires a new `server-otel-enabled` config parameter to be enabled first.
 
 ### Changed
 
