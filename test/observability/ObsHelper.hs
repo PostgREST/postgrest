@@ -38,6 +38,7 @@ import           Test.Hspec
 import           Test.Hspec.Expectations.Contrib (annotate)
 
 -- helpers used to produce observation diagnostics in waitForObs
+-- Implementing the Show instance for Observation is hard due to having many different parameters so instead we use generic programming (`conName`) to obtain the constructor name as `Text`
 class HasConstructor f where
   genericConstrName :: f x -> Text
 

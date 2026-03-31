@@ -29,6 +29,7 @@ main = do
   -- start a thread that drains the channel
   -- this is necessary because test cases operate on
   -- copies so poolChan is never read from
+  -- this means we have another thread running for the entire duration of the spec but this shouldn't be a problem since Haskell green threads are lightweight
   void $ forkIO $ forever $ readChan poolChan
   metricsState <- Metrics.init (configDbPoolSize testCfg)
   pool <- P.acquire $ P.settings
