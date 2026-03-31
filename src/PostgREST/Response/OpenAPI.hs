@@ -74,10 +74,10 @@ toSwaggerType colType             = case T.takeEnd 2 colType of
   _    -> Just SwaggerString
 
 toSwaggerFormat :: Text -> Maybe Text
-toSwaggerFormat "smallint"  = Just "int32"
-toSwaggerFormat "integer"   = Just "int32"
-toSwaggerFormat "bigint"    = Just "int64"
-toSwaggerFormat colType     = Just colType
+toSwaggerFormat "smallint" = Just "int32"
+toSwaggerFormat "integer"  = Just "int32"
+toSwaggerFormat "bigint"   = Just "int64"
+toSwaggerFormat colType    = Just colType
 
 typeFromArray :: Text -> Text
 typeFromArray = T.dropEnd 2
