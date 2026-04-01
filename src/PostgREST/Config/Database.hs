@@ -56,6 +56,7 @@ dbSettingsNames =
   ,"db_prepared_statements"
   ,"db_root_spec"
   ,"db_schemas"
+  ,"db_timezone_enabled"
   ,"db_tx_end"
   ,"db_hoisted_tx_settings"
   ,"jwt_aud"
