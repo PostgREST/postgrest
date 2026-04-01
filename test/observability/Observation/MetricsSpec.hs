@@ -47,6 +47,31 @@ spec = describe "Server started with metrics enabled" $ do
         -- wait up to 2 secs so that retry can happen
         waitFor (2 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
+  it "Should debounce schema cache loads" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO $ checkState' metrics [
+        -- we expect exactly 2 successful schema cache loads
+        schemaCacheLoads "FAIL" (+0),
+        schemaCacheLoads "SUCCESS" (+2)
+      ] $ do
+        AppState.schemaCacheLoader appState
+        -- at this moment there is no dedicated observation emited
+        -- when schema cache load starts
+        -- so we wait for DBConnectedObs which is emited right after successful
+        -- PostgreSQL version query during schema cache loading
+        waitFor (1 * sec) "DBConnectedObs" $ \x -> [ o | o@(DBConnectedObs{}) <- pure x]
+        -- request schema cache load multiple times
+        -- all of them should be handled by a single schema cache load
+        replicateM_ 100 (AppState.schemaCacheLoader appState)
+        -- wait for two expected SchemaCacheLoadedObs events
+        replicateM_ 2 $ waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@(SchemaCacheLoadedObs{}) <- pure x]
+        -- wait 1 sec to make sure we capture all potential schema cache loads
+        -- (there should be none but we need to verify that)
+        threadDelay $ 1 * sec
+
+
   where
     -- prometheus-client api to handle vectors is convoluted
     schemaCacheLoads label = expectField @"schemaCacheLoads" $
