@@ -21,6 +21,10 @@ All notable changes to this project will be documented in this file. From versio
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 
+### Fixed
+
+- Fix invalid OpenAPI 2.0 format for integer types (`smallint`, `integer`, `bigint`) by @arturbent0 in #4641
+
 ## [14.7] - 2026-03-20
 
 ### Fixed
