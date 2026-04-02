@@ -117,6 +117,10 @@ However, with ``handling=strict``, an invalid time zone preference will throw an
 
   HTTP/1.1 400 Bad Request
 
+.. note::
+
+  This feature requires querying `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_ during :ref:`schema_cache` load. If this is not desired, you can disable the feature with :ref:`db-timezone-enabled`.
+
 .. _prefer_return:
 
 Return Representation

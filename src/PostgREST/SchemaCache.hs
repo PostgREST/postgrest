@@ -159,7 +159,9 @@ querySchemaCache conf@AppConfig{..} = do
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement conf $ dataRepresentations prepared
   mHdlers <- SQL.statement conf $ mediaHandlers prepared
-  tzones  <- SQL.statement mempty $ timezones prepared
+  tzones  <- if configDbTimezoneEnabled
+    then SQL.statement mempty $ timezones prepared
+    else pure S.empty
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
     for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
@@ -1109,7 +1111,13 @@ decodeMediaHandlers =
 timezones :: Bool -> SQL.Statement () TimezoneNames
 timezones = SQL.Statement sql HE.noParams decodeTimezones
   where
-    sql = "SELECT name FROM pg_timezone_names"
+    sql = encodeUtf8 $ unlines
+      -- This CTE wrapper is only added for clarifying the query under pg_stat_statements
+      ["WITH pgrst_timezones AS ("
+      , "  SELECT name FROM pg_timezone_names"
+      , ")"
+      , "SELECT * FROM pgrst_timezones"
+      ]
     decodeTimezones :: HD.Result TimezoneNames
     decodeTimezones = S.fromList <$> HD.rowList (column HD.text)
 

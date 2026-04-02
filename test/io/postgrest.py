@@ -85,6 +85,7 @@ def run(
     stdin=None,
     env=None,
     port=None,
+    admin_port=None,
     host=None,
     wait_for_readiness=True,
     wait_max_seconds=1,
@@ -113,7 +114,7 @@ def run(
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
-        adminport = freeport(used_ports=[port])
+        adminport = freeport(used_ports=[port]) if admin_port is None else admin_port
         env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
         adminhost = f"[{host}]" if host and is_ipv6(host) else localhost
         adminurl = f"http://{adminhost}:{adminport}"
@@ -176,10 +177,10 @@ def freeport(used_ports=None):
                 return port
 
 
-def wait_until_exit(postgrest):
+def wait_until_exit(postgrest, timeout=1):
     "Wait for PostgREST to exit, or times out"
     try:
-        return postgrest.process.wait(timeout=1)
+        return postgrest.process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         raise PostgrestTimedOut()
 
