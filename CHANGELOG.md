@@ -22,6 +22,9 @@ All notable changes to this project will be documented in this file. From versio
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 
+### Fixed
+- Shutdown should wait for in flight requests by @mkleczek in #4702
+
 ## [14.7] - 2026-03-20
 
 ### Fixed

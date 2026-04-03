@@ -22,6 +22,7 @@ import GHC.IO.Exception (IOErrorType (..))
 import System.IO.Error  (ioeGetErrorType)
 
 import Control.Monad.Except     (liftEither)
+import Control.Monad.Extra      (whenJust)
 import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
@@ -79,8 +80,10 @@ run appState = do
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   (mainSocket, adminSocket) <- initSockets conf
-
-  Unix.installSignalHandlers observer (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+  let closeSockets = do
+        whenJust adminSocket NS.close
+        NS.close mainSocket
+  Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
   Listener.runListener appState
 
@@ -92,6 +95,10 @@ run appState = do
     address <- resolveSocketToAddress mainSocket
     observer $ AppServerAddressObs address
 
+  -- Hardcoding maximum graceful shutdown timeout (arbitrary set to 5 seconds)
+  -- This is unfortunate but necessary becase graceful shutdowns don't work with HTTP keep-alive
+  -- causing Warp to handle requests on already opened connections even if the listen socket is closed
+  -- See: https://github.com/yesodweb/wai/issues/853
   Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) mainSocket app
   where
     observer = AppState.getObserver appState
