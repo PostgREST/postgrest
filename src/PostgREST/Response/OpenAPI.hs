@@ -73,6 +73,12 @@ toSwaggerType colType             = case T.takeEnd 2 colType of
   "[]" -> Just SwaggerArray
   _    -> Just SwaggerString
 
+toSwaggerFormat :: Text -> Maybe Text
+toSwaggerFormat "smallint" = Just "int32"
+toSwaggerFormat "integer"  = Just "int32"
+toSwaggerFormat "bigint"   = Just "int64"
+toSwaggerFormat colType    = Just colType
+
 typeFromArray :: Text -> Text
 typeFromArray = T.dropEnd 2
 
@@ -141,7 +147,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         & default_ .~ (JSON.decode . toUtf8Lazy . parseDefault (colType col) =<< colDefault col)
         & description .~ d
         & enum_ .~ e
-        & format ?~ colType col
+        & format .~ toSwaggerFormat (colType col)
         & maxLength .~ (fromIntegral <$> colMaxLen col)
         & type_ .~ toSwaggerType (colType col)
         & items .~ (SwaggerItemsObject <$> makePropertyItems (colType col))
@@ -160,7 +166,7 @@ makeProcProperty (RoutineParam n t _ _ _) = (n, Inline s)
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
           & items .~ (SwaggerItemsObject <$> makePropertyItems t)
-          & format ?~ t
+          & format .~ toSwaggerFormat t
 
 makePreferParam :: [Text] -> Param
 makePreferParam ts =
@@ -192,14 +198,14 @@ makeProcGetParam (RoutineParam n t _ r v) =
     baseSchema = (mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
     schemaNotMulti = baseSchema
-      & format ?~ t
+      & format .~ toSwaggerFormat t
       & type_ ?~ toParamType (toSwaggerType t)
     schemaMulti = baseSchema
       & type_ ?~ fromMaybe SwaggerString (toSwaggerType t)
       & items ?~ SwaggerItemsPrimitive (Just CollectionMulti)
         ((mempty :: ParamSchema x)
           & type_ .~ toSwaggerTypeFromArray t
-          & format ?~ typeFromArray t)
+          & format .~ toSwaggerFormat (typeFromArray t))
     toParamType paramType = case paramType of
       -- Array uses {} in query params
       Just SwaggerArray -> SwaggerString
