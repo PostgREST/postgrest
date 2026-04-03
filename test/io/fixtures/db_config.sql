@@ -18,6 +18,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit-allow-override'
 ALTER ROLE db_config_authenticator SET pgrst.jwt_aud = 'https://example.org';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_cache_max_entries = '86400';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '."a"."role"';
+ALTER ROLE db_config_authenticator SET pgrst.jwt_schema_claim_key = '."a"."schema"';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.not_existing = 'should be ignored';
@@ -92,6 +93,7 @@ begin
   if current_user = 'other_authenticator' then
     perform
       set_config('pgrst.jwt_role_claim_key', '."other"."pre_config_role"', true)
+    , set_config('pgrst.jwt_schema_claim_key', '."other"."pre_config_schema"', true)
     , set_config('pgrst.db_anon_role', 'pre_config_role', true)
     , set_config('pgrst.db_schemas', 'will be overriden with the above ALTER ROLE.. db_schemas', true)
     , set_config('pgrst.db_tx_end', 'rollback-allow-override', true);

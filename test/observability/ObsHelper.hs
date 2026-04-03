@@ -97,6 +97,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJWKS                      = rightToMaybe $ parseSecret secret
   , configJwtAudience               = Nothing
   , configJwtRoleClaimKey           = [JSPKey "role"]
+  , configJwtSchemaClaimKey         = [JSPKey "schema"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10

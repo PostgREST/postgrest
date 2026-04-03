@@ -61,6 +61,7 @@ dbSettingsNames =
   ,"db_hoisted_tx_settings"
   ,"jwt_aud"
   ,"jwt_role_claim_key"
+  ,"jwt_schema_claim_key"
   ,"jwt_secret"
   ,"jwt_secret_is_base64"
   ,"jwt_cache_max_lifetime"

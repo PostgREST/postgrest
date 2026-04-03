@@ -30,6 +30,7 @@ import PostgREST.ApiRequest.Types        (Action (..), DbAction (..),
                                           InvokeMethod (..),
                                           Mutation (..), Payload (..),
                                           RequestBody, Resource (..))
+import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.Database         (TimezoneNames)
@@ -76,10 +77,10 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf prefs req reqBody = do
+userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> AuthResult -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest conf prefs req authResult reqBody = do
   resource <- getResource conf $ pathInfo req
-  (schema, negotiatedByProfile) <- getSchema conf hdrs method
+  (schema, negotiatedByProfile) <- getSchema conf hdrs method authResult
   act <- getAction resource schema method
   qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
@@ -151,14 +152,25 @@ getAction resource schema method =
   where
     qi = QualifiedIdentifier schema
 
-
-getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
-getSchema AppConfig{configDbSchemas} hdrs method = do
-  case profile of
-    Just p | p `notElem` configDbSchemas -> Left $ UnacceptableSchema p $ toList configDbSchemas
-           | otherwise                   -> Right (p, True)
-    Nothing -> Right (defaultSchema, length configDbSchemas /= 1) -- if we have many schemas, assume the default schema was negotiated
+-- |
+-- We get schema in the following order:
+-- 1. Check JWT for a schema claim
+-- 2. If no schema claim, then check "Accept-Profile" and "Content-Profile" headers
+-- 3. If profile headers not sent, then default to first schema in "db-schemas"
+getSchema :: AppConfig -> RequestHeaders -> ByteString -> AuthResult -> Either ApiRequestError (Schema, Bool)
+getSchema AppConfig{configDbSchemas} hdrs method AuthResult{authSchema} = do
+  case authSchema of
+    Just s -> checkSchemaAcceptable (decodeUtf8 s) False
+    Nothing  ->
+      case profile of
+        Just p  -> checkSchemaAcceptable p True
+        Nothing -> Right (defaultSchema, length configDbSchemas /= 1) -- if we have many schemas, assume the default schema was negotiated
   where
+    checkSchemaAcceptable :: Text -> Bool -> Either ApiRequestError (Schema,Bool)
+    checkSchemaAcceptable schema isNegotiated
+      | schema `notElem` configDbSchemas = Left $ UnacceptableSchema schema $ toList configDbSchemas
+      | otherwise = Right (schema, isNegotiated)
+
     defaultSchema = NonEmptyList.head configDbSchemas
     profile = case method of
       -- POST/PATCH/PUT/DELETE don't use the same header as per the spec

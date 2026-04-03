@@ -6,6 +6,7 @@ module PostgREST.Config.JSPath
   , FilterExp(..)
   , dumpJSPath
   , pRoleClaimKey
+  , pSchemaClaimKey
   , walkJSPath
   ) where
 
@@ -90,6 +91,11 @@ walkJSPath _                      _                 = Nothing
 pRoleClaimKey :: Text -> Either Text JSPath
 pRoleClaimKey selStr =
   mapLeft show $ P.parse pJSPath ("failed to parse role-claim-key value (" <> toS selStr <> ")") (toS selStr)
+
+-- Used for the config value "jwt-schema-claim-key"
+pSchemaClaimKey :: Text -> Either Text JSPath
+pSchemaClaimKey selStr =
+  mapLeft show $ P.parse pJSPath ("failed to parse jwt-schema-claim-key value (" <> toS selStr <> ")") (toS selStr)
 
 pJSPath :: P.Parser JSPath
 pJSPath = P.many1 pJSPathExp <* P.eof
