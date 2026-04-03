@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Fix leaking table and function names when calculating error hint by @taimoorzaeem in #4675
+- Limit concurrent schema cache loads by @mkleczek in #4643
 
 ## [14.5] - 2026-02-12
 
