@@ -378,3 +378,182 @@ spec = describe "related queries" $ do
         , matchHeaders = [ matchContentTypeJson
                          , "Content-Range" <:> "0-1/952" ]
         }
+
+  context "related conditions using the embed(column) syntax" $ do
+    it "works on a many-to-one relationship" $ do
+      get "/projects?select=name,clients()&clients(name)=eq.Microsoft" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7"},
+          {"name":"Windows 10"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/projects?select=name,computed_clients()&computed_clients(name)=eq.Apple" `shouldRespondWith`
+        [json|[
+          {"name":"IOS"},
+          {"name":"OSX"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works on a one-to-many relationship" $ do
+      get "/entities?select=name,child_entities()&child_entities(name)=like.child*" `shouldRespondWith`
+        [json|[
+          {"name":"entity 1"},
+          {"name":"entity 2"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/entities?select=name,child_entities()&child_entities(name)=like(any).{*1,*2}" `shouldRespondWith`
+        [json|[
+          {"name":"entity 1"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works on a many-to-many relationship" $ do
+      get "/users?select=name,tasks()&tasks(id)=eq.1" `shouldRespondWith`
+        [json|[
+          {"name":"Angela Martin"},
+          {"name":"Dwight Schrute"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/users?select=name,tasks()&tasks(id)=eq.7" `shouldRespondWith`
+        [json|[
+          {"name":"Michael Scott"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+{-- TODO(draft): make nesting work
+    it "works on nested embeds" $ do
+      get "/entities?select=name,child_entities(name,grandchild_entities())&child_entities(grandchild_entities(name))=like.*1" `shouldRespondWith`
+        [json|[
+          {"name":"entity 1","child_entities":[{"name":"child entity 1"}, {"name":"child entity 2"}]}]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+--}
+    it "can do an or across embeds" $
+      get "/client?select=*,clientinfo(),contact()&or=(clientinfo(other).like.*Main*,contact(name).like.*Tabby*)" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart"},
+          {"id":2,"name":"Target"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works when the embedding uses the column name" $ do
+      get "/projects?select=name,c_id:client_id,client_id(name)&client_id(name)=like.Apple" `shouldRespondWith`
+        [json|[
+          {"name":"IOS","c_id":2,"client_id":{"name":"Apple"}},
+          {"name":"OSX","c_id":2,"client_id":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/projects?select=name,client_id(name)&client_id(name)=like.Apple" `shouldRespondWith`
+        [json|[
+          {"name":"IOS","client_id":{"name":"Apple"}},
+          {"name":"OSX","client_id":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    -- "?table=not.is.null" does a "table IS DISTINCT FROM NULL" instead of a "table IS NOT NULL"
+    -- https://github.com/PostgREST/postgrest/issues/2800#issuecomment-1720315818
+    it "embeds verifying that the entire target table row is not null" $ do
+      get "/table_b?select=name,table_a(name)&table_a(id)=eq(any).{1,2}" `shouldRespondWith`
+        [json|[
+          {"name":"Test 1","table_a":{"name":"Not null 1"}},
+          {"name":"Test 2","table_a":{"name":null}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works with count=exact" $ do
+      request methodGet "/projects?select=name,clients(name)&clients(id)=gt.0"
+        [("Prefer", "count=exact")] ""
+       `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-3/4" ]
+        }
+      request methodGet "/client?select=*,clientinfo(),contact()&or=(clientinfo(other).ilike.*main*,contact(name).ilike.*tabby*)"
+        [("Prefer", "count=exact")] ""
+       `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart"},
+          {"id":2,"name":"Target"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-1/2" ]
+        }
+
+    it "works with count=planned" $ do
+      request methodGet "/projects?select=name,clients(name)&clients(id)=gt.0"
+        [("Prefer", "count=planned")] ""
+       `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 206
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-3/400" ]
+        }
+      request methodGet "/client?select=*,clientinfo(),contact()&or=(clientinfo(other).ilike.*main*,contact(name).ilike.*tabby*)"
+        [("Prefer", "count=planned")] ""
+       `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart"},
+          {"id":2,"name":"Target"}
+        ]|]
+        { matchStatus  = 206
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-1/952" ]
+        }
+
+    it "works with count=estimated" $ do
+      request methodGet "/projects?select=name,clients(name)&clients(id)=gt.0"
+        [("Prefer", "count=estimated")] ""
+       `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 206
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-3/400" ]
+        }
+      request methodGet "/client?select=*,clientinfo(),contact()&or=(clientinfo(other).ilike.*main*,contact(name).ilike.*tabby*)"
+        [("Prefer", "count=estimated")] ""
+       `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart"},
+          {"id":2,"name":"Target"}
+        ]|]
+        { matchStatus  = 206
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-1/952" ]
+        }
