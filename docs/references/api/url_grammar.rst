@@ -14,7 +14,7 @@ Custom Queries
 
 The PostgREST URL grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and functions to provide richer endpoints. The most common causes for custom endpoints are
 
-* Table unions
+* SET operators like `UNION, INTERSECT and EXCEPT <https://www.postgresql.org/docs/current/queries-union.html>`_.
 * More complicated joins than those provided by :ref:`resource_embedding`.
 * Geo-spatial queries that require an argument, like "points near (lat,lon)"
 
