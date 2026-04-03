@@ -281,7 +281,7 @@ spec =
                     "properties" : {
                       "id" : {
                         "description" : "Note:\nThis is a Primary Key.<pk/>",
-                        "format" : "integer",
+                        "format" : "int32",
                         "type" : "integer"
                       },
                       "name" : {
@@ -310,7 +310,7 @@ spec =
                     "properties" : {
                       "id" : {
                         "description" : "Note:\nThis is a Primary Key.<pk/>",
-                        "format" : "integer",
+                        "format" : "int32",
                         "type" : "integer"
                       },
                       "name" : {
@@ -339,7 +339,7 @@ spec =
                     "properties" : {
                       "id" : {
                         "description" : "Note:\nThis is a Primary Key.<pk/>",
-                        "format" : "integer",
+                        "format" : "int32",
                         "type" : "integer"
                       },
                       "name" : {
@@ -368,7 +368,7 @@ spec =
                     "properties" : {
                       "id" : {
                         "description" : "Note:\nThis is a Primary Key.<pk/>",
-                        "format" : "integer",
+                        "format" : "int32",
                         "type" : "integer"
                       },
                       "another_value" : {

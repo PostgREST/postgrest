@@ -157,7 +157,7 @@ spec = describe "OpenAPI" $ do
               "properties": {
                 "id": {
                   "description": "child_entities id comment\n\nNote:\nThis is a Primary Key.<pk/>",
-                  "format": "integer",
+                  "format": "int32",
                   "type": "integer"
                 },
                 "name": {
@@ -167,7 +167,7 @@ spec = describe "OpenAPI" $ do
                 },
                 "parent_id": {
                   "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>",
-                  "format": "integer",
+                  "format": "int32",
                   "type": "integer"
                 }
               },
@@ -192,7 +192,7 @@ spec = describe "OpenAPI" $ do
               "properties": {
                 "id": {
                   "description": "child_entities_view id comment\n\nNote:\nThis is a Primary Key.<pk/>",
-                  "format": "integer",
+                  "format": "int32",
                   "type": "integer"
                 },
                 "name": {
@@ -202,7 +202,7 @@ spec = describe "OpenAPI" $ do
                 },
                 "parent_id": {
                   "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>",
-                  "format": "integer",
+                  "format": "int32",
                   "type": "integer"
                 }
               }
@@ -232,7 +232,7 @@ spec = describe "OpenAPI" $ do
         referralLink `shouldBe` Just
           [aesonQQ|
             {
-              "format": "integer",
+              "format": "int32",
               "type": "integer",
               "description": "Note:\nThis is a Foreign Key to `second.id`.<fk table='second' column='id'/>"
             }
@@ -337,7 +337,7 @@ spec = describe "OpenAPI" $ do
         referralLink `shouldBe` Just
           [aesonQQ|
             {
-              "format": "integer",
+              "format": "int32",
               "type": "integer",
               "description": "Note:\nThis is a Foreign Key to `pages.link`.<fk table='pages' column='link'/>"
             }
@@ -354,7 +354,7 @@ spec = describe "OpenAPI" $ do
         referralLink `shouldBe` Just
           [aesonQQ|
             {
-              "format": "integer",
+              "format": "int32",
               "type": "integer",
               "description": "Note:\nThis is a Foreign Key to `clients.id`.<fk table='clients' column='id'/>"
             }
@@ -432,7 +432,7 @@ spec = describe "OpenAPI" $ do
         types `shouldBe` Just
           [aesonQQ|
             {
-              "format": "smallint",
+              "format": "int32",
               "type": "integer"
             }
           |]
@@ -447,7 +447,7 @@ spec = describe "OpenAPI" $ do
         types `shouldBe` Just
           [aesonQQ|
             {
-              "format": "integer",
+              "format": "int32",
               "type": "integer"
             }
           |]
@@ -462,7 +462,7 @@ spec = describe "OpenAPI" $ do
         types `shouldBe` Just
           [aesonQQ|
             {
-              "format": "bigint",
+              "format": "int64",
               "type": "integer"
             }
           |]
@@ -850,7 +850,7 @@ spec = describe "OpenAPI" $ do
                 "type": "string"
               },
               {
-                "format": "integer",
+                "format": "int32",
                 "in": "query",
                 "name": "integer",
                 "required": false,
@@ -992,7 +992,7 @@ spec = describe "OpenAPI" $ do
                   "items": {}
                 },
                 "integer": {
-                  "format": "integer",
+                  "format": "int32",
                   "type": "integer"
                 },
                 "json": {

@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 
+### Fixed
+
+- Fix invalid OpenAPI 2.0 format for integer types (`smallint`, `integer`, `bigint`) by @arturbent0 in #4641
+
 ## [14.7] - 2026-03-20
 
 ### Fixed
