@@ -2,4 +2,5 @@
 # and made its way to us through nixpkgs.
 self-hosted-runner:
   labels:
+    - macos-15-intel
     - ubuntu-24.04-arm
