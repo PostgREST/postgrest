@@ -16,6 +16,9 @@ All notable changes to this project will be documented in this file. From versio
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 
+- Introduced producing OpenTelemetry traces by @develop7 in #3140
+  + Requires a new `server-otel-enabled` config parameter to be enabled first.
+
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
