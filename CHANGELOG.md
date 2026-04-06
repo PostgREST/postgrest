@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
-- Add a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 - Add string slicing operator for `jwt-role-claim-key` by @taimoorzaeem in #4599
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
@@ -21,6 +20,12 @@ All notable changes to this project will be documented in this file. From versio
 - All responses now include a `Vary` header by @develop7 in #4609
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+
+## [14.8] - 2026-04-03
+
+### Added
+
+- Log a `HINT` when the LISTEN channel stops working due to a PostgreSQL bug by @laurenceisla in #4581
 
 ### Fixed
 
