@@ -117,13 +117,19 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   pool <- initPool conf observer
   initWithPool pool conf loggerState metricsState observer --{ stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-simpleDebounce :: IO () -> IO (IO ())
-simpleDebounce act = do
+-- Make a new debouncer action. An internal "worker" thread runs forever ensuring "action" runs when the "trigger" is called. The "action" is only executed once over a burst of calls.
+makeDebouncer :: IO () -> IO (IO ())
+makeDebouncer action = do
   flag <- newEmptyMVar
-  void $ forkIO $ forever $ do
-    takeMVar flag
-    act
-  pure (void $ tryPutMVar flag ())
+
+  let worker = forever $ do
+        takeMVar flag
+        action
+
+  let trigger = void $ tryPutMVar flag ()
+
+  void $ forkIO worker
+  pure trigger
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool pool conf loggerState metricsState observer = mdo
@@ -133,7 +139,7 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> newIORef Nothing
     <*> newSchemaCacheStatus
     <*> newIORef False
-    <*> simpleDebounce (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
+    <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
