@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 
+### Fixed
+
+- Remove red herring warp logs on default log-level, only emit them on `log-level=debug` by @steve-chavez in #4799
+
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609

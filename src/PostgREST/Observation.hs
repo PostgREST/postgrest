@@ -57,7 +57,7 @@ data Observation
   | JwtCacheLookup Bool
   | JwtCacheEviction
   | TerminationUnixSignalObs Text
-  | WarpErrorObs Text
+  | WarpServerObs Text
   deriving (Generic)
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
