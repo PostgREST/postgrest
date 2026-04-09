@@ -11,6 +11,7 @@ Getting this metadata requires expensive queries. To avoid repeating this work, 
 
   - Schema cache queries have been optimized over time to stay fast, even on complex databases. You can see a summary of their execution time in :ref:`pgrst_logging` and :ref:`metrics`.
   - If the schema cache queries are slow, the most likely cause is *system catalog bloat*, see `issue#3212 <https://github.com/PostgREST/postgrest/issues/3212>`_ for more details.
+  - You can turn the :ref:`log-level` to ``debug`` to see the time of each schema cache query.
 
 .. _schema_reloading:
 
