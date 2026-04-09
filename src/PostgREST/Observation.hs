@@ -67,7 +67,7 @@ data Observation
   | JwtCacheLookup Bool
   | JwtCacheEviction
   | TerminationUnixSignalObs Text
-  | WarpErrorObs Text
+  | WarpServerObs Text
   deriving (Generic)
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
@@ -167,8 +167,8 @@ observationMessage = \case
     "Evicted entry from JWT cache"
   TerminationUnixSignalObs signal ->
     "Received termination unix signal " <> signal
-  WarpErrorObs txt ->
-    "Warp server error: " <> txt
+  WarpServerObs txt ->
+    "Warp server: " <> txt
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""
