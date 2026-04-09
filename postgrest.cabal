@@ -55,6 +55,7 @@ library
                       PostgREST.Client
                       PostgREST.Config
                       PostgREST.Config.Database
+                      PostgREST.Debounce
                       PostgREST.Config.JSPath
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy

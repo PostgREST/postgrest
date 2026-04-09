@@ -62,6 +62,7 @@ import PostgREST.Config.Database         (queryDbSettings,
                                           queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           minimumPgVersion)
+import PostgREST.Debounce                (makeDebouncer)
 import PostgREST.SchemaCache             (SchemaCache (..),
                                           querySchemaCache,
                                           showSummary)
@@ -116,20 +117,6 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   pool <- initPool conf observer
   initWithPool pool conf loggerState metricsState observer
-
--- Make a new debouncer action. An internal "worker" thread runs forever ensuring "action" runs when the "trigger" is called. The "action" is only executed once over a burst of calls.
-makeDebouncer :: IO () -> IO (IO ())
-makeDebouncer action = do
-  flag <- newEmptyMVar
-
-  let worker = forever $ do
-        takeMVar flag
-        action
-
-  let trigger = void $ tryPutMVar flag ()
-
-  void $ forkIO worker
-  pure trigger
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool pool conf loggerState metricsState observer = mdo

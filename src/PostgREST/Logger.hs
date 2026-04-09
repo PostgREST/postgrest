@@ -16,7 +16,6 @@ module PostgREST.Logger
 import           Control.AutoUpdate                (defaultUpdateSettings,
                                                     mkAutoUpdate,
                                                     updateAction)
-import           Control.Debounce
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
@@ -34,6 +33,7 @@ import Network.HTTP.Types.Status (Status, status400, status500)
 import System.IO.Unsafe          (unsafePerformIO)
 
 import PostgREST.Config      (LogLevel (..), Verbosity (..))
+import PostgREST.Debounce    (makeDebouncer)
 import PostgREST.Observation
 import PostgREST.Query       (MainQuery (..))
 
@@ -58,11 +58,8 @@ init = mdo
     oneSecond = 1000000
     loggerState = LoggerState zTime debouncePoolTimeout
   zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
-  debouncePoolTimeout <- mkDebounce defaultDebounceSettings
-          { debounceAction = logWithZTime loggerState $ observationMessages PoolAcqTimeoutObs
-          , debounceFreq = 5*oneSecond
-          , debounceEdge = leadingEdge -- logs at the start and the end
-          }
+  debouncePoolTimeout <- makeDebouncer $
+    logWithZTime loggerState (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
   pure loggerState
 
 -- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
