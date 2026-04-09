@@ -120,6 +120,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(JwtCacheLookup _) ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
+  o@(WarpServerObs _) ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessages o
   o ->
     logWithZTime loggerState $ observationMessages o
 
@@ -235,8 +238,8 @@ observationMessages = \case
     pure "Evicted entry from JWT cache"
   TerminationUnixSignalObs signal ->
     pure $ "Received termination unix signal " <> signal
-  WarpErrorObs txt ->
-    pure $ "Warp server error: " <> txt
+  WarpServerObs txt ->
+    pure $ "Warp server: " <> txt
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""

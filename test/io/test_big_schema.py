@@ -57,13 +57,15 @@ def test_openapi_in_big_schema(defaultenv):
         assert response.status_code == 200
 
 
-def test_stackoverflow_is_logged(defaultenv):
-    "Stack overflow errors should be logged with the Warp error message"
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_stackoverflow_is_logged(level, defaultenv):
+    "Stack overflow should be logged with the Warp message only on log-level=debug"
 
     env = {
         **defaultenv,
         "PGRST_DB_SCHEMAS": "apflora",
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_LOG_LEVEL": level,
     }
 
     with run(env=env, wait_max_seconds=30, no_startup_stdout=False) as postgrest:
@@ -71,9 +73,15 @@ def test_stackoverflow_is_logged(defaultenv):
             postgrest.session.get("/")
 
         output = postgrest.read_stdout(nlines=10)
-        output.extend(postgrest.read_stdout(nlines=10))
+        for _ in range(3):
+            output.extend(postgrest.read_stdout(nlines=10))
 
-        assert any("Warp server error: stack overflow" in line for line in output)
+        found = any("Warp server: stack overflow" in line for line in output)
+
+        if level == "debug":
+            assert found
+        else:
+            assert not found
 
 
 # See: https://github.com/PostgREST/postgrest/issues/3329
