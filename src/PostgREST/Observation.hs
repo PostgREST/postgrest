@@ -18,6 +18,7 @@ import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
 import           PostgREST.Config.PgVersion
 import           PostgREST.Query            (MainQuery)
+import           PostgREST.SchemaCache      (QueryTimings)
 
 import Protolude hiding (toList)
 
@@ -31,7 +32,7 @@ data Observation
   | DBConnectedObs Text
   | SchemaCacheEmptyObs
   | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
-  | SchemaCacheQueriedObs Double
+  | SchemaCacheQueriedObs Double (Maybe QueryTimings)
   | SchemaCacheLoadedObs Double Text
   | ConnectionRetryObs Int
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel

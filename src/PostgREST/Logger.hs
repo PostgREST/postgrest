@@ -36,6 +36,7 @@ import PostgREST.Config      (LogLevel (..), Verbosity (..))
 import PostgREST.Debounce    (makeDebouncer)
 import PostgREST.Observation
 import PostgREST.Query       (MainQuery (..))
+import PostgREST.SchemaCache (queryTimingsWLabels)
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
@@ -168,8 +169,10 @@ observationMessages = \case
       <> " and "
       <> "db-extra-search-path=" <> T.intercalate "," extraPaths
       <> ". " <> jsonMessage usageErr
-  SchemaCacheQueriedObs resultTime ->
-    pure $ "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
+  SchemaCacheQueriedObs resultTime timings ->
+    [ "Schema cache queried in " <> showMillis resultTime  <> " milliseconds " ] <>
+    let showTimings qt = [ T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt ] in
+    maybe mempty showTimings timings
   SchemaCacheLoadedObs resultTime summary ->
     [
       "Schema cache loaded " <> summary
