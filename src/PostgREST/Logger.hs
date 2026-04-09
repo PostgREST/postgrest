@@ -116,6 +116,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(JwtCacheLookup _) ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  o@(WarpServerObs _) ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessage o
   o ->
     logWithZTime loggerState $ observationMessage o
 

@@ -98,7 +98,7 @@ run appState = do
     onWarpException :: Maybe Wai.Request -> SomeException -> IO ()
     onWarpException _ ex =
       when (shouldDisplayException ex) $
-        observer $ WarpErrorObs $ show ex
+        observer $ WarpServerObs $ show ex
 
     -- Similar to wai defaultShouldDisplayException in
     -- https://github.com/yesodweb/wai//blob/8c3882c60f6abe043889fc20c7efd3fa9747fa4a/warp/Network/Wai/Handler/Warp/Settings.hs#L251-L258

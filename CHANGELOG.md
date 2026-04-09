@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 
+### Fixed
+
+- Remove red herring warp logs on default log-level, only emit them on `log-level=debug` by @steve-chavez in #4799
+
 ## [14.8] - 2026-04-03
 
 ### Added
