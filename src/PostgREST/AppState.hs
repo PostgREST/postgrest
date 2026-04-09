@@ -115,7 +115,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer --{ stateSocketREST = sock, stateSocketAdmin = adminSock}
+  initWithPool pool conf loggerState metricsState observer
 
 -- Make a new debouncer action. An internal "worker" thread runs forever ensuring "action" runs when the "trigger" is called. The "action" is only executed once over a burst of calls.
 makeDebouncer :: IO () -> IO (IO ())
