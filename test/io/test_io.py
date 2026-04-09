@@ -34,6 +34,16 @@ def match_log(output, matchers):
         )
 
 
+def drain_stdout(proc):
+    lines = []
+    while True:
+        chunk = proc.read_stdout(nlines=20)
+        if not chunk:
+            break
+        lines.extend(chunk)
+    return lines
+
+
 def test_connect_with_dburi(dburi, defaultenv):
     "Connecting with db-uri instead of LIPQ* environment variables should work."
     defaultenv_without_libpq = {
@@ -538,7 +548,9 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
         "PGRST_LOG_LEVEL": level,
     }
 
-    with run(env=env, no_pool_connection_available=True) as postgrest:
+    with run(
+        env=env, no_pool_connection_available=True, wait_max_seconds=3
+    ) as postgrest:
         response = postgrest.session.get("/projects")
         assert response.status_code == 504
         data = response.json()
@@ -555,6 +567,54 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
                 "Timed out acquiring connection from connection pool." in line
                 for line in output
             )
+
+
+def test_pool_acquisition_timeout_logs_are_debounced(defaultenv):
+    "Pool acquisition timeout diagnostic logs should be debounced over a burst of failures"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "1",
+        "PGRST_LOG_LEVEL": "error",
+    }
+    total_requests = 6
+
+    with run(
+        env=env, no_pool_connection_available=True, wait_max_seconds=3
+    ) as postgrest:
+
+        def request_timeout():
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 504
+            assert (
+                response.json()["message"]
+                == "Timed out acquiring connection from connection pool."
+            )
+            return response
+
+        request_timeout()
+
+        threads = [Thread(target=request_timeout) for _ in range(total_requests - 1)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        # Logger debouncing logs the first timeout immediately and, if more
+        # timeouts happen during the cooldown, logs one more time afterwards.
+        time.sleep(6)
+        output = drain_stdout(postgrest)
+
+    access_logs = [line for line in output if ' "GET /projects HTTP/1.1" 504 ' in line]
+    timeout_logs = [
+        line
+        for line in output
+        if "Timed out acquiring connection from connection pool." in line
+    ]
+
+    assert len(access_logs) == total_requests
+    assert len(timeout_logs) == 2
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -827,15 +887,6 @@ def test_log_level(level, defaultenv):
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
 def test_log_query(level, defaultenv):
     "log_query=true should log the SQL query according to the log_level"
-
-    def drain_stdout(proc):
-        lines = []
-        while True:
-            chunk = proc.read_stdout(nlines=20)
-            if not chunk:
-                break
-            lines.extend(chunk)
-        return lines
 
     env = {
         **defaultenv,
