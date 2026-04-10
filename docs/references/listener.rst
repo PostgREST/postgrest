@@ -46,7 +46,9 @@ This will cause the :ref:`connection_pool` to connect to the read replica host a
 
 .. note::
 
-  Under the hood, PostgREST forces `target_session_attrs=read-write <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-TARGET-SESSION-ATTRS>`_ for the ``LISTEN`` session.
+  - Under the hood, PostgREST forces `target_session_attrs=read-write <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-TARGET-SESSION-ATTRS>`_ for the ``LISTEN`` session.
+    So if you specify ``target_session_attrs=read-only`` as mentioned above, PostgREST will override it for the ``LISTEN``.
+  - ``read-only`` is only available on libpq >= 14, if you use a lower version you will get an error like ``invalid target_session_attrs value: \"read-only\"``.
 
 .. _listener_automatic_recovery:
 
