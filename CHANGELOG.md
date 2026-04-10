@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.9] - 2026-04-10
+
 ### Added
 
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
