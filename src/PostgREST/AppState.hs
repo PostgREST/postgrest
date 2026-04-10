@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo     #-}
 
 module PostgREST.AppState
   ( AppState
@@ -46,6 +45,7 @@ import           PostgREST.Version          (prettyVersion)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
+import Control.Debounce
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
                            exponentialBackoff, retrying,
                            rsPreviousDelay)
@@ -117,23 +117,15 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   pool <- initPool conf observer
   initWithPool pool conf loggerState metricsState observer --{ stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-simpleDebounce :: IO () -> IO (IO ())
-simpleDebounce act = do
-  flag <- newEmptyMVar
-  void $ forkIO $ forever $ do
-    takeMVar flag
-    act
-  pure (void $ tryPutMVar flag ())
-
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool pool conf loggerState metricsState observer = mdo
+initWithPool pool conf loggerState metricsState observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef SCPending
     <*> newIORef False
-    <*> simpleDebounce (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
+    <*> pure (pure ())
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
@@ -144,7 +136,15 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> pure loggerState
     <*> pure metricsState
 
-  return appState
+  deb <-
+    let decisecond = 100000 in
+    mkDebounce defaultDebounceSettings
+       { debounceAction = retryingSchemaCacheLoad appState
+       , debounceFreq = decisecond
+       , debounceEdge = leadingEdge -- runs the worker at the start and the end
+       }
+
+  return appState { debouncedSCacheLoader = deb}
 
 destroy :: AppState -> IO ()
 destroy = destroyPool
