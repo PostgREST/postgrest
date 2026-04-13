@@ -8,7 +8,6 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
 - Add string slicing operator for `jwt-role-claim-key` by @taimoorzaeem in #4599
-- Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
@@ -16,15 +15,21 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 
-### Fixed
-
-- Remove red herring warp logs on default log-level, only emit them on `log-level=debug` by @steve-chavez in #4799
-
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+
+## [14.9] - 2026-04-10
+
+### Added
+
+- Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
+
+### Fixed
+
+- Remove red herring warp logs on default log-level, only emit them on `log-level=debug` by @steve-chavez in #4799
 
 ## [14.8] - 2026-04-03
 
