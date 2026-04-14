@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Fixed
 
-- Pool should be flushed not before but after schema cache reloading by @mkleczek in #4645
+- Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
 
 ### Changed
 

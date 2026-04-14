@@ -351,7 +351,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           markSchemaCachePending appState
           putSchemaCache appState $ Just sCache
           -- Flush the pool after loading the schema cache to reset any stale session cache entries
-          -- We do it after successfully querying the schema cache
+          -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)
           -- and after marking sCacheStatus as pending,
           flushPool appState
           observer $ SchemaCacheQueriedObs resultTime
