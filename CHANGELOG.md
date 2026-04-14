@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. From versio
 
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 
+### Fixed
+
+- Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
+
 ## [14.9] - 2026-04-10
 
 ### Added
