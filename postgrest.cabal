@@ -1,3 +1,4 @@
+cabal-version:      3.0
 name:               postgrest
 version:            15
 synopsis:           REST API for any Postgres database
@@ -13,7 +14,6 @@ homepage:           https://postgrest.org
 bug-reports:        https://github.com/PostgREST/postgrest/issues
 build-type:         Simple
 extra-source-files: CHANGELOG.md
-cabal-version:      >= 1.10
 
 tested-with:
     -- nix
