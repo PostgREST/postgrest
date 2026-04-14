@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 
+### Fixed
+
+- Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
+
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
