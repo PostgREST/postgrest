@@ -1974,3 +1974,17 @@ def test_vary_default_header_set(defaultenv):
         response = postgrest.session.get("/projects")
 
         assert response.headers["Vary"] == "Accept, Prefer, Range"
+
+
+def test_server_otel_enabled(defaultenv):
+    "Enable OpenTelemetry and check that the code branch is covered"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_OTEL_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+
+        assert response.status_code == 200

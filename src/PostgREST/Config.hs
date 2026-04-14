@@ -124,6 +124,7 @@ data AppConfig = AppConfig
   , configInternalSCQuerySleep     :: Maybe Int32
   , configInternalSCLoadSleep      :: Maybe Int32
   , configInternalSCRelLoadSleep   :: Maybe Int32
+  , configServerOtelEnabled        :: Bool
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -200,6 +201,7 @@ toText conf =
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
+      ,("server-otel-enabled",           T.toLower . show . configServerOtelEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-host",         q . configAdminServerHost)
@@ -325,6 +327,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> optInt "internal-schema-cache-query-sleep"
     <*> optInt "internal-schema-cache-load-sleep"
     <*> optInt "internal-schema-cache-relationship-load-sleep"
+    <*> (fromMaybe False <$> optBool "server-otel-enabled")
   where
     parseErrorVerbosity :: C.Key -> C.Parser C.Config Verbosity
     parseErrorVerbosity k =
@@ -567,6 +570,8 @@ readDbUriFile maybeDbUri conf =
 type Environment = M.Map [Char] Text
 
 -- | Read environment variables that start with PGRST_
+-- Note: `OTEL_*` environment variables, while being recornized by OpenTelemetry
+-- subsystem, are specifically ignored here
 readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
