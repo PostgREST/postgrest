@@ -226,6 +226,19 @@ JWT Role Extraction
 
 A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. It's configured by :ref:`jwt-role-claim-key`. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
 
+.. code::
+
+    # {"postgrest":{"roles": ["other", "author"]}}
+    # the DSL accepts characters that are alphanumerical or one of "_$@" as keys
+    jwt-role-claim-key = ".postgrest.roles[1]"
+
+See :ref:`jspath_dsl_grammar` for more details on how to specify the location.
+
+.. _jspath_dsl_grammar:
+
+JSPath DSL Grammar
+~~~~~~~~~~~~~~~~~~
+
 The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expression grammar with extended string comparison operators. Supported operators are:
 
 - ``==`` selects the first array element that exactly matches the right operand
@@ -234,7 +247,7 @@ The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expres
 - ``==^`` selects the first array element that ends with the right operand
 - ``*==`` selects the first array element that contains the right operand
 
-The selected role value can also be sliced using the slice operator ``[a:b]``. It is similar to `slice operator in python <https://docs.python.org/3/library/functions.html#slice>`_. Negative index values are also supported. The syntax is as:
+The selected value can also be sliced using the slice operator ``[a:b]``. It is similar to `slice operator in python <https://docs.python.org/3/library/functions.html#slice>`_. Negative index values are also supported. The syntax is as:
 
 - ``[a:b]`` take slice from index ``a`` up to ``b``
 - ``[a:]`` take slice from index ``a`` to end
@@ -248,10 +261,6 @@ The selected role value can also be sliced using the slice operator ``[a:b]``. I
 Usage examples:
 
   .. code:: bash
-
-    # {"postgrest":{"roles": ["other", "author"]}}
-    # the DSL accepts characters that are alphanumerical or one of "_$@" as keys
-    jwt-role-claim-key = ".postgrest.roles[1]"
 
     # {"https://www.example.com/role": { "key": "author" }}
     # non-alphanumerical characters can go inside quotes(escaped in the config value)
