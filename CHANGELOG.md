@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.10] - 2026-04-16
+
 ### Added
 
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
