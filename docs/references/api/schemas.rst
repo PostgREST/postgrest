@@ -41,6 +41,8 @@ Only the selected schema gets added to the `search_path <https://www.postgresql.
 
    These headers are based on the "Content Negotiation by Profile" spec: https://www.w3.org/TR/dx-prof-conneg
 
+.. _profile_headers:
+
 GET/HEAD
 ~~~~~~~~
 
@@ -64,6 +66,20 @@ For POST, PATCH, PUT and DELETE, select the schema with ``Content-Profile``.
     -d '{...}'
 
 You can also select the schema for :ref:`functions` and :ref:`open-api`.
+
+.. _jwt_schema_extract:
+
+JWT Schema Extraction
+~~~~~~~~~~~~~~~~~~~~~
+
+Schema can be specified in JWT claims. It is configured by :ref:`jwt-schema-claim-key`. This feature can be used for JWT-driven schema-based multitenancy. It allows fully hidden schema selection without exposing the schema in :ref:`profile headers <profile_headers>`. The schema specified in JWT takes precedence over profile headers.
+
+.. code::
+
+    # {"postgrest":{"schema": "secret_tenant"}}
+    jwt-schema-claim-key = ".postgrest.schema"
+
+It follows the same JSPath rules as :ref:`jwt_role_extract` to specify the location of the ``schema`` key.
 
 Restricted schemas
 ~~~~~~~~~~~~~~~~~~

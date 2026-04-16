@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
+- Add config `jwt-schema-claim-key` for schema selection in JWT by @taimoorzaeem in #4608
 
 ### Fixed
 

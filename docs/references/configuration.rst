@@ -664,6 +664,21 @@ jwt-role-claim-key
 
   See :ref:`jwt_role_extract` on how to specify key paths and usage examples.
 
+.. _jwt-schema-claim-key:
+
+jwt-schema-claim-key
+--------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     .schema
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_SCHEMA_CLAIM_KEY
+  **In-Database** pgrst.jwt_schema_claim_key
+  =============== =================================
+
+  See :ref:`jwt_schema_extract` on how to specify key paths and usage examples.
+
 .. _jwt-secret:
 
 jwt-secret

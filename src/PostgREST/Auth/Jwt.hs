@@ -8,8 +8,8 @@ This module provides functions to deal with JWT parsing and validation (http://j
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE ImpredicativeTypes    #-}
 {-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 module PostgREST.Auth.Jwt
   ( parseAndDecodeClaims
@@ -110,14 +110,16 @@ parseToken secret tkn = do
       jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError
 
 parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JSON.Object -> m AuthResult
-parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims = do
+parseClaims cfg@AppConfig{..} time mclaims = do
   validateClaims time (audMatchesCfg cfg) mclaims
   -- role defaults to anon if not specified in jwt
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
     unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
+  let schema = unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtSchemaClaimKey
   pure AuthResult
            { authClaims = mclaims
            , authRole = role
+           , authSchema = schema
            }
   where
     unquoted :: JSON.Value -> BS.ByteString

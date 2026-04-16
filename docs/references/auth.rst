@@ -271,6 +271,8 @@ Usage examples:
     jwt-role-claim-key = ".postgrest.wlcg[0][1:]"
     jwt-role-claim-key = ".postgrest.wlcg[1][1:-1]"
 
+These examples also apply to :ref:`jwt-schema-claim-key`.
+
 .. note::
 
   The string comparison operators are implemented as a custom extension to the JSPath and does not strictly follow the `RFC 9535 <https://www.rfc-editor.org/rfc/rfc9535.html>`_.
