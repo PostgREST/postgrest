@@ -72,7 +72,7 @@ You can also select the schema for :ref:`functions` and :ref:`open-api`.
 JWT Schema Extraction
 ~~~~~~~~~~~~~~~~~~~~~
 
-Schema can be specified in JWT claims. It is configured by :ref:`jwt-schema-claim-key`. This feature can be used for JWT-driven schema-based multitenancy. It allows fully hidden schema selection without exposing the schema in :ref:`profile headers <profile_headers>`. The schema specified in JWT takes precedence over profile headers.
+The schema can be extracted from the JWT claims using the :ref:`jwt-schema-claim-key`. This feature can be used for schema-based multitenancy. It allows hidden schema selection without exposing the schema in :ref:`profile headers <profile_headers>`. The schema specified in JWT takes precedence over profile headers.
 
 .. code::
 
