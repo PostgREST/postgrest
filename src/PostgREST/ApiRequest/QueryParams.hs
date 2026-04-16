@@ -79,7 +79,7 @@ data QueryParams =
     , qsSelect         :: [Tree SelectItem]
     -- ^ &select parameter used to shape the response
     , qsFilters        :: [(EmbedPath, Filter)]
-    -- ^ Filters on the result from e.g. &id=e.10
+    -- ^ Filters on the result from e.g. &id=eq.10
     , qsFiltersRoot    :: [Filter]
     -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
     , qsFiltersNotRoot :: [(EmbedPath, Filter)]
@@ -227,15 +227,24 @@ pRequestOnConflict oncStr =
 -- >>> pRequestFilter True ("id", "val")
 -- Right ([],Filter {field = ("id",[]), opExpr = NoOpExpr "val"})
 pRequestFilter :: Bool -> (Text, Text) -> Either QPError (EmbedPath, Filter)
-pRequestFilter isRpcRead (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
+pRequestFilter isRpcRead (k, v) = mapError $ (,) <$> path <*> (flt <*> oper)
   where
-    treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
+    treePath = P.parse (try pRelTreePath <|> pTreePath') ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
+    path = fst <$> treePath
+    flt = snd <$> treePath
     oper = P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     parseFlt = if isRpcRead
       then pOpExpr pSingleVal <|> pure (NoOpExpr v)
       else pOpExpr pSingleVal
-    path = fst <$> treePath
-    fld = snd <$> treePath
+
+    pTreePath' :: Parser (EmbedPath, OpExpr -> Filter)
+    pTreePath' = second Filter <$> pTreePath
+
+    pRelTreePath :: Parser (EmbedPath, OpExpr -> Filter)
+    pRelTreePath = do
+      p <- pFieldName `sepBy1` pDelimiter
+      f <- between (char '(') (char ')') pField
+      return (init p, RelFilter (last p) f)
 
 pRequestOrder :: (Text, Text) -> Either QPError (EmbedPath, [OrderTerm])
 pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
@@ -813,11 +822,18 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
 -- unexpected "x"
 -- expecting logic operator (and, or)
 pLogicTree :: Parser LogicTree
-pLogicTree = Stmnt <$> try pLogicFilter
+pLogicTree = try pLogicEmbedFilter
+             <|> Stmnt <$> try pLogicFilter
              <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
     pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
+    pLogicEmbedFilter :: Parser LogicTree
+    pLogicEmbedFilter = do
+      pth <- pFieldName
+      fld <- between (char '(') (char ')') pField
+      opx <- pDelimiter *> pOpExpr pLogicSingleVal
+      return $ Stmnt (RelFilter pth fld opx)
     pNot :: Parser Bool
     pNot = try (string "not" *> pDelimiter $> True)
            <|> pure False
