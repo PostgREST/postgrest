@@ -475,18 +475,22 @@ instance ErrorBody PgError where
 instance ErrorBody SQL.UsageError where
   code    (SQL.ConnectionUsageError _)                   = "PGRST000"
   code    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = code e
+  code    (SQL.SessionUsageError (SQL.PipelineError e))  = code e
   code    SQL.AcquisitionTimeoutUsageError               = "PGRST003"
 
   message (SQL.ConnectionUsageError _) = "Database connection error. Retrying the connection."
   message (SQL.SessionUsageError (SQL.QueryError _ _ e)) = message e
+  message (SQL.SessionUsageError (SQL.PipelineError e))  = message e
   message SQL.AcquisitionTimeoutUsageError = "Timed out acquiring connection from connection pool."
 
   details (SQL.ConnectionUsageError e) = JSON.String . T.decodeUtf8 <$> e
   details (SQL.SessionUsageError (SQL.QueryError _ _ e)) = details e
+  details (SQL.SessionUsageError (SQL.PipelineError e))  = details e
   details SQL.AcquisitionTimeoutUsageError               = Nothing
 
   hint    (SQL.ConnectionUsageError _)                   = Nothing
   hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
+  hint    (SQL.SessionUsageError (SQL.PipelineError e))  = hint e
   hint    SQL.AcquisitionTimeoutUsageError               = Nothing
 
 instance ErrorBody SQL.CommandError where
@@ -531,6 +535,7 @@ pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
 pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
 pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
+pgErrorStatus _      (SQL.SessionUsageError (SQL.PipelineError _)) = HTTP.status503
 pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
   case rError of
     (SQL.ServerError c m d _ _) ->

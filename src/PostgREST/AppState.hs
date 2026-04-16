@@ -55,8 +55,7 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
-                                          addFallbackAppName,
-                                          readAppConfig)
+                                          readAppConfig, toConnectionSettings)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
                                           queryRoleSettings)
@@ -143,13 +142,13 @@ destroy :: AppState -> IO ()
 destroy = destroyPool
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
-initPool AppConfig{..} observer = do
+initPool cfg@AppConfig{..} observer = do
   SQL.acquire $ SQL.settings
     [ SQL.size configDbPoolSize
     , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
     , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
     , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-    , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+    , SQL.staticConnectionSettings $ toConnectionSettings identity cfg
     , SQL.observationHandler $ observer . HasqlPoolObs
     ]
 
@@ -206,6 +205,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
     err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
       -- An error on the client-side, usually indicates problems with connection
         observer $ QueryErrorCodeHighObs err
+    (SQL.SessionUsageError (SQL.PipelineError _)) -> pure () -- FIXME FIXME FIXME
     )
 
   return res
@@ -336,7 +336,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
       (resultTime, result) <-
-        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+        let transaction = SQL.transaction in
         timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do

@@ -173,6 +173,7 @@ let
           unset "''${!GIT_@}"
 
           # shellcheck disable=SC2317
+          # shellcheck disable=SC2329
           function restore () {
             ref="$(git stash list --format=format:%gD --grep "$1" -n1)"
             # this will avoid merge conflicts when applying the stash

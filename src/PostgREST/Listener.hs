@@ -11,19 +11,18 @@ import qualified Hasql.Notifications   as SQL
 import           PostgREST.AppState    (AppState, getConfig)
 import           PostgREST.Config      (AppConfig (..))
 import           PostgREST.Observation (Observation (..))
-import           PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
-import           Control.Arrow              ((&&&))
-import           Data.Bitraversable         (bisequence)
-import           Data.Either.Combinators    (whenRight)
-import qualified Data.Text                  as T
-import qualified Database.PostgreSQL.LibPQ  as LibPQ
-import qualified Hasql.Session              as SQL
-import           PostgREST.Config.Database  (queryPgVersion)
-import           PostgREST.Config.PgVersion (pgvFullName)
+import           Control.Arrow                       ((&&&))
+import           Data.Bitraversable                  (bisequence)
+import           Data.Either.Combinators             (whenRight)
+import qualified Data.Text                           as T
+import qualified Database.PostgreSQL.LibPQ           as LibPQ
+import qualified Hasql.Session                       as SQL
+import           PostgREST.Config.Database           (queryPgVersion)
+import           PostgREST.Config.PgVersion          (pgvFullName)
 import           Protolude
 
 -- | Starts the Listener in a thread
@@ -37,7 +36,7 @@ runListener appState = do
 -- | This function never returns (but can throw) and return type enforces that.
 retryingListen :: AppState -> IO Void
 retryingListen appState = do
-  AppConfig{..} <- AppState.getConfig appState
+  cfg@AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
     onError err = do
@@ -62,7 +61,8 @@ retryingListen appState = do
     -- Make sure we don't leak connections on errors
     bracket
       -- acquire connection
-      (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
+      (SQL.acquire $
+        Config.toConnectionSettings Config.addTargetSessionAttrs cfg)
       -- release connection
       (`whenRight` releaseConnection) $
       -- use connection

@@ -1,14 +1,14 @@
 module Main where
 
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Pool.Config          as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                          as P
+import qualified Hasql.Pool.Config                   as P
+import qualified Hasql.Transaction.Sessions          as HT
 
 import Data.Function (id)
 
 import           PostgREST.App             (postgrest)
 import qualified PostgREST.AppState        as AppState
-import           PostgREST.Config          (AppConfig (..))
+import           PostgREST.Config          (AppConfig (..), toConnectionSettings)
 import           PostgREST.Config.Database (queryPgVersion)
 import qualified PostgREST.Logger          as Logger
 import qualified PostgREST.Metrics         as Metrics
@@ -38,7 +38,7 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    , P.staticConnectionSettings $ toConnectionSettings testCfg
     -- make sure metrics are updated and pool observations published to poolChan
     , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
     ]

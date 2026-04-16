@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
 
 -- | Haskell Imports and Exports tool
@@ -33,13 +34,16 @@ import Data.Function              ((&))
 import Data.List                  (intercalate)
 import Data.Maybe                 (catMaybes, mapMaybe)
 import Data.Text                  (Text)
+import GHC.Driver.Errors.Types    (GhcMessage)
 import GHC.Generics               (Generic)
 import GHC.Hs.Extension           (GhcPs)
-import GHC.Types.Error            (getMessages)
+import GHC.Types.Error            (Messages, defaultDiagnosticOpts,
+                                   getMessages)
 import GHC.Types.Name.Occurrence  (occNameString)
 import GHC.Types.Name.Reader      (rdrNameOcc)
-import GHC.Unit.Module.Name       (moduleNameString)
+import GHC.Unit.Module            (moduleNameString)
 import GHC.Utils.Error            (pprMsgEnvelopeBagWithLoc)
+import GHC.Utils.Outputable       (showSDocUnsafe)
 import System.Directory.Recursive (getFilesRecursive)
 import System.Exit                (exitFailure)
 
@@ -198,7 +202,7 @@ sourceSymbols source = do
       return $ concatMap (importSymbols source filepath . GHC.unLoc) hsmodImports
 
 -- | Parse a Haskell module
-parseModule :: FilePath -> IO GHC.HsModule
+parseModule :: FilePath -> IO (GHC.HsModule GhcPs)
 parseModule filepath = do
   result <- ExactPrint.parseModule GHC.Paths.libdir filepath
   case result of
@@ -206,7 +210,13 @@ parseModule filepath = do
       return $ GHC.unLoc hsmod
     Left errs ->
       fail $ "Errors with " <> show filepath <> ":\n    "
-        <> show (pprMsgEnvelopeBagWithLoc $ getMessages errs)
+        <> formatParseErrors errs
+
+formatParseErrors :: Messages GhcMessage -> String
+formatParseErrors errs =
+  intercalate "\n    "
+    . fmap showSDocUnsafe
+    $ pprMsgEnvelopeBagWithLoc (defaultDiagnosticOpts @GhcMessage) (getMessages errs)
 
 -- | Symbols imported in an import declaration.
 --
@@ -214,9 +224,12 @@ parseModule filepath = do
 -- only one item is returned.
 importSymbols :: FilePath -> FilePath -> GHC.ImportDecl GhcPs -> [ImportedSymbol]
 importSymbols source filepath GHC.ImportDecl{..} =
-  case ideclHiding of
-    Just (hiding, syms) ->
-      symbol (if hiding then Hiding else Explicit) . Just . GHC.unLoc <$> GHC.unLoc syms
+  case ideclImportList of
+    Just (importListInterpretation, syms) ->
+      symbol (if importListInterpretation == GHC.EverythingBut then Hiding else Explicit)
+        . Just
+        . GHC.unLoc
+        <$> GHC.unLoc syms
     Nothing ->
       [ symbol Wildcard Nothing ]
   where
