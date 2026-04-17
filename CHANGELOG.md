@@ -13,18 +13,23 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
-- Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
-
-### Fixed
-
-- Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
 
 ### Changed
 
 - All responses now include a `Vary` header by @develop7 in #4609
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+
+## [14.10] - 2026-04-16
+
+### Added
+
+- Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
+
+### Fixed
+
+- Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
 
 ## [14.9] - 2026-04-10
 
