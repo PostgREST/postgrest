@@ -67,23 +67,9 @@ packages:
       size: 1661
   original:
     hackage: postgresql-binary-0.13.1.3
-- completed:
-    hackage: streaming-commons-0.2.3.1@sha256:ed7999fea9e912b1211ea93d7e20a7998bf4753166370c94048885650f303bf0,4841
-    pantry-tree:
-      sha256: f08e83fb00fd45865fa8cfdef5ecef7161d5135257ee98050bfbe4b807ad65f8
-      size: 2374
-  original:
-    hackage: streaming-commons-0.2.3.1
-- completed:
-    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
-    pantry-tree:
-      sha256: 65107f0c970351b971ea1f676a5e00b61e37c298a4c83c867d937f2a774501eb
-      size: 2895
-  original:
-    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
 snapshots:
 - completed:
-    sha256: 7e724f347d5969cb5e8dde9f9aae30996e3231c29d1dafd45f21f1700d4c4fcb
-    size: 684460
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/23/28.yaml
-  original: lts-23.28
+    sha256: 655e468f774beee1badf07dc4c45fb50288d5c66ce7bef6f487b7f92891a90b0
+    size: 728965
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/24/37.yaml
+  original: lts-24.37
