@@ -47,7 +47,6 @@ let
       # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
 
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
-      # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
       # TODO: Remove once available in nixpkgs haskellPackages
