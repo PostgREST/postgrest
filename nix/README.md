@@ -95,9 +95,9 @@ postgrest-hsie-graph-modules      postgrest-with-pg-14
 postgrest-hsie-graph-symbols      postgrest-with-pg-15
 postgrest-hsie-minimal-imports    postgrest-with-pg-16
 postgrest-lint                    postgrest-with-pg-17
-postgrest-loadtest                postgrest-with-slow-pg
-postgrest-loadtest-against        postgrest-with-slow-postgrest
-postgrest-loadtest-report
+postgrest-loadtest                postgrest-with-pg-18
+postgrest-loadtest-against        postgrest-with-slow-pg
+postgrest-loadtest-report         postgrest-with-slow-postgrest
 postgrest-nixpkgs-upgrade
 ...
 
