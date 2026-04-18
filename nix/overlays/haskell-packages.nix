@@ -78,6 +78,132 @@ let
       hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
       hasql-transaction = lib.dontCheck prev.hasql-transaction_1_1_0_1;
       postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
+
+      http2 =
+        prev.callHackageDirect
+          {
+            pkg = "http2";
+            ver = "5.4.0";
+            sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+          }
+          { };
+
+      http-semantics =
+        prev.callHackageDirect
+          {
+            pkg = "http-semantics";
+            ver = "0.4.0";
+            sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+          }
+          { };
+
+      network-run =
+        prev.callHackageDirect
+          {
+            pkg = "network-run";
+            ver = "0.5.0";
+            sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+          }
+          { };
+
+      time-manager =
+        prev.callHackageDirect
+          {
+            pkg = "time-manager";
+            ver = "0.2.4";
+            sha256 = "sha256-sAt/331YLQ2IU3z90aKYSq1nxoazv87irsuJp7ZG3pw=";
+          }
+          { };
+
+      warp =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "warp";
+            ver = "3.4.13";
+            sha256 = "sha256-jmr8kpeSPDkOhT0i9PhozZapX4nUs92cOX7POAGb7/M=";
+          }
+          { });
+
+      jose-jwt =
+        prev.callCabal2nixWithOptions "jose-jwt" (super.fetchFromGitHub {
+          owner = "tekul";
+          repo  = "jose-jwt";
+          rev = "f93bd9436d798eb81618fa0f699f677194efcf8c";
+          sha256 = "sha256-Peds6ispGkIGcPQt/+NOl9J/tbLh0/KHTIQq0biTOf4=";
+          #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        }) "" {};
+      ram =
+        prev.callHackageDirect
+          {
+            pkg = "ram";
+            ver = "0.21.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-blB6TukfY/TfGgHJweeWdQ70aWRALyfWmYvmYXNjXRw=";
+          }
+          { };
+      crypton =
+        prev.callHackageDirect
+          {
+            pkg = "crypton";
+            ver = "1.1.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-cUzdVyz77mFyiKq8gbpN+7+mv2+9vX694EvvRyVh2KQ=";
+          }
+          { };
+      crypton-x509 =
+        prev.callHackageDirect
+          {
+            pkg = "crypton-x509";
+            ver = "1.9.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-2fOZMmg470LksKa8zeoCjSSk6S4YjWlc1mb6mY7NNZ0=";
+          }
+          { };
+      crypton-asn1-encoding =
+        prev.callHackageDirect
+          {
+            pkg = "crypton-asn1-encoding";
+            ver = "0.10.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-dTP26qiOVnAb5XO/gibuG1rYI03vDTpBr6+L79PsjEA=";
+          }
+          { };
+      crypton-asn1-parse =
+        prev.callHackageDirect
+          {
+            pkg = "crypton-asn1-parse";
+            ver = "0.10.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-awY6Rk3LBgOZk9xEKGlPWtYYD8OiKAskN26otBbVXjc=";
+          }
+          { };
+      crypton-asn1-types =
+        prev.callHackageDirect
+          {
+            pkg = "crypton-asn1-types";
+            ver = "0.4.1";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-+mjsNBKhhxFrNmCCMLPsugzlz/61Glqw8hKoYndy+wc=";
+          }
+          { };
+      crypton-pem =
+        prev.callHackageDirect
+          {
+            pkg = "crypton-pem";
+            ver = "0.3.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-RBQdPqN/UJw+9FU/HAh5wR5S69WOfllnWAs/mpegbK8=";
+          }
+          { };
+      time-hourglass =
+        prev.callHackageDirect
+          {
+            pkg = "time-hourglass";
+            ver = "0.3.0";
+            #sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            sha256 = "sha256-zVgLI6zt0FPFzRiey3wG6NLOT08ENDIweAUDyj0n1YU=";
+          }
+          { };
     };
 in
 {
