@@ -11,13 +11,11 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion140)
-
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = do
+spec :: SpecWith ((), Application)
+spec = do
   describe "Posting new record" $ do
     context "disparate json types" $ do
       it "accepts disparate json types" $ do
@@ -554,19 +552,12 @@ spec actualPgVersion = do
                 {"a": "val", "b": "val"}
               ]|]
             `shouldRespondWith`
-              (if actualPgVersion < pgVersion140
-                then [json| {
-                  "code": "42601",
-                  "details": "Column \"b\" is a generated column.",
-                  "hint": null,
-                  "message": "cannot insert into column \"b\""
-                }|]
-                else [json| {
-                  "code": "428C9",
-                  "details": "Column \"b\" is a generated column.",
-                  "hint": null,
-                  "message": "cannot insert a non-DEFAULT value into column \"b\""
-                }|])
+              [json| {
+                "code": "428C9",
+                "details": "Column \"b\" is a generated column.",
+                "hint": null,
+                "message": "cannot insert a non-DEFAULT value into column \"b\""
+              }|]
               { matchStatus  = 400 }
 
         it "inserts a default on a DOMAIN with default" $

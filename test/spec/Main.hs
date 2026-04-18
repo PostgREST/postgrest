@@ -150,7 +150,7 @@ main = do
         , ("Feature.Query.DeleteSpec"                    , Feature.Query.DeleteSpec.spec)
         , ("Feature.Query.EmbedDisambiguationSpec"       , Feature.Query.EmbedDisambiguationSpec.spec)
         , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
-        , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec actualPgVersion)
+        , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec)
         , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec)
         , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
         , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)
