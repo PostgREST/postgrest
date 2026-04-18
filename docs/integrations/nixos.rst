@@ -31,3 +31,6 @@ A minimal example could look like this:
   }
 
 This will expose the PostgREST server on localhost on the NixOS machine and allow anonymous access.
+
+.. tip::
+  NixOS also allows to quickly spin up different PostgreSQL versions or even forks this way. For example, to test the current beta version of `OrioleDB <https://www.orioledb.com>`_, use ``services.postgresql.package = pkgs.orioledb``.
