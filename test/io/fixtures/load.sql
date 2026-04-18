@@ -2,6 +2,7 @@
 
 \set ON_ERROR_STOP on
 
+\ir ../../orioledb.sql
 \ir database.sql
 \ir db_config.sql
 \ir roles.sql
