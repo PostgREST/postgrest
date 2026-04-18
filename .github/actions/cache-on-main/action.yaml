@@ -8,7 +8,6 @@ inputs:
     required: true
   save-prs:
     description: Whether to additionally store the cache in a pull request, too. Should only be used for very small caches.
-    type: boolean
   prefix:
     description: Cache key prefix to be used in both primary key and restore-keys.
     required: true
