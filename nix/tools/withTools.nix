@@ -11,15 +11,15 @@
 }:
 let
   withTmpDb =
-    { name, postgresql }:
+    { name, postgresql, config ? "" }:
     let
       commandName = "postgrest-with-${name}";
-      postgresqlConf = writeText "postgresql.conf" "
+      postgresqlConf = writeText "postgresql.conf" ("
         autovacuum = false
         listen_addresses = ''
         log_statement = all
         shared_preload_libraries=pg_stat_statements
-      ";
+      " + config);
     in
     checkedShellScript
       {
