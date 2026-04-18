@@ -11,11 +11,13 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion180)
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: PgVersion -> SpecWith ((), Application)
+spec actualPgVersion =
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       context "returns paginated results" $ do
@@ -1445,10 +1447,13 @@ spec =
       let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3Rfc3VwZXJ1c2VyIiwiaWQiOiJqZG9lIn0.LQ-qx0ArBnfkwQQhIHKF5cS-lzl0gnTPI8NLoPbL5Fg" in
       it "should return http status 500" $
         request methodGet "/rpc/temp_file_limit" [auth] "" `shouldRespondWith`
-          [json|{"code":"53400","message":"temporary file size exceeds temp_file_limit (1kB)","details":null,"hint":null}|]
+          (if actualPgVersion < pgVersion180 then
+            [json|{"code":"53400","message":"temporary file size exceeds temp_file_limit (1kB)","details":null,"hint":null}|]
+           else
+            [json|{"code":"53400","message":"temporary file size exceeds \"temp_file_limit\" (1kB)","details":null,"hint":null}|]
+          )
           { matchStatus = 500
-          , matchHeaders = [ "Content-Length" <:> "105"
-                           , matchContentTypeJson ]
+          , matchHeaders = [ matchContentTypeJson ]
           }
 
     context "test table valued function with filter" $ do

@@ -161,7 +161,7 @@ main = do
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
-        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
+        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)

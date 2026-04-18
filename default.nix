@@ -52,6 +52,7 @@ let
 
   postgresqlVersions =
     [
+      { name = "pg-18"; postgresql = pkgs.postgresql_18.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "pg-17"; postgresql = pkgs.postgresql_17.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "pg-16"; postgresql = pkgs.postgresql_16.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "pg-15"; postgresql = pkgs.postgresql_15.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
