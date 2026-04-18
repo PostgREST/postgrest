@@ -104,7 +104,7 @@ let
         ''
 
         + lib.optionalString withTmpDir ''
-          tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir ${name}-XXX)"
+          tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir=/tmp ${name}-XXX)"
 
           # we keep the tmpdir when an error occurs for debugging
           trap 'echo Temporary directory kept at: $tmpdir' ERR
