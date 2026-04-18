@@ -76,7 +76,7 @@ spec withConfig = withConfig baseCfg $
           }
 
       it "only affects the source table rows if his direct embedding is an inner join" $ do
-        get "/tasks?select=id,projects(id,clients!inner(id))&projects.clients.id=eq.2" `shouldRespondWith`
+        get "/tasks?select=id,projects(id,clients!inner(id))&projects.clients.id=eq.2&order=id" `shouldRespondWith`
           [json|[
             {"id":1,"projects":null},
             {"id":2,"projects":null},
