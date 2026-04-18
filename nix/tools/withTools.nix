@@ -11,9 +11,13 @@
 }:
 let
   withTmpDb =
-    { name, postgresql }:
+    { name, postgresql, config ? "" }:
     let
       commandName = "postgrest-with-${name}";
+      postgresqlConf = writeText "postgresql.conf" ("
+        listen_addresses = ''
+        log_statement = all
+      " + config);
     in
     checkedShellScript
       {
@@ -72,6 +76,10 @@ let
           TZ=$PGTZ initdb --no-locale --encoding=UTF8 --nosync -U postgres --auth=trust \
             >> "$setuplog"
 
+          # Append our own config to the one initdb created to avoid replacing
+          # default values created by the latter.
+          cat ${postgresqlConf} >> "$tmpdir/db/postgresql.conf"
+
           log "Starting the database cluster..."
 
           # Instead of listening on a local port, we will listen on a unix domain socket.
@@ -80,7 +88,7 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c hba_file=$HBA_FILE -k $PGHOST " \
             >> "$setuplog"
 
           log "Creating a minimally privileged $PGUSER connection role..."
@@ -106,7 +114,7 @@ let
             log "Starting replica on $replica_host"
 
             # We set a low max_standby_streaming_delay to make the replication conflict fail faster in tests (otherwise it waits for the default 30s)
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" -c max_standby_streaming_delay=\"3s\" " \
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c hba_file=$HBA_FILE -k $replica_host-c max_standby_streaming_delay=\"3s\" " \
               >> "$setuplog"
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
