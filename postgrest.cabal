@@ -123,7 +123,7 @@ library
                     , http-client               >= 0.7.19 && < 0.8
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
-                    , jose-jwt                  >= 0.9.6 && < 0.11
+                    , jose-jwt                  >= 0.11 && < 0.12
                     , lens                      >= 4.14 && < 5.4
                     , lens-aeson                >= 1.0.1 && < 1.3
                     , mtl                       >= 2.2.2 && < 2.4
@@ -155,7 +155,7 @@ library
                     -- for unix sockets; this is tested in test/io/test_io.py. See
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
-                    , warp                      >= 3.3.19 && < 3.5
+                    , warp                      >= 3.4.13 && < 3.5
                     , stm                       >= 2.5 && < 3
                     , stm-hamt                  >= 1.2 && < 2
                     , focus                     >= 1.0 && < 2
@@ -277,7 +277,7 @@ test-suite spec
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
-                    , jose-jwt          >= 0.9.6 && < 0.11
+                    , jose-jwt          >= 0.11 && < 0.12
                     , lens              >= 4.14 && < 5.4
                     , lens-aeson        >= 1.0.1 && < 1.3
                     , monad-control     >= 1.0.1 && < 1.1
@@ -320,7 +320,7 @@ test-suite observability
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
-                    , jose-jwt          >= 0.9.6 && < 0.11
+                    , jose-jwt          >= 0.11 && < 0.12
                     , postgrest
                     , prometheus-client >= 1.1.1 && < 1.2.0
                     , protolude         >= 0.3.1 && < 0.4

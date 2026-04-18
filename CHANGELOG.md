@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
+- Shutdown should wait for in flight requests by @mkleczek in #4702
 
 ### Changed
 
