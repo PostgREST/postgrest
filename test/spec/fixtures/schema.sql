@@ -3240,7 +3240,8 @@ create table bets (
 , data_jsonb jsonb
 );
 
-create index bets_data_json  on bets ((data_json  ->>'contractId'));
+-- TODO orioledb: Could not identify a comparison function for type json
+-- create index bets_data_json  on bets ((data_json  ->>'contractId'));
 create index bets_data_jsonb on bets ((data_jsonb ->>'contractId'));
 
 --- https://github.com/PostgREST/postgrest/issues/2862
