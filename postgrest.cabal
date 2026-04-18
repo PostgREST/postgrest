@@ -22,6 +22,7 @@ tested-with:
   , GHC == 9.6.7
     -- cabal on Ubuntu
   , GHC == 9.8.4
+    -- cabal on Ubuntu
     -- stack on FreeBSD, MacOS, Ubuntu, Windows
   , GHC == 9.10.3
 
@@ -112,6 +113,9 @@ library
                     , configurator-pg           >= 0.2.11 && < 0.3
                     , containers                >= 0.5.7 && < 0.8
                     , cookie                    >= 0.4.2 && < 0.6
+                    -- crypton 1.1.0 moved from `memory` to `ram`, which jose-jwt fails to build with right now.
+                    -- should be possible to remove this once jose-jwt had a new release.
+                    , crypton                   < 1.1.0
                     , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
