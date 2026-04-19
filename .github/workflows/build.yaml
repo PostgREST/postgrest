@@ -128,31 +128,15 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: haskell-actions/setup@cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553 # v2.11.0
-        with:
-          # This must match the version in stack.yaml's resolver
-          ghc-version: 9.8.4
-          enable-stack: true
-          stack-no-global: true
-          stack-setup-ghc: true
-      - name: Cache ~/.stack
-        uses: ./.github/actions/cache-on-main
-        with:
-          path: ${{ matrix.cache }}
-          prefix: stack
-          suffix: ${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
-      - name: Cache .stack-work
-        uses: ./.github/actions/cache-on-main
-        with:
-          path: .stack-work
-          save-prs: true
-          prefix: stack-work-${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
-          suffix: ${{ hashFiles('main/**/*.hs', 'src/**/*.hs') }}
       - name: Install dependencies
         if: matrix.deps
         run: ${{ matrix.deps }}
-      - name: Build with Stack
-        run: stack build --lock-file error-on-write --local-bin-path result --copy-bins
+      - uses: freckle/stack-action@v5
+        with:
+          test: 'false'
+          on-dirty-files: 'error'
+          stack-build-arguments: '--local-bin-path result --copy-bins'
+          cache-save-always: 'true'
       - name: Strip Executable
         run: strip result/postgrest*
       - name: Save built executable as artifact
