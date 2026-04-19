@@ -102,7 +102,7 @@ library
                       PostgREST.TimeIt
                       PostgREST.Version
   build-depends:      base                      >= 4.9 && < 4.21
-                    , HTTP                      >= 4000.3.7 && < 4000.5
+                    , HTTP >=4000.3.7 && <4000.6
                     , Ranged-sets               >= 0.3 && < 0.6
                     , aeson                     >= 2.0.3 && < 2.3
                     , auto-update               >= 0.1.4 && < 0.3
