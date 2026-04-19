@@ -155,26 +155,24 @@ jobs:
       - name: Publish images on Docker Hub
         run: |
           docker load -i postgrest-docker-aarch64.tar.gz
-          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
-          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
-          SHA256_ARM64=$(docker inspect postgrest:latest | jq -r '.[0].Id')
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-arm64"
+          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-arm64"
 
           docker load -i postgrest-docker-x86-64.tar.gz
-          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
-          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
-          SHA256_AMD64=$(docker inspect postgrest:latest | jq -r '.[0].Id')
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-amd64"
+          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-amd64"
 
           docker manifest create "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}" \
-            "$DOCKER_REPO/postgrest@$SHA256_ARM64" \
-            "$DOCKER_REPO/postgrest@$SHA256_AMD64"
+            "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-arm64" \
+            "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-amd64"
           docker manifest push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
 
           # Only tag 'latest' for full releases
           if [ "${GITHUB_REF_NAME}" != "devel" ]; then
             echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
             docker manifest create "$DOCKER_REPO/postgrest:latest" \
-              "$DOCKER_REPO/postgrest@$SHA256_ARM64" \
-              "$DOCKER_REPO/postgrest@$SHA256_AMD64"
+              "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-arm64" \
+              "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}-linux-amd64"
             docker manifest push "$DOCKER_REPO/postgrest:latest"
           else
             echo "Skipping push to 'latest' tag for pre-release..."
