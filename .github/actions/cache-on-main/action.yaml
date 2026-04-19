@@ -24,11 +24,11 @@ runs:
         path: ${{ inputs.path }}
         key: ${{ runner.os }}-${{ inputs.prefix }}-${{ inputs.suffix }}
         restore-keys: |
-          ${{ runner.os }}-${{ inputs.prefix }}-
+          ${{ runner.os }}-${{ runner.arch }}-${{ inputs.prefix }}-
     - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       if: ${{ !startsWith(github.ref, 'refs/heads/') && !(inputs.save-prs && startsWith(github.ref, 'refs/pull/'))  }}
       with:
         path: ${{ inputs.path }}
         key: ${{ runner.os }}-${{ inputs.prefix }}-${{ inputs.suffix }}
         restore-keys: |
-          ${{ runner.os }}-${{ inputs.prefix }}-
+          ${{ runner.os }}-${{ runner.arch }}-${{ inputs.prefix }}-
