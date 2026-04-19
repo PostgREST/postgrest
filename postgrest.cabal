@@ -17,10 +17,6 @@ extra-source-files: CHANGELOG.md
 
 tested-with:
     -- cabal on Ubuntu
-  , GHC == 9.6.7
-    -- cabal on Ubuntu
-  , GHC == 9.8.4
-    -- cabal on Ubuntu
     -- stack on FreeBSD, MacOS, Ubuntu, Windows
   , GHC == 9.10.3
     -- cabal on Ubuntu
