@@ -137,7 +137,6 @@ library
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.19
                     , parsec                    >= 3.1.11 && < 3.2
-                    -- Technically unused, can be removed after updating to hasql >= 1.7
                     , postgresql-libpq          >= 0.10
                     , prometheus-client         >= 1.1.1 && < 1.2.0
                     , protolude                 >= 0.3.1 && < 0.4
