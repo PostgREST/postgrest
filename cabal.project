@@ -2,3 +2,23 @@ packages: postgrest.cabal
 tests: true
 allow-newer:
   hasql:postgresql-libpq
+
+-- temporary VCS dependencies due to upstream not updating Hackage packages
+-- see https://github.com/iand675/hs-opentelemetry/issues/203
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: de64d8b43ecebf297a479303f9098cca81dc8fd7
+  subdir: utils/exceptions
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: de64d8b43ecebf297a479303f9098cca81dc8fd7
+  subdir: instrumentation/hspec
+
+source-repository-package
+  type: git
+  location: https://github.com/iand675/hs-opentelemetry.git
+  tag: de64d8b43ecebf297a479303f9098cca81dc8fd7
+  subdir: instrumentation/wai

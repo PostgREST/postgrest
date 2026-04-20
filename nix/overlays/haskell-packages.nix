@@ -59,6 +59,102 @@ let
       postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
       text-builder = prev.text-builder_0_6_10;
       text-builder-dev = prev.text-builder-dev_0_3_10;
+
+      # Upstream hs-opentelemetry-* packages & dependencies
+      # ===================================================
+
+      # The one that has Tracer.Core.isTracerEnabled exposed
+      hs-opentelemetry-api = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-api";
+          ver = "0.3.1.0";
+          sha256 = "sha256-YRnCOnUfS+1l02eeRzHRf961+zXcQ+lZdS1KCHx692E=";
+        }
+        { };
+      hs-opentelemetry-exporter-otlp = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-exporter-otlp";
+          ver = "0.1.1.0";
+          sha256 = "sha256-9f6wlbpM6TH7AilkkTlQf0i0k9hd5nHKNphPF+JJoWs=";
+        }
+        { };
+      # Not on Hackage, source-only release
+      hs-opentelemetry-instrumentation-wai = prev.callCabal2nixWithOptions "hs-opentelemetry-instrumentation-wai"
+        (super.fetchFromGitHub {
+          owner = "iand675";
+          repo = "hs-opentelemetry";
+          rev = "de64d8b43ecebf297a479303f9098cca81dc8fd7";
+          sha256 = "sha256-dnAw+Hg6hHQIJw8EA/x/K8sb5PGVimr9pJhBu71D0EE=";
+        }) "--subpath=instrumentation/wai"
+        { };
+      hs-opentelemetry-instrumentation-hspec = prev.callCabal2nixWithOptions "hs-opentelemetry-instrumentation-hspec"
+        (super.fetchFromGitHub {
+          owner = "iand675";
+          repo = "hs-opentelemetry";
+          rev = "de64d8b43ecebf297a479303f9098cca81dc8fd7";
+          sha256 = "sha256-dnAw+Hg6hHQIJw8EA/x/K8sb5PGVimr9pJhBu71D0EE=";
+        }) "--subpath=instrumentation/hspec"
+        { };
+      hs-opentelemetry-otlp = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-otlp";
+          ver = "0.2.0.0";
+          sha256 = "sha256-Lm8I08G2qW1mphQMCOf0RDV23lJRvjd6DL2WSqZjxT0=";
+        }
+        { };
+      hs-opentelemetry-propagator-b3 = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-b3";
+          ver = "0.0.1.3";
+          sha256 = "sha256-NnkbMHgQsKw1d2gonVvQ+jJ4ghts6WLm1ZVPVP9yDR0=";
+        }
+        { };
+      hs-opentelemetry-propagator-datadog = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-datadog";
+          ver = "0.0.1.1";
+          sha256 = "sha256-/1hrlRYqFnT48ECmlHoyyH3iWE4wzxKpsGhth/JrD6c=";
+        }
+        { };
+      hs-opentelemetry-propagator-w3c = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-w3c";
+          ver = "0.1.0.0";
+          sha256 = "sha256-mZNUORfIt7z8W0y/T9eFiuMW5qrE5jTWJvb3I9vqDzU=";
+        }
+        { };
+      hs-opentelemetry-sdk = prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-sdk";
+          ver = "0.1.0.1";
+          sha256 = "sha256-bfUMDB8UHsi/xKh7pJrCbWvACKc5/gr7XGhB8M/fawg=";
+        }
+        { };
+      hs-opentelemetry-utils-exceptions = prev.callCabal2nixWithOptions "hs-opentelemetry-utils-exceptions"
+        (super.fetchFromGitHub {
+          owner = "iand675";
+          repo = "hs-opentelemetry";
+          rev = "de64d8b43ecebf297a479303f9098cca81dc8fd7";
+          sha256 = "sha256-dnAw+Hg6hHQIJw8EA/x/K8sb5PGVimr9pJhBu71D0EE=";
+        }) "--subpath=utils/exceptions"
+        { };
+
+      # Not in nixpkgs, supports GHC 9.12
+      proto-lens = prev.callHackageDirect
+        {
+          pkg = "proto-lens";
+          ver = "0.7.1.7";
+          sha256 = "sha256-Mv5U4mnOlDmi+aqRz59+OgKiCY/+V4i3v7YaTIUxtT8=";
+        }
+        { };
+      # Same, supports GHC 9.12
+      proto-lens-runtime = prev.callHackageDirect
+        {
+          pkg = "proto-lens-runtime";
+          ver = "0.7.0.8";
+          sha256 = "sha256-Yg0q4PnaTIpV904ic1FBoUEvs0bsu7ulv3YPchR626A=";
+        }
+        { };
     };
 in
 {
