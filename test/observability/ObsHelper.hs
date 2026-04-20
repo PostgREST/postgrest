@@ -121,6 +121,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configInternalSCLoadSleep       = Nothing
   , configInternalSCRelLoadSleep    = Nothing
   , configServerTimingEnabled       = True
+  , configServerOtelEnabled         = False
   }
 
 testCfg :: AppConfig
@@ -133,6 +134,9 @@ testCfgJwtCache =
   , configJWKS = rightToMaybe $ parseSecret generateSecret
   , configJwtCacheMaxEntries = 2
   }
+
+testCfgOTel :: AppConfig
+testCfgOTel = baseCfg { configServerOtelEnabled = True }
 
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
