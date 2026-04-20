@@ -4,6 +4,9 @@ codecov:
 
 comment: false
 
+github_checks:
+  annotations: true
+
 coverage:
   status:
     project:
