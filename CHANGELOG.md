@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file. From versio
 - All responses now include a `Vary` header by @develop7 in #4609
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
+- Build a static executable for aarch64-linux by @wolfgangwalther in #4193
+- Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 
 ## [14.10] - 2026-04-16
 
