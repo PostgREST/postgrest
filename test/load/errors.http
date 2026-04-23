@@ -7,7 +7,7 @@ GET http://postgrest/actors?select=*,rolws(*,films(*))
 Prefer: tx=commit
 
 # Misspelled function names
-GET http://postgrest/rpc/call_em_x?name=John
+GET http://postgrest/rpc/call_me_x?name=John
 Prefer: tx=commit
 
 # Permission denied errors
