@@ -96,7 +96,7 @@ data ResultSet
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
 mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
 mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
-  DbTx isoLvl txMode dbHandler SQL.transaction
+  DbTx isoLvl txMode dbHandler SQL.transactionNoRetry
   where
     isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan

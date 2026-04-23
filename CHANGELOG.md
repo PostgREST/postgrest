@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
+- Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurence in #3673
 
 ### Changed
 
