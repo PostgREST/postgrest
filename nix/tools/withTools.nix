@@ -105,7 +105,8 @@ let
 
             log "Starting replica on $replica_host"
 
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
+            # We set a low max_standby_streaming_delay to make the replication conflict fail faster in tests (otherwise it waits for the default 30s)
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" -c max_standby_streaming_delay=\"3s\" " \
               >> "$setuplog"
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
