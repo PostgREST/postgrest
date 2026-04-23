@@ -12,12 +12,12 @@ packages:
   original:
     hackage: configurator-pg-0.2.11
 - completed:
-    hackage: fuzzyset-0.2.4@sha256:f1b6de8bf33277bf6255207541d65028f1f1ea93af5541b654c86b5674995485,1618
+    hackage: fuzzystrmatch-pg-0.1.0.0@sha256:f676403cfaa4ce0b91386c649b863391115ff957d5781c172093d0b1452b8793,1952
     pantry-tree:
-      sha256: cee68e8d88f530e9e0588b81b260236936fe3318ef9a66e9f43f680b4cd5f76e
-      size: 574
+      sha256: a33408683208cfd8351a43c815ccd8773006ef3bc56cff66c4b15a94a8570e63
+      size: 485
   original:
-    hackage: fuzzyset-0.2.4
+    hackage: fuzzystrmatch-pg-0.1.0.0
 - completed:
     hackage: hasql-1.6.4.4@sha256:a26b346aaf33b903f011f8c47a1a1230ea2b0aa1d8325aaf779da425d6c076c5,4391
     pantry-tree:
@@ -95,6 +95,13 @@ packages:
       size: 736
   original:
     hackage: text-builder-dev-0.3.10
+- completed:
+    hackage: warp-3.4.13@sha256:ccd1fb8765166ca31928635fffdab85569b7a0f2a81cc11c9a5b91eab663eda6,10066
+    pantry-tree:
+      sha256: dfe50280b7d9549f7eebedc35f62d633ecb185ba0d9686146bb39074c3055df5
+      size: 4175
+  original:
+    hackage: warp-3.4.13
 snapshots:
 - completed:
     sha256: 655e468f774beee1badf07dc4c45fb50288d5c66ce7bef6f487b7f92891a90b0

@@ -46,8 +46,15 @@ let
       #   + For stack.yaml.lock, CI should report an error with the correct lock, copy/paste that one into the file
       # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
 
-      # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
-      fuzzyset = prev.fuzzyset_0_2_4;
+      # TODO: Remove once available in nixpkgs haskellPackages
+      fuzzystrmatch-pg =
+        prev.callHackageDirect
+          {
+            pkg = "fuzzystrmatch-pg";
+            ver = "0.1.0.0";
+            sha256 = "sha256-m0Kl0nA6lojyA4yFiQnJDzYoYAzplrI+qS7AjPQ3YeQ=";
+          }
+          { };
 
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);

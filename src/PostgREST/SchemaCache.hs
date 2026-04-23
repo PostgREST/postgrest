@@ -20,7 +20,6 @@ These queries are executed once at startup or when PostgREST is reloaded.
 
 module PostgREST.SchemaCache
   ( SchemaCache(..)
-  , TablesFuzzyIndex
   , querySchemaCache
   , showSummary
   , decodeFuncs
@@ -72,29 +71,22 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 
 import qualified PostgREST.MediaType as MediaType
 
-import           Control.Arrow    ((&&&))
-import qualified Data.FuzzySet    as Fuzzy
-import           Protolude
-import           System.IO.Unsafe (unsafePerformIO)
-
-type TablesFuzzyIndex = HM.HashMap Schema Fuzzy.FuzzySet
+import Control.Arrow    ((&&&))
+import Protolude
+import System.IO.Unsafe (unsafePerformIO)
 
 data SchemaCache = SchemaCache
-  { dbTables           :: TablesMap
-  , dbRelationships    :: RelationshipsMap
-  , dbRoutines         :: RoutineMap
-  , dbRepresentations  :: RepresentationsMap
-  , dbMediaHandlers    :: MediaHandlerMap
-  , dbTimezones        :: TimezoneNames
-  -- Memoized fuzzy index of table names per schema to support approximate matching
-  -- Since index construction can be expensive, we build it once and store in the SchemaCache
-  -- Haskell lazy evaluation ensures it's only built on first use and memoized afterwards
-  , dbTablesFuzzyIndex :: TablesFuzzyIndex
-  , dbQueryTimings     :: Maybe QueryTimings -- ^ cached time for the time each query took when debugging
+  { dbTables          :: TablesMap
+  , dbRelationships   :: RelationshipsMap
+  , dbRoutines        :: RoutineMap
+  , dbRepresentations :: RepresentationsMap
+  , dbMediaHandlers   :: MediaHandlerMap
+  , dbTimezones       :: TimezoneNames
+  , dbQueryTimings    :: Maybe QueryTimings -- ^ cached time for the time each query took when debugging
   } deriving (Show)
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps hdlers tzs _ _) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps hdlers tzs _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
@@ -104,7 +96,7 @@ instance JSON.ToJSON SchemaCache where
     ]
 
 showSummary :: SchemaCache -> Text
-showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _ _) =
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
@@ -152,9 +144,6 @@ data KeyDep
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-maxDbTablesForFuzzySearch :: Int
-maxDbTablesForFuzzySearch = 500
-
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
@@ -189,11 +178,6 @@ querySchemaCache conf@AppConfig{..} = do
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
-
-    , dbTablesFuzzyIndex =
-        -- Only build fuzzy index for schemas with a reasonable number of tables
-        -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
-        Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
     , dbQueryTimings = qsTime
     }
   where
@@ -234,7 +218,6 @@ removeInternal schemas dbStruct =
     , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
     , dbMediaHandlers   = dbMediaHandlers dbStruct
     , dbTimezones       = dbTimezones dbStruct
-    , dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
     , dbQueryTimings      = dbQueryTimings dbStruct
     }
   where
