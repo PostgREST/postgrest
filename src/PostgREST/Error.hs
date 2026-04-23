@@ -299,9 +299,6 @@ instance ErrorBody SchemaCacheError where
 -- >>> noRelBetweenHint "films" "role" "api" rels
 -- Just "Perhaps you meant 'roles' instead of 'role'."
 --
--- >>> noRelBetweenHint "films" "role" "api" rels
--- Just "Perhaps you meant 'roles' instead of 'role'."
---
 -- >>> noRelBetweenHint "films" "actors" "api" rels
 -- Nothing
 --
