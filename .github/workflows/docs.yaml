@@ -14,6 +14,7 @@ on:
       - .github/actions/setup-nix/**
       - default.nix
       - nix/**
+      - flake.lock
       - docs/**
       - '!**.md'
 
