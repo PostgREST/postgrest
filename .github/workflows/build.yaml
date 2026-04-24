@@ -16,6 +16,7 @@ on:
       - .github/*
       - '*.nix'
       - nix/**
+      - flake.lock
       - .cirrus.yml
       - cabal.project*
       - postgrest.cabal

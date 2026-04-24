@@ -17,6 +17,7 @@ on:
       - .github/actions/setup-nix/**
       - default.nix
       - nix/**
+      - flake.lock
       - .stylish-haskell.yaml
       - cabal.project
       - postgrest.cabal
