@@ -6,6 +6,7 @@
 module PostgREST.AppState
   ( AppState
   , destroy
+  , flushPool
   , getConfig
   , getSchemaCache
   , getMainThreadId
