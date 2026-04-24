@@ -190,6 +190,24 @@ def test_role_claim_key(roleclaim, defaultenv):
 
 
 @pytest.mark.parametrize(
+    "schemaclaim", FIXTURES["schemaclaims"], ids=lambda claim: claim["key"]
+)
+def test_jwt_schema_claim_key(schemaclaim, defaultenv):
+    "Schema from JWT should be selected"
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SCHEMA_CLAIM_KEY": schemaclaim["key"],
+        "PGRST_JWT_SECRET": SECRET,
+        "PGRST_DB_SCHEMAS": "test, v1",
+    }
+    headers = jwtauthheader(schemaclaim["data"], SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/planets", headers=headers)
+        assert response.status_code == schemaclaim["expected_status"]
+
+
+@pytest.mark.parametrize(
     "jwtaudroleclaim",
     FIXTURES["jwtaudroleclaims"],
     ids=lambda claim: claim["key"] + "_" + str(claim["expected_status"]),

@@ -251,6 +251,29 @@ jwtaudroleclaims:
       aud: [postgrest_test_author, postgrest_test_invalid]
     expected_status: 401
 
+schemaclaims:
+  - key: '.schema'
+    data:
+      schema: v1
+    expected_status: 200
+  - key: '.schemas[0]'
+    data:
+      schemas: [v1, test]
+    expected_status: 200
+  - key: '.schemas[?(@ ^== "v")]' # schema that starts with v
+    data:
+      schemas: [test, v1]
+    expected_status: 200
+  - key: '.schemas[100]' # out of bounds
+    data:
+      schemas: [test, v1]
+    expected_status: 404
+  - key: '.schemas.non_existent'
+    data:
+      schemas:
+        non_existent: v100 # doesn't exist in fixtures
+    expected_status: 406
+
 invalidroleclaimkeys:
   - 'role.other'
   - '.role##'
@@ -258,6 +281,17 @@ invalidroleclaimkeys:
   - '.#$$%&$%/'
   - '1234'
   - '.role[?(@ =)]'
+
+# TODO:
+# There is some duplication between testing invalid JSPath keys, this
+# is done for code coverage and can be improved by refactoring
+invalidschemaclaimkeys:
+  - 'schema.other'
+  - '.schema##'
+  - '.my_schema;;domain'
+  - '.#$$%&$%/'
+  - '1234'
+  - '.schema[?(@ =)]'
 
 invalidopenapimodes:
   - 'follow-'
