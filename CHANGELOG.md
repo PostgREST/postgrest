@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Shutdown should wait for in flight requests by @mkleczek in #4702
+- Use SO_REUSEPORT on platforms supporting it by @mkleczek in #4703 #4694
 
 ### Changed
 
