@@ -213,10 +213,10 @@ actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) ApiReque
   in
   Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader iSchema iNegotiatedByProfile)) rsBody
 
-actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@SchemaCache{dbTables} =
+actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ SchemaCache{dbTables} =
   case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
-    Nothing  -> Left $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName sc
+    Nothing  -> Left $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName (HM.elems dbTables)
   where
     allowH table =
       let hasPK = not . null $ tablePKCols table in

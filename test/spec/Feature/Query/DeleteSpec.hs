@@ -116,7 +116,7 @@ spec =
       it "fails with 404" $
         request methodDelete "/foozle?id=eq.101" [] ""
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.foozle' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.foos'","message":"Could not find the table 'test.foozle' in the schema cache"} |]
           { matchStatus = 404
           , matchHeaders = []
           }

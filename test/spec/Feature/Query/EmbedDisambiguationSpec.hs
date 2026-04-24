@@ -218,7 +218,7 @@ spec =
         it "fails if the fk is not known" $
           get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
             [json|{
-              "hint":null,
+              "hint":"Perhaps you meant 'person_detail' instead of 'person'.",
               "message":"Could not find a relationship between 'message' and 'person' in the schema cache",
               "code": "PGRST200",
               "details":"Searched for a foreign key relationship between 'message' and 'person' using the hint 'space' in the schema 'test', but no matches were found."}|]
