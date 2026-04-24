@@ -72,8 +72,8 @@ dbSettingsNames =
   ,"server_timing_enabled"
   ]
 
-queryPgVersion :: Bool -> Session PgVersion
-queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
+queryPgVersion :: Session PgVersion
+queryPgVersion = statement mempty $ pgVersionStatement False
 
 pgVersionStatement :: Bool -> SQL.Statement () PgVersion
 pgVersionStatement = SQL.Statement sql HE.noParams versionRow
@@ -92,10 +92,9 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
 --
 -- The example above will result in <prefix>jwt_aud = 'val'
 -- A setting on the database only will have no effect: ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
-queryDbSettings :: Maybe Text -> Bool -> Session [(Text, Text)]
-queryDbSettings preConfFunc prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings prepared
+queryDbSettings :: Maybe Text -> Session [(Text, Text)]
+queryDbSettings preConfFunc =
+  SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings True
   where
     sql = encodeUtf8 [trimming|
       WITH
@@ -133,10 +132,9 @@ queryDbSettings preConfFunc prepared =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
-queryRoleSettings pgVer prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
+queryRoleSettings :: PgVersion -> Session (RoleSettings, RoleIsolationLvl)
+queryRoleSettings pgVer =
+  SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) True
   where
     sql = encodeUtf8 [trimming|
       with
