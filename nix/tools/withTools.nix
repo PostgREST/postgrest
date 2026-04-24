@@ -8,6 +8,7 @@
 , python3Packages
 , writeText
 , writers
+, toxiproxy
 }:
 let
   withTmpDb =
@@ -54,6 +55,8 @@ let
 
           export PGDATA="$tmpdir/db"
           export PGHOST="$tmpdir/socket"
+          PGPORT=$(${randomPort})
+          export PGPORT
           export PGUSER
           export PGDATABASE
           export PGRST_DB_SCHEMAS
@@ -61,9 +64,16 @@ let
           export PGOPTIONS
 
           HBA_FILE="$tmpdir/pg_hba.conf"
-          echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
-          echo "local $PGDATABASE all trust" >> "$HBA_FILE"
-          echo "local replication all trust" >> "$HBA_FILE"
+          {
+            echo "local $PGDATABASE some_protected_user password"
+            echo "local $PGDATABASE all trust"
+            echo "local replication all trust"
+            echo "host $PGDATABASE some_protected_user localhost password"
+            echo "host $PGDATABASE all localhost trust"
+          } >> "$HBA_FILE"
+
+          UNIX_PGHOST="$PGHOST"
+          export TCP_PGHOST="localhost"
 
           log "Initializing database cluster..."
           # We try to make the database cluster as independent as possible from the host
@@ -80,7 +90,7 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c hba_file=$HBA_FILE -k $UNIX_PGHOST -c log_statement=\"all\" " \
             >> "$setuplog"
 
           log "Creating a minimally privileged $PGUSER connection role..."
@@ -93,6 +103,7 @@ let
             replica_slot="replica_$RANDOM"
             replica_dir="$tmpdir/$replica_slot"
             replica_host="$tmpdir/socket_$replica_slot"
+            replica_port=$(${randomPort})
 
             mkdir -p "$replica_host"
 
@@ -105,15 +116,16 @@ let
 
             log "Starting replica on $replica_host"
 
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"$TCP_PGHOST\" -c port=$replica_port -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
               >> "$setuplog"
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
             >&2 echo "${commandName}: You can tail the replica logs with: tail -f $replica_dblog"
 
             export PGREPLICAHOST="$replica_host"
+            export PGREPLICAPORT="$replica_port"
             export PGREPLICASLOT="$replica_slot"
-            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST"
+            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST&port=$replica_port,$PGPORT"
           fi
 
           # shellcheck disable=SC2329
@@ -371,6 +383,99 @@ let
         libraries = [ python3Packages.pandas python3Packages.tabulate python3Packages.psutil ];
       }
       (builtins.readFile ./monitor_pid.py);
+
+  randomPort =
+    writers.writePython3 "postgrest-random-port"
+      {
+        # Quick one-liner: ignore linting errors
+        flakeIgnore = [ "E702" "W292" "E501" ];
+      }
+      ''import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'';
+
+  withToxiproxyProxy =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-proxy";
+        docs = "Run <command> with Toxiproxy proxy created. Proxy name passed as TOXI_PROXY_NAME env variable.";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_OPTIONAL_SINGLE([listen], [l], [Proxy will listen on this address])"
+            "ARG_OPTIONAL_SINGLE([upstream], [u], [Proxy will forward to this address])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+        withPath = [ toxiproxy ];
+      }
+      ''
+        proxyname="tp$RANDOM"
+        toxiproxy-cli create -l "$_arg_listen" -u "$_arg_upstream" "$proxyname"
+
+        # shellcheck disable=SC2317
+        # shellcheck disable=SC2329
+        stop () {
+          toxiproxy-cli delete "$proxyname" || true
+        }
+        trap stop EXIT
+
+        (TOXI_PROXY_NAME="$proxyname" "$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
+  withToxiproxyPgProxy =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-pg-proxy";
+        docs = "Run <command> with a Toxiproxy proxy to PosgreSQL.";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_USE_ENV([TCP_PGHOST], [], [PG host name])"
+            "ARG_USE_ENV([PGPORT], [], [PG port])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+      }
+      ''
+        proxy_port=''$(${randomPort})
+
+        ${withToxiproxyServer} ${withToxiproxyProxy} -l "$TCP_PGHOST:$proxy_port" -u "$TCP_PGHOST:$PGPORT" \
+          env "TOXI_PGPORT=$proxy_port" "$_arg_command" "''${_arg_leftovers[@]}"
+      '';
+
+  withToxiproxyServer =
+    checkedShellScript
+      {
+        name = "postgrest-with-toxiproxy-server";
+        docs = "Run <command> with toxiproxy-server";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+          ];
+        positionalCompletion = "_command";
+        workingDir = "/";
+        withPath = [ toxiproxy ];
+      }
+      ''
+        if ! test -v TOXI_PROXY; then
+          export TOXI_PROXY=""
+          LOG_LEVEL=error toxiproxy-server&
+          TOXIPROXY_PID=$!
+          sleep 1 # give the server a moment to start
+
+          # shellcheck disable=SC2317
+          # shellcheck disable=SC2329
+          stop () {
+            kill "$TOXIPROXY_PID" || true
+            wait "$TOXIPROXY_PID" || true
+          }
+          trap stop EXIT  
+        fi
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
 in
 buildToolbox
 {
@@ -385,5 +490,5 @@ buildToolbox
     builtins.map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
   );
   # make latest withPg available for other nix files
-  extra = { inherit withPg; };
+  extra = { inherit withPg withToxiproxyPgProxy; };
 }
