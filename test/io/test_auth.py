@@ -425,3 +425,19 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
         # now the request should fail because the cached token is removed
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
+
+
+def test_login_mixed_case_rolename(defaultenv):
+    "Test PostgREST allows mixed case and upper case role names"
+
+    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=Postgrest_Test_Mixed_Case'
+    env = {
+        **defaultenv,
+        "PGRST_DB_URI": uri,
+        "PGRST_DB_ANON_ROLE": "Postgrest_Test_Mixed_Case",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        print(response.text)
+        assert response.status_code == 200
