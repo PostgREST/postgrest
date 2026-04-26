@@ -18,9 +18,9 @@ spec = do
         request methodPatch "/fake" []
           [json| { "real": false } |]
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.fake' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.tasks'","message":"Could not find the table 'test.fake' in the schema cache"} |]
           { matchStatus = 404
-          , matchHeaders = ["Content-Length" <:> "115"]
+          , matchHeaders = ["Content-Length" <:> "153"]
           }
 
 

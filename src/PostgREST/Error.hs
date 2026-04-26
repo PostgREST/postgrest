@@ -3,7 +3,6 @@ Module      : PostgREST.Error
 Description : PostgREST error HTTP responses
 -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Error
@@ -25,7 +24,7 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.CaseInsensitive      as CI
-import qualified Data.FuzzySet             as Fuzzy
+import qualified Data.FuzzyStrMatch        as Fuzzy
 import qualified Data.HashMap.Strict       as HM
 import qualified Data.Map.Internal         as M
 import qualified Data.Text                 as T
@@ -43,7 +42,6 @@ import           PostgREST.MediaType (MediaType (..))
 import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.Config                   (Verbosity (..))
-import PostgREST.SchemaCache              (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -52,6 +50,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
+import PostgREST.SchemaCache.Table        (Table (..))
 
 import PostgREST.Error.Types
 
@@ -277,7 +276,7 @@ instance ErrorBody SchemaCacheError where
       where
         onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
   hint (AmbiguousRpc _)      = Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-  hint (TableNotFound schemaName relName schemaCache) = JSON.String <$> tableNotFoundHint schemaName relName schemaCache
+  hint (TableNotFound schemaName relName tbls) = JSON.String <$> tableNotFoundHint schemaName relName tbls
 
   hint _ = Nothing
 
@@ -300,13 +299,13 @@ instance ErrorBody SchemaCacheError where
 -- Just "Perhaps you meant 'roles' instead of 'role'."
 --
 -- >>> noRelBetweenHint "films" "actors" "api" rels
--- Nothing
+-- Just "Perhaps you meant 'directors' instead of 'actors'."
 --
 -- >>> noRelBetweenHint "noclosealternative" "roles" "api" rels
--- Nothing
+-- Just "Perhaps you meant 'films' instead of 'noclosealternative'."
 --
 -- >>> noRelBetweenHint "films" "noclosealternative" "api" rels
--- Nothing
+-- Just "Perhaps you meant 'directors' instead of 'noclosealternative'."
 --
 -- >>> noRelBetweenHint "films" "noclosealternative" "noclosealternative" rels
 -- Nothing
@@ -318,11 +317,10 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
     else (<> "' instead of '" <> parent <> "'.") <$> suggestParent
   where
     findParent = HM.lookup (QualifiedIdentifier schema parent, schema) allRels
-    fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- HM.keys allRels, snd p == schema]
-    fuzzySetOfChildren = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] findParent]
-    suggestParent = Fuzzy.getOne fuzzySetOfParents parent
-    -- Do not give suggestion if the child is found in the relations (weight = 1.0)
-    suggestChild  = headMay [snd k | k <- Fuzzy.get fuzzySetOfChildren child, fst k < 1.0]
+    parentList  = [qiName (fst p) | p <- HM.keys allRels, snd p == schema]
+    childrenList = [qiName (relForeignTable c) | c <- fromMaybe [] findParent]
+    suggestParent = getFuzzyHint HintRelParent parent parentList
+    suggestChild  = getFuzzyHint HintRelChildren child childrenList
 
 -- |
 -- If no function is found with the given name, it does a fuzzy search to all the functions
@@ -359,43 +357,78 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
 -- Just "Perhaps you meant to call the function api.test(attr, id)"
 --
 -- >>> noRpcHint "api" "test" ["noclosealternative"] procs procsDesc
--- Nothing
+-- Just "Perhaps you meant to call the function api.test(attr, id)"
 --
 noRpcHint :: Text -> Text -> [Text] -> [QualifiedIdentifier] -> [Routine] -> Maybe Text
 noRpcHint schema procName params allProcs overloadedProcs =
   fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
   where
-    fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- allProcs, qiSchema k == schema]
-    fuzzySetOfParams = Fuzzy.fromList $ listToText <$> [[ppName prm | prm <- pdParams ov] | ov <- overloadedProcs]
+    listOfProcs  = [qiName k | k <- allProcs, qiSchema k == schema]
+    listOfParams = listToText <$> [[ppName prm | prm <- pdParams ov] | ov <- overloadedProcs]
     -- Cannot do a fuzzy search like: Fuzzy.getOne [[Text]] [Text], where [[Text]] is the list of params for each
     -- overloaded function and [Text] the given params. This converts those lists to text to make fuzzy search possible.
     -- E.g. ["val", "param", "name"] into "(name, param, val)"
     listToText       = ("(" <>) . (<> ")") . T.intercalate ", " . sort
     possibleProcs
-      | null overloadedProcs = getFuzzyHint HintProcedure fuzzySetOfProcs procName
-      | otherwise            = (procName <>) <$> getFuzzyHint HintParams fuzzySetOfParams (listToText params)
+      | null overloadedProcs = getFuzzyHint HintProcedure procName listOfProcs
+      | otherwise            = (procName <>) <$> getFuzzyHint HintParams (listToText params) listOfParams
 
 -- |
 -- Do a fuzzy search in all tables in the same schema and return closest result
-tableNotFoundHint :: Text -> Text -> SchemaCache -> Maybe Text
-tableNotFoundHint schema tblName SchemaCache{dbTablesFuzzyIndex}
+tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
+tableNotFoundHint schema tblName tblList
   = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
     where
-      perhapsTable = (\fuzzySet -> getFuzzyHint HintTable fuzzySet tblName) =<< HM.lookup schema dbTablesFuzzyIndex
+      perhapsTable =
+        if length tblList < maxDbTablesForFuzzySearch
+          then getFuzzyHint HintTable tblName tblNames
+          else Nothing
+      tblNames = [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
+      maxDbTablesForFuzzySearch = 500
 
 data HintType
   = HintTable
   | HintProcedure
   | HintParams
+  | HintRelParent
+  | HintRelChildren
+  deriving Eq
 
--- | Get hint using Fuzzy Search with at least 0.75 similarity score
-getFuzzyHint :: HintType -> Fuzzy.FuzzySet -> Text -> Maybe Text
-getFuzzyHint hintType =
-  let minScore = 0.75 :: Double -- used for table and procedure name hints
+-- | Get Fuzzy Hint comparing name with a list of names
+getFuzzyHint :: HintType -> Text -> [Text] -> Maybe Text
+getFuzzyHint hintType name nameList =
+  let
+    maxDistanceForTableAndProc = 3
   in case hintType of
-    HintTable     -> Fuzzy.getOneWithMinScore minScore
-    HintProcedure -> Fuzzy.getOneWithMinScore minScore
-    HintParams    -> Fuzzy.getOne -- For params, we stick to `getOne` which defaults to 0.33 min score, not a security risk to reveal params
+    -- TODO: Refactor and make it DRY
+    HintTable     -> checkLevenshteinDistance name nameList maxDistanceForTableAndProc
+    HintProcedure -> checkLevenshteinDistance name nameList maxDistanceForTableAndProc
+    HintParams    -> checkMinimumLevenshteinDistance name nameList Nothing maxInt
+    HintRelParent -> checkMinimumLevenshteinDistance name nameList Nothing maxInt
+    HintRelChildren -> checkMinimumLevenshteinDistance name nameList Nothing maxInt
+  where
+    -- |
+    -- Check Levenshtein Distance and return hint lower than max distance
+    checkLevenshteinDistance :: Text -> [Text] -> Int -> Maybe Text
+    checkLevenshteinDistance _ [] _ = Nothing
+    checkLevenshteinDistance identName (suggest:suggests) dist =
+      case Fuzzy.levenshteinLessEqual identName suggest dist of
+        Just _  -> Just suggest
+        Nothing -> checkLevenshteinDistance identName suggests dist
+
+    -- |
+    -- Check Levenshtein Distance and return hint with minimum distance
+    checkMinimumLevenshteinDistance :: Text -> [Text] -> Maybe Text -> Int -> Maybe Text
+    checkMinimumLevenshteinDistance _ [] Nothing _ = Nothing
+    checkMinimumLevenshteinDistance _ [] (Just suggest) _ = Just suggest
+    checkMinimumLevenshteinDistance identName (suggest:suggests) currentSuggest minDist =
+      let dist = Fuzzy.levenshtein identName suggest
+      in if dist < minDist
+          then
+            if dist == 0 && hintType == HintRelChildren -- Do not give suggestion if the child is found in the relations (dist = 0)
+              then checkMinimumLevenshteinDistance identName suggests currentSuggest minDist -- Go with current suggestion
+              else checkMinimumLevenshteinDistance identName suggests (Just suggest) dist -- Update suggestion
+          else checkMinimumLevenshteinDistance identName suggests currentSuggest minDist -- Go with current suggestion
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

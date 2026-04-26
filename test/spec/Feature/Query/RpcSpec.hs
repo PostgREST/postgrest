@@ -248,7 +248,7 @@ spec actualPgVersion =
       it "should fail with 404 for overloaded functions with unknown args" $ do
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
-            "hint":null,
+            "hint":"Perhaps you meant to call the function test.overloaded()",
             "message":"Could not find the function test.overloaded(wrong_arg) in the schema cache",
             "code":"PGRST202",
             "details":"Searched for the function test.overloaded with parameter wrong_arg, but no matches were found in the schema cache."} |]
@@ -1162,7 +1162,7 @@ spec actualPgVersion =
                 "code":"PGRST202",
                 "message":"Could not find the function test.named_json_param(A, B, C) in the schema cache",
                 "details":"Searched for the function test.named_json_param with parameters A, B, C or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
-                "hint":null
+                "hint":"Perhaps you meant to call the function test.named_json_param(data)"
               }|]
               { matchStatus = 404 }
 
@@ -1194,7 +1194,7 @@ spec actualPgVersion =
               [json|{"x": 1, "y": 2}|]
             `shouldRespondWith`
               [json|{
-                "hint": "Perhaps you meant to call the function test.unnamed_text_param",
+                "hint": null,
                 "message": "Could not find the function test.unnamed_int_param(x, y) in the schema cache",
                 "code":"PGRST202",
                 "details":"Searched for the function test.unnamed_int_param with parameters x, y or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache."
