@@ -102,7 +102,7 @@ queryDbSettings preConfFunc =
         SELECT setdatabase as database,
                unnest(setconfig) as setting
         FROM pg_catalog.pg_db_role_setting
-        WHERE setrole = CURRENT_USER::regrole::oid
+        WHERE setrole = quote_ident(CURRENT_USER)::regrole::oid
           AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))
       ),
       kv_settings AS (
@@ -142,7 +142,7 @@ queryRoleSettings pgVer =
         select r.rolname, unnest(r.rolconfig) as setting
         from pg_auth_members m
         join pg_roles r on r.oid = m.roleid
-        where member = current_user::regrole::oid
+        where member = quote_ident(current_user)::regrole::oid
       ),
       kv_settings AS (
         SELECT
@@ -167,7 +167,7 @@ queryRoleSettings pgVer =
     |]
 
     hasParameterPrivilege
-      | pgVer >= pgVersion150 = "or has_parameter_privilege(current_user::regrole::oid, ps.name, 'set')"
+      | pgVer >= pgVersion150 = "or has_parameter_privilege(quote_ident(current_user)::regrole::oid, ps.name, 'set')"
       | otherwise             = ""
 
     processRows :: [(Text, Maybe Text, [(Text, Text)])] -> (RoleSettings, RoleIsolationLvl)

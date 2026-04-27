@@ -24,7 +24,7 @@ let
             "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from])"
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
-            "ARG_USE_ENV([PGUSER], [postgrest_test_authenticator], [Authenticator PG role])"
+            "ARG_USE_ENV([PGUSER], [Postgrest_Test_Authenticator], [Authenticator PG role])" # user is written in mixed case to implicitly test that it is being properly quoted in schema cache queries
             "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
             "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
             "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"

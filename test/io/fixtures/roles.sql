@@ -12,9 +12,9 @@ CREATE ROLE postgrest_test_w_superuser_settings;
 GRANT
   postgrest_test_anonymous, postgrest_test_author,
   postgrest_test_serializable, postgrest_test_repeatable_read,
-  postgrest_test_w_superuser_settings TO :PGUSER;
+  postgrest_test_w_superuser_settings TO :"PGUSER";
 
-ALTER ROLE :PGUSER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
+ALTER ROLE :"PGUSER" SET pgrst.db_anon_role = 'postgrest_test_anonymous';
 ALTER ROLE postgrest_test_serializable SET default_transaction_isolation = 'serializable';
 ALTER ROLE postgrest_test_repeatable_read SET default_transaction_isolation = 'REPEATABLE READ';
 
