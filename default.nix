@@ -108,6 +108,9 @@ rec {
       inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
     };
 
+  # Used by CI on MacOS
+  inherit (pkgs) nix-build-uncached;
+
   ### Tools
 
   cabalTools =
