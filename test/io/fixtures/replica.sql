@@ -13,7 +13,7 @@ create table replica.items as select x as id from generate_series(1, 10) x;
 DROP ROLE IF EXISTS postgrest_test_anonymous;
 CREATE ROLE postgrest_test_anonymous;
 
-GRANT postgrest_test_anonymous TO :PGUSER;
+GRANT postgrest_test_anonymous TO :"PGUSER";
 
 GRANT USAGE ON SCHEMA replica TO postgrest_test_anonymous;
 

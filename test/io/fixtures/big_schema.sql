@@ -11399,7 +11399,7 @@ $$;
 DROP ROLE IF EXISTS postgrest_test_anonymous;
 CREATE ROLE postgrest_test_anonymous;
 
-GRANT postgrest_test_anonymous TO :PGUSER;
+GRANT postgrest_test_anonymous TO :"PGUSER";
 
 GRANT USAGE ON SCHEMA apflora TO postgrest_test_anonymous;
 GRANT USAGE ON SCHEMA fuzzysearch TO postgrest_test_anonymous;
