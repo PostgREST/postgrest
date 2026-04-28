@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
+- Add config `jwt-schema-claim-key` for schema selection in JWT by @taimoorzaeem in #4608
 
 ### Fixed
 

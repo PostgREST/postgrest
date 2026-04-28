@@ -8,6 +8,16 @@ CREATE TABLE projects AS SELECT FROM generate_series(1,5);
 CREATE TABLE cats(id uuid primary key, name text);
 CREATE TABLE items AS SELECT x AS id FROM generate_series(1,5) x;
 
+CREATE TABLE v1.planets (
+  id int primary key,
+  name text
+);
+
+TRUNCATE TABLE v1.planets CASCADE;
+INSERT INTO v1.planets
+VALUES (1, 'venus'),
+       (2, 'mars');
+
 -- directors and films table can be used for resource embedding tests
 CREATE TABLE directors (
   id int primary key,

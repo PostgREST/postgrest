@@ -65,7 +65,8 @@ import PostgREST.Config.Database         (RoleIsolationLvl,
                                           RoleSettings)
 import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
                                           JSPathExp (..), dumpJSPath,
-                                          pRoleClaimKey)
+                                          pRoleClaimKey,
+                                          pSchemaClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
@@ -107,6 +108,7 @@ data AppConfig = AppConfig
   , configJWKS                     :: Maybe JwkSet
   , configJwtAudience              :: Maybe Text
   , configJwtRoleClaimKey          :: JSPath
+  , configJwtSchemaClaimKey        :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
   , configJwtCacheMaxEntries       :: Int
@@ -192,6 +194,7 @@ toText conf =
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
+      ,("jwt-schema-claim-key",      q . T.intercalate mempty . fmap dumpJSPath . configJwtSchemaClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-entries",         show . configJwtCacheMaxEntries)
@@ -305,6 +308,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> pure Nothing
     <*> optStringOrURI "jwt-aud"
     <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
+    <*> parseSchemaClaimKey "jwt-schema-claim-key"
     <*> (fmap encodeUtf8 <$> optString "jwt-secret")
     <*> (fromMaybe False <$> optWithAlias
           (optBool "jwt-secret-is-base64")
@@ -425,6 +429,12 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
       optWithAlias (optString k) (optString al) >>= \case
         Nothing  -> pure [JSPKey "role"]
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
+
+    parseSchemaClaimKey :: C.Key -> C.Parser C.Config JSPath
+    parseSchemaClaimKey k =
+      optString k >>= \case
+        Nothing  -> pure [JSPKey "schema"]
+        Just sck -> either (fail . show) pure $ pSchemaClaimKey sck
 
     parseCORSAllowedOrigins k =
       optString k >>= \case
@@ -752,6 +762,9 @@ exampleConfigFile = S.unlines
   , ""
   , "## Jspath to the role claim key"
   ,  "jwt-role-claim-key = \".role\""
+  , ""
+  , "## Jspath to the schema claim key"
+  ,  "jwt-schema-claim-key = \".schema\""
   ,  ""
   ,  "## Choose a secret, JSON Web Key (or set) to enable JWT auth"
   ,  "## (use \"@filename\" to load from separate file)"
