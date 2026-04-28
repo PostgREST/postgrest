@@ -35,10 +35,7 @@ lib.overrideDerivation postgrest.env (
     buildInputs =
       base.buildInputs ++ [
         pkgs.cabal-install
-        pkgs.cabal2nix
-        pkgs.git
         pkgs.postgresql
-        pkgs.update-nix-fetchgit
         postgrest.hsie.bin
       ]
       ++ toolboxes;
