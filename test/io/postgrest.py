@@ -84,6 +84,7 @@ def run(
     configpath=None,
     stdin=None,
     env=None,
+    args=None,
     port=None,
     admin_port=None,
     host=None,
@@ -121,6 +122,9 @@ def run(
 
         command = [POSTGREST_BIN]
         env["HPCTIXFILE"] = hpctixfile()
+
+        if args:
+            command.extend(args)
 
         if configpath:
             command.append(configpath)

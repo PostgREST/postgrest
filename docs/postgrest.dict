@@ -45,7 +45,9 @@ filename
 FreeBSD
 fts
 fullstack
+GC
 GeoJSON
+GHC
 Github
 Google
 grantor
@@ -147,6 +149,7 @@ RESTful
 RLS
 RPC
 RSA
+RTS
 safeupdate
 savepoint
 schemas

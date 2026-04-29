@@ -1693,6 +1693,30 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_timeouts_total" in response.text
 
 
+def test_admin_metrics_include_ghc_runtime_metrics(defaultenv):
+    "Should get GHC runtime metrics from the admin endpoint when RTS stats are enabled"
+
+    with run(env=defaultenv, args=["+RTS", "-T", "-RTS"], port=freeport()) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "# HELP ghc_gcs_total Total number of GCs" in response.text
+        assert "# TYPE ghc_gcs_total counter" in response.text
+        assert re.search(r"^ghc_gcs_total \d+(?:\.\d+)?$", response.text, re.MULTILINE)
+        assert re.search(
+            r"^ghc_allocated_bytes_total \d+(?:\.\d+)?$", response.text, re.MULTILINE
+        )
+
+
+def test_admin_metrics_exclude_ghc_runtime_metrics_by_default(defaultenv):
+    "Should not get GHC runtime metrics unless RTS stats are enabled"
+
+    with run(env=defaultenv, port=freeport()) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "ghc_gcs_total" not in response.text
+        assert "ghc_allocated_bytes_total" not in response.text
+
+
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
 

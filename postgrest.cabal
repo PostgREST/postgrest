@@ -136,6 +136,7 @@ library
                     , parsec                    >= 3.1.11 && < 3.2
                     , postgresql-libpq          >= 0.10
                     , prometheus-client         >= 1.1.1 && < 1.2.0
+                    , prometheus-metrics-ghc    >= 1.0.1.2 && < 1.2
                     , protolude                 >= 0.3.1 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
                     , retry                     >= 0.7.4 && < 0.10
