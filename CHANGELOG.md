@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+- Make sure `LISTEN <db-channel>` query is present in pg_stat_activity row corresponding to session established by notification listening thread by @mkleczek in #4857 #4859
 
 ### Changed
 
