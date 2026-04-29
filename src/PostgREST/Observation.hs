@@ -12,7 +12,6 @@ module PostgREST.Observation
   , ObservationHandler
   ) where
 
-import qualified Hasql.Connection           as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
@@ -37,7 +36,7 @@ data Observation
   | SchemaCacheLoadedObs Double Text
   | ConnectionRetryObs Int
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel
-  | DBListenFail Text (Either SQL.ConnectionError SomeException)
+  | DBListenFail Text SomeException
   | DBListenRetry Int
   | DBListenBugCallQueryFix
   | DBListenerGotSCacheMsg ByteString

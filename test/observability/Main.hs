@@ -18,6 +18,7 @@ import           PostgREST.SchemaCache     (querySchemaCache)
 import qualified Observation.JwtCache
 import qualified Observation.MetricsSpec
 
+import qualified Observation.ListenerSpec
 import qualified Observation.SchemaCacheSpec
 import           ObsHelper
 import           PostgREST.Observation       (Observation (HasqlPoolObs))
@@ -68,6 +69,8 @@ main = do
       describe "Feature.MetricsSpec" Observation.MetricsSpec.spec
     before (initApp baseSchemaCache testCfg) $
       describe "Feature.SchemaCacheSpec" Observation.SchemaCacheSpec.spec
+    before (initApp baseSchemaCache testCfg) $
+      describe "Observation.ListenerSpec" Observation.ListenerSpec.spec
 
   where
     loadSCache pool conf =

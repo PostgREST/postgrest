@@ -311,6 +311,7 @@ test-suite observability
   main-is:            Main.hs
   other-modules:      ObsHelper
                       Observation.JwtCache
+                      Observation.ListenerSpec
                       Observation.MetricsSpec
                       Observation.SchemaCacheSpec
   build-depends:      base              >= 4.9 && < 4.22

@@ -74,7 +74,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configClientErrorVerbosity      = Verbose
   , configDbAggregates              = False
   , configDbAnonRole                = Just "postgrest_test_anonymous"
-  , configDbChannel                 = mempty
+  , configDbChannel                 = "pgrst"
   , configDbChannelEnabled          = True
   , configDbExtraSearchPath         = []
   , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]

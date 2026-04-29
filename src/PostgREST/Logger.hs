@@ -36,7 +36,6 @@ import PostgREST.SchemaCache   (queryTimingsWLabels)
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
-import qualified Hasql.Connection           as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Numeric                    (showFFloat)
@@ -175,7 +174,7 @@ observationMessages = \case
     pure $ "Listener connected to " <> fullName <> " on " <> show (fold $ host <> fmap (":" <>) port) <> " and listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
     pure $ "Failed listening for database notifications on the " <> show channel <> " channel. " <>
-      either showListenerConnError showListenerException listenErr
+      showListenerException listenErr
   DBListenRetry delay ->
     pure $ "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
   DBListenBugCallQueryFix ->
@@ -240,10 +239,6 @@ observationMessages = \case
     showMillis x = toS $ showFFloat (Just 1) x ""
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.PgError False err
-
-
-    showListenerConnError :: SQL.ConnectionError -> Text
-    showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
 
     showListenerException :: SomeException -> Text
     showListenerException = showOnSingleLine '\t' . show

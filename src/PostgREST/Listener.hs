@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -24,24 +24,30 @@ import qualified Hasql.Session              as SQL
 import           PostgREST.Config.Database  (queryPgVersion)
 import           PostgREST.Config.PgVersion (pgvFullName)
 import           Protolude
+import System.Mem.Weak (deRefWeak)
+import Data.Monoid.Extra (mwhen)
+
+data ListenerStopped = ListenerStopped deriving (Show, Exception)
+newtype ListenerConnectionError = ListenerConnectionError SQL.ConnectionError deriving (Show, Exception)
 
 -- | Starts the Listener in a thread
-runListener :: AppState -> IO ()
+runListener :: AppState -> IO (IO ())
 runListener appState = do
   AppConfig{..} <- getConfig appState
-  when configDbChannelEnabled $
-    void . forkIO . void $ retryingListen appState False
+  mwhen configDbChannelEnabled $ do
+    listenerThreadId <- mkWeakThreadId =<< forkIO (retryingListen appState False)
+    pure $ deRefWeak listenerThreadId >>= foldMap (`throwTo` ListenerStopped)
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
--- | This function never returns (but can throw) and return type enforces that.
-retryingListen :: AppState -> Bool -> IO Void
+-- | This function returns upon receiving of ListenerStopped async exception.
+retryingListen :: AppState -> Bool -> IO ()
 retryingListen appState hasDbListenerBug = do
   cfg@AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
     onError err = do
       AppState.putIsListenerOn appState False
-      observer $ DBListenFail dbChannel (Right err)
+      observer $ DBListenFail dbChannel err
       when (isDbListenerBug err) $
         observer DBListenBugCallQueryFix
       unless configDbPoolAutomaticRecovery $
@@ -54,11 +60,10 @@ retryingListen appState hasDbListenerBug = do
       unless (delay == maxDelay) $
         AppState.putNextListenerDelay appState (delay * 2)
       -- loop running the listener
-      retryingListen appState (isDbListenerBug err)
+      pure $ retryingListen appState (isDbListenerBug err)
 
   -- Execute the listener with with error handling
-  handle onError $ do
-    -- Make sure we don't leak connections on errors
+  join $ handle onError $ handle (\ListenerStopped -> mempty) $
     bracket
       -- acquire connection
       (SQL.acquire $
@@ -66,10 +71,11 @@ retryingListen appState hasDbListenerBug = do
       -- release connection
       (`whenRight` releaseConnection) $
       -- use connection
-      \case
-        Right db -> do
+      either (throwIO . ListenerConnectionError) $ \db -> do
           (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
           pgFullName <- SQL.run queryPgVersion db >>= either throwIO (pure . pgvFullName)
+          when hasDbListenerBug $ SQL.run callNotifQueryUsage db >>= either throwIO pure
+          SQL.listen db $ SQL.toPgIdentifier dbChannel
           when hasDbListenerBug $ SQL.run callNotifQueryUsage db >>= either throwIO pure
           SQL.listen db $ SQL.toPgIdentifier dbChannel
 
@@ -88,9 +94,6 @@ retryingListen appState hasDbListenerBug = do
           -- this will never return, in case of an error it will throw and be caught by onError
           forever $ SQL.waitForNotifications handleNotification db
 
-        Left err -> do
-          observer $ DBListenFail dbChannel (Left err)
-          exitFailure
   where
     observer = AppState.getObserver appState
     mainThreadId = AppState.getMainThreadId appState
