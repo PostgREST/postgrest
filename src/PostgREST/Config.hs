@@ -26,6 +26,7 @@ module PostgREST.Config
   , readPGRSTEnvironment
   , toURI
   , parseSecret
+  , addConnStringOption
   , addFallbackAppName
   , addTargetSessionAttrs
   , toConnectionSettings
@@ -627,7 +628,7 @@ pgConnString conn | uriDesignator `T.isPrefixOf` conn || shortUriDesignator `T.i
 -- >>> addFallbackAppName ver "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass"
 -- "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 addFallbackAppName :: ByteString -> Text -> Text
-addFallbackAppName version dbUri = addConnStringOption dbUri "fallback_application_name" pgrstVer
+addFallbackAppName version = addConnStringOption "fallback_application_name" pgrstVer
   where
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
 
@@ -649,7 +650,7 @@ addFallbackAppName version dbUri = addConnStringOption dbUri "fallback_applicati
 -- >>> addTargetSessionAttrs "host=localhost port=5432 dbname=postgres"
 -- "host=localhost port=5432 dbname=postgres target_session_attrs='read-write'"
 addTargetSessionAttrs :: Text -> Text
-addTargetSessionAttrs dbUri = addConnStringOption dbUri "target_session_attrs" "read-write"
+addTargetSessionAttrs = addConnStringOption "target_session_attrs" "read-write"
 
 toConnectionSettings :: (Text -> Text) -> AppConfig -> [SQL.Setting]
 toConnectionSettings transformUri AppConfig{configDbUri, configDbPreparedStatements} =
@@ -658,7 +659,7 @@ toConnectionSettings transformUri AppConfig{configDbUri, configDbPreparedStateme
   ]
 
 addConnStringOption :: Text -> Text -> Text -> Text
-addConnStringOption dbUri key val = dbUri <>
+addConnStringOption key val dbUri= dbUri <>
   case pgConnString dbUri of
     Nothing  -> mempty
     Just PGKeyVal -> " " <> keyValFmt
