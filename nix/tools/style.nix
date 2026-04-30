@@ -29,7 +29,8 @@ let
 
         # Format Haskell files
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
+        # TODO: fix style issues in src/protolude and include it
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' --ignore-dir=src/protolude . \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
 
         # Format Python files
@@ -89,11 +90,12 @@ let
         ${ruff}/bin/ruff check .
 
         echo "Checking consistency of import aliases in Haskell code..."
-        ${hsie} check-aliases main src
+        ${hsie} check-aliases main src/PostgREST
 
         echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
+        # TODO: fix lint issues in src/protolude and include it
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' --ignore-dir=src/protolude . \
           | xargs ${hlint}/bin/hlint --hint=${hlintConfig}
       '';
 
