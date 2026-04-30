@@ -68,9 +68,9 @@ retryingListen appState = do
       -- use connection
       \case
         Right db -> do
-          SQL.listen db $ SQL.toPgIdentifier dbChannel
           (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
           pgFullName <- SQL.run (queryPgVersion False) db >>= either throwIO (pure . pgvFullName)
+          SQL.listen db $ SQL.toPgIdentifier dbChannel
 
           AppState.putIsListenerOn appState True
 
