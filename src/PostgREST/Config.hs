@@ -115,6 +115,7 @@ data AppConfig = AppConfig
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
   , configOpenApiServerProxyUri    :: Maybe Text
+  , configOTelEnabled              :: Bool
   , configServerCorsAllowedOrigins :: Maybe [Text]
   , configServerHost               :: Text
   , configServerPort               :: Int
@@ -200,6 +201,7 @@ toText conf =
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
+      ,("otel-enabled",                  T.toLower . show . configOTelEnabled)
       ,("server-cors-allowed-origins",      q . maybe "" (T.intercalate ",") . configServerCorsAllowedOrigins)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
@@ -315,6 +317,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
+    <*> (fromMaybe False <$> optBool "otel-enabled")
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
     <*> (defaultServerHost <$> optString "server-host")
     <*> parseServerPort "server-port"
@@ -572,6 +575,8 @@ readDbUriFile maybeDbUri conf =
 type Environment = M.Map [Char] Text
 
 -- | Read environment variables that start with PGRST_
+-- Note: `OTEL_*` environment variables, while being recornized by OpenTelemetry
+-- subsystem, are specifically ignored here
 readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
