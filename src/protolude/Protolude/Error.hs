@@ -4,7 +4,7 @@
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE ExistentialQuantification #-}
 #if ( __GLASGOW_HASKELL__ >= 800 )
-{-# LANGUAGE TypeInType #-}
+{-# LANGUAGE DataKinds #-}
 #endif
 
 #if MIN_VERSION_base(4,9,0)

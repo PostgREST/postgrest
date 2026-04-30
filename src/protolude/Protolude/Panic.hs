@@ -14,12 +14,11 @@ module Protolude.Panic (
 import Protolude.Base (Show)
 import Protolude.CallStack (HasCallStack)
 import Data.Text (Text)
-import Data.Typeable (Typeable)
 import Control.Exception as X
 
 -- | Uncatchable exceptions thrown and never caught.
 newtype FatalError = FatalError { fatalErrorMessage :: Text }
-  deriving (Show, Typeable)
+  deriving (Show)
 
 instance Exception FatalError
 
