@@ -30,12 +30,12 @@ runListener :: AppState -> IO ()
 runListener appState = do
   AppConfig{..} <- getConfig appState
   when configDbChannelEnabled $
-    void . forkIO . void $ retryingListen appState
+    void . forkIO . void $ retryingListen appState False
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
 -- | This function never returns (but can throw) and return type enforces that.
-retryingListen :: AppState -> IO Void
-retryingListen appState = do
+retryingListen :: AppState -> Bool -> IO Void
+retryingListen appState hasDbListenerBug = do
   cfg@AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
@@ -43,7 +43,7 @@ retryingListen appState = do
       AppState.putIsListenerOn appState False
       observer $ DBListenFail dbChannel (Right err)
       when (isDbListenerBug err) $
-        observer DBListenBugHint
+        observer DBListenBugCallQueryFix
       unless configDbPoolAutomaticRecovery $
         killThread mainThreadId
 
@@ -54,7 +54,7 @@ retryingListen appState = do
       unless (delay == maxDelay) $
         AppState.putNextListenerDelay appState (delay * 2)
       -- loop running the listener
-      retryingListen appState
+      retryingListen appState (isDbListenerBug err)
 
   -- Execute the listener with with error handling
   handle onError $ do
@@ -68,6 +68,7 @@ retryingListen appState = do
       -- use connection
       \case
         Right db -> do
+          when hasDbListenerBug $ SQL.run callNotifQueryUsage db >>= either throwIO pure
           SQL.listen db $ SQL.toPgIdentifier dbChannel
           (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
           pgFullName <- SQL.run queryPgVersion db >>= either throwIO (pure . pgvFullName)
@@ -108,3 +109,8 @@ retryingListen appState = do
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
 
     isDbListenerBug e = "could not access status of transaction" `T.isInfixOf` show e
+
+    -- Used to fix a Postgres bug in the listener, see: https://github.com/PostgREST/postgrest/issues/3147#issuecomment-3494591361
+    -- This query advances the async notification query tail, which solves this issue.
+    callNotifQueryUsage :: SQL.Session ()
+    callNotifQueryUsage = SQL.sql "SELECT pg_notification_queue_usage();"
