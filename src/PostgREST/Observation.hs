@@ -13,7 +13,6 @@ module PostgREST.Observation
   , observationMessage
   , ObservationHandler
   , showOnSingleLine
-  , isDbListenerBug
   ) where
 
 import qualified Data.ByteString.Lazy       as LBS
@@ -48,7 +47,7 @@ data Observation
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel
   | DBListenFail Text (Either SQL.ConnectionError SomeException)
   | DBListenRetry Int
-  | DBListenBugHint -- https://github.com/PostgREST/postgrest/issues/3147
+  | DBListenBugCallQueryFix
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
   | DBListenerConnectionCleanupFail SomeException
@@ -122,8 +121,8 @@ observationMessage = \case
       either showListenerConnError showListenerException listenErr
   DBListenRetry delay ->
     "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
-  DBListenBugHint ->
-    "HINT:  This is likely a bug in the notification queue, try executing the following to solve it: select pg_notification_queue_usage();"
+  DBListenBugCallQueryFix ->
+    "This is likely a PostgreSQL bug in the notification queue, executing the following to try to solve it: SELECT pg_notification_queue_usage();"
   DBListenerGotSCacheMsg channel ->
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
@@ -188,6 +187,3 @@ observationMessage = \case
 
 showOnSingleLine :: Char -> Text -> Text
 showOnSingleLine split txt = T.intercalate " " $ T.filter (/= split) <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"
-
-isDbListenerBug :: SomeException -> Bool
-isDbListenerBug e = "could not access status of transaction" `T.isInfixOf` show e
