@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
+- Restore Listener query shape so it can be found in `pg_stat_activity` by @mkleczek in #4857 #4859
 
 ## [14.10] - 2026-04-16
 
