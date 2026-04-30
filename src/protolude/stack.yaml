@@ -1,7 +1,0 @@
-resolver: lts-14.0
-packages:
-- '.'
-extra-deps:
-- fail-4.9.0.0
-flags: {}
-extra-package-dbs: []

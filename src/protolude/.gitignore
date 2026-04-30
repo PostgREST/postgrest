@@ -1,9 +1,0 @@
-*.sw[ponmkl]
-.stack-work
-dist
-.cabal-sandbox
-cabal.sandbox.config
-*.hi
-*.o
-stack.yaml.lock
-dist-newstyle
