@@ -21,7 +21,9 @@ All notable changes to this project will be documented in this file. From versio
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+- Restore Listener query shape so it can be found in pg_stat_activity by @mkleczek in #4857 #4859
 - The LISTEN channel now automatically recovers when it stops working due to a PostgreSQL bug @laurenceisla in #3147
+
 
 ### Changed
 

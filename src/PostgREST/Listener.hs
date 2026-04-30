@@ -68,10 +68,10 @@ retryingListen appState hasDbListenerBug = do
       -- use connection
       \case
         Right db -> do
-          when hasDbListenerBug $ SQL.run callNotifQueryUsage db >>= either throwIO pure
-          SQL.listen db $ SQL.toPgIdentifier dbChannel
           (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
           pgFullName <- SQL.run queryPgVersion db >>= either throwIO (pure . pgvFullName)
+          when hasDbListenerBug $ SQL.run callNotifQueryUsage db >>= either throwIO pure
+          SQL.listen db $ SQL.toPgIdentifier dbChannel
 
           AppState.putIsListenerOn appState True
 
