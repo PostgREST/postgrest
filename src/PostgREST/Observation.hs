@@ -38,7 +38,7 @@ data Observation
   | DBListenStart (Maybe ByteString) (Maybe ByteString) Text Text -- host, port, version string, channel
   | DBListenFail Text (Either SQL.ConnectionError SomeException)
   | DBListenRetry Int
-  | DBListenBugHint -- https://github.com/PostgREST/postgrest/issues/3147
+  | DBListenBugCallQueryFix
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
   | DBListenerConnectionCleanupFail SomeException

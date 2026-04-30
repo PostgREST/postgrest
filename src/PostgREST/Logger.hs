@@ -188,8 +188,8 @@ observationMessages = \case
       either showListenerConnError showListenerException listenErr
   DBListenRetry delay ->
     pure $ "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
-  DBListenBugHint ->
-    pure "HINT:  This is likely a bug in the notification queue, try executing the following to solve it: select pg_notification_queue_usage();"
+  DBListenBugCallQueryFix ->
+    pure "This is likely a PostgreSQL bug in the notification queue, executing the following to try to solve it: SELECT pg_notification_queue_usage();"
   DBListenerGotSCacheMsg channel ->
     pure $ "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
