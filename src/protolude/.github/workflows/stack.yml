@@ -1,0 +1,118 @@
+name: Stack CI
+
+on:
+  pull_request:
+  schedule:
+  - cron: "0 0 * * 1"
+
+jobs:
+  build:
+    name: stack ${{ matrix.plan.resolver }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+        # use this to specify what resolvers and ghc to use
+        plan:
+        - { build: stack, resolver: "lts-9"  }    # ghc-8.0.2
+        - { build: stack, resolver: "lts-10"  }   # ghc-8.2.2
+        - { build: stack, resolver: "lts-11"  }   # ghc-8.2.2
+        - { build: stack, resolver: "lts-12"  }   # ghc-8.4.4
+        - { build: stack, resolver: "lts-13"  }   # ghc-8.6.4
+        - { build: stack, resolver: "lts-14"  }   # ghc-8.6.5
+        - { build: stack, resolver: "lts-15"  }   # ghc-8.8.2
+        - { build: stack, resolver: "lts-16"  }   # ghc-8.8.4
+        - { build: stack, resolver: "lts-17"  }   # ghc-8.10.3
+        - { build: stack, resolver: "lts-18"  }   # ghc-8.10.7
+        - { build: stack, resolver: "lts-19"  }   # ghc-9.0.2
+        - { build: stack, resolver: "lts-20"  }   # ghc-9.2.5
+
+        # - { build: stack, resolver: ""                   }
+        # use this to include any dependencies from OS package managers
+        include: []
+        # - os: macOS-latest
+        #   brew: anybrewdeps
+        # - os: ubuntu-latest
+        #   apt-get: happy libblas-dev liblapack-dev
+
+        exclude:
+        - os: macOS-latest
+          plan:
+            build: cabal
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Install OS Packages
+      uses: mstksg/get-package@v1
+      with:
+        apt-get: ${{ matrix.apt-get }}
+        brew: ${{ matrix.brew }}
+    - uses: actions/checkout@v1
+
+    - name: Setup stack
+      uses: mstksg/setup-stack@v1
+      env:
+        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+    - name: Setup cabal-install
+      uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.plan.ghc }}
+        cabal-version: ${{ matrix.plan.cabal-install }}
+      if: matrix.plan.build == 'cabal'
+
+    - name: Install dependencies
+      run: |
+        set -ex
+        case "$BUILD" in
+          stack)
+            stack --no-terminal --install-ghc --resolver $ARGS test --bench --only-dependencies
+            ;;
+          cabal)
+            cabal --version
+            cabal update
+            PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
+            cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
+            ;;
+        esac
+        set +ex
+      env:
+        ARGS: ${{ matrix.plan.resolver }}
+        BUILD: ${{ matrix.plan.build }}
+
+    - name: Build
+      run: |
+        set -ex
+        case "$BUILD" in
+          stack)
+            stack --no-terminal --resolver $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
+            ;;
+          cabal)
+            PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
+            cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
+
+            ORIGDIR=$(pwd)
+            for dir in $PACKAGES
+            do
+              cd $dir
+              cabal check || [ "$CABALVER" == "1.16" ]
+              cabal sdist
+              PKGVER=$(cabal info . | awk '{print $2;exit}')
+              SRC_TGZ=$PKGVER.tar.gz
+              cd dist
+              tar zxfv "$SRC_TGZ"
+              cd "$PKGVER"
+              cabal configure --enable-tests --ghc-options -O0
+              cabal build
+              if [ "$CABALVER" = "1.16" ] || [ "$CABALVER" = "1.18" ]; then
+                cabal test
+              else
+                cabal test --show-details=streaming --log=/dev/stdout
+              fi
+              cd $ORIGDIR
+            done
+            ;;
+        esac
+        set +ex
+      env:
+        ARGS: ${{ matrix.plan.resolver }}
+        BUILD: ${{ matrix.plan.build }}

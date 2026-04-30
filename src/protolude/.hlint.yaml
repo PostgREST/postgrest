@@ -1,0 +1,13 @@
+- ignore: {name: Avoid lambda}
+- ignore: {name: Eta reduce}
+- ignore: {name: Redundant lambda}
+- ignore: {name: Collapse lambdas}
+- ignore: {name: Use String}
+- ignore: {name: Use fmap, within: Protolude.Monad}
+- ignore: {name: Use putStr, within: Protolude.Show}
+- ignore: {name: Use putStrLn, within: Protolude.Show}
+- ignore: {name: Use bimap, within: Protolude.Bifunctor}
+- ignore: {name: Use first, within: Protolude.Bifunctor}
+- ignore: {name: Use sortOn}
+# CPP preprocessor oddities
+- ignore: {name: Unused LANGUAGE pragma, within: [Protolude.Base, Protolude.CallStack, Protolude.Conv, Protolude.Error]}
