@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add `Vary` header to responses by @develop7 in #4609
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
+- Enable starting multiple PostgREST instances using the same ports on platforms supporting it by @mkleczek in #4703 #4694
 
 ### Fixed
 
