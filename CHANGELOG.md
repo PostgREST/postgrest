@@ -45,6 +45,8 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Fix unnecessary connection pool flushes during schema cache reloading by @mkleczek in #4645
+- Fix race condition in pool_available metric causing negative values during network instability by @mkleczek in #4622
+- Limit concurrent schema cache loads by @mkleczek in #4643
 
 ## [14.9] - 2026-04-10
 
