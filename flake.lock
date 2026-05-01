@@ -2,16 +2,16 @@
   "nodes": {
     "nixpkgs": {
       "locked": {
-        "lastModified": 1776949667,
-        "narHash": "sha256-GMSVw35Q+294GlrTUKlx087E31z7KurReQ1YHSKp5iw=",
-        "owner": "nixos",
+        "lastModified": 1777280862,
+        "narHash": "sha256-GDOOgydMcXxMcgZ9PsCq3367BqSoiF2juJ6qmPTYS/Y=",
+        "owner": "wolfgangwalther",
         "repo": "nixpkgs",
-        "rev": "01fbdeef22b76df85ea168fbfe1bfd9e63681b30",
+        "rev": "4e71fb46d5c2f67051c96bc70a0e3ffbffa82580",
         "type": "github"
       },
       "original": {
-        "owner": "nixos",
-        "ref": "nixpkgs-unstable",
+        "owner": "wolfgangwalther",
+        "ref": "postgresql-overrides",
         "repo": "nixpkgs",
         "type": "github"
       }

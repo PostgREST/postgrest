@@ -70,8 +70,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgVersion: [14, 15, 16, 17, 18]
-    name: PG ${{ matrix.pgVersion }}
+        pgVersion: [pg-14, pg-15, pg-16, pg-17, pg-18, oriole-17]
+    name: ${{ matrix.pgVersion }}
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -84,25 +84,25 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests.testSpec.bin tests.testObservability.bin tests.testIO.bin tests.testBigSchema.bin withTools.pg-${{ matrix.pgVersion }}.bin cabalTools.update.bin
+          tools: tests.testSpec.bin tests.testObservability.bin tests.testIO.bin tests.testBigSchema.bin withTools.${{ matrix.pgVersion }}.bin cabalTools.update.bin
 
       - run: postgrest-cabal-update
 
       - name: Run spec tests
         if: always()
-        run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-spec
+        run: postgrest-with-${{ matrix.pgVersion }} postgrest-test-spec
 
       - name: Run observability tests
         if: always()
-        run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-observability
+        run: postgrest-with-${{ matrix.pgVersion }} postgrest-test-observability
 
       - name: Run IO tests
         if: always()
-        run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-io -vv
+        run: postgrest-with-${{ matrix.pgVersion }} postgrest-test-io -vv
 
       - name: Run IO tests on a big schema
         if: always()
-        run: postgrest-with-pg-${{ matrix.pgVersion }} postgrest-test-big-schema -vv
+        run: postgrest-with-${{ matrix.pgVersion }} postgrest-test-big-schema -vv
 
 
   memory:

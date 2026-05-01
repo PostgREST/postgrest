@@ -11,9 +11,13 @@
 }:
 let
   withTmpDb =
-    { name, postgresql }:
+    { name, postgresql, config ? "" }:
     let
       commandName = "postgrest-with-${name}";
+      postgresqlConf = writeText "postgresql.conf" ("
+        listen_addresses = ''
+        log_statement = all
+      " + config);
     in
     checkedShellScript
       {
@@ -80,7 +84,9 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          cp ${postgresqlConf} "$tmpdir/db/postgresql.conf"
+
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c hba_file=$HBA_FILE -k $PGHOST " \
             >> "$setuplog"
 
           log "Creating a minimally privileged $PGUSER connection role..."
