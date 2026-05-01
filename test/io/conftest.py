@@ -9,8 +9,9 @@ def dburi():
     "Postgres database connection URI."
     dbname = os.environ["PGDATABASE"]
     host = os.environ["PGHOST"]
+    port = os.environ["PGPORT"]
     user = os.environ["PGUSER"]
-    return f"postgresql://?dbname={dbname}&host={host}&user={user}".encode()
+    return f"postgresql://?dbname={dbname}&host={host}&port={port}&user={user}".encode()
 
 
 @pytest.fixture
@@ -19,6 +20,7 @@ def baseenv():
     return {
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
+        "PGPORT": os.environ["PGPORT"],
         "PGUSER": os.environ["PGUSER"],
     }
 
@@ -51,6 +53,7 @@ def replicaenv(defaultenv):
             **defaultenv,
             **conf,
             "PGHOST": os.environ["PGREPLICAHOST"] + "," + os.environ["PGHOST"],
+            "PGPORT": os.environ["PGREPLICAPORT"] + "," + os.environ["PGPORT"],
             "PGREPLICASLOT": os.environ["PGREPLICASLOT"],
         },
     }
@@ -76,6 +79,7 @@ def metapostgrest():
     env = {
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
+        "PGPORT": os.environ["PGPORT"],
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
         "PGRST_DB_CONFIG": "true",
