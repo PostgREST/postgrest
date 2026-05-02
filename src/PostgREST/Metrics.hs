@@ -13,9 +13,12 @@ module PostgREST.Metrics
 import qualified Data.ByteString.Lazy   as LBS
 import qualified Hasql.Pool.Observation as SQL
 
-import Prometheus
+import           GHC.Stats             (getRTSStatsEnabled)
+import           Prometheus
+import qualified Prometheus.Metric.GHC as PMG
 
 import PostgREST.Observation
+
 
 import Protolude
 
@@ -34,6 +37,7 @@ data MetricsState =
 
 init :: Int -> IO MetricsState
 init configDbPoolSize = do
+  whenM getRTSStatsEnabled $ void $ register PMG.ghcMetrics
   metricState <- MetricsState <$>
     register (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts")) <*>
     register (gauge (Info "pgrst_db_pool_available" "Available connections in the pool")) <*>

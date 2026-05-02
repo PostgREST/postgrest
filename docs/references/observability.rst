@@ -238,6 +238,45 @@ pgrst_jwt_cache_evictions_total
 
 The total number of JWT cache evictions.
 
+GHC Runtime Metrics
+-------------------
+
+PostgREST can also expose GHC runtime system metrics. These use the ``ghc_*``
+prefix and include
+`GHC RTS statistics <https://ghc.gitlab.haskell.org/ghc/doc/libraries/base-4.22.0.0-inplace/GHC-Stats.html#g:1>`_
+for runtime allocation, garbage collection, memory, and CPU/elapsed time.
+
+These are useful for monitoring PostgREST process health and diagnosing memory
+pressure or GC behavior.
+
+To expose these metrics, enable GHC RTS statistics when starting PostgREST:
+
+.. code-block:: bash
+
+  postgrest +RTS -T -RTS
+
+When enabled, the admin ``/metrics`` endpoint includes samples such as:
+
+.. code-block:: text
+
+  # HELP ghc_gcs_total Total number of GCs
+  # TYPE ghc_gcs_total counter
+  ghc_gcs_total 1
+  # HELP ghc_allocated_bytes_total Total bytes allocated
+  # TYPE ghc_allocated_bytes_total counter
+  ghc_allocated_bytes_total 12345678
+
+Other available GHC runtime metrics include:
+
+- ``ghc_gcs_total``
+- ``ghc_major_gcs_total``
+- ``ghc_allocated_bytes_total``
+- ``ghc_max_live_bytes``
+- ``ghc_max_mem_in_use_bytes``
+- ``ghc_mutator_cpu_seconds_total``
+- ``ghc_gc_cpu_seconds_total``
+- ``ghc_elapsed_seconds_total``
+
 Traces
 ======
 
