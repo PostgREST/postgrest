@@ -84,6 +84,7 @@ Client-Side Libraries
 ---------------------
 
 * `postgrest-csharp <https://github.com/supabase-community/postgrest-csharp>`_ - C#
+* `efcore-postgrest <https://github.com/pedro-gilmora/EF.PostgREST.Provider>`_ - C#
 * `postgrest-dart <https://github.com/supabase/postgrest-dart>`_ - Dart
 * `postgrest-ex <https://github.com/supabase-community/postgrest-ex>`_ - Elixir
 * `postgrest-go <https://github.com/supabase-community/postgrest-go>`_ - Go
