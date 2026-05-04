@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
 - Restore Listener query shape so it can be found in `pg_stat_activity` by @mkleczek in #4857 #4859
 - The LISTEN channel now automatically recovers when it stops working due to a PostgreSQL bug @laurenceisla in #3147
+- Fix misleading "Functions" name on schema cache summary in startup logs by @taimoorzaeem in #4821
 
 ## [14.10] - 2026-04-16
 
