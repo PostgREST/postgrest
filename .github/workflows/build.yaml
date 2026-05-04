@@ -68,6 +68,11 @@ jobs:
           path: postgrest-docker-${{ matrix.artifact }}.tar.gz
           if-no-files-found: error
 
+      - name: Test static executable with NixOS' VM test
+        # GHA's ARM runner does not support KVM
+        if: runner.arch == 'X64'
+        run: nix-build -A nixpkgs-nixos-test
+
 
   macos:
     name: Nix - MacOS
