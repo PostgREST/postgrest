@@ -102,7 +102,7 @@ showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
-  , show (HM.size routs)      <> " Functions"
+  , show (HM.size routs)      <> " RPCs"
   , show (HM.size reps)       <> " Domain Representations"
   , show (HM.size mediaHdlrs) <> " Media Type Handlers"
   , show (S.size tzs)         <> " Timezones"
