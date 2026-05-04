@@ -347,7 +347,6 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       case result of
         Left e -> do
           markSchemaCachePending appState
-          putSchemaCache appState Nothing
           observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
           return Nothing
 
