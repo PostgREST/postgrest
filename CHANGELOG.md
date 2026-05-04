@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.11] - 2026-05-04
+
 ### Fixed
 
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
