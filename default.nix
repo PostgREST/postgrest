@@ -77,6 +77,16 @@ let
     "-f dev --test-show-detail=direct";
 
   inherit (pkgs.haskell) lib;
+
+  nixos-lib = import (pkgs.path + "/nixos/lib") { };
+  runTest = postgrest: test: (nixos-lib.runTest {
+    hostPkgs = pkgs;
+    # Replace the top-level `pkgs.postgrest` attribute with our current version on this branch.
+    defaults.nixpkgs.overlays = [ (_: _: { inherit postgrest; }) ];
+    # Speeds up evaluation a little bit; documentation is really not required for tests.
+    defaults.documentation.enable = pkgs.lib.mkDefault false;
+    imports = [ test ];
+  }).config.result;
 in
 rec {
   inherit nixpkgs pkgs;
@@ -162,4 +172,7 @@ rec {
   # Docker images and loading script.
   docker =
     pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
+
+  # NixOS VM tests
+  nixpkgs-nixos-test = runTest postgrestStatic (pkgs.path + "/nixos/tests/postgrest.nix");
 }
