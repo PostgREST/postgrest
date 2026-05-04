@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
 - Restore Listener query shape so it can be found in pg_stat_activity by @mkleczek in #4857 #4859
 - The LISTEN channel now automatically recovers when it stops working due to a PostgreSQL bug @laurenceisla in #3147
+- Fix misleading "Functions" name on schema cache summary in startup logs by @taimoorzaeem in #4821
 
 
 ### Changed

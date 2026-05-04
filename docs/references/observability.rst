@@ -39,7 +39,7 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:08:16:11 -0500: Listening for database notifications on the "pgrst" channel
    06/May/2024:08:16:11 -0500: Config reloaded
    06/May/2024:08:16:11 -0500: Schema cache queried in 3.8 milliseconds
-   06/May/2024:08:16:11 -0500: Schema cache loaded 15 Relations, 8 Relationships, 8 Functions, 0 Domain Representations, 4 Media Type Handlers
+   06/May/2024:08:16:11 -0500: Schema cache loaded 15 Relations, 8 Relationships, 8 RPCs, 0 Domain Representations, 4 Media Type Handlers
    06/May/2024:14:11:27 -0500: Received a config reload message on the "pgrst" channel
    06/May/2024:14:11:27 -0500: Config reloaded
 
