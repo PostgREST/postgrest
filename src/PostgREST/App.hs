@@ -62,8 +62,7 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.List              as L
-import           Data.Streaming.Network (bindPortTCP,
-                                         bindRandomPortTCP)
+import           Data.Streaming.Network (bindPortTCP)
 import qualified Data.Text              as T
 import qualified Network.HTTP.Types     as HTTP
 import qualified Network.Socket         as NS
@@ -240,33 +239,15 @@ type AppSockets = (NS.Socket, Maybe NS.Socket)
 
 initSockets :: AppConfig -> IO AppSockets
 initSockets AppConfig{..} = do
-  let
-    cfg'usp = configServerUnixSocket
-    cfg'uspm = configServerUnixSocketMode
-    cfg'host = configServerHost
-    cfg'port = configServerPort
-    cfg'adminHost = configAdminServerHost
-    cfg'adminPort = configAdminServerPort
-
-  sock <- case cfg'usp of
+  sock <- case configServerUnixSocket of
     -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
     -- but we need to have runtime error if we try to use it in Windows, not compile time error
-    Just path -> createAndBindDomainSocket path cfg'uspm
-    Nothing -> do
-      (_, sock) <-
-        if cfg'port /= 0
-          then do
-            sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
-            pure (cfg'port, sock)
-          else do
-            -- explicitly bind to a random port, returning bound port number
-            (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
-            pure (num, sock)
-      pure sock
+    Just path -> createAndBindDomainSocket path configServerUnixSocketMode
+    Nothing -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
 
-  adminSock <- case cfg'adminPort of
+  adminSock <- case configAdminServerPort of
     Just adminPort -> do
-      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'adminHost)
+      adminSock <- bindPortTCP adminPort (fromString $ T.unpack configAdminServerHost)
       pure $ Just adminSock
     Nothing -> pure Nothing
 
