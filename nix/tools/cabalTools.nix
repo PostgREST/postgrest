@@ -51,7 +51,7 @@ let
         docs = "Run PostgREST after building it interactively with cabal-install";
         args =
           [
-            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
             "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
             "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
             "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
@@ -62,6 +62,10 @@ let
         withEnv = postgrest.env;
       }
       ''
+        # when there's a default, argbash conflates empty string with unset, so we do this workaround to be able to do `PGRST_DB_ANON_ROLE="" <command>` for manual testing
+        if [[ ! ''${PGRST_DB_ANON_ROLE+x} ]]; then
+          PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
+        fi
         export PGRST_DB_ANON_ROLE
         export PGRST_DB_POOL
         export PGRST_DB_POOL_ACQUISITION_TIMEOUT
@@ -80,7 +84,7 @@ let
         docs = "Run a profiled build of postgREST. This will generate a postgrest.prof file that can be used to do optimization.";
         args =
           [
-            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
             "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
             "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
             "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
@@ -90,6 +94,10 @@ let
         withEnv = postgrest.env;
       }
       ''
+        # when there's a default, argbash conflates empty string with unset, so we do this workaround to be able to do `PGRST_DB_ANON_ROLE="" <command>` for manual testing
+        if [[ ! ''${PGRST_DB_ANON_ROLE+x} ]]; then
+          PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
+        fi
         export PGRST_DB_ANON_ROLE
         export PGRST_DB_POOL
         export PGRST_DB_POOL_ACQUISITION_TIMEOUT
