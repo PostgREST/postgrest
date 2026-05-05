@@ -27,6 +27,7 @@ module PostgREST.AppState
   , getObserver
   , isLoaded
   , isPending
+  , waitForSchemaCacheInit
   ) where
 
 import qualified Data.ByteString.Char8      as BS
@@ -53,6 +54,9 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
+import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO,
+                                          putTMVar, readTMVar,
+                                          tryReadTMVar, tryTakeTMVar)
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
                                           readAppConfig,
@@ -102,9 +106,11 @@ data AppState = AppState
   }
 
 -- | Schema cache status.
--- Empty means pending and full means loaded.
+-- Empty means initial loading on startup, False means pending and True means loaded.
+-- "Initial" state is needed so that we can wait with application socket listening
+-- until after initial schema cache querying.
 newtype SchemaCacheStatus = SchemaCacheStatus
-  { getSCStatusMVar :: MVar ()
+  { getSCStatusTMVar :: TMVar Bool
   }
 
 init :: AppConfig -> IO AppState
@@ -380,16 +386,21 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     oneSecondInUs = 1000000 -- one second in microseconds
 
 newSchemaCacheStatus :: IO SchemaCacheStatus
-newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyMVar
+newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyTMVarIO
 
 markSchemaCachePending :: AppState -> IO ()
-markSchemaCachePending = void . tryTakeMVar . getSCStatusMVar . stateSCacheStatus
+markSchemaCachePending = atomically . liftA2 (*>) tryTakeTMVar (`putTMVar` False) . getSCStatusTMVar . stateSCacheStatus
 
 markSchemaCacheLoaded :: AppState -> IO ()
-markSchemaCacheLoaded = void . (`tryPutMVar` ()) . getSCStatusMVar . stateSCacheStatus
+markSchemaCacheLoaded = atomically . liftA2 (*>) tryTakeTMVar (`putTMVar` True) . getSCStatusTMVar . stateSCacheStatus
 
 isSchemaCacheLoaded :: AppState -> IO Bool
-isSchemaCacheLoaded = fmap not . isEmptyMVar . getSCStatusMVar . stateSCacheStatus
+isSchemaCacheLoaded = atomically . (pure . fromMaybe False <=< tryReadTMVar) . getSCStatusTMVar . stateSCacheStatus
+
+-- | Wait for initial schema cache load to either finish or retry
+-- | We wait until scStatusTMVar is not empty.
+waitForSchemaCacheInit :: AppState -> IO ()
+waitForSchemaCacheInit = atomically . void . readTMVar . getSCStatusTMVar . stateSCacheStatus
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
