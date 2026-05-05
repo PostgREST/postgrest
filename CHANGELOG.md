@@ -19,12 +19,8 @@ All notable changes to this project will be documented in this file. From versio
 ### Fixed
 
 - Shutdown should wait for in flight requests by @mkleczek in #4702
-- Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
-- Restore Listener query shape so it can be found in pg_stat_activity by @mkleczek in #4857 #4859
-- The LISTEN channel now automatically recovers when it stops working due to a PostgreSQL bug @laurenceisla in #3147
-- Fix misleading "Functions" name on schema cache summary in startup logs by @taimoorzaeem in #4821
 
 
 ### Changed
@@ -37,6 +33,15 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+
+## [14.11] - 2026-05-04
+
+### Fixed
+
+- Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
+- Restore Listener query shape so it can be found in `pg_stat_activity` by @mkleczek in #4857 #4859
+- The LISTEN channel now automatically recovers when it stops working due to a PostgreSQL bug @laurenceisla in #3147
+- Fix misleading "Functions" name on schema cache summary in startup logs by @taimoorzaeem in #4821
 
 ## [14.10] - 2026-04-16
 
