@@ -1047,6 +1047,22 @@ def test_expired_jwt_log_lacks_role(defaultenv):
     )
 
 
+def test_invalid_rpc_method_log_contains_role(defaultenv):
+    "Invalid RPC method requests are logged with the anonymous role."
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.put("/rpc/sleep")
+        assert response.status_code == 405
+
+        output = postgrest.read_stdout(nlines=1)
+
+    assert len(output) == 1
+    assert re.match(
+        r'- - postgrest_test_anonymous \[.+\] "PUT /rpc/sleep HTTP/1.1" 405 \d+ "" "python-requests/.+"',
+        output[0],
+    )
+
+
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
