@@ -65,8 +65,7 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
-import           Data.Streaming.Network    (bindPortTCP,
-                                            bindRandomPortTCP)
+import           Data.Streaming.Network    (bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
 import qualified Network.HTTP.Types.Header as HTTP
@@ -269,28 +268,11 @@ isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
 
 initServerSocket :: AppConfig -> IO NS.Socket
-initServerSocket AppConfig{..} = do
-  let
-    cfg'usp = configServerUnixSocket
-    cfg'uspm = configServerUnixSocketMode
-    cfg'host = configServerHost
-    cfg'port = configServerPort
-
-  case cfg'usp of
-    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
-    -- but we need to have runtime error if we try to use it in Windows, not compile time error
-    Just path -> createAndBindDomainSocket path cfg'uspm
-    Nothing -> do
-      (_, sock) <-
-        if cfg'port /= 0
-          then do
-            sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
-            pure (cfg'port, sock)
-          else do
-            -- explicitly bind to a random port, returning bound port number
-            (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
-            pure (num, sock)
-      pure sock
+initServerSocket AppConfig{..} = case configServerUnixSocket of
+  -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
+  -- but we need to have runtime error if we try to use it in Windows, not compile time error
+  Just path -> createAndBindDomainSocket path configServerUnixSocketMode
+  Nothing -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
 
 initAdminServerSocket :: AppConfig -> IO (Maybe NS.Socket)
 initAdminServerSocket AppConfig{..} =
