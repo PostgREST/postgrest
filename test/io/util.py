@@ -1,5 +1,6 @@
 import threading
 import jwt
+from datetime import datetime, timedelta, timezone
 
 
 class Thread(threading.Thread):
@@ -29,6 +30,10 @@ def authheader(token):
 def jwtauthheader(claim, secret):
     "Authorization header with signed JWT."
     return authheader(jwt.encode(claim, secret))
+
+
+def relativeSeconds(sec):
+    return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
 
 def parse_server_timings_header(header):
