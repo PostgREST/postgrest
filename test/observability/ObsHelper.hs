@@ -119,7 +119,8 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configAdminServerUnixSocketMode = 432
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
-  , configInternalSCQuerySleep      = Nothing
+  , configInternalSCQuerySleepFst   = Nothing
+  , configInternalSCQuerySleepSnd   = Nothing
   , configServerTimingEnabled       = True
   }
 

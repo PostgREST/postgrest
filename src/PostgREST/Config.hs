@@ -128,7 +128,8 @@ data AppConfig = AppConfig
   , configAdminServerUnixSocketMode :: FileMode
   , configRoleSettings              :: RoleSettings
   , configRoleIsoLvl                :: RoleIsolationLvl
-  , configInternalSCQuerySleep      :: Maybe Int32
+  , configInternalSCQuerySleepFst   :: Maybe Int32
+  , configInternalSCQuerySleepSnd   :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -332,6 +333,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseSocketFileMode "admin-server-unix-socket-mode"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
+    <*> optInt "internal-schema-cache-query-sleep-before-queries"
     <*> optInt "internal-schema-cache-query-sleep"
   where
     parseErrorVerbosity :: C.Key -> C.Parser C.Config Verbosity

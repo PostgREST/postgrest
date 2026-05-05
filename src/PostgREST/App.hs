@@ -26,7 +26,9 @@ import System.IO.Error  (ioeGetErrorType)
 import Control.Monad.Except     (liftEither)
 import Control.Monad.Extra      (whenJust)
 import Data.Either.Combinators  (mapLeft, whenLeft)
-import Data.String              (IsString (..))
+import Data.IORef               (atomicWriteIORef, newIORef,
+                                 readIORef)
+import Data.String              (IsString (..), String)
 import Network.Wai.Handler.Warp (defaultSettings, setHost,
                                  setOnException, setPort,
                                  setServerName)
@@ -71,28 +73,38 @@ import qualified Network.HTTP.Types        as HTTP
 import           Network.HTTP.Types.Header (hVary)
 import qualified Network.Socket            as NS
 import           PostgREST.Unix            (createAndBindDomainSocket)
-import           Protolude                 hiding (Handler)
+import           System.Posix.Types        (FileMode)
+
+import Protolude hiding (Handler)
 
 run :: AppState -> IO ()
 run appState = do
   conf <- AppState.getConfig appState
 
-  AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
-  (mainSocket, adminSocket) <- initSockets conf
+  mainSocketRef <- newIORef Nothing
+  adminSocket <- initAdminServerSocket conf
+
   let closeSockets = do
         whenJust adminSocket NS.close
-        NS.close mainSocket
+        readIORef mainSocketRef >>= foldMap NS.close
   Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+
+  Admin.runAdmin appState adminSocket (readIORef mainSocketRef) (serverSettings conf)
 
   Listener.runListener appState
 
-  Admin.runAdmin appState adminSocket mainSocket (serverSettings conf)
+  -- Kick off and wait for the initial SchemaCache load before creating the
+  -- main API socket.
+  AppState.schemaCacheLoader appState
+  AppState.waitForSchemaCacheInit appState
+
+  mainSocket <- initServerSocket conf
+  atomicWriteIORef mainSocketRef $ Just mainSocket
 
   let app = postgrest appState (AppState.schemaCacheLoader appState)
 
-  do
-    address <- resolveSocketToAddress mainSocket
-    observer $ AppServerAddressObs address
+  address <- resolveSocketToAddress mainSocket
+  observer $ AppServerAddressObs address
 
   Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) mainSocket app
   where
@@ -255,24 +267,23 @@ addRetryHint delay response = do
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
 
-type AppSockets = (NS.Socket, Maybe NS.Socket)
-
-initSockets :: AppConfig -> IO AppSockets
-initSockets AppConfig{..} = do
-  sock <- case configServerUnixSocket of
+initSocket :: (Applicative f, Traversable f) => Maybe String -> FileMode -> Text -> f Int -> IO (f NS.Socket)
+initSocket unixSocket unixSocketMode tcpHost tcpPort =
+  maybe initTCPSocket initDomainSocket unixSocket
+  where
+    initTCPSocket = traverse (`bindPortTCP` (fromString $ T.unpack tcpHost)) tcpPort
     -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
     -- but we need to have runtime error if we try to use it in Windows, not compile time error
-    Just path -> createAndBindDomainSocket path configServerUnixSocketMode
-    Nothing -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
+    initDomainSocket = fmap pure . (`createAndBindDomainSocket` unixSocketMode)
 
-  adminSock <- case configAdminServerUnixSocket of
-    Just path -> do
-      adminSock <- createAndBindDomainSocket path configAdminServerUnixSocketMode
-      pure $ Just adminSock
-    Nothing -> case configAdminServerPort of
-      Just adminPort -> do
-        adminSock <- bindPortTCP adminPort (fromString $ T.unpack configAdminServerHost)
-        pure $ Just adminSock
-      Nothing -> pure Nothing
+initServerSocket :: AppConfig -> IO NS.Socket
+initServerSocket AppConfig{..} =
+  runIdentity <$> initSocket
+    configServerUnixSocket configServerUnixSocketMode
+    configServerHost (pure configServerPort)
 
-  pure (sock, adminSock)
+initAdminServerSocket :: AppConfig -> IO (Maybe NS.Socket)
+initAdminServerSocket AppConfig{..} =
+  initSocket
+    configAdminServerUnixSocket configAdminServerUnixSocketMode
+    configAdminServerHost configAdminServerPort
