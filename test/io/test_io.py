@@ -1063,6 +1063,33 @@ def test_invalid_rpc_method_log_contains_role(defaultenv):
     )
 
 
+def test_empty_schema_cache_log_contains_jwt_role(defaultenv):
+    "Requests are logged with the role when the schema cache is empty on startup"
+
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "1000",
+        "PGRST_JWT_SECRET": SECRET,
+    }
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(env=env, wait_for_readiness=False) as postgrest:
+        postgrest.wait_until_scache_starts_loading()
+
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 503
+
+        output = drain_stdout(postgrest)
+
+    assert any(
+        re.match(
+            r'- - postgrest_test_author \[.+\] "GET /authors_only HTTP/1.1" 503 \d+ "" "python-requests/.+"',
+            line,
+        )
+        for line in output
+    )
+
+
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
