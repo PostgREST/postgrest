@@ -156,6 +156,9 @@ maxDbTablesForFuzzySearch = 500
 querySchemaCache :: AppConfig -> SQL.Transaction (SchemaCache, Maybe QueryTimings)
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+
+  for_ configInternalSCQuerySleepFst (`SQL.statement` sleepCall) -- only used for testing
+
   tabs    <- sqlTimedStmt gucTbls  conf   allTables
   keyDeps <- sqlTimedStmt gucKDeps conf   allViewsKeyDependencies
   m2oRels <- sqlTimedStmt gucRels  mempty allM2OandO2ORels
@@ -166,9 +169,8 @@ querySchemaCache conf@AppConfig{..} = do
   tzones  <- if configDbTimezoneEnabled
     then sqlTimedStmt gucTzones mempty timezones
     else pure S.empty
-  _       <-
-    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True in
-    for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
+
+  for_ configInternalSCQuerySleepSnd (`SQL.statement` sleepCall) -- only used for testing
 
   qsTime <-
     if isLogDebug
@@ -195,6 +197,7 @@ querySchemaCache conf@AppConfig{..} = do
     schemas = toList configDbSchemas
     isLogDebug = configLogLevel == LogDebug
     sqlTimedStmt = sqlTimedStatement isLogDebug
+    sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap
