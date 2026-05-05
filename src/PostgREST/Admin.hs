@@ -22,20 +22,20 @@ import qualified PostgREST.AppState as AppState
 import qualified Network.Socket as NS
 import           Protolude
 
-runAdmin :: AppState -> Maybe NS.Socket -> NS.Socket -> Warp.Settings -> IO ()
-runAdmin appState maybeAdminSocket socketREST settings = do
+runAdmin :: AppState -> Maybe NS.Socket -> IO (Maybe NS.Socket) -> Warp.Settings -> IO ()
+runAdmin appState maybeAdminSocket getSocketREST settings = do
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
     observer $ AdminStartObs address
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
-    adminApp = admin appState socketREST
+    adminApp = admin appState getSocketREST
     observer = AppState.getObserver appState
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> NS.Socket -> Wai.Application
-admin appState socketREST req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp socketREST
+admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
+admin appState getSocketREST req respond = do
+  isMainAppReachable <- getSocketREST >>= maybe (pure False) (fmap isRight . reachMainApp)
   isLoaded <- AppState.isLoaded appState
   isPending <- AppState.isPending appState
 
@@ -44,8 +44,8 @@ admin appState socketREST req respond  = do
       respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status500) [] mempty
     ["ready"] ->
       let
-        status | not isMainAppReachable = HTTP.status500
-               | isPending              = HTTP.status503
+        status | isPending              = HTTP.status503
+               | not isMainAppReachable = HTTP.status500
                | isLoaded               = HTTP.status200
                | otherwise              = HTTP.status500
       in
