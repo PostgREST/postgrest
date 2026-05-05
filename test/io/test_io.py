@@ -8,7 +8,7 @@ import time
 import pytest
 
 from config import CONFIGSDIR, FIXTURES, SECRET
-from util import Thread, jwtauthheader, parse_server_timings_header
+from util import Thread, jwtauthheader, parse_server_timings_header, relativeSeconds
 from postgrest import (
     freeport,
     is_ipv6,
@@ -1026,6 +1026,25 @@ def test_log_query(level, defaultenv):
             assert len(pre_reqs) == 1
         elif level == "debug":
             assert len(pre_reqs) == 1
+
+
+def test_expired_jwt_log_lacks_role(defaultenv):
+    "Expired JWT requests are logged without a role."
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
+    headers = jwtauthheader({"exp": relativeSeconds(-35)}, SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
+
+        output = postgrest.read_stdout(nlines=1)
+
+    assert len(output) == 1
+    assert re.match(
+        r'- - - \[.+\] "GET /authors_only HTTP/1.1" 401 \d+ "" "python-requests/.+"',
+        output[0],
+    )
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):

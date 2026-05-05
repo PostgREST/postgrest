@@ -7,7 +7,7 @@ import time
 import pytest
 
 from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
-from util import authheader, jwtauthheader, parse_server_timings_header
+from util import authheader, jwtauthheader, parse_server_timings_header, relativeSeconds
 from postgrest import (
     run,
     sleep_until_postgrest_config_reload,
@@ -71,9 +71,6 @@ def test_jwt_errors(defaultenv):
     "invalid JWT should throw error"
 
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
-
-    def relativeSeconds(sec):
-        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
     with run(env=env) as postgrest:
         headers = jwtauthheader({}, "other secret")
