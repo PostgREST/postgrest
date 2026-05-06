@@ -1047,6 +1047,28 @@ def test_expired_jwt_log_lacks_role(defaultenv):
     )
 
 
+def test_log_lacks_role_with_empty_anon_role(defaultenv):
+    "Requests are logged without a role when db-anon-role is empty."
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 401
+
+        output = postgrest.read_stdout(nlines=1)
+
+    assert len(output) == 1
+    assert re.match(
+        r'- - - \[.+\] "GET /projects HTTP/1.1" 401 \d+ "" "python-requests/.+"',
+        output[0],
+    )
+
+
 def test_invalid_rpc_method_log_contains_role(defaultenv):
     "Invalid RPC method requests are logged with the anonymous role."
 
