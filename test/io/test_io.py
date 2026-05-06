@@ -1144,6 +1144,37 @@ def test_no_pool_connection_required_on_options(defaultenv):
         assert response.status_code == 200
 
 
+def test_options_request_logs_but_cors_preflight_does_not(defaultenv):
+    "Plain OPTIONS requests should be logged, but CORS preflight requests should not."
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": "info",
+        "PGRST_SERVER_CORS_ALLOWED_ORIGINS": "http://example.com",
+    }
+    preflight_headers = {
+        "Origin": "http://example.com",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "Content-Type",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.options("/projects")
+        assert response.status_code == 200
+
+        response = postgrest.session.options("/projects", headers=preflight_headers)
+        assert response.status_code == 200
+        assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
+
+        output = drain_stdout(postgrest)
+
+    assert len(output) == 1
+    assert re.match(
+        r'- - postgrest_test_anonymous \[.+\] "OPTIONS /projects HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+        output[0],
+    )
+
+
 def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
     "no pool connection should be consumed for failing on invalid jwt"
 
