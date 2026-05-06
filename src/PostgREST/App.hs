@@ -9,8 +9,10 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ViewPatterns        #-}
 module PostgREST.App
   ( postgrest
@@ -55,14 +57,14 @@ import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..),
-                                       serverTimingHeader)
+import PostgREST.Response.Performance (serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
+import           Data.Monoid.Extra         (mwhen)
 import           Data.Streaming.Network    (bindPortTCP,
                                             bindRandomPortTCP)
 import qualified Data.Text                 as T
@@ -176,62 +178,62 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
 
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-      timezones = dbTimezones sCache
+  let timezones = dbTimezones sCache
       prefs = ApiRequest.userPreferences conf req timezones
+      withTiming = if configServerTimingEnabled then
+          recordTiming
+        else
+          const identity
+      recordTiming name f = do
+          (t, r) <- timeItT f
+          modify ((name, t):)
+          pure r
+      initialTimings = mwhen configServerTimingEnabled $ foldMap (pure . ("jwt",)) $ Auth.getJwtDur req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (resp, timings) <- (`runStateT` initialTimings) $ do
+    apiReq@ApiRequest{..} <- withTiming "parse" $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+    plan <- withTiming "plan" $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
-      tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
+    let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
+        tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
+        obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming $ do
-    case tx of
-      MainTx.NoDbTx r -> pure r
-      MainTx.DbTx{..} -> do
-        dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
-        let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
+    txResult <- withTiming "transaction" $ do
+      case tx of
+        MainTx.NoDbTx r -> pure r
+        MainTx.DbTx{..} -> do
+          dbRes <- lift $ lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
+          let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
-        -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
-        -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
-        -- This needs refactoring so only the below obsQuery is used.
-        lift $ whenLeft eitherResp $ obsQuery . Error.status
-        liftEither eitherResp
+          -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
+          -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
+          -- This needs refactoring so only the below obsQuery is used.
+          lift $ whenLeft eitherResp $ liftIO . obsQuery . Error.status
+          liftEither eitherResp
 
-  (respTime, resp) <- withTiming $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
-        status' = either Error.status Response.pgrstStatus response
+    withTiming "response" $ do
+      let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
+          status' = either Error.status Response.pgrstStatus response
 
-    -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
-    lift $ obsQuery status'
-    liftEither response
+      -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
+      lift $ liftIO $ obsQuery status'
+      liftEither response
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
+  return $ toWaiResponse timings resp
 
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) =
-      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
+    toWaiResponse :: [(ByteString, Double)] -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse timings (Response.PgrstResponse st hdrs bod) =
+      Wai.responseLBS st (hdrs ++ serverTimingHeaders timings ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
-    serverTimingHeaders :: ServerTiming -> [HTTP.Header]
-    serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
+    serverTimingHeaders :: [(ByteString, Double)] -> [HTTP.Header]
+    serverTimingHeaders timings = foldMap (pure . serverTimingHeader) (nonEmpty timings)
 
     varyHeader :: HTTP.Header
     varyHeader = (HTTP.hVary, "Accept, Prefer, Range")
 
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
-
-    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
-    withTiming f = if configServerTimingEnabled
-        then do
-          (t, r) <- timeItT f
-          pure (Just t, r)
-        else do
-          r <- f
-          pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do
