@@ -62,7 +62,7 @@ let
         git add CHANGELOG.md > /dev/null
 
         echo "Committing ..."
-        git commit -m "bump version to $new_version" > /dev/null
+        git commit -m "chore: bump version to $new_version" > /dev/null
 
         if [[ "$current_branch" == "main" ]]; then
           bump devel
@@ -74,7 +74,7 @@ let
           git branch "v$A"
 
           echo "Committing (devel bump)..."
-          git commit -m "bump version to $new_version" > /dev/null
+          git commit -m "chore: bump version to $new_version" > /dev/null
         fi
 
         trap "echo Remote not found. Please push manually ..." ERR
