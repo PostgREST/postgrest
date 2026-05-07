@@ -41,8 +41,7 @@ jobs:
     concurrency:
       # Never tag outdated commits on the main branch by skipping superseded commits
       group: ci-tag-${{ (github.ref == 'refs/heads/main' && github.ref) || github.run_id }}
-      # TODO: Enable this once https://github.com/orgs/community/discussions/13015 is solved
-      cancel-in-progress: false
+      cancel-in-progress: true
     if: vars.RELEASE_ENABLED
     runs-on: ubuntu-24.04
     needs:
