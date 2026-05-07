@@ -14,6 +14,10 @@ let
     { name, postgresql }:
     let
       commandName = "postgrest-with-${name}";
+      orioleOptions =
+        lib.optionalString
+          (name == "oriole-17")
+          " -c default_table_access_method='orioledb' -c shared_preload_libraries='orioledb'";
     in
     checkedShellScript
       {
@@ -80,7 +84,7 @@ let
           # On MacOS, it's 104 chars
           # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
 
-          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" ${orioleOptions}" \
             >> "$setuplog"
 
           log "Creating a minimally privileged $PGUSER connection role..."
@@ -106,7 +110,7 @@ let
             log "Starting replica on $replica_host"
 
             # We set a low max_standby_streaming_delay to make the replication conflict fail faster in tests (otherwise it waits for the default 30s)
-            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" -c max_standby_streaming_delay=\"3s\" " \
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" -c max_standby_streaming_delay=\"3s\" ${orioleOptions}" \
               >> "$setuplog"
 
             >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
