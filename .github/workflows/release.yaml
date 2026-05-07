@@ -9,8 +9,7 @@ on:
 concurrency:
   # Terminate all previous runs of the same workflow for the same tag.
   group: release-${{ github.ref }}
-  # TODO: Enable this once https://github.com/orgs/community/discussions/13015 is solved
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
