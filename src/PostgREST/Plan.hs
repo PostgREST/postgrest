@@ -23,6 +23,7 @@ module PostgREST.Plan
   , InspectPlan(..)
   , InfoPlan(..)
   , CrudPlan(..)
+  , legacyWarnings
   ) where
 
 import qualified Data.HashMap.Strict           as HM
@@ -143,6 +144,24 @@ data InfoPlan
   = RelInfoPlan QualifiedIdentifier -- info about relation
   | RoutineInfoPlan Routine -- info about function
   | SchemaInfoPlan -- info about schema cache
+
+legacyWarnings :: ActionPlan -> [(Text, Text)]
+legacyWarnings (NoDb _) = []
+legacyWarnings (Db dbPlan) =
+  case dbPlan of
+    DbCrud _ crudPlan ->
+      readPlanWarnings $ case crudPlan of
+        WrappedReadPlan{wrReadPlan} -> wrReadPlan
+        MutateReadPlan{mrReadPlan}  -> mrReadPlan
+        CallReadPlan{crReadPlan}    -> crReadPlan
+    MayUseDb _ -> []
+  where
+    readPlanWarnings :: ReadPlanTree -> [(Text, Text)]
+    readPlanWarnings (Node ReadPlan{relName, relAlias, relIsLegacyTargetNameMatch} forest) =
+      [ (relName, alias)
+      | relIsLegacyTargetNameMatch
+      , Just alias <- [relAlias]
+      ] <> foldMap readPlanWarnings forest
 
 actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan act conf apiReq sCache = case act of
@@ -380,7 +399,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth False
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -993,10 +1012,16 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     Nothing -> Left $ ApiRequestErr $ NotEmbedded targetNodeName
     Just target ->
       (\node -> Node rootNode $ node : delete target forest) <$>
-      updateNode f (remainingPath, a) (Right target)
+      updateNode f (remainingPath, a) (Right $ updateLegacyAttrs target)
   where
     findNode :: Maybe ReadPlanTree
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
+
+    updateLegacyAttrs :: ReadPlanTree -> ReadPlanTree
+    updateLegacyAttrs node@(Node rPlan@ReadPlan{relName, relAlias} children)
+      | relName == targetNodeName && isJust relAlias && relAlias /= Just targetNodeName =
+          Node rPlan{relIsLegacyTargetNameMatch=True} children
+      | otherwise = node
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =

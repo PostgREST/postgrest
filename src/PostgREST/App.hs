@@ -190,6 +190,10 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
+  let warnings = Plan.legacyWarnings plan
+  lift $ unless (null warnings) $
+    observer $ LegacyTargetNameWarningObs iMethod (iPath <> Wai.rawQueryString req) warnings -- TODO maybe store rawQueryString in ApiRequest for consistency
+
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s

@@ -32,22 +32,22 @@ data JoinCondition =
 
 -- TODO: Enforce uniqueness of columns by changing to a Set instead of a List where applicable
 data ReadPlan = ReadPlan
-  { select       :: [CoercibleSelectField]
-  , from         :: QualifiedIdentifier
-  , fromAlias    :: Maybe Alias
-  , where_       :: [CoercibleLogicTree]
-  , order        :: [CoercibleOrderTerm]
-  , range_       :: NonnegRange
-  , relName      :: NodeName
-  , relToParent  :: Maybe Relationship
-  , relJoinConds :: [JoinCondition]
-  , relAlias     :: Maybe Alias
-  , relAggAlias  :: Alias
-  , relHint      :: Maybe Hint
-  , relJoinType  :: Maybe JoinType
-  , relSpread    :: Maybe SpreadType
-  , relSelect    :: [RelSelectField]
-  , depth        :: Depth
-  -- ^ used for aliasing
+  { select                     :: [CoercibleSelectField]
+  , from                       :: QualifiedIdentifier
+  , fromAlias                  :: Maybe Alias
+  , where_                     :: [CoercibleLogicTree]
+  , order                      :: [CoercibleOrderTerm]
+  , range_                     :: NonnegRange
+  , relName                    :: NodeName
+  , relToParent                :: Maybe Relationship
+  , relJoinConds               :: [JoinCondition]
+  , relAlias                   :: Maybe Alias
+  , relAggAlias                :: Alias
+  , relHint                    :: Maybe Hint
+  , relJoinType                :: Maybe JoinType
+  , relSpread                  :: Maybe SpreadType
+  , relSelect                  :: [RelSelectField]
+  , depth                      :: Depth -- ^ used for aliasing
+  , relIsLegacyTargetNameMatch :: Bool  -- ^ used to ease migration into a new version with breaking change
   }
   deriving (Eq, Show)

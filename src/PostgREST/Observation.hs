@@ -44,6 +44,7 @@ data Observation
   | DBListenerGotConfigMsg ByteString
   | DBListenerConnectionCleanupFail SomeException
   | QueryObs MainQuery Status
+  | LegacyTargetNameWarningObs ByteString ByteString [(Text, Text)]
   | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
   | ConfigSucceededObs
