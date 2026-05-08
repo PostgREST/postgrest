@@ -277,8 +277,7 @@ let
 
         pd.read_json(sys.stdin) \
           .set_index('param') \
-          .drop(['branch', 'earliest', 'end', 'latest']) \
-          .fillna("") \
+          .loc['rate'] \
           .convert_dtypes() \
           .to_markdown(sys.stdout, floatfmt='.0f')
       '';
