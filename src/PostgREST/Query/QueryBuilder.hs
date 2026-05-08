@@ -24,7 +24,7 @@ import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
 
-import Data.Maybe (fromJust)
+import Data.Maybe (mapMaybe)
 import Data.Tree  (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
@@ -88,10 +88,10 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
 getJoins :: ReadPlanTree -> [SQL.Snippet]
 getJoins (Node _ []) = []
 getJoins (Node ReadPlan{relSelect} forest) =
-  map (\fld ->
+  mapMaybe (\fld ->
          let alias = rsAggAlias fld
-             matchingNode = fromJust $ find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
-         in getJoin fld matchingNode
+             matchingNode = find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
+         in getJoin fld <$> matchingNode
       ) relSelect
 
 getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
