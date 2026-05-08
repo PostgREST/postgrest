@@ -34,7 +34,6 @@ import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete, lookup)
-import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
@@ -1000,39 +999,40 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
-  case mutation of
-    MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
-    MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
-    MutationSingleUpsert ->
-        if null qsLogic &&
-           qsFilterFields == S.fromList pkCols &&
-           not (null (S.fromList pkCols)) &&
-           all (\case
-              Filter _ (OpExpr False (OpQuant OpEqual Nothing _)) -> True
-              _                                                   -> False) qsFiltersRoot
-          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
-        else
-          Left $ ApiRequestErr InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic returnings
+  case HM.lookup qi dbTables of
+    Nothing -> Left $ SchemaCacheErr $ TableNotFound (qiSchema qi) (qiName qi) SchemaCache{dbTables=dbTables, dbRelationships=mempty, dbRoutines=mempty, dbMediaHandlers=mempty, dbRepresentations=dbRepresentations, dbTimezones=mempty, dbTablesFuzzyIndex=mempty}
+    Just tbl -> 
+      let
+        ctx = ResolverContext dbTables dbRepresentations qi "json"
+        pkCols = tablePKCols tbl
+        confCols = fromMaybe pkCols qsOnConflict
+        returnings =
+          if preferRepresentation == Just None || isNothing preferRepresentation
+            then []
+            else S.toList $ inferColsEmbedNeeds readReq pkCols
+        logic = map (resolveLogicTree ctx . snd) qsLogic
+        combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
+        body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
+        applyDefaults = preferMissing == Just ApplyDefaults
+        typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
+      in case mutation of
+        MutationCreate ->
+          mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
+        MutationUpdate ->
+          mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
+        MutationSingleUpsert ->
+            if null qsLogic &&
+               qsFilterFields == S.fromList pkCols &&
+               not (null (S.fromList pkCols)) &&
+               all (\case
+                  Filter _ (OpExpr False (OpQuant OpEqual Nothing _)) -> True
+                  _                                                   -> False) qsFiltersRoot
+              then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
+            else
+              Left $ ApiRequestErr InvalidFilters
+        MutationDelete -> Right $ Delete qi combinedLogic returnings
   where
-    ctx = ResolverContext dbTables dbRepresentations qi "json"
-    confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
-    returnings =
-      if preferRepresentation == Just None || isNothing preferRepresentation
-        then []
-        else S.toList $ inferColsEmbedNeeds readReq pkCols
-    -- TODO: remove fromJust by refactoring later
-    -- we can use fromJust, we have already looked up the table before building mutatePlan
-    tbl = fromJust $ HM.lookup qi dbTables
-    pkCols = maybe mempty tablePKCols (Just tbl)
-    logic = map (resolveLogicTree ctx . snd) qsLogic
-    combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
-    body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
-    applyDefaults = preferMissing == Just ApplyDefaults
-    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
 resolveOrError :: ResolverContext -> Table -> FieldName -> Either Error CoercibleField
 resolveOrError ctx table field = case resolveTableFieldName table field Nothing of
