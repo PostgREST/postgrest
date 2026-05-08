@@ -10,7 +10,6 @@ module PostgREST.Config.Proxy
 
 import qualified Data.Text as T
 
-import Data.Maybe  (fromJust)
 import Network.URI (URI (..), URIAuth (..), isAbsoluteURI, parseURI)
 
 import Protolude hiding (Proxy)
@@ -33,11 +32,11 @@ data Proxy = Proxy
 -}
 isMalformedProxyUri :: Text -> Bool
 isMalformedProxyUri uri
-  | isAbsoluteURI (toS uri) = not $ isUriValid $ toURI uri
+  | isAbsoluteURI (toS uri) = maybe True (not . isUriValid) $ parseURI (toS uri)
   | otherwise = True
 
-toURI :: Text -> URI
-toURI uri = fromJust $ parseURI (toS uri)
+toURI :: Text -> Maybe URI
+toURI uri = parseURI (toS uri)
 
 isUriValid:: URI -> Bool
 isUriValid = fAnd [isSchemeValid, isQueryValid, isAuthorityValid]
