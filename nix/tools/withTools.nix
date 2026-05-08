@@ -6,7 +6,6 @@
 , postgresqlVersions
 , postgrest
 , python3Packages
-, writeText
 , writers
 }:
 let
@@ -226,18 +225,6 @@ let
         ${git}/bin/git worktree remove -f "$tmpdir" > /dev/null
       '';
 
-  legacyConfig =
-    writeText "legacy.conf"
-      ''
-        # Using this config file to support older postgrest versions for `postgrest-loadtest-against`
-        db-uri="$(PGRST_DB_URI)"
-        db-schema="$(PGRST_DB_SCHEMAS)"
-        db-anon-role="$(PGRST_DB_ANON_ROLE)"
-        db-pool="$(PGRST_DB_POOL)"
-        server-unix-socket="$(PGRST_SERVER_UNIX_SOCKET)"
-        log-level="$(PGRST_LOG_LEVEL)"
-      '';
-
   waitForPgrstReady =
     checkedShellScript
       {
@@ -324,11 +311,11 @@ let
           printf "done in %ss.\n" "$build_end"
         fi
 
-        ver=$($PGRST_CMD ${legacyConfig} --version)
+        ver=$($PGRST_CMD --version)
 
         echo -n "${commandName}: Starting $ver... "
 
-        $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+        $PGRST_CMD > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2329
         cleanup() {
