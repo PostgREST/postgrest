@@ -13,7 +13,7 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.HashMap.Strict       as HM
-import           Data.Maybe                (fromJust)
+import           Data.Maybe                (fromMaybe)
 import           Data.Text.Read            (decimal)
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
@@ -126,7 +126,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationCreate, pMed
 actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ = do
   let
     contentRangeHeader =
-      Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
+      Just . RangeQuery.contentRangeH 0 (max 0 (rsQueryTotal - 1)) $
         if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
 
     prefHeader = prefAppliedHeader $ responsePreferences plan ctxApiRequest
@@ -152,7 +152,7 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationSingleUpsert
     cTHeader = contentTypeHeaders pMedia ctxApiRequest
 
   let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
-      upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
+      upsertStatus       = maybe HTTP.status200 isInsertIfGTZero rsInserted
       (status, headers, body) =
         case preferRepresentation iPreferences of
           Just Full -> (upsertStatus, cLHeader ++ cTHeader ++ prefHeader, lbsBody)
