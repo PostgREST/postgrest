@@ -423,27 +423,31 @@ pickProxy proxy
   -- since the request would have been rejected by the middleware if proxy uri
   -- is malformed
   | isMalformedProxyUri $ fromMaybe mempty proxy = Nothing
-  | otherwise = Just Proxy {
-    proxyScheme = scheme
-  , proxyHost = host'
-  , proxyPort = port''
-  , proxyPath = path'
-  }
+  | otherwise = case toURI $ fromJust proxy of
+      Just uri -> Just Proxy {
+        proxyScheme = scheme uri
+      , proxyHost = host' uri
+      , proxyPort = port'' uri
+      , proxyPath = path' uri
+      }
+      Nothing -> Nothing
  where
-   uri = toURI $ fromJust proxy
-   scheme = T.init $ T.toLower $ T.pack $ uriScheme uri
+   scheme u = T.init $ T.toLower $ T.pack $ uriScheme u
    path URI {uriPath = ""} =  "/"
    path URI {uriPath = p}  = p
-   path' = T.pack $ path uri
-   authority = fromJust $ uriAuthority uri
-   host' = T.pack $ uriRegName authority
-   port' = uriPort authority
+   path' u = T.pack $ path u
+   host' u = case uriAuthority u of
+     Just auth -> T.pack $ uriRegName auth
+     Nothing -> ""
+   port' u = case uriAuthority u of
+     Just auth -> uriPort auth
+     Nothing -> ""
    readPort = fromMaybe 80 . readMaybe
-   port'' :: Integer
-   port'' = case (port', scheme) of
+   port'' :: URI -> Integer
+   port'' u = case (port' u, scheme u) of
              ("", "http")  -> 80
              ("", "https") -> 443
-             _             -> readPort $ T.unpack $ T.tail $ T.pack port'
+             _             -> readPort $ T.unpack $ T.tail $ T.pack $ port' u
 
 proxyUri :: AppConfig -> (Text, Text, Integer, Text)
 proxyUri AppConfig{..} =
