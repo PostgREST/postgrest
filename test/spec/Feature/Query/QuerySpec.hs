@@ -1230,7 +1230,7 @@ spec = do
         `shouldRespondWith` 200
 
     it "should respond with CSV to 'text/csv' request" $
-      request methodGet "/simple_pk"
+      request methodGet "/simple_pk?order=k.desc"
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` "k,extra\nxyyx,u\nxYYx,v"
         { matchStatus  = 200

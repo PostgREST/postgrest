@@ -94,24 +94,24 @@ spec =
             { matchStatus  = 201 }
 
       it "doesn't affect updates(2 rows would be modified if it did)" $
-        request methodPatch "/employees?select=first_name,last_name,occupation"
+        request methodPatch "/employees?select=first_name,last_name,occupation&order=last_name"
             [("Prefer", "return=representation")]
             [json| [{"occupation": "Barista"}] |]
           `shouldRespondWith`
             [json|[
-                { "first_name": "Frances M.", "last_name": "Roe", "occupation": "Barista" },
                 { "first_name": "Daniel B.", "last_name": "Lyon", "occupation": "Barista" },
+                { "first_name": "Frances M.", "last_name": "Roe", "occupation": "Barista" },
                 { "first_name": "Edwin S.", "last_name": "Smith", "occupation": "Barista" } ]|]
             { matchStatus  = 200 }
 
       it "doesn't affect deletions" $
-        request methodDelete "/employees?select=first_name,last_name"
+        request methodDelete "/employees?select=first_name,last_name&order=last_name"
             [("Prefer", "return=representation")]
             mempty
           `shouldRespondWith`
             [json| [
-              { "first_name": "Frances M.", "last_name": "Roe" },
               { "first_name": "Daniel B.", "last_name": "Lyon" },
+              { "first_name": "Frances M.", "last_name": "Roe" },
               { "first_name": "Edwin S.", "last_name": "Smith" } ]|]
             { matchStatus  = 200 }
 

@@ -162,29 +162,29 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should select spread columns from a nested one-to-one relationship" $
-        get "/factories?select=factory:name,...processes(process:name,...process_costs(process_costs:cost))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,...process_costs(process_costs:cost))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"process_costs":[150.00, 200.00]},
             {"factory":"Factory B","process":["Process B1", "Process B2"],"process_costs":[180.00, 70.00]},
-            {"factory":"Factory C","process":["Process C1", "Process C2", "Process YY", "Process XX"],"process_costs":[40.00, 70.00, 40.00, null]},
+            {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"process_costs":[40.00, 70.00, null, 40.00]},
             {"factory":"Factory D","process":[],"process_costs":[]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
       it "should select spread columns from a nested many-to-one relationship" $
-        get "/factories?select=factory:name,...processes(process:name,...process_categories(categories:name))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,...process_categories(categories:name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"categories":["Batch", "Mass"]},
-            {"factory":"Factory B","process":["Process B2", "Process B1"],"categories":["Batch", "Batch"]},
-            {"factory":"Factory C","process":["Process YY", "Process XX", "Process C2", "Process C1"],"categories":["Mass", "Mass", "Mass", "Mass"]},
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"categories":["Batch", "Batch"]},
+            {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"categories":["Mass", "Mass", "Mass", "Mass"]},
             {"factory":"Factory D","process":[],"categories":[]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
       it "should select spread columns from a nested one-to-many relationship" $
-        get "/factories?select=factory:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisor_ids":[[1], [2]]},
             {"factory":"Factory B","process":["Process B1", "Process B2"],"supervisor_ids":[[3, 4], [1, 2]]},
@@ -195,10 +195,10 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should select spread columns from a nested many-to-many relationship" $ do
-        get "/factories?select=factory:name,...processes(process:name,...supervisors(supervisors:name))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,...supervisors(supervisors:name))&order=name&processes.order=name&processes.supervisors.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisors":[["Mary"], ["John"]]},
-            {"factory":"Factory B","process":["Process B1", "Process B2"],"supervisors":[["Peter", "Sarah"], ["Mary", "John"]]},
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"supervisors":[["Peter", "Sarah"], ["John", "Mary"]]},
             {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"supervisors":[["Peter"], ["Peter"], [], []]},
             {"factory":"Factory D","process":[],"supervisors":[]}
           ]|]
@@ -206,29 +206,29 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread one-to-one relationship as an array of objects" $ do
-        get "/factories?select=factory:name,...processes(process:name,process_costs(cost))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,process_costs(cost))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"process_costs":[{"cost": 150.00}, {"cost": 200.00}]},
             {"factory":"Factory B","process":["Process B1", "Process B2"],"process_costs":[{"cost": 180.00}, {"cost": 70.00}]},
-            {"factory":"Factory C","process":["Process C1", "Process C2", "Process YY", "Process XX"],"process_costs":[{"cost": 40.00}, {"cost": 70.00}, {"cost": 40.00}, null]},
+            {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"process_costs":[{"cost": 40.00}, {"cost": 70.00}, null, {"cost": 40.00}]},
             {"factory":"Factory D","process":[],"process_costs":[]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread many-to-one relationship as an array of objects" $
-        get "/factories?select=factory:name,...processes(process:name,process_categories(name))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,process_categories(name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"process_categories":[{"name": "Batch"}, {"name": "Mass"}]},
-            {"factory":"Factory B","process":["Process B2", "Process B1"],"process_categories":[{"name": "Batch"}, {"name": "Batch"}]},
-            {"factory":"Factory C","process":["Process YY", "Process XX", "Process C2", "Process C1"],"process_categories":[{"name": "Mass"}, {"name": "Mass"}, {"name": "Mass"}, {"name": "Mass"}]},
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"process_categories":[{"name": "Batch"}, {"name": "Batch"}]},
+            {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"process_categories":[{"name": "Mass"}, {"name": "Mass"}, {"name": "Mass"}, {"name": "Mass"}]},
             {"factory":"Factory D","process":[],"process_categories":[]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread one-to-many relationship as an array of arrays" $
-        get "/factories?select=factory:name,...processes(process:name,process_supervisor(supervisor_id))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,process_supervisor(supervisor_id))&order=name&processes.order=name&processes.process_supervisor.order=supervisor_id" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"process_supervisor":[[{"supervisor_id": 1}], [{"supervisor_id": 2}]]},
             {"factory":"Factory B","process":["Process B1", "Process B2"],"process_supervisor":[[{"supervisor_id": 3}, {"supervisor_id": 4}], [{"supervisor_id": 1}, {"supervisor_id": 2}]]},
@@ -239,10 +239,10 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread many-to-many relationship as an array of arrays" $
-        get "/factories?select=factory:name,...processes(process:name,supervisors(name))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(process:name,supervisors(name))&order=name&processes.order=name&processes.supervisors.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisors":[[{"name": "Mary"}], [{"name": "John"}]]},
-            {"factory":"Factory B","process":["Process B1", "Process B2"],"supervisors":[[{"name": "Peter"}, {"name": "Sarah"}], [{"name": "Mary"}, {"name": "John"}]]},
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"supervisors":[[{"name": "Peter"}, {"name": "Sarah"}], [{"name": "John"}, {"name": "Mary"}]]},
             {"factory":"Factory C","process":["Process C1", "Process C2", "Process XX", "Process YY"],"supervisors":[[{"name": "Peter"}], [{"name": "Peter"}], [], []]},
             {"factory":"Factory D","process":[],"supervisors":[]}
           ]|]
@@ -250,18 +250,18 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should work when selecting all columns in a nested to-one resource" $
-        get "/factories?select=factory:name,...processes(*,...process_costs(*))&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(*,...process_costs(*))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","id":[1, 2],"name":["Process A1", "Process A2"],"factory_id":[1, 1],"category_id":[1, 2],"process_id":[1, 2],"cost":[150.00, 200.00]},
             {"factory":"Factory B","id":[3, 4],"name":["Process B1", "Process B2"],"factory_id":[2, 2],"category_id":[1, 1],"process_id":[3, 4],"cost":[180.00, 70.00]},
-            {"factory":"Factory C","id":[5, 6, 8, 7],"name":["Process C1", "Process C2", "Process YY", "Process XX"],"factory_id":[3, 3, 3, 3],"category_id":[2, 2, 2, 2],"process_id":[5, 6, 8, null],"cost":[40.00, 70.00, 40.00, null]},
+            {"factory":"Factory C","id":[5, 6, 7, 8],"name":["Process C1", "Process C2", "Process XX", "Process YY"],"factory_id":[3, 3, 3, 3],"category_id":[2, 2, 2, 2],"process_id":[5, 6, null, 8],"cost":[40.00, 70.00, null, 40.00]},
             {"factory":"Factory D","id":[],"name":[],"factory_id":[],"category_id":[],"process_id":[],"cost":[]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
       it "works when column filters are specified" $
-        get "/factories?select=factory:name,...processes(*)&processes.name=not.like.*1&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(*)&processes.name=not.like.*1&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","id":[2],"name":["Process A2"],"factory_id":[1],"category_id":[2]},
             {"factory":"Factory B","id":[4],"name":["Process B2"],"factory_id":[2],"category_id":[1]},
@@ -272,7 +272,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "works with inner joins or not.is.null filters" $ do
-        get "/factories?select=factory:name,...processes!inner(name)&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes!inner(name)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","name":["Process A1", "Process A2"]},
             {"factory":"Factory B","name":["Process B1", "Process B2"]},
@@ -281,7 +281,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-        get "/factories?select=factory:name,...processes(name)&processes=not.is.null&order=name" `shouldRespondWith`
+        get "/factories?select=factory:name,...processes(name)&processes=not.is.null&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","name":["Process A1", "Process A2"]},
             {"factory":"Factory B","name":["Process B1", "Process B2"]},
@@ -336,7 +336,7 @@ spec =
 
     context "many-to-many relationships" $ do
       it "should spread a column as a json array" $ do
-        get "/operators?select=operator:name,...processes(name)&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(name)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","name":["Process C2", "Process XX"]},
             {"operator":"Anne","name":["Process A1", "Process A2", "Process B2"]},
@@ -347,7 +347,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-        get "/operators?select=operator:name,...processes(processes:name)&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(processes:name)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","processes":["Process C2", "Process XX"]},
             {"operator":"Anne","processes":["Process A1", "Process A2", "Process B2"]},
@@ -359,7 +359,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should spread many columns as json arrays" $ do
-        get "/operators?select=operator:name,...processes(name,category_id)&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(name,category_id)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","name":["Process C2", "Process XX"],"category_id":[2, 2]},
             {"operator":"Anne","name":["Process A1", "Process A2", "Process B2"],"category_id":[1, 2, 1]},
@@ -370,7 +370,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-        get "/operators?select=operator:name,...processes(processes:name,categories:category_id)&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(processes:name,categories:category_id)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","processes":["Process C2", "Process XX"],"categories":[2, 2]},
             {"operator":"Anne","processes":["Process A1", "Process A2", "Process B2"],"categories":[1, 2, 1]},
@@ -398,7 +398,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should work when selecting all columns" $
-        get "/operators?select=operator:name,...processes(*)&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(*)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","id":[6, 7],"name":["Process C2", "Process XX"],"factory_id":[3, 3],"category_id":[2, 2]},
             {"operator":"Anne","id":[1, 2, 4],"name":["Process A1", "Process A2", "Process B2"],"factory_id":[1, 1, 2],"category_id":[1, 2, 1]},
@@ -410,7 +410,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show spread columns from a nested one-to-one relationship" $
-        get "/operators?select=operator:name,...processes(process:name,...process_costs(process_costs:cost))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,...process_costs(process_costs:cost))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"process_costs":[70.00, null]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"process_costs":[150.00, 200.00, 70.00]},
@@ -422,7 +422,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show spread columns from a nested many-to-one relationship" $
-        get "/operators?select=operator:name,...processes(process:name,...process_categories(categories:name))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,...process_categories(categories:name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"categories":["Mass", "Mass"]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"categories":["Batch", "Mass", "Batch"]},
@@ -434,7 +434,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show spread columns from a nested one-to-many relationship" $
-        get "/operators?select=operator:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"supervisor_ids":[[3], []]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"supervisor_ids":[[1], [2], [1, 2]]},
@@ -446,7 +446,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show spread columns from a nested many-to-many relationship" $ do
-        get "/operators?select=operator:name,...processes(process:name,...supervisors(supervisors:name))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,...supervisors(supervisors:name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"supervisors":[["Peter"], []]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"supervisors":[["Mary"], ["John"], ["Mary", "John"]]},
@@ -458,7 +458,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread one-to-one relationship as an array of objects" $ do
-        get "/operators?select=operator:name,...processes(process:name,process_costs(cost))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,process_costs(cost))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"process_costs":[{"cost": 70.00}, null]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"process_costs":[{"cost": 150.00}, {"cost": 200.00}, {"cost": 70.00}]},
@@ -470,7 +470,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread many-to-one relationship as an array of objects" $
-        get "/operators?select=operator:name,...processes(process:name,process_categories(name))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,process_categories(name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"process_categories":[{"name": "Mass"}, {"name": "Mass"}]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"process_categories":[{"name": "Batch"}, {"name": "Mass"}, {"name": "Batch"}]},
@@ -482,7 +482,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread one-to-many relationship as an array of arrays" $
-        get "/operators?select=operator:name,...processes(process:name,process_supervisor(supervisor_id))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,process_supervisor(supervisor_id))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"process_supervisor":[[{"supervisor_id": 3}], []]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"process_supervisor":[[{"supervisor_id": 1}], [{"supervisor_id": 2}], [{"supervisor_id": 1}, {"supervisor_id": 2}]]},
@@ -494,7 +494,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should show a nested non-spread many-to-many relationship as an array of arrays" $
-        get "/operators?select=operator:name,...processes(process:name,supervisors(name))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(process:name,supervisors(name))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","process":["Process C2", "Process XX"],"supervisors":[[{"name": "Peter"}], []]},
             {"operator":"Anne","process":["Process A1", "Process A2", "Process B2"],"supervisors":[[{"name": "Mary"}], [{"name": "John"}], [{"name": "Mary"}, {"name": "John"}]]},
@@ -506,7 +506,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "should work when selecting all columns in a nested to-one resource" $
-        get "/operators?select=operator:name,...processes(*,...process_costs(*))&order=name" `shouldRespondWith`
+        get "/operators?select=operator:name,...processes(*,...process_costs(*))&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"operator":"Alfred","id":[6, 7],"name":["Process C2", "Process XX"],"factory_id":[3, 3],"category_id":[2, 2],"process_id":[6, null],"cost":[70.00, null]},
             {"operator":"Anne","id":[1, 2, 4],"name":["Process A1", "Process A2", "Process B2"],"factory_id":[1, 1, 2],"category_id":[1, 2, 1],"process_id":[1, 2, 4],"cost":[150.00, 200.00, 70.00]},
@@ -518,7 +518,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "works when column filters are specified" $
-        get "/supervisors?select=supervisor:name,...processes(*)&processes.name=not.like.*1&order=name" `shouldRespondWith`
+        get "/supervisors?select=supervisor:name,...processes(*)&processes.name=not.like.*1&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"supervisor":"Jane","id":[],"name":[],"factory_id":[],"category_id":[]},
             {"supervisor":"John","id":[2, 4],"name":["Process A2", "Process B2"],"factory_id":[1, 2],"category_id":[2, 1]},
@@ -530,7 +530,7 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
       it "works with inner joins or not.is.null filters" $ do
-        get "/supervisors?select=supervisor:name,...processes!inner(name)&order=name" `shouldRespondWith`
+        get "/supervisors?select=supervisor:name,...processes!inner(name)&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"supervisor":"John","name":["Process A2", "Process B2"]},
             {"supervisor":"Mary","name":["Process A1", "Process B2"]},
@@ -540,7 +540,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-        get "/supervisors?select=supervisor:name,...processes(name)&processes=not.is.null&order=name" `shouldRespondWith`
+        get "/supervisors?select=supervisor:name,...processes(name)&processes=not.is.null&order=name&processes.order=name" `shouldRespondWith`
           [json|[
             {"supervisor":"John","name":["Process A2", "Process B2"]},
             {"supervisor":"Mary","name":["Process A1", "Process B2"]},
