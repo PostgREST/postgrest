@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. From versio
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+  + You need to set `url-use-legacy-target-names = false`.
 - If the schema cache fails to reload, PostgREST will no longer stop serving requests and will continue doing so in a "best effort" basis by @mkleczek in #4873 #4869
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
 - Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
@@ -34,8 +35,6 @@ All notable changes to this project will be documented in this file. From versio
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
-- The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
-  + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
 - Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
 
 #### Changed Syntax for JWT Role Extraction
@@ -49,6 +48,13 @@ The `jwt-role-claim-key` config should be updated according to the following:
 - String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
   + Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
 - Detailed reference for syntax: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
+
+### Deprecated
+
+- Deprecate filters, orders and limits with the name of an embedded table when it has an alias by @steve-chavez, @laurenceisla in #4075
+  + e.g. `?select=alias:table(*)&table.id=eq.1` will not be possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+  + You will see a warning in the logs when this happens.
+  + You can disable this behavior now by setting `url-use-legacy-target-names = false`.
 
 ## [14.14] - 2026-06-29
 

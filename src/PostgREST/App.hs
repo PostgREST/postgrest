@@ -71,7 +71,7 @@ import qualified Data.List                 as L
 import           Data.Streaming.Network    (bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
-import           Network.HTTP.Types.Header (hVary)
+import           Network.HTTP.Types.Header (hVary, hWarning)
 import qualified Network.Socket            as NS
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           System.Posix.Types        (FileMode)
@@ -210,6 +210,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
+  let warnings = Plan.legacyWarnings plan
+      legacyWarnMsg = "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
+      legacyWarnHint = let replacement (relName, alias) = "`" <> relName <> "` to `" <> alias <> "`" in T.intercalate ", " (replacement <$> warnings)
+      shouldShowWarnings = configUrlUseLegacyTargetNames && not (null warnings)
+
+  liftIO $ when shouldShowWarnings $
+    observer $ LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
+
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
@@ -235,12 +243,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     liftIO $ obsQuery status'
     liftEither response
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
+  let warnHdrMsgs = if shouldShowWarnings then Just (legacyWarnMsg, legacyWarnHint) else Nothing
+
+  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) warnHdrMsgs resp
 
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) =
-      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
+    toWaiResponse :: ServerTiming -> Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse timing warnMsgs (Response.PgrstResponse st hdrs bod) =
+      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ warningHeaders warnMsgs ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
     serverTimingHeaders :: ServerTiming -> [HTTP.Header]
     serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
@@ -250,6 +260,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == hVary)
+
+    warningHeaders :: Maybe (Text, Text) -> [HTTP.Header]
+    warningHeaders Nothing = []
+    warningHeaders (Just (msg, hint)) =
+      let warnMsg = msg <> " Update " <> hint <> " in query string filters, orders or limits."
+          pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
+      in
+      [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
 
 withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled

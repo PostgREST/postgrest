@@ -152,6 +152,7 @@ main = do
         , ("Feature.Query.PreparedStatementsSpec.spec"         , Feature.Query.PreparedStatementsSpec.spec)
         , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
         , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec actualPgVersion)
+        , ("Feature.Query.QuerySpec.specLegacyTargetNames"     , Feature.Query.QuerySpec.specLegacyTargetNames)
         , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)

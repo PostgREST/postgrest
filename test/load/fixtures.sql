@@ -33,7 +33,6 @@ CREATE TABLE test.roles (
   character TEXT
 );
 
-
 CREATE TABLE test.authors_only ();
 
 CREATE FUNCTION test.call_me (name TEXT) RETURNS TEXT

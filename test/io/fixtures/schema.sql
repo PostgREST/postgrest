@@ -25,6 +25,14 @@ CREATE TABLE films (
     on delete cascade
 );
 
+CREATE TABLE awards (
+  id int primary key,
+  name text,
+  year int,
+  film_id int references films(id),
+  director_id int references directors(id)
+);
+
 -- data to test resource embedding
 TRUNCATE TABLE directors CASCADE;
 INSERT INTO directors

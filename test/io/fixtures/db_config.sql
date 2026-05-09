@@ -25,6 +25,7 @@ ALTER ROLE db_config_authenticator SET pgrst.openapi_server_proxy_uri = 'https:/
 ALTER ROLE db_config_authenticator SET pgrst.server_cors_allowed_origins = 'http://origin.com';
 ALTER ROLE db_config_authenticator SET pgrst.server_timing_enabled = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.server_trace_header = 'CF-Ray';
+ALTER ROLE db_config_authenticator SET pgrst.url_use_legacy_target_names = 'true';
 ALTER ROLE db_config_authenticator SET pgrst.db_hoisted_tx_settings = 'autovacuum_work_mem';
 
 -- override with database specific setting
@@ -81,6 +82,7 @@ ALTER ROLE other_authenticator SET pgrst.openapi_server_proxy_uri = 'https://oth
 ALTER ROLE other_authenticator SET pgrst.server_cors_allowed_origins = 'http://otherorigin.com';
 ALTER ROLE other_authenticator SET pgrst.server_timing_enabled = 'true';
 ALTER ROLE other_authenticator SET pgrst.server_trace_header = 'traceparent';
+ALTER ROLE other_authenticator SET pgrst.url_use_legacy_target_names = 'true';
 ALTER ROLE other_authenticator SET pgrst.db_hoisted_tx_settings = 'maintenance_work_mem';
 
 create schema postgrest;

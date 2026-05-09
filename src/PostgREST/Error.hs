@@ -175,7 +175,7 @@ instance ErrorBody ApiRequestError where
   message InvalidFilters               = "Filters must include all and only primary key columns with 'eq' operators"
   message (UnacceptableSchema sch _)   = "Invalid schema: " <> sch
   message (MediaTypeError cts)         = "None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)
-  message (NotEmbedded resource)       = "'" <> resource <> "' is not an embedded resource in this request"
+  message (NotEmbedded resource _)     = "'" <> resource <> "' is not an embedded resource in this request"
   message GucHeadersError              = "response.headers guc must be a JSON array composed of objects with a single key and a string value"
   message GucStatusError               = "response.status guc must be a valid status code"
   message PutLimitNotAllowedError      = "limit/offset querystring parameters are not allowed for PUT"
@@ -207,11 +207,13 @@ instance ErrorBody ApiRequestError where
   details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
   details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
   details (NotImplemented details') = Just $ JSON.String details'
+  details (NotEmbedded _ (Just _)) = Just $ JSON.String "Target names are not allowed in filters if they have an alias"
 
   details _ = Nothing
 
   -- HINT: Maybe JSON.Value
-  hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
+  hint (NotEmbedded resource Nothing) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
+  hint (NotEmbedded _ (Just (name, alias))) = Just $ JSON.String $ "Change '" <> name <> "' to '" <> alias <> "' in filters, orders or limits."
   hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
   hint (UnacceptableSchema _ schemas) = Just $ JSON.String $ "Only the following schemas are exposed: "  <> T.intercalate ", " schemas
 

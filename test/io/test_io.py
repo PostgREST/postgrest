@@ -2089,3 +2089,33 @@ def test_work_mem_in_role_settings(defaultenv):
         response = postgrest.session.post("/rpc/get_work_mem", headers=headers)
         assert response.status_code == 200
         assert response.text == '"3MB"'
+
+
+@pytest.mark.parametrize("enabled", ["true", "false"])
+def test_use_legacy_target_names(enabled, defaultenv):
+    "Show a warning when a target name is used instead of an alias, only when config is enabled"
+
+    env = {
+        **defaultenv,
+        "PGRST_URL_USE_LEGACY_TARGET_NAMES": enabled,
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get(
+            "/directors?select=name,all_films:films(title),awards_2026:awards(name)&films.order=title&awards.year=eq.2026"
+        )
+
+        output = postgrest.read_stdout(nlines=10)
+
+        log_err_warning = "WARNING: Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
+        log_err_hint = "Update filters, orders or limits that use `films` to `all_films`, `awards` to `awards_2026` in `GET /directors?select=name,all_films:films(title),awards_2026:awards(name)&films.order=title&awards.year=eq.2026`"
+
+        has_warning_log = any(log_err_warning in line for line in output)
+        has_hint_log = any(log_err_hint in line for line in output)
+
+        if enabled == "true":
+            assert response.status_code == 200
+            assert has_warning_log and has_hint_log
+        else:
+            assert response.status_code == 400
+            assert not has_warning_log and not has_hint_log
