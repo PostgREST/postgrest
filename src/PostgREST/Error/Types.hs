@@ -44,7 +44,7 @@ data ApiRequestError
   | InvalidPreferences [ByteString]
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
-  | NotEmbedded Text
+  | NotEmbedded Text (Maybe (Text, Text))
   | NotImplemented Text
   | PutLimitNotAllowedError
   | QueryParamError QPError

@@ -49,3 +49,7 @@ Prefer: tx=commit
 # Permission denied errors
 GET http://postgrest/actors_1
 Prefer: tx=commit
+
+# Testing the url-use-legacy-target-names configuration
+GET http://postgrest/films?select=all_roles:roles(*),awards_2026:awards(*),technical_specs:specs(*)&roles.order=character&awards.year=eq.2026&specs.runtime=not.is.null&limit=1
+Prefer: tx=commit

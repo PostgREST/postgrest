@@ -1009,3 +1009,30 @@ server-unix-socket-mode
   .. code:: bash
 
     server-unix-socket-mode = "660"
+
+.. _url-use-legacy-target-names:
+
+url-use-legacy-target-names
+---------------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_URL_USE_LEGACY_TARGET_NAMES
+  **In-Database** pgrst.url_use_legacy_target_names
+  =============== =================================
+
+  When active, it allows using the target name of the relationship in filters even if it has an alias:
+
+  .. code:: bash
+
+    /table?select=alias:target(*)&target.order=id
+
+  This feature will be removed in a future release, so you should start using the ``alias`` in these cases.
+  You will see a warning in the logs when this happens.
+
+  .. code::
+
+    28/May/2026:20:33:22 -0500: WARNING: Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release.
+    28/May/2026:20:33:22 -0500: Please update the filters that use `target` to `alias` in `GET /table?select=alias:target(*)&target.order=id`

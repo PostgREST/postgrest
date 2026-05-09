@@ -7,6 +7,8 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
@@ -1069,16 +1071,6 @@ spec withConfig = withConfig baseCfg $ do
             { "id":4,"children":[]}
           ]|] { matchHeaders = [matchContentTypeJson] }
 
-      it "works when embedding the same table more than once" $
-        get "/places?select=name,visits(id,start_time,visit_type),work_visits:visits(id,start_time,visit_type)&id=eq.1&visits.visit_type=neq.work&visits.start_time=gt.20250101+00:00&work_visits.visit_type=eq.work&work_visits.start_time=gt.20250101+00:00" `shouldRespondWith`
-          [json|[
-            {
-              "name":"Lake",
-              "visits":[{"id": 1, "start_time": "2025-01-01T10:00:00", "visit_type": "vacation"}, {"id": 2, "start_time": "2025-01-01T15:00:00", "visit_type": "vacation"}],
-              "work_visits":[{"id": 3, "start_time": "2025-01-01T20:00:00", "visit_type": "work"}]
-            }
-          ]|] { matchHeaders = [matchContentTypeJson] }
-
   describe "ordering response" $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
@@ -1160,8 +1152,8 @@ spec withConfig = withConfig baseCfg $ do
         [json|[{"id":1,"name":"Windows 7","tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "ordering embeded entities with alias" $
-      get "/projects?id=eq.1&select=id, name, the_tasks:tasks(id, name)&the_tasks.order=name.asc" `shouldRespondWith`
+    it "ordering embeded entities with alias (using legacy target names)" $
+      get "/projects?id=eq.1&select=id, name, the_tasks:tasks(id, name)&tasks.order=name.asc" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","the_tasks":[{"id":2,"name":"Code w7"},{"id":1,"name":"Design w7"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
@@ -1685,3 +1677,29 @@ spec withConfig = withConfig baseCfg $ do
       [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
       { matchStatus = 404
       , matchHeaders = ["Content-Length" <:> "96"]}
+
+specNoLegacyTargetNames :: SpecWithConfig
+specNoLegacyTargetNames withConfig = withConfig (baseCfg { configUrlUseLegacyTargetNames = False }) $
+  context "disable legacy target names" $ do
+    it "works when embedding the same table more than once" $
+      get "/places?select=name,visits(id,start_time,visit_type),work_visits:visits(id,start_time,visit_type)&id=eq.1&visits.visit_type=neq.work&visits.start_time=gt.20250101+00:00&work_visits.visit_type=eq.work&work_visits.start_time=gt.20250101+00:00" `shouldRespondWith`
+        [json|[
+          {
+            "name":"Lake",
+            "visits":[{"id": 1, "start_time": "2025-01-01T10:00:00", "visit_type": "vacation"}, {"id": 2, "start_time": "2025-01-01T15:00:00", "visit_type": "vacation"}],
+            "work_visits":[{"id": 3, "start_time": "2025-01-01T20:00:00", "visit_type": "work"}]
+          }
+        ]|] { matchHeaders = [matchContentTypeJson] }
+
+    it "does not work when using legacy target names" $
+      get "/projects?id=eq.1&select=id,name,the_tasks:tasks(id,name)&tasks.order=name.asc" `shouldRespondWith`
+        [json|
+          {
+            "code":"PGRST108",
+            "details":"Target names are not allowed in filters if they have an alias",
+            "hint":"Change 'tasks' to 'the_tasks' in filters, orders or limits.",
+            "message":"'tasks' is not an embedded resource in this request"
+          }
+        |]
+        { matchStatus = 400,
+          matchHeaders = [matchContentTypeJson] }
