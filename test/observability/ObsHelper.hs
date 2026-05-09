@@ -122,6 +122,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configInternalSCQuerySleepFst   = Nothing
   , configInternalSCQuerySleepSnd   = Nothing
   , configServerTimingEnabled       = True
+  , configUrlUseLegacyTargetNames   = True
   }
 
 testCfg :: AppConfig

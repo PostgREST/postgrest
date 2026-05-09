@@ -121,6 +121,7 @@ data AppConfig = AppConfig
   , configServerTimingEnabled       :: Bool
   , configServerUnixSocket          :: Maybe FilePath
   , configServerUnixSocketMode      :: FileMode
+  , configUrlUseLegacyTargetNames   :: Bool
   , configAdminServerHost           :: Text
   , configAdminServerPort           :: Maybe Int
   , configAdminServerUnixSocket     :: Maybe FilePath
@@ -207,6 +208,7 @@ toText conf =
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
+      ,("url-use-legacy-target-names",   T.toLower . show . configUrlUseLegacyTargetNames)
       ,("admin-server-host",         q . configAdminServerHost)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ,("admin-server-unix-socket",  q . maybe mempty T.pack . configAdminServerUnixSocket)
@@ -325,6 +327,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
+    <*> (fromMaybe True <$> optBool "url-use-legacy-target-names")
     <*> (defaultServerHost <$> optWithAlias (optString "admin-server-host")
                                             (optString "server-host"))
     <*> parseAdminServerPort "admin-server-port"
@@ -794,4 +797,9 @@ exampleConfigFile = S.unlines
   , "## Unix socket file mode"
   , "## When none is provided, 660 is applied by default"
   , "# server-unix-socket-mode = \"660\""
+  , ""
+  , "## Use legacy target names in relationship filters"
+  , "## If active, allows using the target name of the relationship in filters even if it has an alias."
+  , "## Otherwise it only allows the alias in filters"
+  , "url-use-legacy-target-names = true"
   ]

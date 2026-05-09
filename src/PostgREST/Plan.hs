@@ -23,6 +23,7 @@ module PostgREST.Plan
   , InspectPlan(..)
   , InfoPlan(..)
   , CrudPlan(..)
+  , legacyWarnings
   ) where
 
 import qualified Data.HashMap.Strict           as HM
@@ -143,6 +144,25 @@ data InfoPlan
   = RelInfoPlan QualifiedIdentifier -- info about relation
   | RoutineInfoPlan Routine -- info about function
   | SchemaInfoPlan -- info about schema cache
+
+legacyWarnings :: ActionPlan -> [(Text, Text)]
+legacyWarnings (NoDb _) = []
+legacyWarnings (Db dbPlan) =
+  case dbPlan of
+    DbCrud _ crudPlan ->
+      readPlanWarnings $ case crudPlan of
+        WrappedReadPlan{wrReadPlan} -> wrReadPlan
+        MutateReadPlan{mrReadPlan}  -> mrReadPlan
+        CallReadPlan{crReadPlan}    -> crReadPlan
+    MayUseDb _ -> []
+  where
+    readPlanWarnings :: ReadPlanTree -> [(Text, Text)]
+    readPlanWarnings (Node rp forest) =
+      maybeToList (readPlanWarning rp) <> foldMap readPlanWarnings forest
+
+readPlanWarning :: ReadPlan -> Maybe (Text, Text)
+readPlanWarning ReadPlan{relName, relAlias = Just alias, relIsLegacyTargetNameMatch = True} = Just (relName, alias)
+readPlanWarning _ = Nothing
 
 actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan act conf apiReq sCache = case act of
@@ -354,7 +374,7 @@ resolveQueryInputField ctx field opExpr = withTextParse ctx $ resolveTypeOrUnkno
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
 readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates, configUrlUseLegacyTargetNames} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
   let
     -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
     ctx = ResolverContext dbTables dbRepresentations qi "json"
@@ -369,10 +389,10 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     addAliases =<<
     expandStars ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
-    addLogicTrees ctx apiRequest =<<
-    addRanges apiRequest =<<
-    addOrders ctx apiRequest =<<
-    addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
+    addLogicTrees ctx apiRequest configUrlUseLegacyTargetNames =<<
+    addRanges apiRequest configUrlUseLegacyTargetNames =<<
+    addOrders ctx apiRequest configUrlUseLegacyTargetNames =<<
+    addFilters ctx apiRequest configUrlUseLegacyTargetNames (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
 -- Build the initial read plan tree
 initReadRequest :: ResolverContext -> [Tree SelectItem] -> ReadPlanTree
@@ -380,7 +400,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth False
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -816,8 +836,8 @@ findTable qi@QualifiedIdentifier{..} sc@SchemaCache{dbTables} =
     Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName sc
     Just _ -> Right qi
 
-addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
-addFilters ctx ApiRequest{..} rReq =
+addFilters :: ResolverContext -> ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
+addFilters ctx ApiRequest{..} useTargetNames rReq =
   foldr addFilterToNode (Right rReq) flts
   where
     QueryParams.QueryParams{..} = iQueryParams
@@ -829,15 +849,15 @@ addFilters ctx ApiRequest{..} rReq =
 
     addFilterToNode :: (EmbedPath, Filter) -> Either Error ReadPlanTree ->  Either Error ReadPlanTree
     addFilterToNode =
-      updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
+      updateNode useTargetNames (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
 
-addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
-addOrders ctx ApiRequest{..} rReq = foldr addOrderToNode (Right rReq) qsOrder
+addOrders :: ResolverContext -> ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
+addOrders ctx ApiRequest{..} useTargetNames rReq = foldr addOrderToNode (Right rReq) qsOrder
   where
     QueryParams.QueryParams{..} = iQueryParams
 
     addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
-    addOrderToNode = updateNode (\o (Node q f) -> Node q{order=resolveOrder ctx <$> o} f)
+    addOrderToNode = updateNode useTargetNames (\o (Node q f) -> Node q{order=resolveOrder ctx <$> o} f)
 
 resolveOrder :: ResolverContext -> OrderTerm -> CoercibleOrderTerm
 resolveOrder _ (OrderRelationTerm a b c d) = CoercibleOrderRelationTerm a b c d
@@ -862,7 +882,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
             then Right $ cot{coRelation=relAggAlias}
             else Left $ ApiRequestErr $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
-          Left $ ApiRequestErr $ NotEmbedded coRelation
+          Left $ ApiRequestErr $ NotEmbedded coRelation Nothing
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
@@ -887,7 +907,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         relToParent = Nothing,
 --         relJoinConds = [],
 --         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relSpread = Nothing, depth = 1,
---         relSelect = []
+--         relSelect = [],
+--         relIsLegacyTargetNameMatch = False
 --       },
 --       subForest = []
 --     }
@@ -913,7 +934,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       ],
 --       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
 --       relJoinType = Nothing, relSpread = Nothing, depth = 0,
---       relSelect = []
+--       relSelect = [],
+--       relIsLegacyTargetNameMatch = False
 --     },
 --     subForest = subForst
 --   }
@@ -949,8 +971,8 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
       flt@(CoercibleStmnt _) ->
         Right flt
 
-addRanges :: ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
-addRanges ApiRequest{..} rReq =
+addRanges :: ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
+addRanges ApiRequest{..} useTargetNames rReq =
   case iAction of
     ActDb (ActRelationMut _ _) -> Right rReq
     _                          -> foldr addRangeToNode (Right rReq) =<< ranges
@@ -959,10 +981,10 @@ addRanges ApiRequest{..} rReq =
     ranges = first (ApiRequestErr . QueryParamError) $ QueryParams.pRequestRange `traverse` HM.toList iRange
 
     addRangeToNode :: (EmbedPath, NonnegRange) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
-    addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
+    addRangeToNode = updateNode useTargetNames (\r (Node q f) -> Node q{range_=r} f)
 
-addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
-addLogicTrees ctx ApiRequest{..} rReq =
+addLogicTrees :: ResolverContext -> ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
+addLogicTrees ctx ApiRequest{..} useTargetNames rReq =
   foldr addLogicTreeToNode (Right rReq) logic
   where
     QueryParams.QueryParams{..} = iQueryParams
@@ -975,7 +997,7 @@ addLogicTrees ctx ApiRequest{..} rReq =
         _                            -> filter (not . null . fst) qsLogic
 
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
-    addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
+    addLogicTreeToNode = updateNode useTargetNames (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
 
 resolveLogicTree :: ResolverContext -> LogicTree -> CoercibleLogicTree
 resolveLogicTree ctx (Stmnt flt) = CoercibleStmnt $ resolveFilter ctx flt
@@ -985,18 +1007,35 @@ resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld opExpr, opExpr=opExpr}
 
 -- Find a Node of the Tree and apply a function to it
-updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
-updateNode f ([], a) rr = f a <$> rr
-updateNode _ _ (Left e) = Left e
-updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
-  case findNode of
-    Nothing -> Left $ ApiRequestErr $ NotEmbedded targetNodeName
+updateNode :: Bool -> (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
+updateNode _ f ([], a) rr = f a <$> rr
+updateNode _ _ _ (Left e) = Left e
+updateNode useTargetNames f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
+  case findNode useTargetNames of
+    Nothing ->
+      Left $ ApiRequestErr $ NotEmbedded targetNodeName findLegacyUsage
     Just target ->
       (\node -> Node rootNode $ node : delete target forest) <$>
-      updateNode f (remainingPath, a) (Right target)
+      updateNode useTargetNames f (remainingPath, a) (Right $ updateLegacyAttrs target)
   where
-    findNode :: Maybe ReadPlanTree
-    findNode = find (\(Node ReadPlan{relName, relAlias} _) -> fromMaybe relName relAlias == targetNodeName) forest
+    findNode :: Bool -> Maybe ReadPlanTree
+    findNode isLegacy = find (matchTarget isLegacy) forest
+
+    matchTarget :: Bool -> ReadPlanTree -> Bool
+    matchTarget isLegacy (Node ReadPlan{relName, relAlias} _)
+      | isLegacy = relName == targetNodeName || relAlias == Just targetNodeName
+      | otherwise = fromMaybe relName relAlias == targetNodeName
+
+    updateLegacyAttrs :: ReadPlanTree -> ReadPlanTree
+    updateLegacyAttrs node@(Node rPlan@ReadPlan{relName, relAlias} children)
+      | relName == targetNodeName && isJust relAlias && relAlias /= Just targetNodeName =
+          Node rPlan{relIsLegacyTargetNameMatch=True} children
+      | otherwise = node
+
+    findLegacyUsage :: Maybe (Text, Text)
+    findLegacyUsage
+      | useTargetNames = Nothing
+      | otherwise = (\(Node rp _) -> fromMaybe mempty $ readPlanWarning rp) . updateLegacyAttrs <$> findNode True
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
