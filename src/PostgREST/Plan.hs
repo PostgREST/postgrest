@@ -126,7 +126,7 @@ data InspectPlan = InspectPlan {
   , ipSchema   :: Schema
   }
 
--- A Plan may use the the database or not
+-- A Plan may use the database or not
 data ActionPlan
   = Db DbActionPlan
   | NoDb InfoPlan

@@ -56,7 +56,7 @@ retryingListen appState hasDbListenerBug = do
       -- loop running the listener
       retryingListen appState (isDbListenerBug err)
 
-  -- Execute the listener with with error handling
+  -- Execute the listener with error handling
   handle onError $ do
     -- Make sure we don't leak connections on errors
     bracket
