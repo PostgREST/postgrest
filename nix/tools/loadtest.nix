@@ -268,7 +268,7 @@ let
       }
       ''
         ${vegeta}/bin/vegeta encode "$_arg_file" \
-          | ${jq}/bin/jq --slurp 'map(select(.url != "")) | group_by("\(.code) \(.method) \(.url)") | map({("\(.[0].code) \(.[0].method) \(.[0].url)" | sub("http://postgrest";"")): add | .latency / length | 10e6 / . }) | .[]' \
+          | ${jq}/bin/jq --slurp 'map(select(.url != "")) | group_by("\(.code) \(.method) \(.url)") | map({("\(.[0].code) \(.[0].method) \(.[0].url)" | sub("http://postgrest";"")): map(.latency) | min / 10e3 }) | .[]' \
           | ${jq}/bin/jq --arg branch "$(basename "$_arg_file" .bin)" '. + {branch: $branch}'
       '';
 
@@ -282,7 +282,8 @@ let
         import pandas as pd
 
         pd.read_json(sys.stdin) \
-          .set_index('rate') \
+          .rename(columns={'latency': 'min latency [μs]'}) \
+          .set_index('min latency [μs]') \
           .drop(['branch']) \
           .convert_dtypes() \
           .to_markdown(sys.stdout, floatfmt='.1f')
@@ -305,8 +306,8 @@ let
         echo -e "## Loadtest results $marker\n"
 
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
-          | ${jq}/bin/jq '[paths(scalars) as $path | {rate: $path | join("."), (.branch): getpath($path)}]' \
-          | ${jq}/bin/jq --slurp 'flatten | group_by(.rate) | map(add)' \
+          | ${jq}/bin/jq '[paths(scalars) as $path | {latency: $path | join("."), (.branch): getpath($path)}]' \
+          | ${jq}/bin/jq --slurp 'flatten | group_by(.latency) | map(add)' \
           | ${toMarkdown}
 
         echo -e "\n\n## Loadtest elapsed seconds vs CPU/MEM usage $marker\n"
