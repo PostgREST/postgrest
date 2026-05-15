@@ -14,6 +14,7 @@ from postgrest import (
     is_ipv6,
     reset_statement_timeout,
     run,
+    run_nginx,
     set_statement_timeout,
     sleep_until_postgrest_config_reload,
     sleep_until_postgrest_full_reload,
@@ -2178,3 +2179,23 @@ def test_vary_default_header_set(defaultenv):
         response = postgrest.session.get("/projects")
 
         assert response.headers["Vary"] == "Accept, Prefer, Range"
+
+
+def test_negative_pool_metric(defaultenv):
+    "When a network failure is caused on the pg connection, the pgrst_db_pool_available is negative"
+
+    with run_nginx(defaultenv) as pgproxyhost:
+        env = {**defaultenv, "PGHOST": pgproxyhost}
+
+        with run(env=env, wait_for_readiness=False) as postgrest:
+            time.sleep(2)
+
+            response = postgrest.admin.get("/metrics", timeout=1)
+            assert response.status_code == 200
+
+            metrics = float(
+                re.search(
+                    r"pgrst_db_pool_available (-?\d+(?:\.\d+)?)", response.text
+                ).group(1)
+            )
+            assert metrics < 0
