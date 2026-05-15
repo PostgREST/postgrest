@@ -471,3 +471,20 @@ You can use other comparative filters and also all the `PostgreSQL special date/
       "due_date": "2022-02-27T06:00:00-05:00"
     }
   ]
+
+.. raw:: html
+
+  <script type="text/javascript">
+    let hash = window.location.hash;
+
+    const redirects = {
+      // PostGIS
+      '#postgis': '../integrations/postgis.html#postgis',
+    };
+
+    let willRedirectTo = redirects[hash];
+
+    if (willRedirectTo) {
+      window.location.href = willRedirectTo;
+    }
+  </script>
