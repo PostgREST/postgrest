@@ -35,21 +35,23 @@ import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Header       as WaiHeader
 
-import qualified PostgREST.Admin      as Admin
-import qualified PostgREST.ApiRequest as ApiRequest
-import qualified PostgREST.AppState   as AppState
-import qualified PostgREST.Auth       as Auth
-import qualified PostgREST.Cors       as Cors
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.MainTx     as MainTx
-import qualified PostgREST.Plan       as Plan
-import qualified PostgREST.Query      as Query
-import qualified PostgREST.Response   as Response
-import qualified PostgREST.Unix       as Unix (installSignalHandlers)
+import qualified PostgREST.Admin         as Admin
+import qualified PostgREST.ApiRequest    as ApiRequest
+import qualified PostgREST.AppState      as AppState
+import qualified PostgREST.Auth          as Auth
+import qualified PostgREST.Cors          as Cors
+import qualified PostgREST.Error         as Error
+import qualified PostgREST.Listener      as Listener
+import qualified PostgREST.MainTx        as MainTx
+import qualified PostgREST.OpenTelemetry as OTel
+import qualified PostgREST.Plan          as Plan
+import qualified PostgREST.Query         as Query
+import qualified PostgREST.Response      as Response
+import qualified PostgREST.Unix          as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
+import PostgREST.AppState             (AppState, TracerState (..),
+                                       getOTelTracer)
 import PostgREST.Auth.Types           (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
@@ -61,20 +63,27 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Data.ByteString.Char8     as BS
-import qualified Data.List                 as L
-import           Data.Streaming.Network    (bindPortTCP,
-                                            bindRandomPortTCP)
-import qualified Data.Text                 as T
-import qualified Network.HTTP.Types        as HTTP
-import qualified Network.HTTP.Types.Header as HTTP (hVary)
-import qualified Network.Socket            as NS
-import           PostgREST.Unix            (createAndBindDomainSocket)
-import           Protolude                 hiding (Handler)
+import qualified Data.ByteString.Char8             as BS
+import qualified Data.List                         as L
+import           Data.Streaming.Network            (bindPortTCP,
+                                                    bindRandomPortTCP)
+import qualified Data.Text                         as T
+import qualified Network.HTTP.Types                as HTTP
+import qualified Network.HTTP.Types.Header         as HTTP (hVary)
+import qualified Network.Socket                    as NS
+import           OpenTelemetry.Instrumentation.Wai (newOpenTelemetryWaiMiddleware')
+import           OpenTelemetry.Trace               (defaultSpanArguments)
+import           OpenTelemetry.Trace.Core          (getTracerTracerProvider)
+import           PostgREST.Unix                    (createAndBindDomainSocket)
+import           Protolude                         hiding (Handler)
 
-run :: AppState -> IO ()
+run :: HasCallStack => AppState -> IO ()
 run appState = do
   conf <- AppState.getConfig appState
+
+  let TracerState{..} = getOTelTracer appState
+
+  when (isNothing ts'otelTracer && ts'enabled) $ observer OTelNoConfigSupplied
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   (mainSocket, adminSocket) <- initSockets conf
@@ -120,11 +129,12 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: AppState.AppState -> IO () -> Wai.Application
+postgrest :: HasCallStack => AppState.AppState -> IO () -> Wai.Application
 postgrest appState connWorker =
+  oTelMiddleware appState .
   traceHeaderMiddleware appState .
   Cors.middleware appState $
-    \req respond -> do
+    \req respond -> OTel.inSpanM ((AppState.ts'otelTracer . getOTelTracer) appState) "request" defaultSpanArguments $ do
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
 
@@ -165,7 +175,8 @@ postgrest appState connWorker =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
 postgrestResponse
-  :: AppState.AppState
+  :: HasCallStack
+  => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
   -> Maybe Double
@@ -187,14 +198,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   body <- lift $ Wai.strictRequestBody req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withOTel "parse" $ withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (planTime, plan)                   <- withOTel "plan" $ withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming conf $ do
+  (txTime, txResult) <- withOTel "query" $ withTiming conf $ do
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx{..} -> do
@@ -207,7 +218,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         lift $ whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
-  (respTime, resp) <- withTiming conf $ do
+  (respTime, resp) <- withOTel "response" $ withTiming conf $ do
     let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
         status' = either Error.status Response.pgrstStatus response
 
@@ -218,7 +229,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
 
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse :: HasCallStack => ServerTiming -> Response.PgrstResponse -> Wai.Response
     toWaiResponse timing (Response.PgrstResponse st hdrs bod) =
       Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
@@ -231,7 +242,11 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
 
-withTiming :: AppConfig -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
+    withOTel :: HasCallStack => Text -> ExceptT e IO a -> ExceptT e  IO a
+    withOTel label = do
+      OTel.inSpanM ((ts'otelTracer . getOTelTracer) appState) label defaultSpanArguments
+
+withTiming :: HasCallStack => AppConfig -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
     then do
       (t, r) <- timeItT f
@@ -249,6 +264,13 @@ traceHeaderMiddleware appState app req respond = do
     Just hdr ->
       let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
       app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
+
+oTelMiddleware :: AppState -> Wai.Middleware
+oTelMiddleware s = case (ts'otelTracer . getOTelTracer ) s of
+  Just t -> newOpenTelemetryWaiMiddleware' $ getTracerTracerProvider t
+  -- Make sure OTel code is actually noop
+  Nothing -> identity
+
 
 addRetryHint :: Int -> Wai.Response -> Wai.Response
 addRetryHint delay response = do

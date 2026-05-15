@@ -6,12 +6,15 @@ import qualified Hasql.Transaction.Sessions as HT
 
 import Data.Function (id)
 
+import OpenTelemetry.Context.ThreadLocal   (getContext)
+import OpenTelemetry.Instrumentation.Hspec
 import Test.Hspec
 
 import PostgREST.App             (postgrest)
 import PostgREST.Config          (AppConfig (..),
                                   toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.OpenTelemetry   (withTracer)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
@@ -70,10 +73,11 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import           PostgREST.AppState                        (TracerState (..))
 
 
 main :: IO ()
-main = do
+main = withTracer $ \tracer -> do
   pool <- P.acquire $ P.settings
     [ P.size 3
     , P.acquisitionTimeout 10
@@ -91,7 +95,10 @@ main = do
 
   let
     initApp sCache config = do
-      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState)
+      let tracerState = TracerState {ts'enabled = configOTelEnabled config, ts'otelTracer = if configOTelEnabled config
+                        then Just tracer
+                        else Nothing}
+      appState <- AppState.initWithPool pool config loggerState metricsState tracerState (Metrics.observationMetrics metricsState)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest appState (pure ()))
@@ -169,7 +176,8 @@ main = do
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
         ]
 
-  hspec $ do
+  ctxt <- getContext
+  hspec $ instrumentSpec tracer ctxt $ do
     mapM_ (parallel . before withApp) specs
 
     -- we analyze to get accurate results from EXPLAIN

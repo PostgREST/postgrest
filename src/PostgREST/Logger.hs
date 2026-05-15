@@ -107,6 +107,8 @@ observationLogger loggerState logLevel obs = case obs of
   o@(WarpServerObs _) ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
+  o@OTelNoConfigSupplied | logLevel >= LogWarn -> do
+    logWithZTime loggerState $ observationMessages o
   o ->
     logWithZTime loggerState $ observationMessages o
 
@@ -233,6 +235,8 @@ observationMessages = \case
     pure $ "Received termination unix signal " <> signal
   WarpServerObs txt ->
     pure $ "Warp server: " <> txt
+  OTelNoConfigSupplied ->
+    pure $ "No OpenTelemetry configuration via environment variables is supplied. " <> "Please refer https://docs.postgrest.org/en/stable/references/observability.html#opentelemetry for details."
   ResponseObs {} ->
     mempty -- TODO this message is produced on observationLogger since it depends on Logger state. Merge observationMessages with observationLogger to clear this.
   where
