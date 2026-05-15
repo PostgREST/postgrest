@@ -10,6 +10,7 @@
 , hostPlatform
 , jq
 , lib
+, nginx
 , postgrest
 , python3
 , runtimeShell
@@ -94,6 +95,7 @@ let
         args = [ "ARG_LEFTOVERS([pytest arguments])" ];
         workingDir = "/";
         withEnv = postgrest.env;
+        withPath = [ nginx ];
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest
@@ -156,6 +158,7 @@ let
         redirectTixFiles = false;
         withEnv = postgrest.env;
         withTmpDir = true;
+        withPath = [ nginx ];
       }
       (
         # required for `hpc markup` in CI; glibcLocales is not available e.g. on Darwin
