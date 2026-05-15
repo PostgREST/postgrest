@@ -124,6 +124,7 @@ jobs:
 
   loadtest:
     strategy:
+      fail-fast: false
       matrix:
         kind: ['mixed', 'errors', 'jwt-hs', 'jwt-hs-cache', 'jwt-hs-cache-worst', 'jwt-rsa', 'jwt-rsa-cache', 'jwt-rsa-cache-worst']
     name: Loadtest
