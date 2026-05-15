@@ -10,6 +10,7 @@ CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load(
     (BASEDIR / "fixtures/fixtures.yaml").read_text(), Loader=yaml.Loader
 )
+NGINX_BIN = shutil.which("nginx")
 POSTGREST_BIN = shutil.which("postgrest")
 SECRET = "reallyreallyreallyreallyverysafe"
 
