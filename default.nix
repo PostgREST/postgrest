@@ -57,6 +57,14 @@ let
       { name = "pg-16"; postgresql = pkgs.postgresql_16.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "pg-15"; postgresql = pkgs.postgresql_15.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "pg-14"; postgresql = pkgs.postgresql_14.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
+      {
+        name = "oriole-17";
+        postgresql = pkgs.orioledb.withPackages (p: [ p.postgis p.pg_safeupdate ]);
+        config = "
+          default_table_access_method = 'orioledb'
+          shared_preload_libraries = 'orioledb'
+        ";
+      }
     ];
 
   haskellPackages = pkgs.haskell.packages."${compiler}";

@@ -1,3 +1,5 @@
+\ir ../../orioledb.sql
+
 /*
 This is a 2018 version of the apflora schema https://github.com/barbalex/apf2/tree/master/sql/apflora - latest version likely has differing contents
 
