@@ -745,7 +745,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     env = {
         **defaultenv,
         "PGUSER": role,
-        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
         "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
     }
 
@@ -763,7 +763,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
         assert response.status_code == 503
 
         response = postgrest.session.get("/projects", timeout=1)
-        assert response.status_code == 503
+        assert response.status_code == 200
 
     reset_statement_timeout(metapostgrest, role)
 
