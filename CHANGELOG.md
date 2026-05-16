@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. From versio
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+- Do not listen on main socket until schema cache is loaded by @mkleczek in #4880
 
 
 ### Changed
@@ -33,6 +34,8 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+- When starting up, PostgREST will now give `connection refused` errors until its schema cache is loaded  @mkleczek in #4880
+  It used to give 503 status responses.
 
 ## [14.11] - 2026-05-04
 
