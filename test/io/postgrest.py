@@ -8,12 +8,13 @@ import socket
 import subprocess
 import tempfile
 import time
+import string
 import urllib.parse
 
 import requests
 import requests_unixsocket
 
-from config import POSTGREST_BIN, hpctixfile
+from config import POSTGREST_BIN, NGINX_BIN, hpctixfile
 
 
 def sleep_until_postgrest_scache_reload():
@@ -162,6 +163,51 @@ def run(
             remaining_output = process.stdout.read()
             if remaining_output:
                 print(remaining_output.decode())
+            process.terminate()
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+
+
+@contextlib.contextmanager
+def run_nginx(env=None):
+    "Run nginx as a unix socket proxy for PostgreSQL and expose PGPROXYHOST."
+    env = dict(os.environ if env is None else env)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # build a <tmpdir>/conf/ so `nginx -p` picks the config automatically
+        tmpdir = pathlib.Path(tmpdir)
+        conf_dir = tmpdir / "conf"
+        conf_dir.mkdir(parents=True)
+
+        nginx_env = dict(env)
+        nginx_env["PGPROXYHOST"] = str(tmpdir)
+
+        source_conf = pathlib.Path("test/io/nginx/nginx.conf")
+        out_conf = conf_dir / "nginx.conf"
+        out_conf.write_text(
+            string.Template(source_conf.read_text()).substitute(nginx_env)
+        )
+
+        process = subprocess.Popen(
+            [NGINX_BIN, "-p", str(tmpdir), "-e", "stderr"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=nginx_env,
+        )
+
+        if process.poll() is not None:
+            (_, stderr_output) = process.communicate(timeout=1)
+            raise RuntimeError(
+                f"{NGINX_BIN} exited with {process.returncode}: {stderr_output}"
+            )
+
+        try:
+            yield str(tmpdir)
+        finally:
             process.terminate()
             try:
                 process.wait(timeout=1)
