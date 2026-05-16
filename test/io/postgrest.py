@@ -89,7 +89,7 @@ def run(
     admin_port=None,
     host=None,
     wait_for_readiness=True,
-    wait_max_seconds=1,
+    wait_max_seconds=3,
     no_pool_connection_available=False,
     no_startup_stdout=True,
 ):
@@ -192,6 +192,7 @@ def wait_until_exit(postgrest, timeout=1):
 def wait_until_status_code(url, max_seconds, status_code):
     "Wait for the given HTTP endpoint to return a status code"
     session = requests_unixsocket.Session()
+    response = None
 
     for _ in range(max_seconds * 10):
         try:

@@ -176,6 +176,11 @@ admin-server-port
 
   Specifies the port for the :ref:`admin_server`. Cannot be equal to :ref:`server-port`.
 
+  When running multiple PostgREST instances on the same :ref:`server-port`, use
+  a different ``admin-server-port`` for each instance. Admin ports are not shared
+  between instances, so readiness checks always target one specific PostgREST
+  instance. See :ref:`zero_downtime_upgrades`.
+
 .. _app.settings.*:
 
 app.settings.*
@@ -898,6 +903,50 @@ server-port
   =============== =================================
 
   The TCP port to bind the web server. Use ``0`` to automatically assign a port.
+
+  When :ref:`server-reuseport` is enabled on an operating system that supports
+  ``SO_REUSEPORT``, you can start multiple PostgREST instances on the same
+  :ref:`server-host` and ``server-port``. For example, two PostgREST processes
+  can use the same configuration:
+
+  .. code:: ini
+
+    server-host = "127.0.0.1"
+    server-port = 3000
+    server-reuseport = true
+
+  New connections are then distributed by the operating system between the
+  running PostgREST processes. This can be used to start a replacement process
+  before stopping the old one, or to run several PostgREST processes behind one
+  port.
+
+  If ``server-reuseport`` is disabled, starting another PostgREST process on
+  the same host and port will fail with the usual address-in-use error.
+
+  For a step-by-step example, see :ref:`zero_downtime_upgrades`.
+
+.. _server-reuseport:
+
+server-reuseport
+----------------
+
+  =============== =================================
+  **Type**        Bool
+  **Default**     false
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_REUSEPORT
+  **In-Database** `n/a`
+  =============== =================================
+
+  Enables ``SO_REUSEPORT`` on the TCP server socket. This allows multiple
+  PostgREST processes to bind to the same :ref:`server-host` and
+  :ref:`server-port` when the operating system supports it.
+
+  Enabling this setting on an operating system that does not support
+  ``SO_REUSEPORT`` is a configuration error. PostgREST will fail to start
+  instead of falling back to a normal TCP socket.
+
+  This setting does not apply when :ref:`server-unix-socket` is used.
 
 .. _server-trace-header:
 

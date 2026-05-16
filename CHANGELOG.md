@@ -15,12 +15,14 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
+- Enable starting multiple PostgREST instances using the same ports on platforms supporting it by @mkleczek in #4703 #4694
 
 ### Fixed
 
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+- Do not listen on main socket until schema cache is loaded by @mkleczek in #4880
 
 
 ### Changed
@@ -33,6 +35,8 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+- When starting up, PostgREST will now give `connection refused` errors until its schema cache is loaded  @mkleczek in #4880
+  It used to give 503 status responses.
 
 ## [14.11] - 2026-05-04
 

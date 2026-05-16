@@ -34,6 +34,7 @@ DSL
 DevOps
 Dramatiq
 dockerize
+downtime
 enum
 Enums
 Entra
@@ -59,6 +60,7 @@ HMAC
 htmx
 Htmx
 Homebrew
+handover
 hstore
 HTTP
 HTTPS
@@ -113,6 +115,7 @@ ov
 parametrized
 passphrase
 PBKDF
+PID
 PgBouncer
 pgcrypto
 pgjwt
@@ -144,6 +147,7 @@ Redux
 refactor
 reloadable
 Reloadable
+reuseport
 requester's
 RESTful
 RLS
