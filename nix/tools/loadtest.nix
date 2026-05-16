@@ -53,13 +53,10 @@ let
         workingDir = "/";
       }
       ''
-        # previously required settings to make this work with older branches
         export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
-        export PGRST_DB_URI="postgresql://"
-        export PGRST_DB_SCHEMAS="test"
-
         export PGRST_DB_CONFIG="false"
         export PGRST_DB_POOL="1"
+        export PGRST_DB_SCHEMAS="test"
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
         export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
@@ -265,7 +262,8 @@ let
         workingDir = "/";
       }
       ''
-        ${vegeta}/bin/vegeta report -type=json "$_arg_file" \
+        ${vegeta}/bin/vegeta encode "$_arg_file" \
+          | ${jq}/bin/jq --slurp 'map(select(.url != "")) | group_by(.url) | map({(.[0].url | sub("^http://postgrest";"")): add | .latency / length | 10e6 / . }) | .[]' \
           | ${jq}/bin/jq --arg branch "$(basename "$_arg_file" .bin)" '. + {branch: $branch}'
       '';
 
@@ -279,11 +277,10 @@ let
         import pandas as pd
 
         pd.read_json(sys.stdin) \
-          .set_index('param') \
-          .drop(['branch', 'earliest', 'end', 'latest']) \
-          .fillna("") \
+          .set_index('rate') \
+          .drop(['branch']) \
           .convert_dtypes() \
-          .to_markdown(sys.stdout, floatfmt='.0f')
+          .to_markdown(sys.stdout, floatfmt='.1f')
       '';
 
 
@@ -303,8 +300,8 @@ let
         echo -e "## Loadtest results $marker\n"
 
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
-          | ${jq}/bin/jq '[paths(scalars) as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
-          | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
+          | ${jq}/bin/jq '[paths(scalars) as $path | {rate: $path | join("."), (.branch): getpath($path)}]' \
+          | ${jq}/bin/jq --slurp 'flatten | group_by(.rate) | map(add)' \
           | ${toMarkdown}
 
         echo -e "\n\n## Loadtest elapsed seconds vs CPU/MEM usage $marker\n"
