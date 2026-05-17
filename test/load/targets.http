@@ -33,3 +33,19 @@ POST http://postgrest/rpc/call_me
 @rpc.json
 
 OPTIONS http://postgrest/actors
+
+# Misspelled relations
+GET http://postgrest/actoxs?actor=eq.1
+Prefer: tx=commit
+
+# Misspelled relations on embeds
+GET http://postgrest/actors?select=*,rolws(*,films(*))
+Prefer: tx=commit
+
+# Misspelled function names
+GET http://postgrest/rpc/call_me_x?name=John
+Prefer: tx=commit
+
+# Permission denied errors
+GET http://postgrest/actors_1
+Prefer: tx=commit
