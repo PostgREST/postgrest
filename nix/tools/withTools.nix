@@ -15,6 +15,7 @@ let
     let
       commandName = "postgrest-with-${name}";
       postgresqlConf = writeText "postgresql.conf" "
+        autovacuum = false
         listen_addresses = ''
         log_statement = all
       ";
@@ -143,6 +144,7 @@ let
           load_start=$SECONDS
           >&2 printf "${commandName}: Loading fixtures under the postgres role..."
           psql -U postgres -v PGUSER="$PGUSER" -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
+          psql -U postgres -v ON_ERROR_STOP=1 -c "VACUUM ANALYZE;" >> "$setuplog"
           load_end=$((SECONDS - load_start))
           >&2 printf " done in %ss. Running command...\n" "$load_end"
         fi

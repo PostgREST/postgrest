@@ -236,7 +236,7 @@ spec =
               [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"id": 1},"user":{"name": "Angela Martin"}}]|]
 
         it "can specify a view!fk" $
-          get "/message?select=id,body,sender:person_detail!message_sender_fkey(name,sent),recipient:person_detail!message_recipient_fkey(name,received)&id=lt.4" `shouldRespondWith`
+          get "/message?select=id,body,sender:person_detail!message_sender_fkey(name,sent),recipient:person_detail!message_recipient_fkey(name,received)&id=lt.4&order=id" `shouldRespondWith`
             [json|
               [{"id":1,"body":"Hello Jane","sender":{"name":"John","sent":2},"recipient":{"name":"Jane","received":2}},
                {"id":2,"body":"Hi John","sender":{"name":"Jane","sent":1},"recipient":{"name":"John","received":1}},

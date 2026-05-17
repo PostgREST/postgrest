@@ -154,24 +154,24 @@ allowed =
             [json|[{"total_budget": 9501.06}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates from a spread relationships grouped by spreaded fields from other relationships" $ do
-          get "/processes?select=...process_costs(cost.sum()),...process_categories(name)" `shouldRespondWith`
+          get "/processes?select=...process_costs(cost.sum()),...process_categories(name)&order=process_categories(name)" `shouldRespondWith`
             [json|[
               {"sum": 400.00, "name": "Batch"},
               {"sum": 350.00, "name": "Mass"}]|]
             { matchHeaders = [matchContentTypeJson] }
-          get "/processes?select=...process_costs(cost_sum:cost.sum()),...process_categories(category:name)" `shouldRespondWith`
+          get "/processes?select=...process_costs(cost_sum:cost.sum()),...process_categories(category:name)&order=process_categories(category)" `shouldRespondWith`
             [json|[
               {"cost_sum": 400.00, "category": "Batch"},
               {"cost_sum": 350.00, "category": "Mass"}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates on spreaded fields from nested relationships" $ do
-          get "/process_supervisor?select=...processes(factory_id,...process_costs(cost.sum()))" `shouldRespondWith`
+          get "/process_supervisor?select=...processes(factory_id,...process_costs(cost.sum()))&order=processes(factory_id).desc" `shouldRespondWith`
             [json|[
               {"factory_id": 3, "sum": 110.00},
               {"factory_id": 2, "sum": 500.00},
               {"factory_id": 1, "sum": 350.00}]|]
             { matchHeaders = [matchContentTypeJson] }
-          get "/process_supervisor?select=...processes(factory_id,...process_costs(cost_sum:cost.sum()))" `shouldRespondWith`
+          get "/process_supervisor?select=...processes(factory_id,...process_costs(cost_sum:cost.sum()))&order=processes(factory_id).desc" `shouldRespondWith`
             [json|[
               {"factory_id": 3, "cost_sum": 110.00},
               {"factory_id": 2, "cost_sum": 500.00},

@@ -4,7 +4,6 @@ module PostgREST.Config.PgVersion
   ( PgVersion(..)
   , minimumPgVersion
   , pgVersion150
-  , pgVersion170
   , pgVersion180
   ) where
 
@@ -32,9 +31,6 @@ pgVersion140 = PgVersion 140000 "14.0" "14.0"
 
 pgVersion150 :: PgVersion
 pgVersion150 = PgVersion 150000 "15.0" "15.0"
-
-pgVersion170 :: PgVersion
-pgVersion170 = PgVersion 170000 "17.0" "17.0"
 
 pgVersion180 :: PgVersion
 pgVersion180 = PgVersion 180000 "18.0" "18.0"

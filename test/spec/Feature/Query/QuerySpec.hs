@@ -692,13 +692,13 @@ spec = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting data using many<->many relation defined by composite keys" $
-      get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files(filename,content)" `shouldRespondWith`
-        [json|[{"user_id":1,"files":[{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"},{"filename":"README.md","content":"# make $$$!"}]}]|]
+      get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files(filename,content)&files.order=filename" `shouldRespondWith`
+        [json|[{"user_id":1,"files":[{"filename":"README.md","content":"# make $$$!"},{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting data using many<->many (composite keys) relation using hint" $
-      get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files!touched_files(filename,content)" `shouldRespondWith`
-        [json|[{"user_id":1,"files":[{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"},{"filename":"README.md","content":"# make $$$!"}]}]|]
+      get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files!touched_files(filename,content)&files.order=filename" `shouldRespondWith`
+        [json|[{"user_id":1,"files":[{"filename":"README.md","content":"# make $$$!"},{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting children with composite key" $
@@ -1607,11 +1607,11 @@ spec = do
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats through join" $
-      get "/datarep_next_two_todos?select=id,name,first_item:datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)" `shouldRespondWith`
+      get "/datarep_next_two_todos?select=id,name,first_item:datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)&order=id" `shouldRespondWith`
         [json| [{"id":1,"name":"school related","first_item":{"label_color":"#000100","due_at":"2018-01-03T00:00:00Z"}},{"id":2,"name":"do these first","first_item":{"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"}}] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats through join with star select" $
-      get "/datarep_next_two_todos?select=id,name,second_item:datarep_todos!datarep_next_two_todos_second_item_id_fkey(*)" `shouldRespondWith`
+      get "/datarep_next_two_todos?select=id,name,second_item:datarep_todos!datarep_next_two_todos_second_item_id_fkey(*)&order=id" `shouldRespondWith`
         [json| [
           {"id":1,"name":"school related","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}},
           {"id":2,"name":"do these first","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}}
@@ -1645,7 +1645,7 @@ spec = do
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "uses text parser on value for filter across relations" $
-      get "/datarep_next_two_todos?select=id,name,datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)&datarep_todos.label_color=neq.000100" `shouldRespondWith`
+      get "/datarep_next_two_todos?select=id,name,datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)&datarep_todos.label_color=neq.000100&order=id" `shouldRespondWith`
         [json| [{"id":1,"name":"school related","datarep_todos":null},{"id":2,"name":"do these first","datarep_todos":{"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"}}] |]
         { matchHeaders = [matchContentTypeJson] }
     -- This is not supported by data reps (would be hard to make it work with high performance). So the test just
