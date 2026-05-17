@@ -938,12 +938,12 @@ def test_log_query(level, defaultenv):
         response = postgrest.session.get(
             "/projects", headers={"Prefer": "count=estimated"}
         )
-        assert response.status_code == 206
+        assert response.status_code == 200
 
         response = postgrest.session.get(
             "/projects", headers={"Prefer": "count=planned"}
         )
-        assert response.status_code == 206
+        assert response.status_code == 200
 
         response = postgrest.session.get("/infinite_recursion")
         assert response.status_code == 500

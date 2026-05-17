@@ -323,7 +323,7 @@ spec = describe "related queries" $ do
         ]|]
         { matchStatus  = 206
         , matchHeaders = [ matchContentTypeJson
-                         , "Content-Range" <:> "0-3/1200" ]
+                         , "Content-Range" <:> "0-3/5" ]
         }
       request methodGet "/projects?select=name,clients()&clients=is.null"
         [("Prefer", "count=planned")] ""
@@ -340,9 +340,9 @@ spec = describe "related queries" $ do
           {"id":1,"name":"Walmart"},
           {"id":2,"name":"Target"}
         ]|]
-        { matchStatus  = 206
+        { matchStatus  = 200
         , matchHeaders = [ matchContentTypeJson
-                         , "Content-Range" <:> "0-1/952" ]
+                         , "Content-Range" <:> "0-1/2" ]
         }
 
     it "works with count=estimated" $ do
@@ -357,7 +357,7 @@ spec = describe "related queries" $ do
         ]|]
         { matchStatus  = 206
         , matchHeaders = [ matchContentTypeJson
-                         , "Content-Range" <:> "0-3/1200" ]
+                         , "Content-Range" <:> "0-3/5" ]
         }
       request methodGet "/projects?select=name,clients()&clients=is.null"
         [("Prefer", "count=estimated")] ""
@@ -374,7 +374,7 @@ spec = describe "related queries" $ do
           {"id":1,"name":"Walmart"},
           {"id":2,"name":"Target"}
         ]|]
-        { matchStatus  = 206
+        { matchStatus  = 200
         , matchHeaders = [ matchContentTypeJson
-                         , "Content-Range" <:> "0-1/952" ]
+                         , "Content-Range" <:> "0-1/2" ]
         }

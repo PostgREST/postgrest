@@ -243,7 +243,7 @@ main = do
 
     -- this test runs with db-plan-enabled = true
     parallel $ before planEnabledApp $
-      describe "Feature.Query.PlanSpec.spec" $ Feature.Query.PlanSpec.spec actualPgVersion
+      describe "Feature.Query.PlanSpec.spec" Feature.Query.PlanSpec.spec
 
     -- this test runs with server-trace-header set
     parallel $ before obsApp $
