@@ -1822,7 +1822,7 @@ def test_positive_pool_metric(defaultenv):
         env = {**defaultenv, "PGHOST": pgproxyhost}
 
         with run(env=env, wait_for_readiness=False) as postgrest:
-            time.sleep(2)
+            time.sleep(3)
 
             response = postgrest.admin.get("/metrics", timeout=1)
             assert response.status_code == 200
