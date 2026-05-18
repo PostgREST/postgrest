@@ -138,7 +138,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: loadtest.loadtestAgainst.bin loadtest.report.bin cabalTools.update.bin
+          tools: loadtest.loadtestAgainst.bin loadtest.report.bin loadtest.report-load.bin cabalTools.update.bin
 
       - run: postgrest-cabal-update
 
@@ -152,7 +152,11 @@ jobs:
             latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
           fi
           postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
-          postgrest-loadtest-report -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report -g ${{ matrix.kind }} -p 0 >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report -g ${{ matrix.kind }} -p 50 >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report -g ${{ matrix.kind }} -p 90 >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report -g ${{ matrix.kind }} -p 95 >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report-load -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
 
   flake:
     strategy:

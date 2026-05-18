@@ -254,13 +254,14 @@ let
         docs = "Create a named json report for a single result file.";
         args = [
           "ARG_POSITIONAL_SINGLE([file], [Filename of result to create report for])"
+          "ARG_OPTIONAL_SINGLE([percentile], [p], [Percentile to report latency for], 50)"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
         workingDir = "/";
       }
       ''
         ${vegeta}/bin/vegeta encode "$_arg_file" \
-          | ${jq}/bin/jq --slurp 'map(select(.url != "")) | group_by("\(.code) \(.method) \(.url)") | map({("\(.[0].code) \(.[0].method) \(.[0].url)" | sub("http://postgrest";"")): map(.latency) | min / 10e3 }) | .[]' \
+          | ${jq}/bin/jq --arg percentile "$_arg_percentile" --slurp 'map(select(.url != "")) | group_by("\(.code) \(.method) \(.url)") | map({("\(.[0].code) \(.[0].method) \(.[0].url)" | sub("http://postgrest";"")): map(.latency) | sort | .[(length-1) * ($percentile | tonumber) / 100 | floor] / 10e3 }) | .[]' \
           | ${jq}/bin/jq --arg branch "$(basename "$_arg_file" .bin)" '. + {branch: $branch}'
       '';
 
@@ -274,8 +275,8 @@ let
         import pandas as pd
 
         pd.read_json(sys.stdin) \
-          .rename(columns={'latency': 'min latency [μs]'}) \
-          .set_index('min latency [μs]') \
+          .rename(columns={'latency': sys.argv[1]}) \
+          .set_index(sys.argv[1]) \
           .drop(['branch']) \
           .convert_dtypes() \
           .to_markdown(sys.stdout, floatfmt='.1f')
@@ -289,20 +290,31 @@ let
         docs = "Create a report of all loadtest reports as markdown.";
         args = [
           "ARG_OPTIONAL_SINGLE([group], [g], [Marker to group results])"
+          "ARG_OPTIONAL_SINGLE([percentile], [p], [Percentile to report latency for], 50)"
         ];
         workingDir = "/";
       }
       ''
-        marker=''${_arg_group:+"($_arg_group)"}
+        echo -e "## Loadtest results $_arg_group (P$_arg_percentile)\n"
 
-        echo -e "## Loadtest results $marker\n"
-
-        find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
+        find loadtest -type f -iname '*.bin' -exec ${reporter} -p "$_arg_percentile" {} \; \
           | ${jq}/bin/jq '[paths(scalars) as $path | {latency: $path | join("."), (.branch): getpath($path)}]' \
           | ${jq}/bin/jq --slurp 'flatten | group_by(.latency) | map(add)' \
-          | ${toMarkdown}
+          | ${toMarkdown} "P$_arg_percentile latency [μs]"
+      '';
 
-        echo -e "\n\n## Loadtest elapsed seconds vs CPU/MEM usage $marker\n"
+  report-load =
+    checkedShellScript
+      {
+        name = "postgrest-loadtest-report-load";
+        docs = "Create a report of all CPU/MEM usage as markdown.";
+        args = [
+          "ARG_OPTIONAL_SINGLE([group], [g], [Marker to group results])"
+        ];
+        workingDir = "/";
+      }
+      ''
+        echo -e "\n\n## Loadtest elapsed seconds vs CPU/MEM usage $_arg_group\n"
 
         find loadtest -type f -iname '*.csv' \
           | sort -m \
@@ -334,5 +346,5 @@ let
 in
 buildToolbox {
   name = "postgrest-loadtest";
-  tools = { inherit loadtest loadtestAgainst report; };
+  tools = { inherit loadtest loadtestAgainst report report-load; };
 }
