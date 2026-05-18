@@ -121,8 +121,6 @@ let
             ;;
 
           jwt-rsa-cache-worst)
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
-
             ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
