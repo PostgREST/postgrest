@@ -119,8 +119,6 @@ data AppConfig = AppConfig
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCQuerySleep     :: Maybe Int32
-  , configInternalSCLoadSleep      :: Maybe Int32
-  , configInternalSCRelLoadSleep   :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -304,8 +302,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-query-sleep"
-    <*> optInt "internal-schema-cache-load-sleep"
-    <*> optInt "internal-schema-cache-relationship-load-sleep"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
