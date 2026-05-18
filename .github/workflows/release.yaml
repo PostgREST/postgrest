@@ -19,8 +19,10 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 
-  prepare:
-    name: Prepare
+  github:
+    name: GitHub
+    permissions:
+      contents: write
     runs-on: ubuntu-slim
     needs:
       - build
@@ -47,23 +49,7 @@ jobs:
 
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
-      - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-changes
-          path: CHANGES.md
-          if-no-files-found: error
 
-
-  github:
-    name: GitHub
-    permissions:
-      contents: write
-    runs-on: ubuntu-slim
-    needs:
-      - prepare
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -115,14 +101,14 @@ jobs:
             gh release edit devel \
               -t devel \
               --verify-tag \
-              -F artifacts/release-changes/CHANGES.md \
+              -F CHANGES.md \
               --prerelease
             gh release upload --clobber devel release-bundle/*
           else
             gh release create "${GITHUB_REF_NAME}" \
               -t "${GITHUB_REF_NAME}" \
               --verify-tag \
-              -F artifacts/release-changes/CHANGES.md \
+              -F CHANGES.md \
               release-bundle/*
           fi
 
@@ -131,7 +117,7 @@ jobs:
     name: Docker Hub
     runs-on: ubuntu-24.04-arm
     needs:
-      - prepare
+      - github
     if: |
       vars.DOCKER_REPO && vars.DOCKER_USER
     env:
@@ -185,16 +171,8 @@ jobs:
             echo "Skipping push to 'latest' tag for pre-release..."
           fi
 
-
-  docker-description:
-    name: Docker Hub Description
-    runs-on: ubuntu-slim
-    if: |
-      vars.DOCKER_REPO && vars.DOCKER_USER &&
-      github.ref == 'refs/tags/devel'
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        name: Docker Hub Description
         with:
           username: ${{ vars.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
