@@ -1815,12 +1815,10 @@ def test_server_timing_transaction_duration(defaultenv, metapostgrest):
 def test_positive_pool_metric(defaultenv):
     "When a network failure is caused on the pg connection, pgrst_db_pool_available stays positive"
 
-    with run_pgproxy(defaultenv, proxy_timeout="10ms") as pgproxyhost:
+    with run_pgproxy(defaultenv, proxy_timeout="1ms") as pgproxyhost:
         env = {**defaultenv, "PGHOST": pgproxyhost}
 
-        with run(env=env, wait_for=None) as postgrest:
-            time.sleep(3)
-
+        with run(env=env, wait_for=Admin.live) as postgrest:
             response = postgrest.admin.get("/metrics", timeout=1)
             assert response.status_code == 200
 
