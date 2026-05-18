@@ -8,7 +8,14 @@ import time
 import pytest
 
 from config import CONFIGSDIR, FIXTURES, SECRET
-from util import Thread, jwtauthheader, parse_server_timings_header, relativeSeconds
+from util import (
+    Thread,
+    jwtauthheader,
+    parse_server_timings_header,
+    relativeSeconds,
+    drain_stdout,
+    match_log,
+)
 from postgrest import (
     freeport,
     is_ipv6,
@@ -21,29 +28,6 @@ from postgrest import (
     sleep_until_postgrest_scache_reload,
     wait_until_exit,
 )
-
-
-def match_log(output, matchers):
-    ito = iter(output)
-    itm = iter(matchers)
-    nextMatcher = next(itm, None)
-    while nextMatcher is not None and (line := next(ito, None)) is not None:
-        if re.match(nextMatcher, line) is not None:
-            nextMatcher = next(itm, None)
-    if nextMatcher is not None:
-        raise AssertionError(
-            f"Expected log line matching {nextMatcher} not found in output"
-        )
-
-
-def drain_stdout(proc):
-    lines = []
-    while True:
-        chunk = proc.read_stdout(nlines=20)
-        if not chunk:
-            break
-        lines.extend(chunk)
-    return lines
 
 
 def test_connect_with_dburi(dburi, defaultenv):
