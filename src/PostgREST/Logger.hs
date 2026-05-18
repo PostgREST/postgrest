@@ -234,7 +234,7 @@ observationMessages = \case
   WarpServerObs txt ->
     pure $ "Warp server: " <> txt
   ResponseObs {} ->
-    mempty -- TODO this message is produced on observationLogger since it depends on Logger state. Merge observationMessages with observationLogger to clear this.
+    mempty -- Control flow never reaches here, the observation message is returned in observationLogger function
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""
