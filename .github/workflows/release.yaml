@@ -21,7 +21,7 @@ jobs:
 
   prepare:
     name: Prepare
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     needs:
       - build
     steps:
@@ -59,7 +59,7 @@ jobs:
     name: GitHub
     permissions:
       contents: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     needs:
       - prepare
     steps:
@@ -129,7 +129,7 @@ jobs:
 
   docker:
     name: Docker Hub
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-slim
     needs:
       - prepare
     if: |
@@ -180,7 +180,7 @@ jobs:
 
   docker-description:
     name: Docker Hub Description
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     if: |
       vars.DOCKER_REPO && vars.DOCKER_USER &&
       github.ref == 'refs/tags/devel'
