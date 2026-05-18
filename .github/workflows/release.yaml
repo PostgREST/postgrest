@@ -129,7 +129,7 @@ jobs:
 
   docker:
     name: Docker Hub
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04-arm
     needs:
       - prepare
     if: |
