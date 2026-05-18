@@ -31,6 +31,20 @@ from postgrest import (
 )
 
 
+def psql_as_superuser(query):
+    subprocess.check_call(
+        [
+            "psql",
+            "--username",
+            "postgres",
+            "--set",
+            "ON_ERROR_STOP=1",
+            "-c",
+            query,
+        ]
+    )
+
+
 def test_connect_with_dburi(dburi, defaultenv):
     "Connecting with db-uri instead of LIPQ* environment variables should work."
     defaultenv_without_libpq = {
@@ -1202,6 +1216,61 @@ def test_notify_reloading_catalog_cache(defaultenv):
         # next request should succeed with a bigint value
         response = postgrest.session.get("/cats?id=eq.1")
         assert response.status_code == 200
+
+
+def test_stale_schema_cache_dropped_table_returns_database_error(defaultenv):
+    "dropped table should return a database error while schema cache is stale"
+
+    internal_sleep = 2
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": str(internal_sleep * 1000),
+    }
+
+    try:
+        psql_as_superuser(
+            """
+            drop table if exists stale_schema_cache_items;
+            create table stale_schema_cache_items(id int primary key);
+            insert into stale_schema_cache_items values (1);
+            grant select on stale_schema_cache_items to postgrest_test_anonymous;
+            """
+        )
+
+        with run(env=env, wait_max_seconds=10) as postgrest:
+            response = postgrest.session.get("/stale_schema_cache_items")
+            assert response.status_code == 200
+
+            psql_as_superuser(
+                """
+                drop table stale_schema_cache_items;
+                notify pgrst, 'reload schema';
+                """
+            )
+
+            response = postgrest.session.get("/stale_schema_cache_items")
+            payload = response.json()
+            assert response.status_code == 404
+            assert payload["code"] == "42P01"
+            assert (
+                payload["message"]
+                == 'relation "public.stale_schema_cache_items" does not exist'
+            )
+
+            time.sleep(internal_sleep + 0.3)
+
+            response = postgrest.session.get("/stale_schema_cache_items")
+            payload = response.json()
+            assert response.status_code == 404
+            assert payload["code"] == "PGRST205"
+            assert (
+                payload["message"]
+                == "Could not find the table 'public.stale_schema_cache_items' in the schema cache"
+            )
+    finally:
+        psql_as_superuser("drop table if exists stale_schema_cache_items;")
 
 
 def test_role_settings(defaultenv):
