@@ -9,7 +9,7 @@ on:
 jobs:
   backport:
     name: Backport
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     # It triggers only when PR is already merged on either:
     #
     # - The merge event itself (action != labeled) or
