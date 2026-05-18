@@ -1,3 +1,4 @@
+import re
 import threading
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,29 @@ class Thread(threading.Thread):
         super(Thread, self).join()
         if self._exception is not None:
             raise self._exception
+
+
+def match_log(output, matchers):
+    ito = iter(output)
+    itm = iter(matchers)
+    nextMatcher = next(itm, None)
+    while nextMatcher is not None and (line := next(ito, None)) is not None:
+        if re.match(nextMatcher, line) is not None:
+            nextMatcher = next(itm, None)
+    if nextMatcher is not None:
+        raise AssertionError(
+            f"Expected log line matching {nextMatcher} not found in output"
+        )
+
+
+def drain_stdout(proc):
+    lines = []
+    while True:
+        chunk = proc.read_stdout(nlines=20)
+        if not chunk:
+            break
+        lines.extend(chunk)
+    return lines
 
 
 def authheader(token):
