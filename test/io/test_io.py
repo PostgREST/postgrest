@@ -15,6 +15,7 @@ from util import (
     match_log,
 )
 from postgrest import (
+    Admin,
     freeport,
     is_ipv6,
     reset_statement_timeout,
@@ -1079,7 +1080,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP"]) / 1000
     )
 
-    with run(env=slow_schema_cache_env, wait_for_readiness=False) as postgrest:
+    with run(env=slow_schema_cache_env, wait_for=None) as postgrest:
         time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
 
         # first request, create a function and set a schema cache reload in progress
@@ -1270,7 +1271,7 @@ def test_fail_with_invalid_dbname_and_automatic_recovery_disabled(defaultenv):
         "PGRST_DB_POOL_AUTOMATIC_RECOVERY": "false",
     }
 
-    with run(env=env, wait_for_readiness=False) as postgrest:
+    with run(env=env, wait_for=None) as postgrest:
         exitCode = wait_until_exit(postgrest)
         assert exitCode == 1
 
@@ -1559,7 +1560,7 @@ def test_log_error_when_empty_schema_cache_on_startup_to_stderr(defaultenv):
         "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "300",
     }
 
-    with run(env=env, wait_for_readiness=False) as postgrest:
+    with run(env=env, wait_for=None) as postgrest:
         postgrest.wait_until_scache_starts_loading()
 
         response = postgrest.session.get("/projects")
@@ -1580,7 +1581,7 @@ def test_no_double_schema_cache_reload_on_empty_schema(defaultenv):
         "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "300",
     }
 
-    with run(env=env, port=freeport(), wait_for_readiness=False) as postgrest:
+    with run(env=env, port=freeport(), wait_for=None) as postgrest:
         postgrest.wait_until_scache_starts_loading()
 
         response = postgrest.session.get("/projects")
@@ -1662,7 +1663,7 @@ def test_schema_cache_error_observation(defaultenv):
         "PGRST_DB_EXTRA_SEARCH_PATH": "x",
     }
 
-    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+    with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
         # TODO: postgrest should exit here, instead it keeps retrying
         # exitCode = wait_until_exit(postgrest)
         # assert exitCode == 1
@@ -1683,7 +1684,7 @@ def test_log_listener_connection_errors(defaultenv):
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
-    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+    with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
         output = postgrest.read_stdout(nlines=5)
         assert any(
             'Failed listening for database notifications on the "pgrst" channel. could not translate host name "no_host" to address:'
@@ -1700,7 +1701,7 @@ def test_log_listener_connection_start(defaultenv):
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
-    with run(env=env, no_startup_stdout=False, wait_for_readiness=True) as postgrest:
+    with run(env=env, no_startup_stdout=False, wait_for=Admin.ready) as postgrest:
         output = postgrest.read_stdout(nlines=10)
         # Check for the listener start message containing host and port
         # Do not check if pg version is displayed properly as it is tricky to test it
@@ -1728,7 +1729,7 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
         "PGRST_DB_PRE_CONFIG": "select",  # no "select" function in our fixtures, fail gracefully at startup
     }
 
-    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+    with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
         output = postgrest.read_stdout(nlines=8)
         assert any(
             'Failed to query database settings for the config parameters.{"code":"42883","details":null,"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","message":"function select() does not exist"}'
@@ -1817,7 +1818,7 @@ def test_positive_pool_metric(defaultenv):
     with run_pgproxy(defaultenv, proxy_timeout="10ms") as pgproxyhost:
         env = {**defaultenv, "PGHOST": pgproxyhost}
 
-        with run(env=env, wait_for_readiness=False) as postgrest:
+        with run(env=env, wait_for=None) as postgrest:
             time.sleep(3)
 
             response = postgrest.admin.get("/metrics", timeout=1)
