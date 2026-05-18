@@ -2,6 +2,7 @@
 
 import contextlib
 import dataclasses
+import enum
 import os
 import pathlib
 import socket
@@ -34,6 +35,13 @@ def sleep_until_postgrest_full_reload():
 
 class PostgrestTimedOut(Exception):
     "Connecting to PostgREST endpoint timed out."
+
+
+class Admin(str, enum.Enum):
+    "Admin endpoint to wait for before yielding a PostgREST process."
+
+    live = "live"
+    ready = "ready"
 
 
 class PostgrestSession(requests_unixsocket.Session):
@@ -87,7 +95,7 @@ def run(
     env=None,
     port=None,
     host=None,
-    wait_for_readiness=True,
+    wait_for=Admin.ready,
     wait_max_seconds=1,
     no_pool_connection_available=False,
     no_startup_stdout=True,
@@ -139,8 +147,10 @@ def run(
             process.stdin.write(stdin or b"")
             process.stdin.close()
 
-            if wait_for_readiness:
+            if wait_for == Admin.ready:
                 wait_until_status_code(adminurl + "/ready", wait_max_seconds, 200)
+            elif wait_for == Admin.live:
+                wait_until_status_code(adminurl + "/live", wait_max_seconds, 200)
 
             if no_startup_stdout:
                 process.stdout.read()
