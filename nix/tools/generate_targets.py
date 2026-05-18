@@ -128,11 +128,6 @@ def main():
         required=True,
         help="HTTP method for the vegeta targets",
     )
-    parser.add_argument(
-        "command",
-        nargs=argparse.REMAINDER,
-        help="Command (and arguments) to run after generating the targets",
-    )
 
     args = parser.parse_args()
 
@@ -174,9 +169,7 @@ def main():
 
     print(f"Generating {ntargets} targets...")
 
-    start_time = time.time()
-
-    now = int(start_time)
+    now = int(time.time())
 
     lines = []
 
@@ -186,21 +179,11 @@ def main():
     # so expires will occur and postgREST needs to
     # clean cached expired JWTs
     if args.worst:
-        # estimated time takes to build and run postgrest itself
-        build_run_postgrest_time = 2
-
-        # estimated time it takes to generate the targets file
-        # the division numbers are tuned by hand
-        if is_hs:  # hs generation is much faster
-            gen_time = ntargets // 66666
-        else:  # asymmetric is slower so the time is higher
-            gen_time = ntargets // 220
-
-        # estimated exp time so some JWTs will expire
-        inc = build_run_postgrest_time + gen_time
+        # estimated time it takes to run postgrest itself
+        run_postgrest_time = 2
 
         for i in range(ntargets):
-            token = generate_jwt(now, inc + i // 1000, rsa_private_key)
+            token = generate_jwt(now, run_postgrest_time + i // 1000, rsa_private_key)
             append_targets(lines, token, http_method)
 
     else:
@@ -216,11 +199,7 @@ def main():
         print(f"Error writing to {args.targets_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    elapsed = time.time() - start_time
     print(f"Created {ntargets} targets", end=" ")
-    print(f"in {args.targets_path} ({elapsed:.2f}s)")
-
-    run_command(args.command)
 
 
 if __name__ == "__main__":
