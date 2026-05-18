@@ -1,6 +1,7 @@
 { buildToolbox
 , checkedShellScript
 , jq
+, libfaketime
 , python3Packages
 , vegeta
 , withTools
@@ -68,28 +69,31 @@ let
           jwt-hs)
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
 
+            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-hs-cache)
+            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-hs-cache-worst)
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --method "$_arg_method" --worst "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" --worst "$_arg_testdir"/gen_targets.http \
+            ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -100,10 +104,11 @@ let
             ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
+            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -112,10 +117,11 @@ let
             ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
+            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -124,10 +130,11 @@ let
             ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --method "$_arg_method" --worst --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
-            ${withGenTargets} --method "$_arg_method" --worst --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
+            ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -309,8 +316,8 @@ let
           | ${mergeMonitorResults}
       '';
 
-  withGenTargets =
-    writers.writePython3 "postgrest-with-gen-loadtest-targets"
+  genTargets =
+    writers.writePython3 "postgrest-gen-loadtest-targets"
       {
         libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
         doCheck = false; # postgrest-style conflicts with this

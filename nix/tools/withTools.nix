@@ -3,6 +3,7 @@
 , curl
 , git
 , lib
+, libfaketime
 , postgresqlVersions
 , postgrest
 , python3Packages
@@ -288,6 +289,7 @@ let
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
+            "ARG_OPTIONAL_SINGLE([faketime], [f], [Fake the system time when starting PostgREST. This is useful to test expiry of JWT, for example in loadtests])"
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
             "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
             "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring])"
@@ -301,6 +303,8 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
+        FAKETIME_CMD="${libfaketime}/bin/faketime"
+
         if [ -z "''${PGRST_CMD:-}" ]; then
           rm -f result
           build_start=$SECONDS
@@ -313,6 +317,8 @@ let
               exit 1
             }
             PGRST_CMD=$(echo ./result*/bin/postgrest)
+            # To avoid glibc mismatches with back-branches, we need to take libfaketime from the target branch.
+            FAKETIME_CMD="$(nix-build -A pkgs.libfaketime)/bin/faketime"
           else
             echo -n "${commandName}: Building postgrest (cabal)... "
             postgrest-build
@@ -326,7 +332,11 @@ let
 
         echo -n "${commandName}: Starting $ver... "
 
-        $PGRST_CMD > "$tmpdir"/run.log 2>&1 &
+        if [[ -n "$_arg_faketime" ]]; then
+          $FAKETIME_CMD "$_arg_faketime" "$PGRST_CMD" > "$tmpdir"/run.log 2>&1 &
+        else
+          $PGRST_CMD > "$tmpdir"/run.log 2>&1 &
+        fi
         pid=$!
         # shellcheck disable=SC2329
         cleanup() {
