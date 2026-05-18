@@ -67,10 +67,9 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 
 import qualified PostgREST.MediaType as MediaType
 
-import           Control.Arrow    ((&&&))
-import qualified Data.FuzzySet    as Fuzzy
+import           Control.Arrow ((&&&))
+import qualified Data.FuzzySet as Fuzzy
 import           Protolude
-import           System.IO.Unsafe (unsafePerformIO)
 
 type TablesFuzzyIndex = HM.HashMap Schema Fuzzy.FuzzySet
 
@@ -167,11 +166,9 @@ querySchemaCache conf@AppConfig{..} = do
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
-  -- Add delay in loading schema cache when internal-schema-cache-load-sleep config is set
-  return $ delayEval configInternalSCLoadSleep $ removeInternal schemas $ SchemaCache {
+  return $ removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
-    -- Add delay in loading relationships when internal-schema-cache-relationship-load-sleep config is set
-    , dbRelationships = delayEval configInternalSCRelLoadSleep $ getOverrideRelationshipsMap rels cRels
+    , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
@@ -185,7 +182,6 @@ querySchemaCache conf@AppConfig{..} = do
   where
     schemas = toList configDbSchemas
     prepared = configDbPreparedStatements
-    delayEval confDelay result = maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap

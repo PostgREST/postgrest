@@ -1201,31 +1201,6 @@ def test_schema_cache_query_sleep_logs(defaultenv):
         assert 1000 < observed_ms < 2000
 
 
-def test_schema_cache_load_sleep_logs(defaultenv):
-    """Schema cache load sleep should be reflected in the logged load duration."""
-
-    env = {
-        **defaultenv,
-        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1000",
-    }
-    log_pattern = re.compile(r"Schema cache loaded in ([\d.]+) milliseconds")
-
-    with run(env=env, wait_max_seconds=3, no_startup_stdout=False) as postgrest:
-        observed_ms = None
-        collected = []
-
-        lines = postgrest.read_stdout(nlines=10)
-        collected.extend(lines)
-        for line in lines:
-            match = log_pattern.search(line)
-            if match:
-                observed_ms = float(match.group(1))
-                break
-
-        assert observed_ms is not None
-        assert 1000 < observed_ms < 2000
-
-
 @pytest.mark.parametrize("dburi_type", ["no_params", "no_params_qmark", "with_params"])
 def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
@@ -1804,54 +1779,6 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
             'Failed to query database settings for the config parameters.{"code":"42883","details":null,"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","message":"function select() does not exist"}'
             in line
             for line in output
-        )
-
-
-def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaultenv):
-    "requests that use the schema cache with resource embedding wait long for the schema cache to reload"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_POOL": "2",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
-    }
-
-    with run(env=env, wait_max_seconds=30) as postgrest:
-        # reload the schema cache
-        response = postgrest.session.get("/rpc/notify_pgrst")
-        assert response.status_code == 204
-
-        postgrest.wait_until_scache_starts_loading()
-
-        response = postgrest.session.get("/directors?select=id,name,films(title)")
-        assert response.status_code == 200
-
-        assert response.elapsed.total_seconds() > 5
-
-
-def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaultenv):
-    "requests that use the schema cache without resource embedding wait less for the schema cache to reload"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_POOL": "2",
-        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1100",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5000",
-    }
-
-    with run(env=env, wait_max_seconds=30) as postgrest:
-        # reload the schema cache
-        response = postgrest.session.get("/rpc/notify_pgrst")
-        assert response.status_code == 204
-
-        postgrest.wait_until_scache_starts_loading()
-
-        response = postgrest.session.get("/films")
-        assert response.status_code == 200
-
-        assert (
-            response.elapsed.total_seconds() > 1
-            and response.elapsed.total_seconds() < 5
         )
 
 
