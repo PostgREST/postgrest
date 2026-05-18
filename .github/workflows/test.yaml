@@ -70,7 +70,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgVersion: [13, 14, 15, 16, 17]
+        # Latest version is tested via `coverage` above.
+        pgVersion: [13, 14, 15, 16]
     name: PG ${{ matrix.pgVersion }}
     runs-on: ubuntu-24.04
     defaults:
