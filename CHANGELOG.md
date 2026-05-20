@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.12] - 2026-05-20
+
 ### Fixed
 
 - Fix race condition in pool_available metric causing negative values during network instability by @mkleczek in #4622
