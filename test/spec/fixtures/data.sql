@@ -852,6 +852,12 @@ INSERT INTO project_invoices VALUES (6, 2000, 3);
 INSERT INTO project_invoices VALUES (7, 100, 4);
 INSERT INTO project_invoices VALUES (8, 4000, 4);
 
+TRUNCATE TABLE countdistinct CASCADE;
+INSERT INTO countdistinct (id, countdistinct, amount) VALUES (1, 'alpha', 10);
+INSERT INTO countdistinct (id, countdistinct, amount) VALUES (2, 'beta',  20);
+INSERT INTO countdistinct (id, countdistinct, amount) VALUES (3, 'alpha', 30);
+INSERT INTO countdistinct (id, countdistinct, amount) VALUES (4, NULL,    40);
+
 TRUNCATE TABLE budget_categories CASCADE;
 INSERT INTO budget_categories VALUES (1, 'Beanie Babies', 'Brian Smith', 1000.31);
 INSERT INTO budget_categories VALUES (2, 'DVDs', 'Jane Clarkson', 2000.12);

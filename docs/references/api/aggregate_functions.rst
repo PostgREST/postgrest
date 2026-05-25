@@ -3,7 +3,7 @@
 Aggregate Functions
 ###################
 
-PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``max()``, ``min()``, and ``sum()``.
+PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``countdistinct()``, ``max()``, ``min()``, and ``sum()``.
 Please refer to the `section on aggregate functions in the PostgreSQL documentation <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ for a detailed explanation of these functions.
 
 .. note::
@@ -97,6 +97,43 @@ The ``count()`` Aggregate
 Note that there is a difference between the result of ``count()`` and ``observation.count()``.
 The former counts the whole row, while the latter counts the non ``NULL`` values of the ``observation`` column (both grouped by ``order_date``).
 This is due to how PostgreSQL itself implements the ``count()`` function.
+
+The ``countdistinct()`` Aggregate
+=================================
+
+``countdistinct()`` returns the number of distinct non ``NULL`` values of a column.
+It maps to PostgreSQL's ``COUNT(DISTINCT col)`` and must be attached to a specific column — there is no ``*`` form.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/orders?select=customer_id.countdistinct()"
+
+returns the number of distinct customers that placed an order:
+
+.. code-block:: json
+
+  [
+    {
+      "count": 17
+    }
+  ]
+
+.. note::
+  The default JSON key is ``"count"`` (not ``"countdistinct"``), because PostgreSQL labels the result of ``COUNT(DISTINCT col)`` as ``count`` — same as the plain ``count()`` aggregate. Provide an explicit alias (e.g. ``dc:col.countdistinct()``) if you want a different key, or to disambiguate when combining ``count()`` and ``countdistinct()`` in the same query.
+
+Aliases and casts work the same way as for the other aggregates:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/orders?select=distinct_customers:customer_id.countdistinct()::text"
+
+.. code-block:: json
+
+  [
+    {
+      "distinct_customers": "17"
+    }
+  ]
 
 Casting Aggregates
 ==================
