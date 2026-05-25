@@ -149,7 +149,7 @@ type Cast = Text
 type Alias = Text
 type Hint = Text
 
-data AggregateFunction = Sum | Avg | Max | Min | Count
+data AggregateFunction = Sum | Avg | Max | Min | Count | CountDistinct
   deriving (Show, Eq)
 
 data EmbedParam

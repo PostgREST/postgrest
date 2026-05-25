@@ -283,6 +283,8 @@ pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ss
 
 pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyAggregate Nothing _ snippet = snippet
+pgFmtApplyAggregate (Just CountDistinct) aggCast snippet =
+  pgFmtApplyCast aggCast ("COUNT(DISTINCT " <> snippet <> ")")
 pgFmtApplyAggregate (Just agg) aggCast snippet =
   pgFmtApplyCast aggCast aggregatedSnippet
   where

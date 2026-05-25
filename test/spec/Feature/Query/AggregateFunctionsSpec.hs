@@ -50,6 +50,44 @@ allowed =
       it "supports count()" $
         get "/project_invoices?select=invoice_total.count()" `shouldRespondWith`
           [json|[{ "count": 8 }]|] { matchHeaders = [matchContentTypeJson] }
+      it "supports countdistinct()" $
+        get "/project_invoices?select=project_id.countdistinct()" `shouldRespondWith`
+          [json|[{ "count": 4 }]|] { matchHeaders = [matchContentTypeJson] }
+      it "supports an alias on countdistinct()" $
+        get "/project_invoices?select=distinct_projects:project_id.countdistinct()" `shouldRespondWith`
+          [json|[{ "distinct_projects": 4 }]|] { matchHeaders = [matchContentTypeJson] }
+      it "supports a cast on countdistinct()" $
+        get "/project_invoices?select=project_id.countdistinct()::text" `shouldRespondWith`
+          [json|[{ "count": "4" }]|] { matchHeaders = [matchContentTypeJson] }
+      it "groups by other selected fields when combined with countdistinct()" $
+        get "/project_invoices?select=invoice_total.countdistinct(),project_id&order=project_id.desc" `shouldRespondWith`
+          [json|[
+            {"count":2,"project_id":4},
+            {"count":2,"project_id":3},
+            {"count":2,"project_id":2},
+            {"count":2,"project_id":1}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "combines count() and countdistinct() on the same column with aliases" $
+        get "/project_invoices?select=tot:invoice_total.count(),dist:invoice_total.countdistinct()" `shouldRespondWith`
+          [json|[{"tot":8,"dist":7}]|] { matchHeaders = [matchContentTypeJson] }
+      it "combines countdistinct() with sum, max, min on the same query" $
+        get "/project_invoices?select=dp:project_id.countdistinct(),s:invoice_total.sum(),mx:invoice_total.max(),mn:invoice_total.min()" `shouldRespondWith`
+          [json|[{"dp":4,"s":8800,"mx":4000,"mn":100}]|] { matchHeaders = [matchContentTypeJson] }
+      it "supports multiple countdistinct() on different columns with aliases" $
+        get "/project_invoices?select=dp:project_id.countdistinct(),di:invoice_total.countdistinct()" `shouldRespondWith`
+          [json|[{"dp":4,"di":7}]|] { matchHeaders = [matchContentTypeJson] }
+      it "combines every aggregate flavour (count, countdistinct, sum, avg, max, min) in one query" $
+        get "/project_invoices?select=c:count(),dp:project_id.countdistinct(),di:invoice_total.countdistinct(),s:invoice_total.sum(),a:invoice_total.avg(),mx:invoice_total.max(),mn:invoice_total.min()" `shouldRespondWith`
+          [json|[{"c":8,"dp":4,"di":7,"s":8800,"a":1100.0000000000000000,"mx":4000,"mn":100}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports multiple countdistinct() alongside other aggregates with group by" $
+        get "/project_invoices?select=project_id,dt:invoice_total.countdistinct(),s:invoice_total.sum()&order=project_id.desc" `shouldRespondWith`
+          [json|[
+            {"project_id":4,"dt":2,"s":4100},
+            {"project_id":3,"dt":2,"s":3200},
+            {"project_id":2,"dt":2,"s":1200},
+            {"project_id":1,"dt":2,"s":300}]|]
+          { matchHeaders = [matchContentTypeJson] }
       it "groups by any fields selected that do not have an aggregate applied" $
         get "/project_invoices?select=invoice_total.sum(),invoice_total.max(),invoice_total.min(),project_id&order=project_id.desc" `shouldRespondWith`
           [json|[
@@ -96,6 +134,39 @@ allowed =
             {"project_id": 2, "total": 1200, "projects": {"name": "Windows 10"}},
             {"project_id": 3, "total": 3200, "projects": {"name": "IOS"}},
             {"project_id": 4, "total": 4100, "projects": {"name": "OSX"}}]|] { matchHeaders = [matchContentTypeJson] }
+    context "regression: identifiers named 'countdistinct'" $ do
+      it "addresses a table literally named 'countdistinct'" $
+        get "/countdistinct?select=id&order=id" `shouldRespondWith`
+          [json|[{"id":1},{"id":2},{"id":3},{"id":4}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "reads a column literally named 'countdistinct' as a plain field" $
+        get "/countdistinct?select=id,countdistinct&order=id" `shouldRespondWith`
+          [json|[
+            {"id":1,"countdistinct":"alpha"},
+            {"id":2,"countdistinct":"beta"},
+            {"id":3,"countdistinct":"alpha"},
+            {"id":4,"countdistinct":null}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "applies countdistinct() to a column literally named 'countdistinct'" $
+        get "/countdistinct?select=countdistinct.countdistinct()" `shouldRespondWith`
+          [json|[{"count":2}]|] { matchHeaders = [matchContentTypeJson] }
+      it "supports an alias on a column literally named 'countdistinct'" $
+        get "/countdistinct?select=val:countdistinct&id=eq.1" `shouldRespondWith`
+          [json|[{"val":"alpha"}]|] { matchHeaders = [matchContentTypeJson] }
+      it "filters by a column literally named 'countdistinct'" $
+        get "/countdistinct?select=id&countdistinct=eq.alpha&order=id" `shouldRespondWith`
+          [json|[{"id":1},{"id":3}]|] { matchHeaders = [matchContentTypeJson] }
+      it "applies other aggregates on a table named 'countdistinct'" $
+        get "/countdistinct?select=amount.sum(),amount.max(),amount.min(),amount.avg()" `shouldRespondWith`
+          [json|[{"sum":100,"max":40,"min":10,"avg":25.0000000000000000}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "groups by a column named 'countdistinct' while aggregating amount" $
+        get "/countdistinct?select=countdistinct,amount.sum()&order=countdistinct.asc.nullsfirst" `shouldRespondWith`
+          [json|[
+            {"countdistinct":null,"sum":40},
+            {"countdistinct":"alpha","sum":40},
+            {"countdistinct":"beta","sum":20}]|]
+          { matchHeaders = [matchContentTypeJson] }
     context "performing aggregations that involve JSON-embedded relationships" $ do
       it "supports sum()" $
         get "/projects?select=name,project_invoices(invoice_total.sum())" `shouldRespondWith`
@@ -311,6 +382,17 @@ disallowed =
   describe "attempting to use an aggregate when aggregate functions are disallowed" $ do
     it "prevents the use of aggregates" $
       get "/project_invoices?select=invoice_total.sum()" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of countdistinct()" $
+      get "/project_invoices?select=project_id.countdistinct()" `shouldRespondWith`
         [json|{
           "hint":null,
           "details":null,

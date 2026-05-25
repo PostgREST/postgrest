@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+- Add `countdistinct()` aggregate function, mapping to PostgreSQL's `COUNT(DISTINCT col)`. Gated by `db-aggregates-enabled` like the other aggregates.
 
 ## [14.12] - 2026-05-20
 

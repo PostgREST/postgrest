@@ -544,6 +544,9 @@ pFieldSelect = lexeme $ try (do
     pAggregation = choice
       [ string "sum"   $> Sum
       , string "avg"   $> Avg
+      -- 'countdistinct' shares the 'count' prefix, so it must be tried first
+      -- and wrapped in 'try' to backtrack when the input is plain "count".
+      , try (string "countdistinct") $> CountDistinct
       , string "count" $> Count
       -- Using 'try' for "min" and "max" to allow backtracking.
       -- This is necessary because both start with the same character 'm',

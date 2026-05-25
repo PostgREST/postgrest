@@ -425,6 +425,10 @@ addAliases = Right . fmap addAliasToPlan
     -- That's why we need to use the aggregate name as an alias (e.g. COUNT(...) AS "count").
     -- Since PostgreSQL labels the columns with the aggregate name, it shouldn't be a problem to
     -- apply the aliases to all the aggregates regardless if the previous conditions are met.
+    -- CountDistinct is special-cased to "count" because PostgreSQL labels the
+    -- result of COUNT(DISTINCT ...) as "count", same as plain COUNT(...).
+    fieldAliasForSpreadAgg True field@CoercibleSelectField{csAggFunction=Just CountDistinct} =
+      field { csAlias = Just "count" }
     fieldAliasForSpreadAgg True field@CoercibleSelectField{csAggFunction=Just agg} =
       field { csAlias = Just (T.toLower $ show agg) }
     fieldAliasForSpreadAgg _ field = field
