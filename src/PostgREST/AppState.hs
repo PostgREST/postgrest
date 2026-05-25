@@ -303,74 +303,18 @@ getObserver = stateObserver
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
 retryingSchemaCacheLoad :: AppState -> IO ()
-retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
+retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
   void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
       observer $ ConnectionRetryObs delay
 
-    (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
+    usePool appState $ schemaCacheLoad appState
   )
   where
-    qPgVersion :: IO (Maybe PgVersion)
-    qPgVersion = do
+    shouldRetry _ result = do
       AppConfig{..} <- getConfig appState
-      pgVersion <- usePool appState queryPgVersion
-      case pgVersion of
-        Left e -> do
-          observer $ QueryPgVersionError e
-          unless configDbPoolAutomaticRecovery $ do
-            observer ExitDBNoRecoveryObs
-            killThread mainThreadId
-          return Nothing
-        Right actualPgVersion ->
-          if actualPgVersion < minimumPgVersion then do
-            observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
-            killThread mainThreadId
-            return Nothing
-          else do
-            observer $ DBConnectedObs $ pgvFullName actualPgVersion
-            observer $ PoolInit configDbPoolSize
-            putPgVersion appState actualPgVersion
-            return $ Just actualPgVersion
-
-    qInDbConfig :: IO ()
-    qInDbConfig = do
-      AppConfig{..} <- getConfig appState
-      when configDbConfig $ readInDbConfig False appState
-
-    qSchemaCache :: IO (Maybe SchemaCache)
-    qSchemaCache = do
-      conf@AppConfig{..} <- getConfig appState
-      (resultTime, result) <-
-        timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
-      case result of
-        Left e -> do
-          markSchemaCachePending appState
-          putSchemaCache appState Nothing
-          observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
-          return Nothing
-
-        Right sCache -> do
-          -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
-          -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
-          markSchemaCachePending appState
-          putSchemaCache appState $ Just sCache
-          (loadTime, summary) <- timeItT (evaluate $ showSummary sCache)
-          -- Flush the pool after loading the schema cache to reset any stale session cache entries
-          -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)
-          -- and after marking sCacheStatus as pending,
-          flushPool appState
-          observer $ SchemaCacheQueriedObs resultTime $ dbQueryTimings sCache
-          observer $ SchemaCacheLoadedObs loadTime summary
-          markSchemaCacheLoaded appState
-          return $ Just sCache
-
-    shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
-    shouldRetry _ (pgVer, sCache) = do
-      AppConfig{..} <- getConfig appState
-      let itShould = configDbPoolAutomaticRecovery && (isNothing pgVer || isNothing sCache)
-      return itShould
+      return $ configDbPoolAutomaticRecovery && isLeft result
 
     retryPolicy :: RetryPolicy
     retryPolicy =
@@ -378,6 +322,51 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 
     oneSecondInUs = 1000000 -- one second in microseconds
+
+onError :: MonadError e m => m a -> (e -> m ()) -> m a
+onError act handler = act `catchError` \e -> handler e *> throwError e
+
+schemaCacheLoad :: AppState -> SQL.Session ()
+schemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = do
+  conf@AppConfig{..} <- liftIO $ getConfig appState
+
+  pgVersion <- queryPgVersion
+    `onError` \e -> liftIO $ do
+      observer $ QueryPgVersionError (SQL.SessionUsageError e)
+      unless configDbPoolAutomaticRecovery $ do
+        observer ExitDBNoRecoveryObs
+        killThread mainThreadId
+  if pgVersion < minimumPgVersion then liftIO $ do
+    observer $ ExitUnsupportedPgVersion pgVersion minimumPgVersion
+    killThread mainThreadId
+  else do
+    liftIO $ do
+      observer $ DBConnectedObs $ pgvFullName pgVersion
+      observer $ PoolInit configDbPoolSize
+      putPgVersion appState pgVersion
+
+    readInDbConfig' False appState
+
+    (resultTime, sCache) <-
+      timeItT (SQL.transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        `onError` \e -> liftIO $ do
+          markSchemaCachePending appState
+          putSchemaCache appState Nothing
+          observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath (SQL.SessionUsageError e)
+
+    liftIO $ do
+      -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
+      -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
+      markSchemaCachePending appState
+      putSchemaCache appState $ Just sCache
+      (loadTime, summary) <- timeItT (evaluate $ showSummary sCache)
+      -- Flush the pool after loading the schema cache to reset any stale session cache entries
+      -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)
+      -- and after marking sCacheStatus as pending,
+      flushPool appState
+      observer $ SchemaCacheQueriedObs resultTime $ dbQueryTimings sCache
+      observer $ SchemaCacheLoadedObs loadTime summary
+      markSchemaCacheLoaded appState
 
 newSchemaCacheStatus :: IO SchemaCacheStatus
 newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyMVar
@@ -394,43 +383,34 @@ isSchemaCacheLoaded = fmap not . isEmptyMVar . getSCStatusMVar . stateSCacheStat
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
-readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
-  conf <- getConfig appState
-  pgVer <- getPgVersion appState
-  dbSettings <-
-    if configDbConfig conf then do
-      qDbSettings <- usePool appState (queryDbSettings (quoteQi <$> configDbPreConfig conf))
-      case qDbSettings of
-        Left e -> do
-          observer $ ConfigReadErrorObs e
-          pure mempty
-        Right x -> pure x
-    else
-      pure mempty
-  (roleSettings, roleIsolationLvl) <-
-    if configDbConfig conf then do
-      rSettings <- usePool appState (queryRoleSettings pgVer)
-      case rSettings of
-        Left e -> do
-          observer $ QueryRoleSettingsErrorObs e
-          pure (mempty, mempty)
-        Right x -> pure x
-    else
-      pure mempty
-  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
-    Left err   ->
-      if startingUp then
-        panic err -- die on invalid config if the program is starting up
-      else
-        observer $ ConfigInvalidObs err
-    Right newConf -> do
-      putConfig appState newConf
-      -- After the config has reloaded, jwt-secret might have changed, so
-      -- if it has changed, it is important to invalidate the jwt cache
-      -- entries, because they were cached using the old secret
-      update (getJwtCacheState appState) newConf
+readInDbConfig startingUp appState =
+  void $ usePool appState $ readInDbConfig' startingUp appState
 
-      if startingUp then
-        pass
-      else
-        observer ConfigSucceededObs
+readInDbConfig' :: Bool -> AppState -> SQL.Session ()
+readInDbConfig' startingUp appState@AppState{stateObserver=observer} = do
+  conf <- liftIO $ getConfig appState
+  when (configDbConfig conf) $ do
+    pgVer <- liftIO $ getPgVersion appState
+    dbSettings <- queryDbSettings (quoteQi <$> configDbPreConfig conf)
+      `onError` \e -> liftIO $ observer $ ConfigReadErrorObs (SQL.SessionUsageError e)
+
+    (roleSettings, roleIsolationLvl) <- queryRoleSettings pgVer
+      `onError` \e -> liftIO $ observer $ QueryRoleSettingsErrorObs (SQL.SessionUsageError e)
+
+    liftIO $ readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
+      Left err   ->
+        if startingUp then
+          panic err -- die on invalid config if the program is starting up
+        else
+          observer $ ConfigInvalidObs err
+      Right newConf -> do
+        putConfig appState newConf
+        -- After the config has reloaded, jwt-secret might have changed, so
+        -- if it has changed, it is important to invalidate the jwt cache
+        -- entries, because they were cached using the old secret
+        update (getJwtCacheState appState) newConf
+
+        if startingUp then
+          pass
+        else
+          observer ConfigSucceededObs
