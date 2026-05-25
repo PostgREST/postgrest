@@ -274,12 +274,28 @@ let
         import sys
         import pandas as pd
 
+
+        def evaluate_change(df):
+            return ((df['head'] / df['main'] - 1) * 100) \
+              .map(lambda r: "{icon} {ratio:.1f} %".format(
+                ratio=r,
+                # Hardcoded failure threshold for CI is 5% here.
+                icon="" if r < 5 else ":x:"
+              ))
+
+
         pd.read_json(sys.stdin) \
           .rename(columns={'latency': sys.argv[1]}) \
           .set_index(sys.argv[1]) \
           .drop(['branch']) \
           .convert_dtypes() \
-          .to_markdown(sys.stdout, floatfmt='.1f')
+          .assign(change=evaluate_change) \
+          .to_markdown(
+            sys.stdout,
+            floatfmt='.1f',
+            colglobalalign='right',
+            colalign=('left',)
+          )
       '';
 
 

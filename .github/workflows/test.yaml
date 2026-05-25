@@ -25,6 +25,10 @@ on:
       - test/**
       - '!**.md'
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
   group: test-${{ github.head_ref || github.run_id }}
@@ -152,10 +156,34 @@ jobs:
             latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
           fi
           postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
+
+      - name: Report P50
+        # This step checks whether any red cross indicators (:x:) are present in the step summary.
+        # The loadtest reporter writes them when any of individual steps fails the performance
+        # regression threshold.
+        run: |
+          postgrest-loadtest-report -g ${{ matrix.kind }} -p 50 \
+            | tee "$GITHUB_STEP_SUMMARY" \
+            | grep -v ':x:'
+
+      - name: Report P0
+        if: always()
+        run: |
           postgrest-loadtest-report -g ${{ matrix.kind }} -p 0 >> "$GITHUB_STEP_SUMMARY"
-          postgrest-loadtest-report -g ${{ matrix.kind }} -p 50 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report P90
+        if: always()
+        run: |
           postgrest-loadtest-report -g ${{ matrix.kind }} -p 90 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report P95
+        if: always()
+        run: |
           postgrest-loadtest-report -g ${{ matrix.kind }} -p 95 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report CPU/MEM
+        if: always()
+        run: |
           postgrest-loadtest-report-load -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
 
   flake:
