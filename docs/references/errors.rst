@@ -199,7 +199,7 @@ Related to the HTTP request elements.
 |               |             | :ref:`switching schemas <multiple-schemas>` is not present  |
 | PGRST106      |             | in the :ref:`db-schemas` configuration variable.            |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst107: | 415         | The ``Content-Type`` sent in the request is invalid.        |
+| .. _pgrst107: | 406         | The ``Accept`` media type sent in the request is invalid.   |
 |               |             |                                                             |
 | PGRST107      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
