@@ -122,6 +122,8 @@ let
         workingDir = "/docs";
       }
       ''
+        echo "Checking spelling mistakes..."
+
         export LC_ALL=C
 
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
@@ -144,6 +146,8 @@ let
         workingDir = "/docs";
       }
       ''
+        echo "Detecting obsolete dictionary entries..."
+
         export LC_ALL=C
 
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
