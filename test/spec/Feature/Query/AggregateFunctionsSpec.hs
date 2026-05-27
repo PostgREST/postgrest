@@ -224,6 +224,10 @@ allowed =
           get "/budget_expenses?select=...budget_categories(total_budget:budget_amount.sum())" `shouldRespondWith`
             [json|[{"total_budget": 9501.06}]|]
             { matchHeaders = [matchContentTypeJson] }
+        it "auto-aliases countdistinct() to 'count' inside a to-one spread" $ do
+          get "/budget_expenses?select=...budget_categories(budget_amount.countdistinct())" `shouldRespondWith`
+            [json|[{"count": 4}]|]
+            { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates from a spread relationships grouped by spreaded fields from other relationships" $ do
           get "/processes?select=...process_costs(cost.sum()),...process_categories(name)&order=process_categories(name)" `shouldRespondWith`
             [json|[
