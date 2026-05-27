@@ -1,0 +1,44 @@
+name: OpenAPI
+
+on:
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: false
+  pull_request:
+    branches:
+      - main
+      - v[0-9]+
+    paths:
+      - "src/PostgREST/Response/OpenAPI.hs"
+      - "test/spec/fixtures/**"
+      - "test/openapi-drift-check.sh"
+      - ".github/workflows/openapi.yml"
+
+concurrency:
+  group: openapi-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  drift_check:
+    name: OpenAPI snapshot drift check
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: withTools.pg-17.bin withTools.withPgrst.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
+
+      - name: Verify OpenAPI snapshot is in sync with fixture schema
+        run: |
+          chmod +x test/openapi-drift-check.sh
+          postgrest-with-pg-17 --fixtures test/spec/fixtures/load.sql \
+            postgrest-with-pgrst test/openapi-drift-check.sh --check
