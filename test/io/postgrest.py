@@ -11,7 +11,9 @@ import tempfile
 import time
 import string
 import urllib.parse
+import uuid
 
+import psycopg
 import requests
 import requests_unixsocket
 
@@ -56,6 +58,76 @@ class PostgrestSession(requests_unixsocket.Session):
         # well with our 'http+unix://' unix domain socket urls.
         fullurl = self.baseurl + url
         return super(PostgrestSession, self).request(method, fullurl, *args, **kwargs)
+
+
+class SchemaCacheLocks:
+    """
+    Hold advisory locks that make querySchemaCache block before each query.
+
+    Use the generated lock_id as PGRST_INTERNAL_SCHEMA_CACHE_LOCK_ID.  The
+    helper keeps a single database session open, so locks stay held until a
+    step is explicitly unlocked or the context exits.
+    """
+
+    def __init__(self, env, lock_id=None, max_step=15):
+        self.env = env
+        self.lock_id = (uuid.uuid4().int % 2147483647) + 1
+        if lock_id is not None:
+            self.lock_id = int(lock_id)
+        self.max_step = self._step(max_step)
+        self._conn = None
+
+    def __enter__(self):
+        self._conn = psycopg.connect(
+            dbname=self.env["PGDATABASE"],
+            host=self.env["PGHOST"],
+            user=self.env["PGUSER"],
+            autocommit=True,
+        )
+        try:
+            self.lock()
+        except Exception:
+            self._conn.close()
+            raise
+        return self
+
+    def __exit__(self, _exc_type, _exc_value, _traceback):
+        self._conn.close()
+
+    def lock(self):
+        "Acquire session-level advisory locks for all configured schema-cache steps."
+        if self.max_step < 0:
+            return
+
+        with self._conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT pg_advisory_lock(%s, lock_number)
+                FROM generate_series(0, %s::int) AS lock_number
+                """,
+                (self.lock_id, self.max_step),
+            )
+
+    def unlock(self, step):
+        "Release a schema-cache step and let querySchemaCache run that query."
+        with self._conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_advisory_unlock(%s, %s)",
+                (self.lock_id, self._step(step)),
+            )
+
+    def unlock_all(self):
+        "Release all schema-cache step locks still held by this session."
+        if self._conn is not None and not self._conn.closed:
+            with self._conn.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock_all()")
+
+    @staticmethod
+    def _step(step):
+        step = int(step)
+        if step < 0:
+            raise ValueError("schema-cache lock step must be non-negative")
+        return step
 
 
 @dataclasses.dataclass

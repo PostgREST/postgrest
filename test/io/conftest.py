@@ -1,7 +1,7 @@
 import os
 import pytest
 from syrupy.extensions.json import SingleFileSnapshotExtension
-from postgrest import run
+from postgrest import SchemaCacheLocks, run
 
 
 @pytest.fixture
@@ -57,16 +57,13 @@ def replicaenv(defaultenv):
 
 
 @pytest.fixture
-def slow_schema_cache_env(defaultenv):
-    "Slow schema cache load environment PostgREST."
-    return {
-        **defaultenv,
-        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "1000",  # this does a pg_sleep internally, it will cause the schema cache query to be slow
-        # the slow schema cache query will keep using one pool connection until it finishes
-        # to prevent requests waiting for PGRST_DB_POOL_ACQUISITION_TIMEOUT we'll increase the pool size (must be >= 2)
-        "PGRST_DB_POOL": "2",
-        "PGRST_DB_CHANNEL_ENABLED": "true",
-    }
+def schema_cache_locks(baseenv):
+    "Factory for controlling step-by-step querySchemaCache execution."
+
+    def factory(lock_id=None, max_step=15):
+        return SchemaCacheLocks(baseenv, lock_id=lock_id, max_step=max_step)
+
+    return factory
 
 
 @pytest.fixture

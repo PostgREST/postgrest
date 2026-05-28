@@ -8,15 +8,20 @@ The schema cache is necessary for resource embedding, foreign keys are used for 
 
 These queries are executed once at startup or when PostgREST is reloaded.
 -}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module PostgREST.SchemaCache
   ( SchemaCache(..)
@@ -24,14 +29,11 @@ module PostgREST.SchemaCache
   , querySchemaCache
   , showSummary
   , decodeFuncs
-  , QueryTimings(..)
-  , queryTimingsWLabels
   ) where
 
 import           Data.Aeson ((.=))
 import qualified Data.Aeson as JSON
 
-import qualified Data.ByteString.Char8      as BS
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
@@ -39,36 +41,41 @@ import qualified Data.Text                  as T
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import qualified Hasql.Statement            as SQL
-import qualified Hasql.Transaction          as SQL
+import qualified Hasql.Transaction          as SQL hiding (sql,
+                                                    statement)
 
 import Data.Functor.Contravariant ((>$<))
 import NeatInterpolation          (trimming)
 
-import PostgREST.Config                      (AppConfig (..),
-                                              LogLevel (..))
-import PostgREST.Config.Database             (TimezoneNames,
-                                              toIsolationLevel)
-import PostgREST.SchemaCache.Identifiers     (FieldName,
-                                              QualifiedIdentifier (..),
-                                              RelIdentifier (..),
-                                              Schema, escapeIdent,
-                                              isAnyElement)
-import PostgREST.SchemaCache.Relationship    (Cardinality (..),
-                                              Junction (..),
-                                              Relationship (..),
-                                              RelationshipsMap)
-import PostgREST.SchemaCache.Representations (DataRepresentation (..),
-                                              RepresentationsMap)
-import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
-                                              MediaHandler (..),
-                                              MediaHandlerMap,
-                                              PgType (..),
-                                              RetType (..),
-                                              Routine (..),
-                                              RoutineMap,
-                                              RoutineParam (..))
-import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
-                                              Table (..), TablesMap)
+import           PostgREST.Config                      (AppConfig (..),
+                                                        LogLevel (..))
+import           PostgREST.Config.Database             (TimezoneNames,
+                                                        toIsolationLevel)
+import           PostgREST.SchemaCache.Identifiers     (FieldName,
+                                                        QualifiedIdentifier (..),
+                                                        RelIdentifier (..),
+                                                        Schema,
+                                                        escapeIdent,
+                                                        isAnyElement)
+import           PostgREST.SchemaCache.Relationship    (Cardinality (..),
+                                                        Junction (..),
+                                                        Relationship (..),
+                                                        RelationshipsMap)
+import           PostgREST.SchemaCache.Representations (DataRepresentation (..),
+                                                        RepresentationsMap)
+import           PostgREST.SchemaCache.Routine         (FuncVolatility (..),
+                                                        MediaHandler (..),
+                                                        MediaHandlerMap,
+                                                        PgType (..),
+                                                        RetType (..),
+                                                        Routine (..),
+                                                        RoutineMap,
+                                                        RoutineParam (..))
+import           PostgREST.SchemaCache.Table           (Column (..),
+                                                        ColumnMap,
+                                                        Table (..),
+                                                        TablesMap)
+import qualified PostgREST.SqlTransaction              as SQL
 
 import qualified PostgREST.MediaType as MediaType
 
@@ -153,48 +160,47 @@ type SqlQuery = ByteString
 maxDbTablesForFuzzySearch :: Int
 maxDbTablesForFuzzySearch = 500
 
-querySchemaCache :: AppConfig -> SQL.Transaction (SchemaCache, Maybe QueryTimings)
-querySchemaCache conf@AppConfig{..} = do
-  SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- sqlTimedStmt gucTbls  conf   allTables
-  keyDeps <- sqlTimedStmt gucKDeps conf   allViewsKeyDependencies
-  m2oRels <- sqlTimedStmt gucRels  mempty allM2OandO2ORels
-  funcs   <- sqlTimedStmt gucFuncs conf   allFunctions
-  cRels   <- sqlTimedStmt gucCRels mempty allComputedRels
-  reps    <- sqlTimedStmt gucDReps conf   dataRepresentations
-  mHdlers <- sqlTimedStmt gucMHdrs conf   mediaHandlers
-  tzones  <- if configDbTimezoneEnabled
-    then sqlTimedStmt gucTzones mempty timezones
-    else pure S.empty
-  _       <-
-    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True in
-    for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
+querySchemaCache :: AppConfig -> SQL.Transaction (SchemaCache, Maybe SQL.QueryTimings)
+querySchemaCache conf@AppConfig{..} =
+  -- if configInternalSCLockId is set run queries step-by-step waiting for lock release before each
+  SQL.runSteppedTransaction @SchemaCacheLabel configInternalSCLockId $
+    -- if log level is debug then time queries
+    SQL.runTimed @SchemaCacheLabel isLogDebug $ do
+      SQL.sql @NoStep "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+      tabs    <- SQL.statement @Tables                conf   allTables
+      keyDeps <- SQL.statement @KeyDependencies       conf   allViewsKeyDependencies
+      m2oRels <- SQL.statement @Relationships         mempty allM2OandO2ORels
+      funcs   <- SQL.statement @Functions             conf   allFunctions
+      cRels   <- SQL.statement @ComputedRelationships mempty allComputedRels
+      reps    <- SQL.statement @DataRepresentations   conf   dataRepresentations
+      mHdlers <- SQL.statement @MediaHandlers         conf   mediaHandlers
+      tzones  <- if configDbTimezoneEnabled
+        then SQL.statement @Timezones mempty timezones
+        else pure S.empty
 
-  qsTime <-
-    if isLogDebug
-      then Just <$> SQL.statement mempty (extractTimings configDbTimezoneEnabled)
-      else pure Nothing
+      let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+          rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
-  let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
+      return $ removeInternal schemas $ SchemaCache {
+          dbTables = tabsWViewsPks
+        , dbRelationships = getOverrideRelationshipsMap rels cRels
+        , dbRoutines = funcs
+        , dbRepresentations = reps
+        , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
+        , dbTimezones = tzones
 
-  return (removeInternal schemas $ SchemaCache {
-      dbTables = tabsWViewsPks
-    , dbRelationships = getOverrideRelationshipsMap rels cRels
-    , dbRoutines = funcs
-    , dbRepresentations = reps
-    , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
-    , dbTimezones = tzones
-
-    , dbTablesFuzzyIndex =
-        -- Only build fuzzy index for schemas with a reasonable number of tables
-        -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
-        Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
-    }, qsTime)
+        , dbTablesFuzzyIndex =
+            -- Only build fuzzy index for schemas with a reasonable number of tables
+            -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
+            Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
+        }
+      -- only used for testing
+      -- TODO remove configInternalSCQuerySleep once all tests are migrated to stepped execution
+      <* for_ configInternalSCQuerySleep (\sleep -> SQL.statement @NoStep sleep sleepCall)
   where
     schemas = toList configDbSchemas
     isLogDebug = configLogLevel == LogDebug
-    sqlTimedStmt = sqlTimedStatement isLogDebug
+    sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap
@@ -1155,71 +1161,19 @@ nullableColumn = HD.column . HD.nullable
 arrayColumn :: HD.Value a -> HD.Row [a]
 arrayColumn = column . HD.listArray . HD.nonNullable
 
-{-
- - Times a sql statement inside a transaction, for this:
- -
- - 1. We start a timer: select set_config('pgrst.tmp_x', clock_timestamp()::text, false);
- - 2. Run the statement: select ....
- - 3. End the timer:  select set_config('pgrst.tmp_x', (clock_timestamp() - current_setting('pgrst.tmp_x', false)::timestamptz)::text, false);
- -
- - We can do this for several statements inside the transaction. The timings are later captured at the end of the transaction with extractTimings.
- -}
-sqlTimedStatement :: Bool -> ByteString -> a -> SQL.Statement a b -> SQL.Transaction b
-sqlTimedStatement isLogDebug guc params stmt =
-  if isLogDebug then
-    SQL.sql sFrag >> SQL.statement params stmt <* SQL.sql eFrag
-  else
-    SQL.statement params stmt
-  where
-    sFrag = "select set_config('pgrst." <> guc <> "', clock_timestamp()::text, true)"
-    eFrag = "select set_config('pgrst." <> guc <> "', (clock_timestamp() - current_setting('pgrst." <> guc <> "', false)::timestamptz)::text, true)"
+data SchemaCacheLabel = Step SQL.LockSpec SQL.TimingSpec
 
--- Extract all the generated timings (see sqlTimedStatement) converting the value to milliseconds.
-extractTimings :: Bool -> SQL.Statement () QueryTimings
-extractTimings hasTimezones = SQL.Statement sql HE.noParams decodeThem True
-  where
-    qFrag setting = "extract('milliseconds' from current_setting('pgrst." <> setting <> "', false)::interval)::text"
-    sql = "SELECT " <> BS.intercalate ","
-      [ qFrag gucTbls,  qFrag gucKDeps, qFrag gucRels
-      , qFrag gucFuncs, qFrag gucCRels, qFrag gucDReps
-      , qFrag gucMHdrs, if hasTimezones then qFrag gucTzones else "'0.0'"
-      ]
-    decodeThem :: HD.Result QueryTimings
-    decodeThem = HD.singleRow $
-      QueryTimings
-        <$> column HD.text <*> column HD.text <*> column HD.text
-        <*> column HD.text <*> column HD.text <*> column HD.text
-        <*> column HD.text <*> column HD.text
+instance SQL.TransactionKind SchemaCacheLabel where
+  type LabelConstraint SchemaCacheLabel label = (SQL.SqlBreakpoint label, SQL.SqlTiming label)
+instance SQL.HasTimingsQueryLabel SchemaCacheLabel where
+  type TimingsQueryLabel SchemaCacheLabel = NoStep
 
-data QueryTimings = QueryTimings
-  { qtTables  :: Text
-  , qtKeyDeps :: Text
-  , qtRels    :: Text
-  , qtFuncs   :: Text
-  , qtCRels   :: Text
-  , qtDReps   :: Text
-  , qtMHdrs   :: Text
-  , qtTzones  :: Text
-  } deriving (Show)
-
-queryTimingsWLabels :: QueryTimings -> [(ByteString, Text)]
-queryTimingsWLabels qt =
-  [ (gucTbls,   qtTables qt)
-  , (gucKDeps,  qtKeyDeps qt)
-  , (gucRels,   qtRels qt)
-  , (gucFuncs,  qtFuncs qt)
-  , (gucCRels,  qtCRels qt)
-  , (gucDReps,  qtDReps qt)
-  , (gucMHdrs,  qtMHdrs qt)
-  , (gucTzones, qtTzones qt)
-  ]
-
-gucTbls, gucKDeps, gucRels, gucFuncs, gucCRels, gucDReps, gucMHdrs, gucTzones :: ByteString
-gucTbls   = "tables"
-gucKDeps  = "keydeps"
-gucRels   = "rels"
-gucFuncs  = "funcs"
-gucCRels  = "comprels"
-gucDReps  = "dreps"
-gucMHdrs  = "mhandlers"
-gucTzones = "tzones"
+type Tables                = Step (SQL.Lock 0) (SQL.Timing "tables")
+type KeyDependencies       = Step (SQL.Lock 1) (SQL.Timing "keydeps")
+type Relationships         = Step (SQL.Lock 2) (SQL.Timing "rels")
+type Functions             = Step (SQL.Lock 3) (SQL.Timing "funcs")
+type ComputedRelationships = Step (SQL.Lock 4) (SQL.Timing "comprels")
+type DataRepresentations   = Step (SQL.Lock 5) (SQL.Timing "dreps")
+type MediaHandlers         = Step (SQL.Lock 6) (SQL.Timing "mhandlers")
+type Timezones             = Step (SQL.Lock 7) (SQL.Timing "tzones")
+type NoStep                = Step SQL.NoLock SQL.NoTiming
