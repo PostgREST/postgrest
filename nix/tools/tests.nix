@@ -10,6 +10,7 @@
 , jq
 , lib
 , nginx
+, opentelemetry-collector
 , postgrest
 , python3
 , runtimeShell
@@ -40,6 +41,7 @@ let
         args = [ "ARG_LEFTOVERS([hspec arguments])" ];
         workingDir = "/";
         withEnv = postgrest.env;
+        withPath = [ opentelemetry-collector ];
       }
       ''
         ${withTools.withPg} -f test/observability/fixtures/load.sql \
