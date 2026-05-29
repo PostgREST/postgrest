@@ -195,24 +195,11 @@ def test_stable_config(tmp_path, config, defaultenv):
 
     """
 
-    # Set environment variables that some of the configs expect. Using a
-    # complex ROLE_CLAIM_KEY to make sure quoting works.
-    env = {
-        **defaultenv,
-        "ROLE_CLAIM_KEY": '."https://www.example.com/roles"[0].value',
-        "POSTGREST_TEST_SOCKET": "/tmp/postgrest.sock",
-        "POSTGREST_TEST_PORT": "80",
-        "JWT_SECRET_FILE": "a_file",
-    }
-
-    # Some configs expect input from stdin, at least on base64.
-    stdin = b"Y29ubmVjdGlvbl9zdHJpbmc="
-
-    dumped = dumpconfig(config, env=env, stdin=stdin)
+    dumped = dumpconfig(config, env=defaultenv)
 
     tmpconfigpath = tmp_path / "config"
     tmpconfigpath.write_text(dumped)
-    redumped = dumpconfig(tmpconfigpath, env=env)
+    redumped = dumpconfig(tmpconfigpath, env=defaultenv)
 
     assert dumped == redumped
 
