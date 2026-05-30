@@ -19,7 +19,6 @@ import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.IO.Unsafe     (unsafePerformIO)
-import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
 
 
@@ -255,10 +254,6 @@ testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
 
 testCfgTimezoneDisabled :: AppConfig
 testCfgTimezoneDisabled = baseCfg { configDbTimezoneEnabled = False }
-
-analyzeTable :: Text -> IO ()
-analyzeTable tableName =
-  void $ readProcess "psql" ["-U", "postgres", "--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
