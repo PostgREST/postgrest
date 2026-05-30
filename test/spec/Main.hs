@@ -132,12 +132,7 @@ main = do
       timezoneDisabled     = appDbs testCfgTimezoneDisabled
 
 
-  let analyze :: IO ()
-      analyze = do
-        analyzeTable "items"
-        analyzeTable "child_entities"
-
-      specs = uncurry describe <$> [
+  let specs = uncurry describe <$> [
           ("Feature.Auth.AudienceJwtSecretSpec"          , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
         , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
         , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
@@ -160,6 +155,7 @@ main = do
         , ("Feature.Query.Preferences.HandlingSpec"      , Feature.Query.Preferences.HandlingSpec.spec)
         , ("Feature.Query.Preferences.MaxAffectedSpec"   , Feature.Query.Preferences.MaxAffectedSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
+        , ("Feature.Query.RangeSpec"                     , Feature.Query.RangeSpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
@@ -171,10 +167,6 @@ main = do
 
   hspec $ do
     mapM_ (parallel . before withApp) specs
-
-    -- we analyze to get accurate results from EXPLAIN
-    parallel $ beforeAll_ analyze . before withApp $
-      describe "Feature.Query.RangeSpec" Feature.Query.RangeSpec.spec
 
     -- this test runs with a different server flag
     parallel $ before maxRowsApp $
