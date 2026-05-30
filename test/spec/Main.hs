@@ -133,36 +133,38 @@ main = do
 
 
   let specs = uncurry describe <$> [
-          ("Feature.Auth.AudienceJwtSecretSpec"          , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
-        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
-        , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
-        , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
-        , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
-        , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
-        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec)
-        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec)
-        , ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec)
-        , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
-        , ("Feature.Query.DeleteSpec"                    , Feature.Query.DeleteSpec.spec)
-        , ("Feature.Query.EmbedDisambiguationSpec"       , Feature.Query.EmbedDisambiguationSpec.spec)
-        , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
-        , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec)
-        , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec)
-        , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
-        , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)
-        , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
-        , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
-        , ("Feature.Query.Preferences.HandlingSpec"      , Feature.Query.Preferences.HandlingSpec.spec)
-        , ("Feature.Query.Preferences.MaxAffectedSpec"   , Feature.Query.Preferences.MaxAffectedSpec.spec)
-        , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
-        , ("Feature.Query.RangeSpec"                     , Feature.Query.RangeSpec.spec)
-        , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
-        , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
-        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
-        , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
-        , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
-        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
-        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
+          ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
+        , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.spec)
+        , ("Feature.ConcurrentSpec"                            , Feature.ConcurrentSpec.spec)
+        , ("Feature.CorsSpec"                                  , Feature.CorsSpec.spec)
+        , ("Feature.CustomMediaSpec"                           , Feature.Query.CustomMediaSpec.spec)
+        , ("Feature.NoSuperuserSpec"                           , Feature.NoSuperuserSpec.spec)
+        , ("Feature.OpenApi.OpenApiSpec"                       , Feature.OpenApi.OpenApiSpec.spec)
+        , ("Feature.OptionsSpec"                               , Feature.OptionsSpec.spec)
+        , ("Feature.Query.AggregateFunctionsSpec.disallowed"   , Feature.Query.AggregateFunctionsSpec.disallowed)
+        , ("Feature.Query.AndOrParamsSpec"                     , Feature.Query.AndOrParamsSpec.spec)
+        , ("Feature.Query.ComputedRelsSpec"                    , Feature.Query.ComputedRelsSpec.spec)
+        , ("Feature.Query.DeleteSpec"                          , Feature.Query.DeleteSpec.spec)
+        , ("Feature.Query.EmbedDisambiguationSpec"             , Feature.Query.EmbedDisambiguationSpec.spec)
+        , ("Feature.Query.EmbedInnerJoinSpec"                  , Feature.Query.EmbedInnerJoinSpec.spec)
+        , ("Feature.Query.InsertSpec"                          , Feature.Query.InsertSpec.spec)
+        , ("Feature.Query.JsonOperatorSpec"                    , Feature.Query.JsonOperatorSpec.spec)
+        , ("Feature.Query.NullsStripSpec"                      , Feature.Query.NullsStripSpec.spec)
+        , ("Feature.Query.PgErrorCodeMappingSpec"              , Feature.Query.ErrorSpec.pgErrorCodeMapping)
+        , ("Feature.Query.PgSafeUpdateSpec.disabledSpec"       , Feature.Query.PgSafeUpdateSpec.disabledSpec)
+        , ("Feature.Query.PlanSpec.disabledSpec"               , Feature.Query.PlanSpec.disabledSpec)
+        , ("Feature.Query.Preferences.HandlingSpec"            , Feature.Query.Preferences.HandlingSpec.spec)
+        , ("Feature.Query.Preferences.MaxAffectedSpec"         , Feature.Query.Preferences.MaxAffectedSpec.spec)
+        , ("Feature.Query.Preferences.TimezoneSpec.enabledSpec", Feature.Query.Preferences.TimezoneSpec.enabledSpec)
+        , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec)
+        , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)
+        , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
+        , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)
+        , ("Feature.Query.RpcSpec"                             , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.SingularSpec"                        , Feature.Query.SingularSpec.spec)
+        , ("Feature.Query.SpreadQueriesSpec"                   , Feature.Query.SpreadQueriesSpec.spec)
+        , ("Feature.Query.UpdateSpec"                          , Feature.Query.UpdateSpec.spec)
+        , ("Feature.Query.UpsertSpec"                          , Feature.Query.UpsertSpec.spec)
         ]
 
   hspec $ do
@@ -246,13 +248,6 @@ main = do
 
     parallel $ before aggregatesEnabled $
       describe "Feature.Query.AggregateFunctionsSpec" Feature.Query.AggregateFunctionsSpec.allowed
-
-    parallel $ before withApp $
-      describe "Feature.Query.AggregateFunctionsDisallowedSpec." Feature.Query.AggregateFunctionsSpec.disallowed
-
-    -- this test runs with db-timezone-enabled = true
-    parallel $ before withApp $
-      describe "Feature.Query.Preferences.TimezoneSpec.enabledSpec" Feature.Query.Preferences.TimezoneSpec.enabledSpec
 
     -- this test runs with db-timezone-enabled = false
     parallel $ before timezoneDisabled $
