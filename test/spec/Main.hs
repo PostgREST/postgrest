@@ -254,7 +254,7 @@ main = do
       describe "Feature.Query.Preferences.TimezoneSpec.disabledSpec" Feature.Query.Preferences.TimezoneSpec.disabledSpec
 
 
-    -- Note: the rollback tests can not run in parallel, because they test persistance and
+    -- Note: the rollback tests can not run in parallel, because they test persistence and
     -- this results in race conditions
 
     -- this test runs with tx-rollback-all = true and tx-allow-override = true
