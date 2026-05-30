@@ -1,7 +1,6 @@
 module Feature.Query.InsertSpec where
 
 import Data.List              (lookup)
-import Network.Wai            (Application)
 import Network.Wai.Test       (SResponse (simpleHeaders))
 import Test.Hspec             hiding (pendingWith)
 import Test.Hspec.Wai.Matcher (bodyEquals)
@@ -14,8 +13,8 @@ import Text.Heredoc
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ do
   describe "Posting new record" $ do
     context "disparate json types" $ do
       it "accepts disparate json types" $ do

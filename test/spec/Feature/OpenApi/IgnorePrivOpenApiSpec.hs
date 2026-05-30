@@ -4,19 +4,26 @@ import Control.Lens ((^?))
 
 import Data.Aeson.Lens
 import Data.Aeson.QQ
+import Data.List.NonEmpty (fromList)
 
 import Network.HTTP.Types
-import Network.Wai        (Application)
 import Network.Wai.Test   (SResponse (..))
 
 import Test.Hspec     hiding (pendingWith)
 import Test.Hspec.Wai
 
+import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "OpenAPI Ignore Privileges" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig (
+    baseCfg {
+      configOpenApiMode = OAIgnorePriv
+    , configDbSchemas = fromList ["test", "v1"]
+    }
+  ) $ describe "OpenAPI Ignore Privileges" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
     request methodHead "/"

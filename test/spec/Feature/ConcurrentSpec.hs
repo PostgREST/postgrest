@@ -5,7 +5,6 @@
 module Feature.ConcurrentSpec where
 
 import Control.Concurrent.Async (mapConcurrently)
-import Network.Wai              (Application)
 
 import Control.Monad.Base
 import Control.Monad.Trans.Control
@@ -16,10 +15,11 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.Internal
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "Querying in parallel" $
     it "should not raise 'transaction in progress' error" $
       raceTest 10 $

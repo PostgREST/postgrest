@@ -1,7 +1,5 @@
 module Feature.Query.CustomMediaSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Network.Wai.Test    (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import Test.Hspec
@@ -12,8 +10,8 @@ import Text.Heredoc        (str)
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "custom media types" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
   context "for tables with aggregate" $ do
     it "can query if there's an aggregate defined for the table" $ do
       r <- request methodGet "/lines" (acceptHdrs "application/vnd.twkb") ""

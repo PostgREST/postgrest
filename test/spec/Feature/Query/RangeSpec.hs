@@ -1,6 +1,5 @@
 module Feature.Query.RangeSpec where
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
@@ -11,8 +10,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ do
   describe "GET /rpc/getitemrange" $ do
     context "without range headers" $ do
       context "with response under server size limit" $

@@ -1,16 +1,21 @@
 module Feature.Auth.BinaryJwtSecretSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
+import PostgREST.Config (AppConfig (..), parseSecret)
+
 import Protolude
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "server started with binary JWT secret" $
+spec :: SpecWithConfig
+spec withConfig = withConfig (
+    baseCfg {
+      configJwtSecret = Just generateSecret
+    , configJWKS = rightToMaybe $ parseSecret generateSecret
+    }
+  ) $ describe "server started with binary JWT secret" $
 
   -- this test will stop working 9999999999s after the UNIX EPOCH
   it "succeeds with jwt token encoded with a binary secret" $ do

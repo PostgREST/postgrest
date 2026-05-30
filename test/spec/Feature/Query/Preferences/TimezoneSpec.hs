@@ -1,18 +1,17 @@
 module Feature.Query.Preferences.TimezoneSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-enabledSpec :: SpecWith ((), Application)
-enabledSpec =
-  describe "test Prefer: timezone with db-timezone-enabled is true" $ do
+enabledSpec :: SpecWithConfig
+enabledSpec withConfig = withConfig baseCfg $ describe "test Prefer: timezone with db-timezone-enabled is true" $ do
     context "test Prefer: timezone=America/Los_Angeles" $ do
       it "should change timezone with handling=strict" $
         request methodGet "/timestamps"
@@ -62,8 +61,8 @@ enabledSpec =
                            , "Preference-Applied" <:> "handling=lenient"]}
 
 
-disabledSpec :: SpecWith ((), Application)
-disabledSpec =
+disabledSpec :: SpecWithConfig
+disabledSpec withConfig = withConfig (baseCfg { configDbTimezoneEnabled = False }) $
   describe "test Prefer: timezone with db-timezone-enabled is false" $ do
     context "test Prefer: timezone=America/Los_Angeles when timezone is disabled" $ do
       it "should throw error with handling=strict" $

@@ -1,16 +1,17 @@
 module Feature.ExtraSearchPathSpec where
 
 import Network.HTTP.Types
-import Network.Wai         (Application)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "extra search path" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }) $ describe "extra search path" $ do
 
   it "finds the ltree <@ operator on the public schema" $
     request methodGet "/ltree_sample?path=cd.Top.Science.Astronomy" [] ""

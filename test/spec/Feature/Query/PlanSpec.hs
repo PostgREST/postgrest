@@ -3,7 +3,6 @@
 module Feature.Query.PlanSpec where
 
 import Control.Lens     ((^?))
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import           Data.Aeson.Lens
@@ -15,11 +14,13 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = do
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbPlanEnabled = True }) $ do
   describe "read table/view plan" $ do
     it "outputs the total cost for a single filter on a table" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"
@@ -529,8 +530,8 @@ spec = do
           totalCost `shouldSatisfy` (> 67.0)
           aggregateQty `shouldSatisfy` (> 1)
 
-disabledSpec :: SpecWith ((), Application)
-disabledSpec =
+disabledSpec :: SpecWithConfig
+disabledSpec withConfig = withConfig baseCfg $
   it "doesn't work if db-plan-enabled=false(the default)" $ do
     request methodGet "/projects?id=in.(1,2,3)"
          (acceptHdrs "application/vnd.pgrst.plan") ""

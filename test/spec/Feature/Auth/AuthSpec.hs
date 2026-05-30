@@ -1,7 +1,5 @@
 module Feature.Auth.AuthSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "authorization" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "authorization" $ do
   let single = ("Accept","application/vnd.pgrst.object+json")
 
   it "denies access to tables that anonymous does not own" $

@@ -1,17 +1,17 @@
 module Feature.Query.ServerTimingSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbPlanEnabled = True }) $
   describe "Show Duration on Server-Timing header" $ do
 
     context "responds with Server-Timing header" $ do

@@ -1,7 +1,5 @@
 module Feature.Query.ComputedRelsSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "computed relationships" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
   it "can define a many-to-one relationship with SETOF and ROWS 1 and embed" $
     get "/videogames?select=name,designer:computed_designers(name)"
     `shouldRespondWith`

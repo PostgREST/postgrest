@@ -1,16 +1,18 @@
 module Feature.OpenApi.DisabledOpenApiSpec where
 
 import Network.HTTP.Types
-import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude
+import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
 
-spec :: SpecWith ((), Application)
-spec =
+import Protolude
+import SpecHelper
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configOpenApiMode = OADisabled }) $
   describe "Disabled OpenApi" $ do
     it "responds with 404" $
       request methodGet "/"

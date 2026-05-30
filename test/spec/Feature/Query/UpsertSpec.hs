@@ -3,8 +3,6 @@
 --    - Upsert/IgnoreDuplicates.hs
 module Feature.Query.UpsertSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -13,8 +11,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get, put)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "UPSERT" $ do
     context "with POST" $ do
       context "when Prefer: resolution=merge-duplicates is specified" $ do

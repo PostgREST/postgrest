@@ -2,7 +2,6 @@ module Feature.OpenApi.OpenApiSpec where
 
 import Control.Lens     ((^?))
 import Data.Aeson.Types (Value (..))
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import Data.Aeson.Lens
@@ -15,8 +14,8 @@ import PostgREST.Version (docsVersion)
 import Protolude         hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "OpenAPI" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
     request methodHead "/"

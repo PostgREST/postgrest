@@ -1,6 +1,5 @@
 module Feature.Query.SingularSpec where
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import Network.HTTP.Types
@@ -11,8 +10,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "Requesting singular json object" $ do
     let singular = ("Accept", "application/vnd.pgrst.object+json")
 

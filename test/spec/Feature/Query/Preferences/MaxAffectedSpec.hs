@@ -1,17 +1,15 @@
 module Feature.Query.Preferences.MaxAffectedSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
-  describe "test Prefer: max-affected" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
     context "test Prefer: max-affected with handling=strict" $ do
       it "should fail if items deleted more than 10" $
         request methodDelete "/items?id=lt.15"

@@ -1,17 +1,18 @@
 module Feature.RpcPreRequestGucsSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config                  (AppConfig (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+
 import Protolude  hiding (get, put)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }) $
   describe "GUC headers on all methods via pre-request" $ do
     it "succeeds setting the headers on POST" $
       post "/items"

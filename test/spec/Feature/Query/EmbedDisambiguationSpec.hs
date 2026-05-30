@@ -1,7 +1,5 @@
 module Feature.Query.EmbedDisambiguationSpec where
 
-import Network.Wai (Application)
-
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -9,8 +7,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "resource embedding disambiguation" $ do
     context "ambiguous requests that give 300 Multiple Choices" $ do
       it "errs when there are o2m and m2m cardinalities to the target table" $

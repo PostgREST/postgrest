@@ -1,16 +1,16 @@
 module Feature.Query.AggregateFunctionsSpec where
 
-import Network.Wai (Application)
-
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-allowed :: SpecWith ((), Application)
-allowed =
+allowed :: SpecWithConfig
+allowed withConfig = withConfig (baseCfg { configDbAggregates = True }) $
   describe "aggregate functions" $ do
     context "performing a count without specifying a field" $ do
       it "returns the count of all rows when no other fields are selected" $
@@ -306,8 +306,8 @@ allowed =
             { matchStatus = 400
             , matchHeaders = [matchContentTypeJson] }
 
-disallowed :: SpecWith ((), Application)
-disallowed =
+disallowed :: SpecWithConfig
+disallowed withConfig = withConfig baseCfg $
   describe "attempting to use an aggregate when aggregate functions are disallowed" $ do
     it "prevents the use of aggregates" $
       get "/project_invoices?select=invoice_total.sum()" `shouldRespondWith`

@@ -1,17 +1,17 @@
 module Feature.Auth.NoAnonSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "server started without anonymous role" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbAnonRole = Nothing }) $ describe "server started without anonymous role" $ do
   it "behaves normally on attempted auth" $ do
     -- token body: { "role": "postgrest_test_author" }
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"

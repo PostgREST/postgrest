@@ -1,7 +1,5 @@
 module Feature.Query.AndOrParamsSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "and/or params used for complex boolean logic" $ do
     context "used with GET" $ do
       context "or param" $ do
