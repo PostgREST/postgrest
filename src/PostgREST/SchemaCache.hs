@@ -89,11 +89,10 @@ data SchemaCache = SchemaCache
   -- Since index construction can be expensive, we build it once and store in the SchemaCache
   -- Haskell lazy evaluation ensures it's only built on first use and memoized afterwards
   , dbTablesFuzzyIndex :: TablesFuzzyIndex
-  , dbQueryTimings     :: Maybe QueryTimings -- ^ cached time for the time each query took when debugging
   } deriving (Show)
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps hdlers tzs _ _) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps hdlers tzs _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
@@ -103,7 +102,7 @@ instance JSON.ToJSON SchemaCache where
     ]
 
 showSummary :: SchemaCache -> Text
-showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _ _) =
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
@@ -154,7 +153,7 @@ type SqlQuery = ByteString
 maxDbTablesForFuzzySearch :: Int
 maxDbTablesForFuzzySearch = 500
 
-querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
+querySchemaCache :: AppConfig -> SQL.Transaction (SchemaCache, Maybe QueryTimings)
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- sqlTimedStmt gucTbls  conf   allTables
@@ -179,7 +178,7 @@ querySchemaCache conf@AppConfig{..} = do
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
-  return $ removeInternal schemas $ SchemaCache {
+  return (removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
@@ -191,8 +190,7 @@ querySchemaCache conf@AppConfig{..} = do
         -- Only build fuzzy index for schemas with a reasonable number of tables
         -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
         Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
-    , dbQueryTimings = qsTime
-    }
+    }, qsTime)
   where
     schemas = toList configDbSchemas
     isLogDebug = configLogLevel == LogDebug
@@ -230,7 +228,6 @@ removeInternal schemas dbStruct =
     , dbMediaHandlers   = dbMediaHandlers dbStruct
     , dbTimezones       = dbTimezones dbStruct
     , dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
-    , dbQueryTimings      = dbQueryTimings dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False

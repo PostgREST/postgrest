@@ -351,7 +351,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
           return Nothing
 
-        Right sCache -> do
+        Right (sCache, queryTimings) -> do
           -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
           -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
           markSchemaCachePending appState
@@ -361,7 +361,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)
           -- and after marking sCacheStatus as pending,
           flushPool appState
-          observer $ SchemaCacheQueriedObs resultTime $ dbQueryTimings sCache
+          observer $ SchemaCacheQueriedObs resultTime queryTimings
           observer $ SchemaCacheLoadedObs loadTime summary
           markSchemaCacheLoaded appState
           return $ Just sCache
