@@ -1,7 +1,5 @@
 module Feature.Query.RelatedQueriesSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "related queries" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "related queries" $ do
   context "related orders" $ do
     it "works on a many-to-one relationship" $ do
       get "/projects?select=id,clients(name)&order=clients(name).nullsfirst" `shouldRespondWith`

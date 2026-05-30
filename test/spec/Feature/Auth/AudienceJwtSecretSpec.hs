@@ -1,7 +1,5 @@
 module Feature.Auth.AudienceJwtSecretSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Protolude           hiding (get)
 import SpecHelper
@@ -9,8 +7,16 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-spec :: SpecWith ((), Application)
-spec = describe "test handling of aud claims in JWT when the jwt-aud config is set" $ do
+import PostgREST.Config (AppConfig (..), parseSecret)
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (
+    baseCfg {
+      configJwtSecret = Just generateSecret
+    , configJwtAudience = Just "youraudience"
+    , configJWKS = rightToMaybe $ parseSecret generateSecret
+    }
+  ) $ describe "test handling of aud claims in JWT when the jwt-aud config is set" $ do
 
   context "when the audience claim is a string" $ do
     -- this test will stop working 9999999999s after the UNIX EPOCH
@@ -147,8 +153,8 @@ spec = describe "test handling of aud claims in JWT when the jwt-aud config is s
     it "succeeds without a JWT" $
       get "/has_count_column" `shouldRespondWith` 200
 
-disabledSpec :: SpecWith ((), Application)
-disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud config is not set" $ do
+disabledSpec :: SpecWithConfig
+disabledSpec withConfig = withConfig baseCfg $ describe "test handling of aud claims in JWT when the jwt-aud config is not set" $ do
 
   context "when the audience claim is a string" $ do
     it "ignores the audience claim and suceeds" $ do

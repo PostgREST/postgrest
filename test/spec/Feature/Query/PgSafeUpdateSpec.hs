@@ -1,16 +1,18 @@
 module Feature.Query.PgSafeUpdateSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get, put)
+import PostgREST.Config                  (AppConfig (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
-spec :: SpecWith ((), Application)
-spec =
+import Protolude  hiding (get, put)
+import SpecHelper
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }) $
   describe "Enabling pg-safeupdate" $ do
     context "Full table update" $ do
       it "does not update and throws error if no condition is present" $
@@ -48,8 +50,8 @@ spec =
           `shouldRespondWith`
           204
 
-disabledSpec :: SpecWith ((), Application)
-disabledSpec =
+disabledSpec :: SpecWithConfig
+disabledSpec withConfig = withConfig baseCfg $
   describe "Disabling pg-safeupdate" $ do
     context "Full table update" $ do
       it "works if no condition is present" $

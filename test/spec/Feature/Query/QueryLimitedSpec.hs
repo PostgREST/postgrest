@@ -1,17 +1,17 @@
 module Feature.Query.QueryLimitedSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbMaxRows = Just 2 }) $
   describe "Requesting many items with server limits(max-rows) enabled" $ do
     it "restricts results" $
       get "/items?order=id"

@@ -2,7 +2,6 @@ module Feature.Query.RpcSpec where
 
 import qualified Data.ByteString.Lazy as BL (empty)
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
@@ -16,8 +15,8 @@ import PostgREST.Config.PgVersion (PgVersion, pgVersion180)
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion =
+spec :: PgVersion -> SpecWithConfig
+spec actualPgVersion withConfig = withConfig baseCfg $
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       context "returns paginated results" $ do

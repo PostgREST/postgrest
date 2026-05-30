@@ -1,6 +1,5 @@
 module Feature.OptionsSpec where
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import Network.HTTP.Types
@@ -10,8 +9,8 @@ import Test.Hspec.Wai
 import Protolude
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "Allow header" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "Allow header" $ do
   context "a table" $ do
     it "includes read/write methods for writeable table" $ do
       r <- request methodOptions "/items" [] ""

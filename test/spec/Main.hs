@@ -79,15 +79,15 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings $ toConnectionSettings identity testCfg
+    , P.staticConnectionSettings $ toConnectionSettings identity baseCfg
     ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
   -- cached schema cache so most tests run fast
-  baseSchemaCache <- loadSCache pool testCfg
+  baseSchemaCache <- loadSCache pool baseCfg
   loggerState <- Logger.init
-  metricsState <- Metrics.init (configDbPoolSize testCfg)
+  metricsState <- Metrics.init (configDbPoolSize baseCfg)
 
   let
     initApp sCache config = do
@@ -104,42 +104,29 @@ main = do
       customSchemaCache <- loadSCache pool config
       initApp customSchemaCache config
 
-  let withApp              = app testCfg
-      maxRowsApp           = app testMaxRowsCfg
-      disabledOpenApi      = app testDisabledOpenApiCfg
-      securityOpenApi      = app testSecurityOpenApiCfg
-      proxyApp             = app testProxyCfg
-      noAnonApp            = app testCfgNoAnon
-      noJwtSecretApp       = app testCfgNoJwtSecret
-      binaryJwtApp         = app testCfgBinaryJWT
-      audJwtApp            = app testCfgAudienceJWT
-      asymJwkApp           = app testCfgAsymJWK
-      asymJwkSetApp        = app testCfgAsymJWKSet
-      rootSpecApp          = app testCfgRootSpec
-      responseHeadersApp   = app testCfgResponseHeaders
-      disallowRollbackApp  = app testCfgDisallowRollback
-      forceRollbackApp     = app testCfgForceRollback
-      planEnabledApp       = app testPlanEnabledCfg
-      pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
-      obsApp               = app testObservabilityCfg
-      serverTiming         = app testCfgServerTiming
-      aggregatesEnabled    = app testCfgAggregatesEnabled
+    withConfig config = before (app config)
+    withConfigDbs config = before (appDbs config)
+    describeWithConfig label spec = describe label $ spec withConfig
 
-      extraSearchPathApp   = appDbs testCfgExtraSearchPath
-      unicodeApp           = appDbs testUnicodeCfg
-      multipleSchemaApp    = appDbs testMultipleSchemaCfg
-      ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
-      timezoneDisabled     = appDbs testCfgTimezoneDisabled
-
-
-  let specs = uncurry describe <$> [
-          ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
+  let specs = uncurry describeWithConfig <$> [
+          ("Feature.Auth.AsymmetricJwtSpec"                    , Feature.Auth.AsymmetricJwtSpec.spec)
+        , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
+        , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.spec)
         , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.spec)
+        , ("Feature.Auth.BinaryJwtSecretSpec"                  , Feature.Auth.BinaryJwtSecretSpec.spec)
+        , ("Feature.Auth.NoAnonSpec"                           , Feature.Auth.NoAnonSpec.spec)
+        , ("Feature.Auth.NoJwtSecretSpec"                      , Feature.Auth.NoJwtSecretSpec.spec)
         , ("Feature.ConcurrentSpec"                            , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                                  , Feature.CorsSpec.spec)
         , ("Feature.NoSuperuserSpec"                           , Feature.NoSuperuserSpec.spec)
+        , ("Feature.ObservabilitySpec"                         , Feature.ObservabilitySpec.spec)
+        , ("Feature.OpenApi.DisabledOpenApiSpec"               , Feature.OpenApi.DisabledOpenApiSpec.spec)
         , ("Feature.OpenApi.OpenApiSpec"                       , Feature.OpenApi.OpenApiSpec.spec)
+        , ("Feature.OpenApi.ProxySpec"                         , Feature.OpenApi.ProxySpec.spec)
+        , ("Feature.OpenApi.RootSpec"                          , Feature.OpenApi.RootSpec.spec)
+        , ("Feature.OpenApi.SecurityOpenApiSpec"               , Feature.OpenApi.SecurityOpenApiSpec.spec)
         , ("Feature.OptionsSpec"                               , Feature.OptionsSpec.spec)
+        , ("Feature.Query.AggregateFunctionsSpec.allowed"      , Feature.Query.AggregateFunctionsSpec.allowed)
         , ("Feature.Query.AggregateFunctionsSpec.disallowed"   , Feature.Query.AggregateFunctionsSpec.disallowed)
         , ("Feature.Query.AndOrParamsSpec"                     , Feature.Query.AndOrParamsSpec.spec)
         , ("Feature.Query.ComputedRelsSpec"                    , Feature.Query.ComputedRelsSpec.spec)
@@ -153,126 +140,43 @@ main = do
         , ("Feature.Query.NullsStripSpec"                      , Feature.Query.NullsStripSpec.spec)
         , ("Feature.Query.PgSafeUpdateSpec.disabledSpec"       , Feature.Query.PgSafeUpdateSpec.disabledSpec)
         , ("Feature.Query.PlanSpec.disabledSpec"               , Feature.Query.PlanSpec.disabledSpec)
+        , ("Feature.Query.PlanSpec.spec"                       , Feature.Query.PlanSpec.spec)
         , ("Feature.Query.Preferences.HandlingSpec"            , Feature.Query.Preferences.HandlingSpec.spec)
         , ("Feature.Query.Preferences.MaxAffectedSpec"         , Feature.Query.Preferences.MaxAffectedSpec.spec)
         , ("Feature.Query.Preferences.TimezoneSpec.enabledSpec", Feature.Query.Preferences.TimezoneSpec.enabledSpec)
+        , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
         , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec)
         , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.RpcSpec"                             , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.ServerTimingSpec"                    , Feature.Query.ServerTimingSpec.spec)
         , ("Feature.Query.SingularSpec"                        , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"                   , Feature.Query.SpreadQueriesSpec.spec)
         , ("Feature.Query.UpdateSpec"                          , Feature.Query.UpdateSpec.spec)
         , ("Feature.Query.UpsertSpec"                          , Feature.Query.UpsertSpec.spec)
+        , ("Feature.RpcPreRequestGucsSpec"                     , Feature.RpcPreRequestGucsSpec.spec)
         ]
 
   hspec $ do
-    mapM_ (parallel . before withApp) specs
+    mapM_ parallel specs
 
-    -- this test runs with a different server flag
-    parallel $ before maxRowsApp $
-      describe "Feature.Query.QueryLimitedSpec" Feature.Query.QueryLimitedSpec.spec
-
-    -- this test runs with a different schema
-    parallel $ before unicodeApp $
-      describe "Feature.Query.UnicodeSpec" Feature.Query.UnicodeSpec.spec
-
-    -- this test runs with openapi-mode set to disabled
-    parallel $ before disabledOpenApi $
-      describe "Feature.DisabledOpenApiSpec" Feature.OpenApi.DisabledOpenApiSpec.spec
-
-    -- this test runs with openapi-mode set to ignore-acl
-    parallel $ before ignorePrivOpenApi $
-      describe "Feature.OpenApi.IgnorePrivOpenApiSpec" Feature.OpenApi.IgnorePrivOpenApiSpec.spec
-
-    -- this test runs with a proxy
-    parallel $ before proxyApp $
-      describe "Feature.OpenApi.ProxySpec" Feature.OpenApi.ProxySpec.spec
-
-    -- this test runs with openapi-security-active set to true
-    parallel $ before securityOpenApi $
-      describe "Feature.OpenApi.SecurityOpenApiSpec" Feature.OpenApi.SecurityOpenApiSpec.spec
-
-    -- this test runs without an anonymous role
-    parallel $ before noAnonApp $
-      describe "Feature.Auth.NoAnonSpec" Feature.Auth.NoAnonSpec.spec
-
-    -- this test runs without a JWT secret
-    parallel $ before noJwtSecretApp $
-      describe "Feature.Auth.NoJwtSecretSpec" Feature.Auth.NoJwtSecretSpec.spec
-
-    -- this test runs with a binary JWT secret
-    parallel $ before binaryJwtApp $
-      describe "Feature.Auth.BinaryJwtSecretSpec" Feature.Auth.BinaryJwtSecretSpec.spec
-
-    -- this test runs with a binary JWT secret and an audience claim
-    parallel $ before audJwtApp $
-      describe "Feature.Auth.AudienceJwtSecretSpec" Feature.Auth.AudienceJwtSecretSpec.spec
-
-    -- this test runs with asymmetric JWK
-    parallel $ before asymJwkApp $
-      describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
-
-    -- this test runs with asymmetric JWKSet
-    parallel $ before asymJwkSetApp $
-      describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
-
-    -- this test runs with an extra search path
-    parallel $ before extraSearchPathApp $ do
-      describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
-      describe "Feature.Query.PostGISSpec" Feature.Query.PostGISSpec.spec
-
-    -- this test runs with a root spec function override
-    parallel $ before rootSpecApp $
-      describe "Feature.OpenApi.RootSpec" Feature.OpenApi.RootSpec.spec
-
-    -- this test runs with a pre request function override
-    parallel $ before responseHeadersApp $
-      describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
-
-    -- this test runs with multiple schemas
-    parallel $ before multipleSchemaApp $
-      describe "Feature.Query.MultipleSchemaSpec" Feature.Query.MultipleSchemaSpec.spec
-
-    -- this test runs with db-plan-enabled = true
-    parallel $ before planEnabledApp $
-      describe "Feature.Query.PlanSpec.spec" Feature.Query.PlanSpec.spec
-
-    -- this test runs with server-trace-header set
-    parallel $ before obsApp $
-      describe "Feature.ObservabilitySpec.spec" Feature.ObservabilitySpec.spec
-
-    parallel $ before serverTiming $
-      describe "Feature.Query.ServerTimingSpec.spec" Feature.Query.ServerTimingSpec.spec
-
-    parallel $ before aggregatesEnabled $
-      describe "Feature.Query.AggregateFunctionsSpec" Feature.Query.AggregateFunctionsSpec.allowed
-
-    -- this test runs with db-timezone-enabled = false
-    parallel $ before timezoneDisabled $
-      describe "Feature.Query.Preferences.TimezoneSpec.disabledSpec" Feature.Query.Preferences.TimezoneSpec.disabledSpec
-
+    parallel $ describe "Feature.Query.UnicodeSpec" $ Feature.Query.UnicodeSpec.spec withConfigDbs
+    parallel $ describe "Feature.OpenApi.IgnorePrivOpenApiSpec" $ Feature.OpenApi.IgnorePrivOpenApiSpec.spec withConfigDbs
+    parallel $ describe "Feature.ExtraSearchPathSpec" $ Feature.ExtraSearchPathSpec.spec withConfigDbs
+    parallel $ describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec withConfigDbs
+    parallel $ describe "Feature.Query.MultipleSchemaSpec" $ Feature.Query.MultipleSchemaSpec.spec withConfigDbs
+    parallel $ describe "Feature.Query.Preferences.TimezoneSpec.disabledSpec" $ Feature.Query.Preferences.TimezoneSpec.disabledSpec withConfigDbs
 
     -- Note: the rollback tests can not run in parallel, because they test persistence and
     -- this results in race conditions
-
-    -- this test runs with tx-rollback-all = true and tx-allow-override = true
-    before withApp $
-      describe "Feature.RollbackAllowedSpec" Feature.RollbackSpec.allowed
-
-    -- this test runs with tx-rollback-all = false and tx-allow-override = false
-    before disallowRollbackApp $
-      describe "Feature.RollbackDisallowedSpec" Feature.RollbackSpec.disallowed
-
-    -- this test runs with tx-rollback-all = true and tx-allow-override = false
-    before forceRollbackApp $
-      describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
+    describe "Feature.RollbackAllowedSpec" $ Feature.RollbackSpec.allowed withConfig
+    describe "Feature.RollbackDisallowedSpec" $ Feature.RollbackSpec.disallowed withConfig
+    describe "Feature.RollbackForcedSpec" $ Feature.RollbackSpec.forced withConfig
 
     -- This test runs with a pre request to enable the pg-safeupdate library per-session.
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
-    before pgSafeUpdateApp $
-      describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
+    describe "Feature.Query.PgSafeUpdateSpec.spec" $ Feature.Query.PgSafeUpdateSpec.spec withConfig
 
   where
     loadSCache pool conf =

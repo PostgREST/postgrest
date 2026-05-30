@@ -1,15 +1,14 @@
 module Feature.CorsSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
 import Protolude
+import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "CORS" $ do
     it "replies naively and permissively to preflight request" $
       request methodOptions "/"

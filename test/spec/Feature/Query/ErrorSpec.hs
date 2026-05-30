@@ -1,7 +1,5 @@
 module Feature.Query.ErrorSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-pgErrorCodeMapping :: SpecWith ((), Application)
-pgErrorCodeMapping = do
+pgErrorCodeMapping :: SpecWithConfig
+pgErrorCodeMapping withConfig = withConfig baseCfg $ do
   describe "PostreSQL error code mappings" $ do
     it "should return 500 for cardinality_violation" $
       get "/bad_subquery" `shouldRespondWith` 500

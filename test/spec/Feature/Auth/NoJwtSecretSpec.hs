@@ -1,17 +1,22 @@
 module Feature.Auth.NoJwtSecretSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "server started without JWT secret" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig (
+    baseCfg {
+      configJwtSecret = Nothing
+    , configJWKS = Nothing
+    }
+  ) $ describe "server started without JWT secret" $ do
 
   it "responds with error on attempted auth" $ do
     -- token body: { "role": "postgrest_test_author" }

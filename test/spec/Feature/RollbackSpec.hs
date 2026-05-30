@@ -1,11 +1,11 @@
 module Feature.RollbackSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+
+import PostgREST.Config (AppConfig (..))
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -211,8 +211,8 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":1}]|]
 
-allowed :: SpecWith ((), Application)
-allowed = describe "tx-allow-override = true" $ do
+allowed :: SpecWithConfig
+allowed withConfig = withConfig baseCfg $ describe "tx-allow-override = true" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldNotPersistMutations` withoutPreferenceApplied
@@ -232,8 +232,13 @@ allowed = describe "tx-allow-override = true" $ do
     -- because they return before the end of the transaction.
     preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
 
-disallowed :: SpecWith ((), Application)
-disallowed = describe "tx-rollback-all = false, tx-allow-override = false" $ do
+disallowed :: SpecWithConfig
+disallowed withConfig = withConfig (
+    baseCfg {
+      configDbTxAllowOverride = False
+    , configDbTxRollbackAll = False
+    }
+  ) $ describe "tx-rollback-all = false, tx-allow-override = false" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldPersistMutations` withoutPreferenceApplied
@@ -250,8 +255,13 @@ disallowed = describe "tx-rollback-all = false, tx-allow-override = false" $ do
     preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
 
 
-forced :: SpecWith ((), Application)
-forced = describe "tx-rollback-all = true, tx-allow-override = false" $ do
+forced :: SpecWithConfig
+forced withConfig = withConfig (
+    baseCfg {
+      configDbTxAllowOverride = False
+    , configDbTxRollbackAll = True
+    }
+  ) $ describe "tx-rollback-all = true, tx-allow-override = false" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldNotPersistMutations` withoutPreferenceApplied

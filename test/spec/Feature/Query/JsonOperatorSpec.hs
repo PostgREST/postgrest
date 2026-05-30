@@ -1,7 +1,5 @@
 module Feature.Query.JsonOperatorSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "json and jsonb operators" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ describe "json and jsonb operators" $ do
   context "Shaping response with select parameter" $ do
     it "obtains a json subfield one level with casting" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`

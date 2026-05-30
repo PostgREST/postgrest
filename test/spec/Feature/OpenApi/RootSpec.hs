@@ -1,16 +1,19 @@
 module Feature.OpenApi.RootSpec where
 
 import Network.HTTP.Types
-import Network.Wai        (Application)
 
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import PostgREST.Config                  (AppConfig (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
-spec :: SpecWith ((), Application)
-spec =
+import Protolude  hiding (get)
+import SpecHelper
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root" }) $
   describe "root spec function" $ do
     it "accepts application/openapi+json" $ do
       request methodGet "/"

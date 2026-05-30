@@ -1,17 +1,17 @@
 module Feature.Query.PostGISSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "PostGIS features" $
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }) $ describe "PostGIS features" $
   context "GeoJSON output" $ do
     it "works for a table that has a geometry column" $
       request methodGet "/shops"

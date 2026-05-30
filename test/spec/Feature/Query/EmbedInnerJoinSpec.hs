@@ -1,7 +1,6 @@
 module Feature.Query.EmbedInnerJoinSpec where
 
 import Network.HTTP.Types
-import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +9,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "Embedding with an inner join" $ do
     context "many-to-one relationships" $ do
       it "ignores null embeddings while the default left join doesn't" $ do

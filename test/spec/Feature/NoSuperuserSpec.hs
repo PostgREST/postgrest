@@ -1,15 +1,14 @@
 module Feature.NoSuperuserSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
 import Protolude
+import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "No Superuser" $ do
     it "proves that the authenticator role is not a superuser" $ do
       request methodGet "/rpc/is_superuser"

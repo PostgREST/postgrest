@@ -1,7 +1,6 @@
 module Feature.Query.UpdateSpec where
 
-import Network.Wai (Application)
-import Test.Hspec  hiding (pendingWith)
+import Test.Hspec hiding (pendingWith)
 
 import Network.HTTP.Types
 import Test.Hspec.Wai
@@ -10,8 +9,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ do
   describe "Patching record" $ do
     context "to unknown uri" $
       it "indicates no table found by returning 404" $

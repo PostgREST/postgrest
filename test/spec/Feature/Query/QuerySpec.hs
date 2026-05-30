@@ -1,6 +1,5 @@
 module Feature.Query.QuerySpec where
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleHeaders))
 
 import Network.HTTP.Types
@@ -11,8 +10,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $

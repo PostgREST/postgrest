@@ -1,22 +1,24 @@
 module Feature.Query.MultipleSchemaSpec where
 
-import Control.Lens    ((^?))
+import Control.Lens       ((^?))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
+import Data.List.NonEmpty (fromList)
 
 import Network.HTTP.Types
-import Network.Wai        (Application)
 import Network.Wai.Test   (SResponse (simpleHeaders), simpleBody)
 
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configDbSchemas = fromList ["v1", "v2", "SPECIAL \"@/\\#~_-"] }) $ describe "PostGIS features" $
   describe "multiple schemas in single instance" $ do
     context "Reading tables on different schemas" $ do
       it "succeeds in reading table from default schema v1 if no schema is selected via header" $

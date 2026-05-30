@@ -14,9 +14,10 @@ import qualified Jose.Jws               as JWT
 import qualified Jose.Jwt               as JWT
 
 import Data.Aeson           ((.=))
-import Data.CaseInsensitive (CI (..), mk, original)
+import Data.CaseInsensitive (CI (..), original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
+import Network.Wai          (Application)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.IO.Unsafe     (unsafePerformIO)
 import Text.Regex.TDFA      ((=~))
@@ -25,7 +26,6 @@ import Text.Regex.TDFA      ((=~))
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
-import Text.Heredoc
 
 import Data.String                       (String)
 import PostgREST.Config                  (AppConfig (..),
@@ -106,6 +106,7 @@ validateOpenApiResponse headers = do
       , matchHeaders = []
       }
 
+type SpecWithConfig = (AppConfig -> SpecWith ((), Application) -> Spec) -> Spec
 
 baseCfg :: AppConfig
 baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
@@ -160,100 +161,6 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configInternalSCQuerySleep      = Nothing
   , configServerTimingEnabled       = True
   }
-
-testCfg :: AppConfig
-testCfg = baseCfg
-
-testCfgDisallowRollback :: AppConfig
-testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
-
-testCfgForceRollback :: AppConfig
-testCfgForceRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
-
-testCfgNoAnon :: AppConfig
-testCfgNoAnon = baseCfg { configDbAnonRole = Nothing }
-
-testCfgNoJwtSecret :: AppConfig
-testCfgNoJwtSecret = baseCfg { configJwtSecret = Nothing, configJWKS = Nothing }
-
-testUnicodeCfg :: AppConfig
-testUnicodeCfg = baseCfg { configDbSchemas = fromList ["تست"] }
-
-testMaxRowsCfg :: AppConfig
-testMaxRowsCfg = baseCfg { configDbMaxRows = Just 2 }
-
-testDisabledOpenApiCfg :: AppConfig
-testDisabledOpenApiCfg = baseCfg { configOpenApiMode = OADisabled }
-
-testIgnorePrivOpenApiCfg :: AppConfig
-testIgnorePrivOpenApiCfg = baseCfg { configOpenApiMode = OAIgnorePriv, configDbSchemas = fromList ["test", "v1"] }
-
-testProxyCfg :: AppConfig
-testProxyCfg = baseCfg { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
-
-testSecurityOpenApiCfg :: AppConfig
-testSecurityOpenApiCfg = baseCfg { configOpenApiSecurityActive = True }
-
-testPlanEnabledCfg :: AppConfig
-testPlanEnabledCfg = baseCfg { configDbPlanEnabled = True }
-
-testCfgBinaryJWT :: AppConfig
-testCfgBinaryJWT =
-  baseCfg {
-    configJwtSecret = Just generateSecret
-  , configJWKS = rightToMaybe $ parseSecret generateSecret
-  }
-
-testCfgAudienceJWT :: AppConfig
-testCfgAudienceJWT =
-  baseCfg {
-    configJwtSecret = Just generateSecret
-  , configJwtAudience = Just "youraudience"
-  , configJWKS = rightToMaybe $ parseSecret generateSecret
-  }
-
-testCfgAsymJWK :: AppConfig
-testCfgAsymJWK =
-  let secret = encodeUtf8 [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
-  in baseCfg {
-    configJwtSecret = Just secret
-  , configJWKS = rightToMaybe $ parseSecret secret
-  }
-
-testCfgAsymJWKSet :: AppConfig
-testCfgAsymJWKSet =
-  let secret = encodeUtf8 [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
-  in baseCfg {
-    configJwtSecret = Just secret
-  , configJWKS = rightToMaybe $ parseSecret secret
-  }
-
-testCfgExtraSearchPath :: AppConfig
-testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }
-
-testCfgRootSpec :: AppConfig
-testCfgRootSpec = baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
-
-testCfgResponseHeaders :: AppConfig
-testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }
-
-testMultipleSchemaCfg :: AppConfig
-testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2", "SPECIAL \"@/\\#~_-"] }
-
-testPgSafeUpdateEnabledCfg :: AppConfig
-testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }
-
-testObservabilityCfg :: AppConfig
-testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-Id" }
-
-testCfgServerTiming :: AppConfig
-testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
-
-testCfgAggregatesEnabled :: AppConfig
-testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
-
-testCfgTimezoneDisabled :: AppConfig
-testCfgTimezoneDisabled = baseCfg { configDbTimezoneEnabled = False }
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]

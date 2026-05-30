@@ -1,7 +1,5 @@
 module Feature.Query.Preferences.HandlingSpec where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
@@ -10,8 +8,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "test Prefer: handling" $ do
     context "check behaviour of Prefer: handling=strict" $ do
       it "throws error when handling=strict and invalid prefs are given" $

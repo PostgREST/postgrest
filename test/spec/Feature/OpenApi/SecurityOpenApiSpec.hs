@@ -5,16 +5,18 @@ import Control.Lens ((^?))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 
-import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import Test.Hspec     hiding (pendingWith)
 import Test.Hspec.Wai
 
-import Protolude hiding (get)
+import PostgREST.Config (AppConfig (..))
 
-spec :: SpecWith ((), Application)
-spec =
+import Protolude  hiding (get)
+import SpecHelper
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configOpenApiSecurityActive = True }) $
   describe "Security active" $
     it "includes security and security definitions" $ do
       r <- simpleBody <$> get "/"

@@ -1,15 +1,18 @@
 module Feature.ObservabilitySpec where
 
-import Network.Wai (Application)
+import Data.CaseInsensitive (mk)
 
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
-import Protolude
+import PostgREST.Config (AppConfig (..))
 
-spec :: SpecWith ((), Application)
-spec =
+import Protolude
+import SpecHelper
+
+spec :: SpecWithConfig
+spec withConfig = withConfig (baseCfg { configServerTraceHeader = Just $ mk "X-Request-Id" }) $
   describe "Observability" $ do
     it "includes the server trace header on the response" $ do
       request methodHead "/"

@@ -1,7 +1,5 @@
 module Feature.Query.SpreadQueriesSpec where
 
-import Network.Wai (Application)
-
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -9,8 +7,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $
   describe "spread embeds" $ do
     it "works on a many-to-one relationship" $ do
       get "/projects?select=id,...clients(client_name:name)" `shouldRespondWith`
