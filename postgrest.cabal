@@ -65,6 +65,7 @@ library
                       PostgREST.SchemaCache.Relationship
                       PostgREST.SchemaCache.Representations
                       PostgREST.SchemaCache.Table
+                      PostgREST.SqlTransaction
                       PostgREST.Error
                       PostgREST.Error.Types
                       PostgREST.Listener
