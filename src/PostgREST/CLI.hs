@@ -68,7 +68,7 @@ dumpSchema appState = do
       let observer = AppState.getObserver appState
       observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
       exitFailure
-    Right sCache -> return $ JSON.encode sCache
+    Right (sCache, _) -> return $ JSON.encode sCache
 
 -- | Command line interface options
 data CLI = CLI
