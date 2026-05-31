@@ -10,6 +10,7 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
+{-# LANGUAGE FlexibleContexts #-}
 module PostgREST.Auth
   ( getAuthResult )
   where
@@ -25,14 +26,9 @@ import Protolude
 
 -- | Perform authentication and authorization
 --   Parse JWT and return AuthResult
-getAuthResult :: AppState -> Maybe ByteString -> IO (Either Error AuthResult)
+getAuthResult :: (MonadError Error m, MonadIO m) => AppState -> Maybe ByteString -> m AuthResult
 getAuthResult appState token = do
-  conf <- getConfig appState
-  time <- getTime appState
+  conf <- liftIO $ getConfig appState
+  time <- liftIO $ getTime appState
 
-  let jwtCacheState = getJwtCacheState appState
-      parseJwt = runExceptT $ do
-        claims <- lookupJwtCache jwtCacheState token
-        parseClaims conf time claims
-
-  parseJwt
+  parseClaims conf time =<< lookupJwtCache (getJwtCacheState appState) token

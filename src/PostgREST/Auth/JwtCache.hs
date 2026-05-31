@@ -5,6 +5,7 @@ Description : PostgREST JWT validation results Cache.
 This module provides functions to deal with the JWT cache.
 -}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
@@ -42,7 +43,7 @@ import           Protolude
 data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
 
 class CacheVariant m v where
-  cached :: SC.Cache m ByteString v -> ByteString -> ExceptT Error IO JSON.Object
+  cached :: (MonadError Error n, MonadIO n) => SC.Cache m ByteString v -> ByteString -> n JSON.Object
 
 {-|
 Jwt caching can have three different configurations:
@@ -60,12 +61,12 @@ data JwtCache =
   forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
 
 instance CacheVariant IO (Either Error JSON.Object) where
-  cached c = lift . SC.cached c >=> liftEither
+  cached c = liftIO . SC.cached c >=> liftEither
 
 instance CacheVariant (ExceptT Error IO) JSON.Object where
-  cached = SC.cached
+  cached c = liftIO . runExceptT . SC.cached c >=> liftEither
 
-decode :: JwtCache -> ByteString -> ExceptT Error IO JSON.Object
+decode :: (MonadError Error m, MonadIO m) => JwtCache -> ByteString -> m JSON.Object
 decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
 decode (JwtNoCache key) = parseAndDecodeClaims key
 decode (JwtCache _ _ c) = cached c
@@ -110,5 +111,5 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
             (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
             alwaysValid) -- no invalidation for now
 
-lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
+lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> Maybe ByteString -> m JSON.Object
 lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode

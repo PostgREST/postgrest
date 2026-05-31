@@ -9,6 +9,7 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -61,6 +62,7 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
+import           Control.Monad.Writer
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
 import           Data.Streaming.Network    (bindPortTCP)
@@ -127,24 +129,19 @@ postgrest appState connWorker =
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
 
-      let observer = AppState.getObserver appState
-          bearerAuth = ApiRequest.userBearerAuth req
+      let handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
 
-      response <- do
-        authResultE <- runExceptT $ withTiming appConf $
-            liftIO (Auth.getAuthResult appState bearerAuth) >>= liftEither
+      -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
+      -- has to be before runExceptT to make sure role is not lost on error
+      (response, authRole) <- runWriterT . handleError . runExceptT $ do
+        (jwtTime, authResult@AuthResult{..}) <- withTiming appConf $
+          Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
 
-        case authResultE of
-          Left err -> do
-            let resp = Error.errorResponseFor configClientErrorVerbosity err
-            observer $ genResponseObs Nothing req resp
-            pure resp
+        tell $ pure authRole
 
-          Right (jwtTime, authResult@AuthResult{..}) -> do
-            resp <- either (Error.errorResponseFor configClientErrorVerbosity) identity <$>
-              runExceptT (postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req)
-            observer $ genResponseObs (Just authRole) req resp
-            pure resp
+        postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req
+
+      AppState.getObserver appState $ genResponseObs (getLast authRole) req response
 
       -- Launch the connWorker when the connection is down. The postgrest
       -- function can respond successfully (with a stale schema cache) before
@@ -164,13 +161,14 @@ postgrest appState connWorker =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
 postgrestResponse
-  :: AppState.AppState
+  :: (MonadError Error m, MonadIO m)
+  => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
   -> Maybe Double
   -> AuthResult
   -> Wai.Request
-  -> ExceptT Error IO Wai.Response
+  -> m Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} req = do
   let observer = AppState.getObserver appState
 
@@ -179,12 +177,12 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
       Just sCache ->
         return sCache
       Nothing -> do
-        lift $ observer SchemaCacheEmptyObs
+        liftIO $ observer SchemaCacheEmptyObs
         throwError Error.NoSchemaCacheError
 
   let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
 
-  body <- lift $ Wai.strictRequestBody req
+  body <- liftIO $ Wai.strictRequestBody req
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
@@ -197,13 +195,13 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx dbSession -> do
-        dbRes <- lift $ AppState.usePool appState dbSession
+        dbRes <- liftIO $ AppState.usePool appState dbSession
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
         -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
         -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
         -- This needs refactoring so only the below obsQuery is used.
-        lift $ whenLeft eitherResp $ obsQuery . Error.status
+        liftIO $ whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
   (respTime, resp) <- withTiming conf $ do
@@ -211,7 +209,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
-    lift $ obsQuery status'
+    liftIO $ obsQuery status'
     liftEither response
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
@@ -230,7 +228,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
 
-withTiming :: AppConfig -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
+withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
     then do
       (t, r) <- timeItT f
