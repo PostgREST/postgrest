@@ -59,12 +59,7 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 data MainTx
-  = DbTx {
-      dqIsoLevel    :: SQL.IsolationLevel
-    , dqTxMode      :: SQL.Mode
-    , dqDbHandler   :: DbHandler DbResult
-    , dqTransaction :: SQL.IsolationLevel -> SQL.Mode -> SQL.Transaction (Either Error DbResult) -> SQL.Session (Either Error DbResult)
-    }
+  = DbTx (SQL.Session (Either Error DbResult))
   | NoDbTx DbResult
 
 data DbResult
@@ -96,7 +91,7 @@ data ResultSet
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
 mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
 mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
-  DbTx isoLvl txMode dbHandler SQL.transactionNoRetry
+  DbTx $ SQL.transactionNoRetry isoLvl txMode $ runExceptT dbHandler
   where
     isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan

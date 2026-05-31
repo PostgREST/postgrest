@@ -196,8 +196,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   (txTime, txResult) <- withTiming conf $ do
     case tx of
       MainTx.NoDbTx r -> pure r
-      MainTx.DbTx{..} -> do
-        dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
+      MainTx.DbTx dbSession -> do
+        dbRes <- lift $ AppState.usePool appState dbSession
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
         -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
