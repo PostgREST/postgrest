@@ -3,7 +3,7 @@
 PostGIS
 =======
 
-You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography`` (you need to `install PostGIS <https://postgis.net/documentation/getting_started/>`_ first).
+To work with `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography``, you'll need to `install PostGIS <https://postgis.net/documentation/getting_started/>`_ first.
 
 .. code-block:: postgres
 
@@ -16,20 +16,16 @@ You can use the string representation for `PostGIS <https://postgis.net/>`_ data
     area geometry
   );
 
-To add areas in polygon format, you can use string representation:
+  insert into coverage (id, name, area) values
+    (1, 'small', ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))',4326)),
+    (2, 'big', ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))', 4326);
 
-.. code-block:: bash
+.. _application/geo+json:
 
-  curl "http://localhost:3000/coverage" \
-    -X POST -H "Content-Type: application/json" \
-    -d @- << EOF
-    [
-      { "id": 1, "name": "small", "area": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))" },
-      { "id": 2, "name": "big", "area": "SRID=4326;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))" }
-    ]
-  EOF
+``application/geo+json``
+------------------------
 
-Now, when you request the information, PostgREST will automatically cast the ``area`` column into a ``Polygon`` geometry type. Although this is useful, you may need the whole output to be in `GeoJSON <https://geojson.org/>`_ format out of the box, which can be done by including the ``Accept: application/geo+json`` in the request. This will work for PostGIS versions 3.0.0 and up and will return the output as a `FeatureCollection Object <https://www.rfc-editor.org/rfc/rfc7946#section-3.3>`_:
+PostgREST supports the `standard <https://www.iana.org/assignments/media-types/application/geo+json>`_ ``application/geo+json`` media type which can be used to get the output in `GeoJSON <https://geojson.org/>`_ format. This will work for PostGIS versions 3.0.0 and up and will return the output as a `FeatureCollection Object <https://www.rfc-editor.org/rfc/rfc7946#section-3.3>`_:
 
 .. code-block:: bash
 
@@ -69,6 +65,9 @@ Now, when you request the information, PostgREST will automatically cast the ``a
       }
     ]
   }
+
+Using generated columns
+-----------------------
 
 If you need to add an extra property, like the area in square units by using ``st_area(area)``, you could add a generated column to the table and it will appear in the ``properties`` key of each ``Feature``.
 
@@ -135,3 +134,21 @@ Now this query will return the same results:
       }
     ]
   }
+
+Using string representation
+---------------------------
+
+To insert areas in polygon format, you can use string representation:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/coverage" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
+    [
+      { "id": 3, "name": "strip", "area": "SRID=4326;POLYGON((0 0, 50 0, 50 2, 0 2, 0 0))" },
+      { "id": 4, "name": "diamond", "area": "SRID=4326;POLYGON((5 0, 10 5, 5 10, 0 5, 5 0))" }
+    ]
+  EOF
+
+PostgREST will automatically cast the ``area`` column into a ``Polygon`` geometry type. 

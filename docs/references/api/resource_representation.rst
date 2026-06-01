@@ -51,7 +51,7 @@ Builtin handlers are offered for common standard media types.
 
 * ``text/csv`` and ``application/json``, for all API endpoints. See :ref:`tables_views` and :ref:`functions`.
 * ``application/openapi+json``, for the root endpoint. See :ref:`open-api`.
-* ``application/geo+json``, see :ref:`ww_postgis`.
+* ``application/geo+json``, see :ref:`application/geo+json`.
 * ``*/*``, resolves to ``application/json`` for API endpoints and to ``application/openapi+json`` for the root endpoint.
 
 The following vendor media types handlers are also supported.
