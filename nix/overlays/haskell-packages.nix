@@ -76,6 +76,10 @@ let
           }
           { };
 
+      # Support GHC 9.12
+      proto-lens = lib.doJailbreak prev.proto-lens;
+      proto-lens-runtime = lib.doJailbreak prev.proto-lens-runtime;
+
       warp =
         lib.dontCheck (prev.callHackageDirect
           {
