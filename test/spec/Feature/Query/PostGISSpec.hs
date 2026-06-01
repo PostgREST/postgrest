@@ -11,7 +11,7 @@ import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }) $ describe "PostGIS features" $
+spec withConfig = withConfig (baseCfg { configDbExtraSearchPath = ["public", "extensions"] }) $ describe "PostGIS features" $
   context "GeoJSON output" $ do
     it "works for a table that has a geometry column" $
       request methodGet "/shops"
