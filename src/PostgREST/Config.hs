@@ -161,7 +161,7 @@ dumpOpenApiMode = \case
 -- | Dump the config
 toText :: AppConfig -> Text
 toText conf =
-  unlines $ (\(k, v) -> k <> " = " <> v) <$> pgrstSettings ++ appSettings
+  unlines $ sort $ (\(k, v) -> k <> " = " <> v) <$> pgrstSettings ++ appSettings
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
