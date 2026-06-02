@@ -1,5 +1,5 @@
 # When updating, update GHC version in .github/workflows/build.yaml as well.
-resolver: lts-24.37 # 2026-04-15, GHC 9.10.3
+resolver: lts-24.43 # 2026-05-29, GHC 9.10.3
 
 nix:
   packages:

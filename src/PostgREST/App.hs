@@ -68,7 +68,7 @@ import qualified Data.List                 as L
 import           Data.Streaming.Network    (bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
-import qualified Network.HTTP.Types.Header as HTTP (hVary)
+import           Network.HTTP.Types.Header (hVary)
 import qualified Network.Socket            as NS
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           Protolude                 hiding (Handler)
@@ -223,10 +223,10 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
 
     varyHeader :: HTTP.Header
-    varyHeader = (HTTP.hVary, "Accept, Prefer, Range")
+    varyHeader = (hVary, "Accept, Prefer, Range")
 
     varyHeaderPresent :: [HTTP.Header] -> Bool
-    varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
+    varyHeaderPresent = any (\(h, _v) -> h == hVary)
 
 withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
