@@ -41,7 +41,7 @@ let
       }
       ''
         while true; do
-          (! ${fd}/bin/fd -H | ${entr}/bin/entr -dr "$_arg_command" "''${_arg_leftovers[@]}")
+          (! ${fd}/bin/fd -H -E .git | ${entr}/bin/entr -dr "$_arg_command" "''${_arg_leftovers[@]}")
         done
       '';
 
