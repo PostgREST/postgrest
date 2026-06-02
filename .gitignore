@@ -27,3 +27,5 @@ loadtest
 gen_targets.http
 gen_jwk.json
 gen_private.json
+.pytest_cache
+.ruff_cache

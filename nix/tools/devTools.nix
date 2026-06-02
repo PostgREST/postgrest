@@ -5,11 +5,11 @@
 , curl
 , devCabalOptions
 , entr
+, fd
 , git
 , graphviz
 , hsie
 , nix
-, silver-searcher
 , stdenv
 , style
 , tests
@@ -41,7 +41,7 @@ let
       }
       ''
         while true; do
-          (! ${silver-searcher}/bin/ag -l . | ${entr}/bin/entr -dr "$_arg_command" "''${_arg_leftovers[@]}")
+          (! ${fd}/bin/fd -H | ${entr}/bin/entr -dr "$_arg_command" "''${_arg_leftovers[@]}")
         done
       '';
 
