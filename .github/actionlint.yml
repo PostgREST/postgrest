@@ -5,3 +5,4 @@ self-hosted-runner:
     - macos-15-intel
     - macos-26
     - ubuntu-24.04-arm
+    - ubuntu-slim
