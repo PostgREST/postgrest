@@ -3,13 +3,13 @@
 , buildToolbox
 , checkedShellScript
 , deadnix
+, fd
 , git
 , hlint
 , hsie
 , nixpkgs-fmt
 , python3Packages
 , ruff
-, silver-searcher
 , statix
 , stylish-haskell
 , writeText
@@ -28,8 +28,7 @@ let
         ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
 
         # Format Haskell files
-        # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
+        ${fd}/bin/fd '\.l?hs$' \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
 
         # Format Python files
@@ -82,7 +81,7 @@ let
 
         # ruff has gaps in scanning for unused code, so we use vulture
         echo "Scanning python files for unused code..."
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?py$' . \
+        ${fd}/bin/fd '\.l?py$' \
           | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py --min-confidence 80
 
         echo "Linting python files..."
@@ -92,8 +91,7 @@ let
         ${hsie} check-aliases main src
 
         echo "Linting Haskell files..."
-        # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
-        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
+        ${fd}/bin/fd '\.l?hs$' \
           | xargs ${hlint}/bin/hlint --hint=${hlintConfig}
       '';
 
