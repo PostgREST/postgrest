@@ -16,6 +16,7 @@ import Control.Arrow ((***))
 import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text           as T
 
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
@@ -32,8 +33,8 @@ type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 type TimezoneNames    = Set Text -- cache timezone names for prefer timezone=
 
-toIsolationLevel :: (Eq a, IsString a) => a -> SQL.IsolationLevel
-toIsolationLevel a = case a of
+toIsolationLevel :: Text -> SQL.IsolationLevel
+toIsolationLevel a = case T.toLower a of
   "repeatable read" -> SQL.RepeatableRead
   "serializable"    -> SQL.Serializable
   _                 -> SQL.ReadCommitted
@@ -148,7 +149,7 @@ queryRoleSettings pgVer prepared =
         SELECT
           rolname,
           substr(setting, 1, strpos(setting, '=') - 1) as key,
-          lower(substr(setting, strpos(setting, '=') + 1)) as value
+          substr(setting, strpos(setting, '=') + 1) as value
         FROM role_setting
       ),
       iso_setting AS (

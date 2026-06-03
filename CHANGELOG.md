@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Fix connection retrying message in `PGRST000` error by @netqo in #4980
   + Remove redundant "Retrying the connection." from message because it is logged separately
+- Fix request failures when `work_mem` is set on a role by @laurenceisla in #4955
 
 ## [14.12] - 2026-05-20
 
