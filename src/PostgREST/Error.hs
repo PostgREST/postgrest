@@ -541,7 +541,7 @@ instance ErrorBody SQL.UsageError where
   code    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = code e
   code    SQL.AcquisitionTimeoutUsageError               = "PGRST003"
 
-  message (SQL.ConnectionUsageError _) = "Database connection error. Retrying the connection."
+  message (SQL.ConnectionUsageError _) = "Database connection error."
   message (SQL.SessionUsageError (SQL.QueryError _ _ e)) = message e
   message SQL.AcquisitionTimeoutUsageError = "Timed out acquiring connection from connection pool."
 
