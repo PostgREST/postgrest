@@ -2058,6 +2058,15 @@ def test_log_listener_connection_start(defaultenv):
         )
 
 
+def test_connection_error_message_does_not_claim_retry(defaultenv):
+    "The connection error message should not claim retrying, since PostgREST stops on fatal errors."
+    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
+    env = {**defaultenv, "PGRST_DB_URI": uri}
+    with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
+        output = postgrest.read_stdout(nlines=8)
+        assert any('"message":"Database connection error."' in line for line in output)
+
+
 def test_db_pre_config_with_pg_reserved_words(defaultenv):
     "The db-pre-config should not fail unexpectedly when function name is a postgres reserved word"
 
