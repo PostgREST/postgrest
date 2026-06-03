@@ -2187,3 +2187,19 @@ def test_positive_pool_metric(defaultenv):
                 ).group(1)
             )
             assert metrics >= 0
+
+
+def test_work_mem_in_role_settings(defaultenv):
+    "Should work when setting work_mem on a role. See https://github.com/PostgREST/postgrest/issues/4955"
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    headers = jwtauthheader({"role": "postgrest_test_work_mem"}, SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/get_work_mem", headers=headers)
+        assert response.status_code == 200
+        assert response.text == '"3MB"'

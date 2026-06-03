@@ -582,6 +582,23 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: get_work_mem
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: get_work_mem
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: notify_do_nothing
     qiSchema: public
   - - pdDescription: null
