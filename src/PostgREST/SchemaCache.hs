@@ -448,7 +448,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
     bt.oid <> bt.base_type as rettype_is_composite_alias,
     p.provolatile,
     p.provariadic > 0 as hasvariadic,
-    lower((regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1]) AS transaction_isolation_level,
+    (regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1] AS transaction_isolation_level,
     coalesce(func_settings.kvs, '{}') as kvs
   FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid

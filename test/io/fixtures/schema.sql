@@ -258,3 +258,7 @@ $_$ language sql;
 create or replace function notify_pgrst() returns void as $$
   notify pgrst;
 $$ language sql;
+
+create or replace function get_work_mem() returns text as $$
+  select current_setting('work_mem', true);
+$$ language sql;
