@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file. From versio
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
+- Fix connection retrying message in `PGRST000` error by @netqo in #4980
+  + Remove redundant "Retrying the connection." from message because it is logged separately
 
 ### Changed
 
