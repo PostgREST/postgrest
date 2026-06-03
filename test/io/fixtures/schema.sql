@@ -265,3 +265,7 @@ create or replace function custom_vary_hdr() returns void as $$
     perform set_config('response.headers', '[{"Vary": "X-Test-Accept"}]', false);
   end
 $$ language plpgsql;
+
+create or replace function get_work_mem() returns text as $$
+  select current_setting('work_mem', true);
+$$ language sql;
