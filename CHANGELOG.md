@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.13] - 2026-06-04
+
 ### Fixed
 
 - Fix connection retrying message in `PGRST000` error by @netqo in #4980
