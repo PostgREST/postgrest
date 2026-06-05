@@ -19,6 +19,7 @@ let
         autovacuum = false
         listen_addresses = ''
         log_statement = all
+        shared_preload_libraries=pg_stat_statements
       ";
     in
     checkedShellScript
