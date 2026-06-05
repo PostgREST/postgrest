@@ -430,6 +430,8 @@ By default the plan is assumed to generate the JSON representation of a resource
 
 The other available parameters are ``analyze``, ``verbose``, ``settings``, ``buffers`` and ``wal``, which correspond to the `EXPLAIN command options <https://www.postgresql.org/docs/current/sql-explain.html>`_. To use the ``analyze`` and ``wal`` parameters for example, you would add them like ``Accept: application/vnd.pgrst.plan; options=analyze|wal``.
 
+For a workflow that takes the ``Query Identifier`` from a verbose PostgREST plan and uses it to inspect the same query in ``pg_stat_statements``, see :ref:`debugging_performance_pg_stat_statements`.
+
 Note that akin to the EXPLAIN command, the changes will be committed when using the ``analyze`` option. To avoid this, you can use the :ref:`db-tx-end` and the ``Prefer: tx=rollback`` header.
 
 Securing the Execution Plan
