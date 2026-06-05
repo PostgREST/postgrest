@@ -21,9 +21,6 @@ All notable changes to this project will be documented in this file. From versio
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
-- Fix connection retrying message in `PGRST000` error by @netqo in #4980
-  + Remove redundant "Retrying the connection." from message because it is logged separately
-- Fix request failures when `work_mem` is set on a role by @laurenceisla in #4955
 
 ### Changed
 
@@ -35,6 +32,14 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+
+## [14.13] - 2026-06-04
+
+### Fixed
+
+- Fix connection retrying message in `PGRST000` error by @netqo in #4980
+  + Remove redundant "Retrying the connection." from message because it is logged separately
+- Fix request failures when `work_mem` is set on a role by @laurenceisla in #4955
 
 ## [14.12] - 2026-05-20
 
