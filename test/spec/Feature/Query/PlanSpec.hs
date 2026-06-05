@@ -94,6 +94,16 @@ spec withConfig = withConfig (baseCfg { configDbPlanEnabled = True }) $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
         cols `shouldBe` Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
 
+    it "includes the Query Identifier field when using the verbose option" $ do
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=verbose") ""
+
+      let queryIdentifier = simpleBody r ^? nth 0 . key "Query Identifier"
+          resHeaders      = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
+        queryIdentifier `shouldSatisfy` isJust
+
     it "outputs the plan for application/json " $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose") ""
 
