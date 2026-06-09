@@ -4,12 +4,14 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig baseCfg $
-  describe "CORS" $ do
+spec withConfig = do
+  withConfig baseCfg $ describe "CORS" $ do
     it "replies naively and permissively to preflight request" $
       request methodOptions "/"
           [ ("Accept", "*/*")
@@ -66,3 +68,59 @@ spec withConfig = withConfig baseCfg $
         `shouldRespondWith`
           ""
           { matchHeaders = [ "Access-Control-Allow-Origin" <:> "*" ] }
+
+  withConfig baseCfg { configServerCorsAllowedOrigins = ["http://example.com", "http://example2.com"] } $
+    describe "test preflight/non-preflight request and cors server allowed config" $ do
+      it "OPTIONS preflight request should return Access-Control-Allow-Origin equal to origin" $
+        request methodOptions "/items"
+            [ ("Accept", "*/*")
+            , ("Origin", "http://example.com")
+            , ("Access-Control-Request-Method", "POST")
+            , ("Access-Control-Request-Headers", "Content-Type") ]
+            ""
+          `shouldRespondWith`
+            ResponseMatcher
+            { matchStatus = 200
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders = [ "Access-Control-Allow-Origin" <:> "http://example.com"
+                             , "Access-Control-Allow-Credentials" <:> "true" ]
+            }
+
+      it "GET no preflight request should return Access-Control-Allow-Origin equal to origin" $
+        request methodGet "/items"
+            [ ("Accept", "*/*")
+            , ("Origin", "http://example.com") ]
+            ""
+          `shouldRespondWith`
+            ResponseMatcher
+            { matchStatus = 200
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders = [ "Access-Control-Allow-Origin" <:> "http://example.com" ] }
+
+      it "GET no preflight request should not return Access-Control-Allow-Origin" $
+        request methodGet "/items"
+            [ ("Accept", "*/*")
+            , ("Origin", "http://invalid.com") ]
+            ""
+          `shouldRespondWith`
+            ResponseMatcher
+            { matchStatus = 200
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders = [ matchHeaderAbsent "Access-Control-Allow-Origin" ] }
+
+  withConfig baseCfg { configServerCorsAllowedOrigins = [] } $
+    describe "test preflight request with empty cors allowed origin config" $
+      it "OPTIONS preflight request should allow all origins when config is not set or empty" $
+        request methodOptions "/items"
+            [ ("Accept", "*/*")
+            , ("Origin", "http://anyorigin.com")
+            , ("Access-Control-Request-Method", "POST")
+            , ("Access-Control-Request-Headers", "Content-Type") ]
+            ""
+          `shouldRespondWith`
+            ResponseMatcher
+            { matchStatus = 200
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders = [ "Access-Control-Allow-Origin" <:> "*"
+                               , matchHeaderValuePresent "Access-Control-Allow-Methods" "POST" ]
+            }
