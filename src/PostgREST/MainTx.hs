@@ -43,10 +43,8 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (ActionPlan (..),
-                                          CrudPlan (..),
+import PostgREST.Plan                    (CrudPlan (..),
                                           DbActionPlan (..),
-                                          InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Query                   (MainQuery (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
@@ -58,15 +56,13 @@ import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-data MainTx
+newtype MainTx
   = DbTx (SQL.Session (Either Error DbResult))
-  | NoDbTx DbResult
 
 data DbResult
   = DbCrudResult  CrudPlan ResultSet
   | DbPlanResult  MediaType BS.ByteString
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
-  | NoDbResult    InfoPlan
 
 -- | Standard result set format used for the mqMain query
 data ResultSet
@@ -88,9 +84,8 @@ data ResultSet
   -- ^ the number of rows inserted (Only used for upserts)
   }
 
-mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
-mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
-mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
+mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> DbActionPlan -> SchemaCache -> MainTx
+mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq plan sCache =
   DbTx $ SQL.transactionNoRetry isoLvl txMode $ runExceptT dbHandler
   where
     isoLvl = planIsoLvl conf authRole plan

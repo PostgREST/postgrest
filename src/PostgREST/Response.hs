@@ -2,11 +2,13 @@
    Module      : PostgREST.Response
    Description : Generate HTTP Response
 -}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE RecordWildCards  #-}
 module PostgREST.Response
   ( actionResponse
   , PgrstResponse(..)
+  , noDbActionResponse
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -213,10 +215,11 @@ actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) ApiReque
   in
   Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader iSchema iNegotiatedByProfile)) rsBody
 
-actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@SchemaCache{dbTables} =
+noDbActionResponse :: InfoPlan -> SchemaCache -> Either Error.Error PgrstResponse
+noDbActionResponse (RelInfoPlan qi@QualifiedIdentifier{..}) sc@SchemaCache{dbTables} =
   case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
-    Nothing  -> Left $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName sc
+    Nothing  -> throwError $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName sc
   where
     allowH table =
       let hasPK = not . null $ tablePKCols table in
@@ -227,11 +230,11 @@ actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ sc@Sc
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
 
-actionResponse (NoDbResult (RoutineInfoPlan proc)) _ _ _ _
+noDbActionResponse (RoutineInfoPlan proc) _
   | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
   | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
 
-actionResponse (NoDbResult SchemaInfoPlan) _ _ _ _ = respondInfo "OPTIONS,GET,HEAD"
+noDbActionResponse SchemaInfoPlan _ = respondInfo "OPTIONS,GET,HEAD"
 
 respondInfo :: ByteString -> Either Error.Error PgrstResponse
 respondInfo allowHeader =

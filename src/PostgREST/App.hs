@@ -9,10 +9,14 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeAbstractions    #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE ViewPatterns        #-}
 module PostgREST.App
   ( postgrest
@@ -58,12 +62,12 @@ import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..),
-                                       serverTimingHeader)
+import PostgREST.Response.Performance (Timing, serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
+import           Control.Monad.Identity
 import           Control.Monad.Writer
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
@@ -140,20 +144,22 @@ postgrest appState connWorker =
     \req respond -> do
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
+      let
+        observer = AppState.getObserver appState
+        handleError = fmap $ either errorToWaiResponse identity
+        errorToWaiResponse = Error.errorResponseFor configClientErrorVerbosity
 
-      let handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+      -- WriterT (Last ByteString) to save authRole (uses `tell` for this)
+      -- (Last ByteString) is a Monoid that maintains latest ByteString written using tell
+      -- see https://hackage-content.haskell.org/package/base-4.22.0.0/docs/Data-Monoid.html#t:Last
+      -- runWriterT has to be before runExceptT to make sure role is not lost on error
+      (response, Last authRole) <- runWriterT . handleError . runExceptT $
+        if configServerTimingEnabled then
+          evalStateT (postgrestResponse appState appConf maybeSchemaCache req) (mempty @[Timing])
+        else
+          runIdentityT $ postgrestResponse appState appConf maybeSchemaCache req
 
-      -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
-      -- has to be before runExceptT to make sure role is not lost on error
-      (response, authRole) <- runWriterT . handleError . runExceptT $ do
-        (jwtTime, authResult@AuthResult{..}) <- withTiming appConf $
-          Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
-
-        tell $ pure authRole
-
-        postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req
-
-      AppState.getObserver appState $ genResponseObs (getLast authRole) req response
+      observer $ genResponseObs authRole req response
 
       -- Launch the connWorker when the connection is down. The postgrest
       -- function can respond successfully (with a stale schema cache) before
@@ -172,67 +178,85 @@ postgrest appState connWorker =
     genResponseObs user req resp =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
+class MonadTiming m where
+  withTiming' :: forall name a. KnownSymbol name => m a -> m a
+  renderTimings :: m [HTTP.Header]
+
+withTiming :: forall s m a. (KnownSymbol s, MonadTiming m) => m a -> m a
+withTiming = withTiming' @m @s
+
+-- Dummy MonadTiming instance.
+-- Used when configServerTimingEnabled is False
+-- GHC specialization will optimize away all calls to withTiming and to renderTimings,
+-- hence hot path does not execute any unnecessary code and does not cause unnecessary allocations.
+instance Monad m => MonadTiming (IdentityT m) where
+  withTiming' = identity
+  renderTimings = pure mempty
+
+-- MonadTiming instance saving timings in StateT [Timing].
+-- Used when configServerTimingEnabled is True
+instance MonadIO m => MonadTiming (StateT [Timing] m) where
+  withTiming' @name f = do
+          (t, result) <- timeItT f
+          modify ((BS.pack $ symbolVal (Proxy @name), t) :)
+          pure result
+  -- Force inlining so that (BS.pack $ symbolVal (Proxy @name)) can be constant-folded
+  {-# INLINE withTiming' #-}
+  renderTimings = (foldMap (pure . serverTimingHeader) . nonEmpty) . reverse <$> get
+
 postgrestResponse
-  :: (MonadError Error m, MonadIO m)
+  :: (MonadError Error m, MonadIO m, MonadWriter (Last ByteString) m, MonadTiming m)
   => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
-  -> Maybe Double
-  -> AuthResult
   -> Wai.Request
   -> m Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} req = do
-  let observer = AppState.getObserver appState
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache req = do
+  let observer = liftIO . AppState.getObserver appState
 
-  sCache <-
-    case maybeSchemaCache of
-      Just sCache ->
-        return sCache
-      Nothing -> do
-        liftIO $ observer SchemaCacheEmptyObs
-        throwError Error.NoSchemaCacheError
+  authResult@AuthResult{..} <-
+    withTiming @"jwt" $ Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
+  -- save authRole
+  tell $ pure authRole
+
+  sCache <- maybe (observer SchemaCacheEmptyObs *> throwError Error.NoSchemaCacheError) pure maybeSchemaCache
 
   let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
 
   body <- liftIO $ Wai.strictRequestBody req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  apiReq@ApiRequest{..} <- withTiming @"parse" $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  plan <- withTiming @"plan" $ Plan.actionPlan iAction conf apiReq sCache
 
-  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
-      tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
+  toWaiResponse =<< case plan of
+    Plan.NoDb infoPlan ->
+      withTiming @"response" $ liftEither $ Response.noDbActionResponse infoPlan sCache
+    Plan.Db dbPlan -> do
+      let mainQ = Query.mainQuery dbPlan conf apiReq authResult configDbPreRequest
+          MainTx.DbTx dbSession = MainTx.mainTx mainQ conf authResult apiReq dbPlan sCache
+          obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming conf $ do
-    case tx of
-      MainTx.NoDbTx r -> pure r
-      MainTx.DbTx dbSession -> do
+      txResult <- withTiming @"transaction" $ do
         dbRes <- liftIO $ AppState.usePool appState dbSession
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
         -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
         -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
         -- This needs refactoring so only the below obsQuery is used.
-        liftIO $ whenLeft eitherResp $ obsQuery . Error.status
+        whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
-  (respTime, resp) <- withTiming conf $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
-        status' = either Error.status Response.pgrstStatus response
+      withTiming @"response" $ do
+        let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
+            status' = either Error.status Response.pgrstStatus response
 
-    -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
-    liftIO $ obsQuery status'
-    liftEither response
-
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
-
+        -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
+        obsQuery status'
+        liftEither response
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) =
-      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
-
-    serverTimingHeaders :: ServerTiming -> [HTTP.Header]
-    serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
+    toWaiResponse (Response.PgrstResponse st hdrs bod) = do
+      timings <- renderTimings
+      pure $ Wai.responseLBS st (hdrs ++ timings ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
     varyHeader :: HTTP.Header
     varyHeader = (hVary, "Accept, Prefer, Range")
@@ -240,14 +264,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == hVary)
 
-withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
-withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
-    then do
-      (t, r) <- timeItT f
-      pure (Just t, r)
-    else do
-      r <- f
-      pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do

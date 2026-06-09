@@ -23,8 +23,7 @@ import PostgREST.ApiRequest.Preferences  (Preferences (..),
                                           shouldExplainCount)
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Plan                    (ActionPlan (..),
-                                          CrudPlan (..),
+import PostgREST.Plan                    (CrudPlan (..),
                                           DbActionPlan (..),
                                           InspectPlan (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
@@ -41,9 +40,8 @@ data MainQuery = MainQuery
   , mqExplain :: Maybe SQL.Snippet     -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
   }
 
-mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
-mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange=range, iPreferences=Preferences{..}} authRes preReq =
+mainQuery :: DbActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
+mainQuery plan conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange=range, iPreferences=Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of
     DbCrud _ WrappedReadPlan{..} ->
