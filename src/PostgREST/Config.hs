@@ -115,7 +115,7 @@ data AppConfig = AppConfig
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
   , configOpenApiServerProxyUri    :: Maybe Text
-  , configServerCorsAllowedOrigins :: Maybe [Text]
+  , configServerCorsAllowedOrigins :: [Text]
   , configServerHost               :: Text
   , configServerPort               :: Int
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
@@ -198,7 +198,7 @@ toText conf =
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("server-cors-allowed-origins",      q . maybe "" (T.intercalate ",") . configServerCorsAllowedOrigins)
+      ,("server-cors-allowed-origins", q . T.intercalate "," . configServerCorsAllowedOrigins)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
@@ -424,8 +424,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
 
     parseCORSAllowedOrigins k =
       optString k >>= \case
-        Nothing   -> pure Nothing
-        Just orig -> pure $ Just (T.strip <$> T.splitOn "," orig)
+        Nothing   -> pure []
+        Just orig -> pure (T.strip <$> T.splitOn "," orig)
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =

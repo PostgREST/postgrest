@@ -1642,7 +1642,7 @@ def test_preflight_request_with_cors_allowed_origin_config(defaultenv):
 
 
 def test_preflight_request_with_empty_cors_allowed_origin_config(defaultenv):
-    "OPTIONS preflight request should allow all origins when config is present but empty"
+    "OPTIONS preflight request should allow all origins when config is not set or empty"
 
     env = {
         **defaultenv,
