@@ -2,9 +2,6 @@
 Module      : PostgREST.Cors
 Description : Wai Middleware to set cors policy.
 -}
-
-{-# LANGUAGE TupleSections #-}
-
 module PostgREST.Cors (middleware) where
 
 import qualified Data.ByteString.Char8       as BS
@@ -26,11 +23,13 @@ middleware appState app req res = do
   Wai.cors (corsPolicy $ configServerCorsAllowedOrigins conf) app req res
 
 -- | CORS policy to be used in by Wai Cors middleware
-corsPolicy :: Maybe [Text] -> Wai.Request -> Maybe Wai.CorsResourcePolicy
+corsPolicy :: [Text] -> Wai.Request -> Maybe Wai.CorsResourcePolicy
 corsPolicy corsAllowedOrigins req = case lookup "origin" headers of
   Just _ ->
     Just Wai.CorsResourcePolicy
-    { Wai.corsOrigins = (, True) . map T.encodeUtf8 <$> corsAllowedOrigins
+    { Wai.corsOrigins = case corsAllowedOrigins of
+        []      -> Nothing
+        origins -> Just (map T.encodeUtf8 origins, True)
     , Wai.corsMethods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
     , Wai.corsRequestHeaders = "Authorization" : accHeaders
     , Wai.corsExposedHeaders = Just
