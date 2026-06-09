@@ -162,9 +162,9 @@ jobs:
         # The loadtest reporter writes them when any of individual steps fails the performance
         # regression threshold.
         run: |
-          postgrest-loadtest-report -g ${{ matrix.kind }} -p 50 \
-            | tee "$GITHUB_STEP_SUMMARY" \
-            | grep -v ':x:'
+          ! (postgrest-loadtest-report -g ${{ matrix.kind }} -p 50 \
+              | tee "$GITHUB_STEP_SUMMARY" \
+              | grep ':x:')
 
       - name: Report P0
         if: always()
