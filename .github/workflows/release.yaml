@@ -173,3 +173,54 @@ jobs:
           short-description: ${{ github.event.repository.description }}
           readme-filepath: ./docker-hub-readme.md
 
+
+  ghcr:
+    name: GitHub Container Registry
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - github
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Download aarch64 Docker image
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: postgrest-docker-aarch64
+      - name: Download x86-64 Docker image
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: postgrest-docker-x86-64
+      - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish images on Docker Hub
+        run: |
+          docker load -i postgrest-docker-aarch64.tar.gz
+          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64"
+          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64"
+
+          docker load -i postgrest-docker-x86-64.tar.gz
+          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
+          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
+
+          docker manifest create "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}" \
+            "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64" \
+            "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
+          docker manifest push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}"
+
+          # Only tag 'latest' for full releases
+          if [ "${GITHUB_REF_NAME}" != "devel" ]; then
+            echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
+            docker manifest create "ghcr.io/${GITHUB_REPOSITORY}:latest" \
+              "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64" \
+              "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
+            docker manifest push "ghcr.io/${GITHUB_REPOSITORY}:latest"
+          else
+            echo "Skipping push to 'latest' tag for pre-release..."
+          fi
+
+
