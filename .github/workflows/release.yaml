@@ -200,25 +200,25 @@ jobs:
       - name: Publish images on Docker Hub
         run: |
           docker load -i postgrest-docker-aarch64.tar.gz
-          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64"
-          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64"
+          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-arm64"
+          docker push "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-arm64"
 
           docker load -i postgrest-docker-x86-64.tar.gz
-          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
-          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
+          docker tag postgrest:latest "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-amd64"
+          docker push "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-amd64"
 
-          docker manifest create "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}" \
-            "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64" \
-            "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
-          docker manifest push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}"
+          docker manifest create "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}" \
+            "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-arm64" \
+            "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-amd64"
+          docker manifest push "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}"
 
           # Only tag 'latest' for full releases
           if [ "${GITHUB_REF_NAME}" != "devel" ]; then
             echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
-            docker manifest create "ghcr.io/${GITHUB_REPOSITORY}:latest" \
-              "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-arm64" \
-              "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME}-linux-amd64"
-            docker manifest push "ghcr.io/${GITHUB_REPOSITORY}:latest"
+            docker manifest create "ghcr.io/${GITHUB_REPOSITORY,,}:latest" \
+              "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-arm64" \
+              "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}-linux-amd64"
+            docker manifest push "ghcr.io/${GITHUB_REPOSITORY,,}:latest"
           else
             echo "Skipping push to 'latest' tag for pre-release..."
           fi
