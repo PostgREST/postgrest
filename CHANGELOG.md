@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
-- Add string slicing operator for `jwt-role-claim-key` by @taimoorzaeem in #4599
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
