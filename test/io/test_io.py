@@ -605,7 +605,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     env = {
         **defaultenv,
         "PGUSER": role,
-        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
         "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
     }
 
