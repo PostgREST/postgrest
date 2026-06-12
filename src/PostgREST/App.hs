@@ -214,8 +214,9 @@ postgrestResponse
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache req = do
   let observer = liftIO . AppState.getObserver appState
 
-  authResult@AuthResult{..} <-
-    withTiming @"jwt" $ Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
+  authResult@AuthResult{..} <- withTiming @"jwt" $ do
+    time <- liftIO $ AppState.getTime appState
+    Auth.getAuthResult conf time (AppState.getJwtCacheState appState) $ ApiRequest.userBearerAuth req
   -- save authRole
   tell $ pure authRole
 
