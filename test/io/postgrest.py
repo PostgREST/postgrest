@@ -250,6 +250,8 @@ def wait_until_status_code(url, max_seconds, status_code):
     "Wait for the given HTTP endpoint to return a status code"
     session = requests_unixsocket.Session()
 
+    response = None
+
     for _ in range(max_seconds * 10):
         try:
             response = session.get(url, timeout=1)
