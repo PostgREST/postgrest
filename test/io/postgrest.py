@@ -124,10 +124,14 @@ def run(
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
-        adminport = freeport(used_ports=[port]) if admin_port is None else admin_port
-        env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
-        adminhost = f"[{host}]" if host and is_ipv6(host) else localhost
-        adminurl = f"http://{adminhost}:{adminport}"
+        if admin_port:
+            env["PGRST_ADMIN_SERVER_PORT"] = str(admin_port)
+            adminhost = f"[{host}]" if host and is_ipv6(host) else localhost
+            adminurl = f"http://{adminhost}:{admin_port}"
+        else:
+            socketfile = pathlib.Path(tmpdir) / "admin.sock"
+            env["PGRST_ADMIN_SERVER_UNIX_SOCKET"] = str(socketfile)
+            adminurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
         command = [POSTGREST_BIN]
         env["HPCTIXFILE"] = hpctixfile()

@@ -115,6 +115,8 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbTxRollbackAll           = True
   , configAdminServerHost           = "localhost"
   , configAdminServerPort           = Nothing
+  , configAdminServerUnixSocket     = Nothing
+  , configAdminServerUnixSocketMode = 432
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
   , configInternalSCQuerySleep      = Nothing

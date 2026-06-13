@@ -305,8 +305,9 @@ def test_cli_ready_flag_success(host, defaultenv):
     "test PostgREST ready flag succeeds when ready"
 
     port = freeport()
+    admin_port = freeport(used_ports=[port])
 
-    with run(env=defaultenv, host=host, port=port) as postgrest:
+    with run(env=defaultenv, host=host, port=port, admin_port=admin_port) as postgrest:
         output = cli(["--ready"], env=postgrest.config)
 
         (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
@@ -330,8 +331,9 @@ def test_cli_ready_flag_fail_when_schema_cache_not_loaded(defaultenv, metapostgr
     }
 
     port = freeport()
+    admin_port = freeport(used_ports=[port])
 
-    with run(env=env, port=port) as postgrest:
+    with run(env=env, port=port, admin_port=admin_port) as postgrest:
         # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP above.
         # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
         set_statement_timeout(metapostgrest, role, 400)
@@ -351,11 +353,11 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
     "test PostgREST ready flag fail when http exception occurs"
 
     port = freeport()
+    admin_port = freeport(used_ports=[port])
 
     # when healthcheck process sends the request to a wrong endpoint
-    with run(env=defaultenv, port=port) as postgrest:
+    with run(env=defaultenv, port=port, admin_port=admin_port) as postgrest:
         # we set it to some freeport where server and admin server is not running
-        admin_port = int(postgrest.config["PGRST_ADMIN_SERVER_PORT"])
         used_ports = [port, admin_port]
 
         postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(freeport(used_ports))
@@ -368,7 +370,7 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
         )
 
     # When client sends the request to invalid URL
-    with run(env=defaultenv, port=port) as postgrest:
+    with run(env=defaultenv, port=port, admin_port=admin_port) as postgrest:
         postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(-1)
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
         (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
@@ -382,7 +384,7 @@ def test_cli_ready_flag_fail_with_special_hostname(defaultenv):
     port = freeport()
     host = "*4"
 
-    with run(env=defaultenv, host=host, port=port) as postgrest:
+    with run(env=defaultenv, host=host, port=port, admin_port=freeport()) as postgrest:
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
 
         assert (

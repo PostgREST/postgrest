@@ -176,6 +176,46 @@ admin-server-port
 
   Specifies the port for the :ref:`admin_server`. Cannot be equal to :ref:`server-port`.
 
+.. _admin-server-unix-socket:
+
+admin-server-unix-socket
+------------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  N
+  **Environment** PGRST_ADMIN_SERVER_UNIX_SOCKET
+  **In-Database** `n/a`
+  =============== =================================
+
+  `Unix domain socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ where to bind the :ref:`admin_server`.
+  If specified, this takes precedence over :ref:`admin-server-port`. Example:
+
+  .. code:: bash
+
+    admin-server-unix-socket = "/tmp/pgrst-admin.sock"
+
+.. _admin-server-unix-socket-mode:
+
+admin-server-unix-socket-mode
+-----------------------------
+
+  =============== ===================================
+  **Type**        String
+  **Default**     660
+  **Reloadable**  N
+  **Environment** PGRST_ADMIN_SERVER_UNIX_SOCKET_MODE
+  **In-Database** `n/a`
+  =============== ===================================
+
+  `Unix file mode <https://en.wikipedia.org/wiki/File_system_permissions>`_ to be set for the socket specified in :ref:`admin-server-unix-socket`
+  Needs to be a valid octal between 600 and 777.
+
+  .. code:: bash
+
+    admin-server-unix-socket-mode = "660"
+
 .. _app.settings.*:
 
 app.settings.*
