@@ -1746,7 +1746,7 @@ def test_second_hoisted_setting_is_applied(defaultenv):
 def test_admin_metrics(defaultenv):
     "Should get metrics from the admin endpoint"
 
-    with run(env=defaultenv, port=freeport()) as postgrest:
+    with run(env=defaultenv) as postgrest:
         response = postgrest.admin.get("/metrics")
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
@@ -1761,7 +1761,7 @@ def test_admin_metrics(defaultenv):
 def test_admin_metrics_include_ghc_runtime_metrics(defaultenv):
     "Should get GHC runtime metrics from the admin endpoint when RTS stats are enabled"
 
-    with run(env=defaultenv, args=["+RTS", "-T", "-RTS"], port=freeport()) as postgrest:
+    with run(env=defaultenv, args=["+RTS", "-T", "-RTS"]) as postgrest:
         response = postgrest.admin.get("/metrics")
         assert response.status_code == 200
         assert "# HELP ghc_gcs_total Total number of GCs" in response.text
@@ -1775,7 +1775,7 @@ def test_admin_metrics_include_ghc_runtime_metrics(defaultenv):
 def test_admin_metrics_exclude_ghc_runtime_metrics_by_default(defaultenv):
     "Should not get GHC runtime metrics unless RTS stats are enabled"
 
-    with run(env=defaultenv, port=freeport()) as postgrest:
+    with run(env=defaultenv) as postgrest:
         response = postgrest.admin.get("/metrics")
         assert response.status_code == 200
         assert "ghc_gcs_total" not in response.text
@@ -1847,7 +1847,7 @@ def test_no_double_schema_cache_reload_on_empty_schema(defaultenv):
         "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "300",
     }
 
-    with run(env=env, port=freeport(), wait_for=None) as postgrest:
+    with run(env=env, wait_for=None) as postgrest:
         postgrest.wait_until_scache_starts_loading()
 
         response = postgrest.session.get("/projects")
