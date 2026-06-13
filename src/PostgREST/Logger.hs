@@ -32,7 +32,6 @@ import PostgREST.Debounce      (makeDebouncer)
 import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
 import PostgREST.Query         (MainQuery (..))
-import PostgREST.SchemaCache   (queryTimingsWLabels)
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
@@ -160,7 +159,7 @@ observationMessages = \case
       <> ". " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime timings ->
     [ "Schema cache queried in " <> showMillis resultTime  <> " milliseconds " ] <>
-    let showTimings qt = [ T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt ] in
+    let showTimings qt = [ T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> qt ] in
     maybe mempty showTimings timings
   SchemaCacheLoadedObs resultTime summary ->
     [

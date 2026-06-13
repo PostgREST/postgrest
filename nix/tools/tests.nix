@@ -78,6 +78,7 @@ let
   ioTestPython =
     python3.withPackages (ps: [
       ps.pyjwt
+      ps.psycopg
       ps.pytest
       ps.pytest-xdist
       ps.pyyaml

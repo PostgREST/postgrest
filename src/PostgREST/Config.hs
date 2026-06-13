@@ -127,6 +127,7 @@ data AppConfig = AppConfig
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCQuerySleep     :: Maybe Int32
+  , configInternalSCLockId         :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -326,6 +327,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-query-sleep"
+    <*> optInt "internal-schema-cache-lock-id"
   where
     parseErrorVerbosity :: C.Key -> C.Parser C.Config Verbosity
     parseErrorVerbosity k =

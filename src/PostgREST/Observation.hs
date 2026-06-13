@@ -19,7 +19,7 @@ import           Network.HTTP.Types.Status  (Status)
 import qualified Network.Wai                as Wai
 import           PostgREST.Config.PgVersion
 import           PostgREST.Query            (MainQuery)
-import           PostgREST.SchemaCache      (QueryTimings)
+import           PostgREST.SqlTransaction   (QueryTimings)
 
 import Protolude hiding (toList)
 

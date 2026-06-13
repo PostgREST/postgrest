@@ -45,6 +45,22 @@ def psql_as_superuser(query):
     )
 
 
+def wait_for_response(request, condition, max_seconds=2):
+    "Poll an HTTP request until its response satisfies the given condition."
+    deadline = time.monotonic() + max_seconds
+    response = None
+
+    while time.monotonic() < deadline:
+        response = request()
+        if condition(response):
+            return response
+        time.sleep(0.05)
+
+    assert response is not None
+    assert condition(response), f"{response.status_code}: {response.text}"
+    return response
+
+
 def test_connect_with_dburi(dburi, defaultenv):
     "Connecting with db-uri instead of LIPQ* environment variables should work."
     defaultenv_without_libpq = {
@@ -1388,36 +1404,44 @@ def test_isolation_level(defaultenv):
         assert response.text == '"serializable"'
 
 
-def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
+def test_schema_cache_concurrent_notifications(defaultenv, schema_cache_locks):
     "schema cache should be up-to-date whenever a notification is sent while another reload is in progress, see https://github.com/PostgREST/postgrest/issues/2791"
 
-    internal_sleep = (
-        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP"]) / 1000
-    )
+    locks = schema_cache_locks()
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_LOCK_ID": str(locks.lock_id),
+        # the blocked schema cache query keeps using one pool connection until it
+        # finishes. Keep another connection available for requests that send
+        # concurrent reload notifications.
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
 
-    with run(env=slow_schema_cache_env, wait_for=None) as postgrest:
-        time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
+    with run(env=env, wait_max_seconds=5) as postgrest:
+        with locks:
+            # first request, create a function and set a schema cache reload in progress
+            response = postgrest.session.post("/rpc/create_function")
+            assert response.text == ""
+            assert response.status_code == 204
 
-        # first request, create a function and set a schema cache reload in progress
-        response = postgrest.session.post("/rpc/create_function")
-        assert response.text == ""
-        assert response.status_code == 204
+            # Let the in-progress schema cache reload query functions before
+            # sending another reload notification.
+            for step in range(4):
+                locks.unlock(step)
 
-        time.sleep(
-            internal_sleep / 2
-        )  # wait to be inside the schema cache reload process
+            # second request, change the same function and do another schema cache reload
+            response = postgrest.session.post("/rpc/migrate_function")
+            assert response.text == ""
+            assert response.status_code == 204
 
-        # second request, change the same function and do another schema cache reload
-        response = postgrest.session.post("/rpc/migrate_function")
-        assert response.text == ""
-        assert response.status_code == 204
-
-        time.sleep(
-            2 * internal_sleep
-        )  # wait enough time to get the final schema cache state
+            locks.unlock_all()
 
         # confirm the schema cache is up-to-date and the 2nd reload wasn't lost
-        response = postgrest.session.get("/rpc/mult_them?c=3&d=4")
+        response = wait_for_response(
+            lambda: postgrest.session.get("/rpc/mult_them?c=3&d=4"),
+            lambda response: response.text == "12" and response.status_code == 200,
+        )
         assert response.text == "12"
         assert response.status_code == 200
 
@@ -1455,12 +1479,10 @@ def test_schema_cache_query_timings_log(level, timezone_enabled, defaultenv):
     env = {
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
-        # when this is disabled, it should log 0 for tzones
         "PGRST_DB_TIMEZONE_ENABLED": timezone_enabled,
     }
-    # here we also capture the tzones: <value> ms
     log_pattern = re.compile(
-        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms, tzones: ([\d.]+) ms"
+        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms(?:, tzones: ([\d.]+) ms)?"
     )
 
     with run(env=env, no_startup_stdout=False) as postgrest:
@@ -1472,8 +1494,9 @@ def test_schema_cache_query_timings_log(level, timezone_enabled, defaultenv):
         if level == "debug":
             assert len(timing_matches) == 1
             if timezone_enabled == "false":
-                assert float(timing_matches[0].group(1)) == 0
+                assert timing_matches[0].group(1) is None
             else:
+                assert timing_matches[0].group(1) is not None
                 assert float(timing_matches[0].group(1)) > 0
         else:
             assert not timing_matches
