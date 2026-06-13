@@ -15,7 +15,7 @@ very simple authentication system inside the PostgreSQL database.
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE NamedFieldPuns   #-}
 module PostgREST.Auth
-  ( getAuthResult )
+  ( authenticate )
   where
 
 import           Control.Monad.Error.Class
@@ -39,8 +39,8 @@ import Protolude
 
 -- | Perform authentication and authorization
 --   Parse JWT and return AuthResult
-getAuthResult :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JwtCacheState -> Maybe ByteString -> m AuthResult
-getAuthResult cfg time jwtCacheState token =
+authenticate :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JwtCacheState -> Maybe ByteString -> m AuthResult
+authenticate cfg time jwtCacheState token =
   parseClaims cfg time =<< lookupJwtCache jwtCacheState token
 
 parseClaims :: MonadError Error m => AppConfig -> UTCTime -> Object -> m AuthResult
