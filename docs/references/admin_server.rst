@@ -3,7 +3,7 @@
 Admin Server
 ############
 
-PostgREST provides an admin server that can be enabled by setting :ref:`admin-server-port`.
+PostgREST provides an admin server that can be enabled by setting :ref:`admin-server-port` or `:ref:`admin-server-unix-socket`.
 
 .. _health_check:
 

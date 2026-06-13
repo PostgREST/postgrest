@@ -78,55 +78,57 @@ audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg =  maybe (const True) (==) . configJwtAudience
 
 data AppConfig = AppConfig
-  { configAppSettings              :: [(Text, Text)]
-  , configClientErrorVerbosity     :: Verbosity
-  , configDbAggregates             :: Bool
-  , configDbAnonRole               :: Maybe BS.ByteString
-  , configDbChannel                :: Text
-  , configDbChannelEnabled         :: Bool
-  , configDbExtraSearchPath        :: [Text]
-  , configDbHoistedTxSettings      :: [Text]
-  , configDbMaxRows                :: Maybe Integer
-  , configDbPlanEnabled            :: Bool
-  , configDbPoolSize               :: Int
-  , configDbPoolAcquisitionTimeout :: Int
-  , configDbPoolMaxLifetime        :: Int
-  , configDbPoolMaxIdletime        :: Int
-  , configDbPoolAutomaticRecovery  :: Bool
-  , configDbPreRequest             :: Maybe QualifiedIdentifier
-  , configDbPreparedStatements     :: Bool
-  , configDbRootSpec               :: Maybe QualifiedIdentifier
-  , configDbSchemas                :: NonEmpty Text
-  , configDbConfig                 :: Bool
-  , configDbPreConfig              :: Maybe QualifiedIdentifier
-  , configDbTimezoneEnabled        :: Bool
-  , configDbTxAllowOverride        :: Bool
-  , configDbTxRollbackAll          :: Bool
-  , configDbUri                    :: Text
-  , configFilePath                 :: Maybe FilePath
-  , configJWKS                     :: Maybe JwkSet
-  , configJwtAudience              :: Maybe Text
-  , configJwtRoleClaimKey          :: JSPath
-  , configJwtSecret                :: Maybe BS.ByteString
-  , configJwtSecretIsBase64        :: Bool
-  , configJwtCacheMaxEntries       :: Int
-  , configLogLevel                 :: LogLevel
-  , configLogQuery                 :: Bool
-  , configOpenApiMode              :: OpenAPIMode
-  , configOpenApiSecurityActive    :: Bool
-  , configOpenApiServerProxyUri    :: Maybe Text
-  , configServerCorsAllowedOrigins :: [Text]
-  , configServerHost               :: Text
-  , configServerPort               :: Int
-  , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
-  , configServerTimingEnabled      :: Bool
-  , configServerUnixSocket         :: Maybe FilePath
-  , configServerUnixSocketMode     :: FileMode
-  , configAdminServerHost          :: Text
-  , configAdminServerPort          :: Maybe Int
-  , configRoleSettings             :: RoleSettings
-  , configRoleIsoLvl               :: RoleIsolationLvl
-  , configInternalSCQuerySleep     :: Maybe Int32
+  { configAppSettings               :: [(Text, Text)]
+  , configClientErrorVerbosity      :: Verbosity
+  , configDbAggregates              :: Bool
+  , configDbAnonRole                :: Maybe BS.ByteString
+  , configDbChannel                 :: Text
+  , configDbChannelEnabled          :: Bool
+  , configDbExtraSearchPath         :: [Text]
+  , configDbHoistedTxSettings       :: [Text]
+  , configDbMaxRows                 :: Maybe Integer
+  , configDbPlanEnabled             :: Bool
+  , configDbPoolSize                :: Int
+  , configDbPoolAcquisitionTimeout  :: Int
+  , configDbPoolMaxLifetime         :: Int
+  , configDbPoolMaxIdletime         :: Int
+  , configDbPoolAutomaticRecovery   :: Bool
+  , configDbPreRequest              :: Maybe QualifiedIdentifier
+  , configDbPreparedStatements      :: Bool
+  , configDbRootSpec                :: Maybe QualifiedIdentifier
+  , configDbSchemas                 :: NonEmpty Text
+  , configDbConfig                  :: Bool
+  , configDbPreConfig               :: Maybe QualifiedIdentifier
+  , configDbTimezoneEnabled         :: Bool
+  , configDbTxAllowOverride         :: Bool
+  , configDbTxRollbackAll           :: Bool
+  , configDbUri                     :: Text
+  , configFilePath                  :: Maybe FilePath
+  , configJWKS                      :: Maybe JwkSet
+  , configJwtAudience               :: Maybe Text
+  , configJwtRoleClaimKey           :: JSPath
+  , configJwtSecret                 :: Maybe BS.ByteString
+  , configJwtSecretIsBase64         :: Bool
+  , configJwtCacheMaxEntries        :: Int
+  , configLogLevel                  :: LogLevel
+  , configLogQuery                  :: Bool
+  , configOpenApiMode               :: OpenAPIMode
+  , configOpenApiSecurityActive     :: Bool
+  , configOpenApiServerProxyUri     :: Maybe Text
+  , configServerCorsAllowedOrigins  :: [Text]
+  , configServerHost                :: Text
+  , configServerPort                :: Int
+  , configServerTraceHeader         :: Maybe (CI.CI BS.ByteString)
+  , configServerTimingEnabled       :: Bool
+  , configServerUnixSocket          :: Maybe FilePath
+  , configServerUnixSocketMode      :: FileMode
+  , configAdminServerHost           :: Text
+  , configAdminServerPort           :: Maybe Int
+  , configAdminServerUnixSocket     :: Maybe FilePath
+  , configAdminServerUnixSocketMode :: FileMode
+  , configRoleSettings              :: RoleSettings
+  , configRoleIsoLvl                :: RoleIsolationLvl
+  , configInternalSCQuerySleep      :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -207,6 +209,8 @@ toText conf =
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-host",         q . configAdminServerHost)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
+      ,("admin-server-unix-socket",  q . maybe mempty T.pack . configAdminServerUnixSocket)
+      ,("admin-server-unix-socket-mode", q . T.pack . showAdminSocketMode)
       ]
 
     -- quote all app.settings
@@ -230,6 +234,7 @@ toText conf =
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
+    showAdminSocketMode c = showOct (configAdminServerUnixSocketMode c) mempty
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures
@@ -323,6 +328,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (defaultServerHost <$> optWithAlias (optString "admin-server-host")
                                             (optString "server-host"))
     <*> parseAdminServerPort "admin-server-port"
+    <*> (fmap T.unpack <$> optString "admin-server-unix-socket")
+    <*> parseSocketFileMode "admin-server-unix-socket-mode"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-query-sleep"
@@ -372,10 +379,10 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just fileModeText ->
           case readOct $ T.unpack fileModeText of
             []              ->
-              fail "Invalid server-unix-socket-mode: not an octal"
+              fail $ "Invalid " <> T.unpack k <> ": not an octal"
             (fileMode, _):_ ->
               if fileMode < 384 || fileMode > 511
-                then fail "Invalid server-unix-socket-mode: needs to be between 600 and 777"
+                then fail $ "Invalid " <> T.unpack k <> ": needs to be between 600 and 777"
                 else pure fileMode
 
     parseOpenAPIMode :: C.Key -> C.Parser C.Config OpenAPIMode

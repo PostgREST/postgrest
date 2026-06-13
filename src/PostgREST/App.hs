@@ -265,10 +265,14 @@ initSockets AppConfig{..} = do
     Just path -> createAndBindDomainSocket path configServerUnixSocketMode
     Nothing -> bindPortTCP configServerPort (fromString $ T.unpack configServerHost)
 
-  adminSock <- case configAdminServerPort of
-    Just adminPort -> do
-      adminSock <- bindPortTCP adminPort (fromString $ T.unpack configAdminServerHost)
+  adminSock <- case configAdminServerUnixSocket of
+    Just path -> do
+      adminSock <- createAndBindDomainSocket path configAdminServerUnixSocketMode
       pure $ Just adminSock
-    Nothing -> pure Nothing
+    Nothing -> case configAdminServerPort of
+      Just adminPort -> do
+        adminSock <- bindPortTCP adminPort (fromString $ T.unpack configAdminServerHost)
+        pure $ Just adminSock
+      Nothing -> pure Nothing
 
   pure (sock, adminSock)

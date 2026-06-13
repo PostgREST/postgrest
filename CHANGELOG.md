@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
+- Support running the admin server on a unix socket by @wolfgangwalther in #5003
 
 ### Fixed
 
