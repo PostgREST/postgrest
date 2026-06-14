@@ -18,6 +18,8 @@ import qualified PostgREST.Config   as Config
 import           Control.Arrow              ((&&&))
 import           Data.Bitraversable         (bisequence)
 import           Data.Either.Combinators    (whenRight)
+import           Data.IORef                 (IORef, newIORef,
+                                             readIORef, writeIORef)
 import qualified Data.Text                  as T
 import qualified Database.PostgreSQL.LibPQ  as LibPQ
 import qualified Hasql.Session              as SQL
@@ -29,13 +31,14 @@ import           Protolude
 runListener :: AppState -> IO ()
 runListener appState = do
   AppConfig{..} <- getConfig appState
-  when configDbChannelEnabled $
-    void . forkIO . void $ retryingListen appState False
+  when configDbChannelEnabled $ do
+    nextDelay <- newIORef 1
+    void . forkIO . void $ retryingListen appState nextDelay False
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
 -- | This function never returns (but can throw) and return type enforces that.
-retryingListen :: AppState -> Bool -> IO Void
-retryingListen appState hasDbListenerBug = do
+retryingListen :: AppState -> IORef Int -> Bool -> IO Void
+retryingListen appState nextDelay hasDbListenerBug = do
   cfg@AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
@@ -48,13 +51,13 @@ retryingListen appState hasDbListenerBug = do
         killThread mainThreadId
 
       -- retry the listener
-      delay <- AppState.getNextListenerDelay appState
+      delay <- readIORef nextDelay
       observer $ DBListenRetry delay
       threadDelay (delay * oneSecondInMicro)
       unless (delay == maxDelay) $
-        AppState.putNextListenerDelay appState (delay * 2)
+        writeIORef nextDelay (delay * 2)
       -- loop running the listener
-      retryingListen appState (isDbListenerBug err)
+      retryingListen appState nextDelay (isDbListenerBug err)
 
   -- Execute the listener with error handling
   handle onError $ do
@@ -75,12 +78,12 @@ retryingListen appState hasDbListenerBug = do
 
           AppState.putIsListenerOn appState True
 
-          delay <- AppState.getNextListenerDelay appState
+          delay <- readIORef nextDelay
           when (delay > 1) $ do -- if we did a retry
             -- assume we lost notifications, refresh the schema cache
             AppState.schemaCacheLoader appState
             -- reset the delay
-            AppState.putNextListenerDelay appState 1
+            writeIORef nextDelay 1
 
           observer $ DBListenStart pqHost pqPort pgFullName dbChannel
 

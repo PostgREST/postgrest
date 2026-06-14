@@ -11,13 +11,11 @@ module PostgREST.AppState
   , getMainThreadId
   , getPgVersion
   , getNextDelay
-  , getNextListenerDelay
   , getTime
   , getJwtCacheState
   , init
   , initWithPool
   , putConfig -- For tests TODO refactoring
-  , putNextListenerDelay
   , putSchemaCache
   , putPgVersion
   , putIsListenerOn
@@ -72,33 +70,31 @@ import Protolude
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool              :: SQL.Pool
+  { statePool             :: SQL.Pool
   -- | Database server version
-  , statePgVersion         :: IORef PgVersion
+  , statePgVersion        :: IORef PgVersion
   -- | Schema cache
-  , stateSchemaCache       :: IORef (Maybe SchemaCache)
+  , stateSchemaCache      :: IORef (Maybe SchemaCache)
   -- | The schema cache status
-  , stateSCacheStatus      :: SchemaCacheStatus
+  , stateSCacheStatus     :: SchemaCacheStatus
   -- | State of the LISTEN channel
-  , stateIsListenerOn      :: IORef Bool
+  , stateIsListenerOn     :: IORef Bool
   -- | starts the connection worker with a debounce
-  , debouncedSCacheLoader  :: IO ()
+  , debouncedSCacheLoader :: IO ()
   -- | Config that can change at runtime
-  , stateConf              :: IORef AppConfig
+  , stateConf             :: IORef AppConfig
   -- | Time used for verifying JWT expiration
-  , stateGetTime           :: IO UTCTime
+  , stateGetTime          :: IO UTCTime
   -- | Used for killing the main thread in case a subthread fails
-  , stateMainThreadId      :: ThreadId
+  , stateMainThreadId     :: ThreadId
   -- | Keeps track of the next delay for db connection retry
-  , stateNextDelay         :: IORef Int
-  -- | Keeps track of the next delay for the listener
-  , stateNextListenerDelay :: IORef Int
+  , stateNextDelay        :: IORef Int
   -- | Observation handler
-  , stateObserver          :: ObservationHandler
+  , stateObserver         :: ObservationHandler
   -- | JWT Cache
-  , stateJwtCache          :: JwtCache.JwtCacheState
-  , stateLogger            :: Logger.LoggerState
-  , stateMetrics           :: Metrics.MetricsState
+  , stateJwtCache         :: JwtCache.JwtCacheState
+  , stateLogger           :: Logger.LoggerState
+  , stateMetrics          :: Metrics.MetricsState
   }
 
 -- | Schema cache status.
@@ -131,7 +127,6 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
     <*> newIORef 0
-    <*> newIORef 1
     <*> pure observer
     <*> JwtCache.init conf observer
     <*> pure loggerState
@@ -247,12 +242,6 @@ schemaCacheLoader = debouncedSCacheLoader
 
 getNextDelay :: AppState -> IO Int
 getNextDelay = readIORef . stateNextDelay
-
-getNextListenerDelay :: AppState -> IO Int
-getNextListenerDelay = readIORef . stateNextListenerDelay
-
-putNextListenerDelay :: AppState -> Int -> IO ()
-putNextListenerDelay = atomicWriteIORef . stateNextListenerDelay
 
 getConfig :: AppState -> IO AppConfig
 getConfig = readIORef . stateConf
