@@ -15,8 +15,9 @@ module PostgREST.Auth
   ( getAuthResult )
   where
 
-import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
-                                getTime)
+import Control.AutoUpdate
+import Data.Time
+import PostgREST.AppState      (AppState, getConfig, getJwtCacheState)
 import PostgREST.Auth.Jwt      (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult)
@@ -24,11 +25,14 @@ import PostgREST.Error         (Error)
 
 import Protolude
 
+getTime :: IO UTCTime
+getTime = join $ mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+
 -- | Perform authentication and authorization
 --   Parse JWT and return AuthResult
 getAuthResult :: (MonadError Error m, MonadIO m) => AppState -> Maybe ByteString -> m AuthResult
 getAuthResult appState token = do
   conf <- liftIO $ getConfig appState
-  time <- liftIO $ getTime appState
+  time <- liftIO getTime
 
   parseClaims conf time =<< lookupJwtCache (getJwtCacheState appState) token

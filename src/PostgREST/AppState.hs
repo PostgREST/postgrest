@@ -12,7 +12,6 @@ module PostgREST.AppState
   , getPgVersion
   , getNextDelay
   , getNextListenerDelay
-  , getTime
   , getJwtCacheState
   , init
   , initWithPool
@@ -44,14 +43,9 @@ import           PostgREST.Observation
 import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
 
-import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
-                           updateAction)
-import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
-                           exponentialBackoff, retrying,
-                           rsPreviousDelay)
-import Data.IORef         (IORef, atomicWriteIORef, newIORef,
-                           readIORef)
-import Data.Time.Clock    (UTCTime, getCurrentTime)
+import Control.Retry (RetryPolicy, RetryStatus (..), capDelay,
+                      exponentialBackoff, retrying, rsPreviousDelay)
+import Data.IORef    (IORef, atomicWriteIORef, newIORef, readIORef)
 
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
@@ -85,8 +79,6 @@ data AppState = AppState
   , debouncedSCacheLoader  :: IO ()
   -- | Config that can change at runtime
   , stateConf              :: IORef AppConfig
-  -- | Time used for verifying JWT expiration
-  , stateGetTime           :: IO UTCTime
   -- | Used for killing the main thread in case a subthread fails
   , stateMainThreadId      :: ThreadId
   -- | Keeps track of the next delay for db connection retry
@@ -128,7 +120,6 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> newIORef False
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
     <*> newIORef conf
-    <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
@@ -259,9 +250,6 @@ getConfig = readIORef . stateConf
 
 putConfig :: AppState -> AppConfig -> IO ()
 putConfig = atomicWriteIORef . stateConf
-
-getTime :: AppState -> IO UTCTime
-getTime = stateGetTime
 
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
