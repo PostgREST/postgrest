@@ -177,7 +177,9 @@ library
     if flag(hpc)
       ghc-options: -fhpc -hpcdir .hpc
   else
-    ghc-options: -O2
+    ghc-options: -O2  
+    if impl(ghc >= 9.12)
+      ghc-options: -fexpose-overloaded-unfoldings -fspecialise-aggressively
 
   if !os(windows)
     build-depends:
