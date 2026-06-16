@@ -29,6 +29,7 @@ import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
+import qualified Feature.HttpHeaderSpec
 import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
@@ -118,6 +119,7 @@ main = do
         , ("Feature.Auth.NoJwtSecretSpec"                      , Feature.Auth.NoJwtSecretSpec.spec)
         , ("Feature.ConcurrentSpec"                            , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                                  , Feature.CorsSpec.spec)
+        , ("Feature.HttpHeaderSpec"                            , Feature.HttpHeaderSpec.spec)
         , ("Feature.NoSuperuserSpec"                           , Feature.NoSuperuserSpec.spec)
         , ("Feature.ObservabilitySpec"                         , Feature.ObservabilitySpec.spec)
         , ("Feature.OpenApi.DisabledOpenApiSpec"               , Feature.OpenApi.DisabledOpenApiSpec.spec)
