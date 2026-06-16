@@ -10,7 +10,10 @@ module PostgREST.Query
   , MainQuery (..)
   ) where
 
+import qualified Hasql.Decoders                  as HD
 import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
+import qualified Hasql.Encoders                  as HE
+import qualified Hasql.Statement                 as SQL
 
 import qualified PostgREST.Query.PreQuery     as PreQuery
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
@@ -33,7 +36,7 @@ import Protolude hiding (Handler)
 
 -- The Queries that run on every request
 data MainQuery = MainQuery
-  { mqTxVars  :: SQL.Snippet       -- ^ the transaction variables that always run on each query
+  { mqTxVars  :: SQL.Statement () () -- ^ the transaction variables that always run on each query
   , mqPreReq  :: Maybe SQL.Snippet -- ^ the pre-request function that runs if enabled
   -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
   , mqMain    :: SQL.Snippet
@@ -42,7 +45,7 @@ data MainQuery = MainQuery
   }
 
 mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
+mainQuery (NoDb _) _ _ _ _ = MainQuery (SQL.Statement mempty HE.noParams HD.noResult False) Nothing mempty (mempty, mempty, mempty) mempty
 mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange=range, iPreferences=Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of

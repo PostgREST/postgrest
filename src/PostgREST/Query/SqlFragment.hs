@@ -37,25 +37,18 @@ module PostgREST.Query.SqlFragment
   , responseStatusF
   , returningF
   , schemaDescription
-  , setConfigWithConstantName
-  , setConfigWithConstantNameJSON
-  , setConfigWithDynamicName
   , singleParameter
   , sourceCTE
   , sourceCTEName
   , unknownEncoder
   ) where
 
-import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.HashMap.Strict             as HM
 import qualified Data.Text                       as T
-import qualified Data.Text.Encoding              as T
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
 
-import Control.Arrow ((***))
 
 import Data.Foldable     (foldr1)
 import NeatInterpolation (trimming)
@@ -562,30 +555,6 @@ explainF fmt opts snip =
 
     fmtPlanFmt PlanText = "FORMAT TEXT"
     fmtPlanFmt PlanJSON = "FORMAT JSON"
-
--- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: (SQL.Snippet, ByteString) -> SQL.Snippet
-setConfigLocal (k, v) =
-  "set_config(" <> k <> ", " <> unknownEncoder v <> ", true)"
-
--- | For when the settings are hardcoded and not parameterized
-setConfigWithConstantName :: (SQL.Snippet, ByteString) -> SQL.Snippet
-setConfigWithConstantName (k, v) = setConfigLocal ("'" <> k <> "'", v)
-
--- | For when the settings need to be parameterized
-setConfigWithDynamicName :: (ByteString, ByteString) -> SQL.Snippet
-setConfigWithDynamicName (k, v) =
-  setConfigLocal (unknownEncoder k, v)
-
--- | Starting from PostgreSQL v14, some characters are not allowed for config names (mostly affecting headers with "-").
--- | A JSON format string is used to avoid this problem. See https://github.com/PostgREST/postgrest/issues/1857
-setConfigWithConstantNameJSON :: SQL.Snippet -> [(ByteString, ByteString)] -> [SQL.Snippet]
-setConfigWithConstantNameJSON prefix keyVals = [setConfigWithConstantName (prefix, gucJsonVal keyVals)]
-  where
-    gucJsonVal :: [(ByteString, ByteString)] -> ByteString
-    gucJsonVal = LBS.toStrict . JSON.encode . HM.fromList . arrayByteStringToText
-    arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
-    arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
 
 handlerF :: Maybe Routine -> MediaHandler -> SQL.Snippet
 handlerF rout = \case
