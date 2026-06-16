@@ -3870,3 +3870,10 @@ create table visits (
   end_time timestamp,
   visit_type visit_type
 );
+
+
+create or replace function custom_vary_hdr() returns void as $$
+  begin
+    perform set_config('response.headers', '[{"Vary": "X-Test-Accept"}]', false);
+  end
+$$ language plpgsql;

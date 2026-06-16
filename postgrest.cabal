@@ -222,6 +222,7 @@ test-suite spec
                       Feature.Auth.NoJwtSecretSpec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
+                      Feature.HttpHeaderSpec
                       Feature.ExtraSearchPathSpec
                       Feature.NoSuperuserSpec
                       Feature.ObservabilitySpec
