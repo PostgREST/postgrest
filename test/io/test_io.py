@@ -1904,7 +1904,7 @@ def test_log_pool_req_observation(level, defaultenv):
             assert len(output) == 0
 
 
-def test_proxy_status_header(defaultenv, metapostgrest):
+def test_proxy_status_header_with_role_statement_timeout(defaultenv, metapostgrest):
     "Test Proxy-Status header in statement timeout error"
 
     role = "timeout_authenticator"
@@ -2029,7 +2029,9 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
         )
 
 
-def test_server_timing_transaction_duration(defaultenv, metapostgrest):
+def test_server_timing_transaction_duration_with_role_statement_timeout(
+    defaultenv, metapostgrest
+):
     "server-timing transaction duration should be accurate"
 
     # just to ensure we don't timeout
