@@ -34,7 +34,7 @@ def generate_jwt(
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
-        "role": "postgrest_test_author",
+        "postgrest": {"roles": ["postgrest_test_author", "other"]},
     }
 
     if exp_inc is not None:
