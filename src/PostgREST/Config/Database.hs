@@ -5,15 +5,12 @@ module PostgREST.Config.Database
   , queryDbSettings
   , queryPgVersion
   , queryRoleSettings
-  , RoleSettings
   , RoleIsolationLvl
   , TimezoneNames
   , toIsolationLevel
   ) where
 
-import Control.Arrow ((***))
-
-import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
+import PostgREST.Config.PgVersion (PgVersion (..))
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text           as T
@@ -29,7 +26,6 @@ import NeatInterpolation (trimming)
 
 import Protolude
 
-type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 type TimezoneNames    = Set Text -- cache timezone names for prefer timezone=
 
@@ -133,8 +129,8 @@ queryDbSettings preConfFunc =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: PgVersion -> Session (RoleSettings, RoleIsolationLvl)
-queryRoleSettings pgVer =
+queryRoleSettings :: Session RoleIsolationLvl
+queryRoleSettings =
   SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) True
   where
     sql = encodeUtf8 [trimming|
@@ -157,47 +153,19 @@ queryRoleSettings pgVer =
         FROM kv_settings
         WHERE key = 'default_transaction_isolation'
       )
-      select
-        kv.rolname,
-        i.value as iso_lvl,
-        coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings
-      from kv_settings kv
-      join pg_settings ps on ps.name = kv.key and (ps.context = 'user' ${hasParameterPrivilege})
-      left join iso_setting i on i.rolname = kv.rolname
-      group by kv.rolname, i.value;
+      select rolname, value
+      from iso_setting;
     |]
 
-    hasParameterPrivilege
-      | pgVer >= pgVersion150 = "or has_parameter_privilege(quote_ident(current_user)::regrole::oid, ps.name, 'set')"
-      | otherwise             = ""
+    processRows :: [(Text, Text)] -> RoleIsolationLvl
+    processRows =
+      HM.fromList . fmap (bimap encodeUtf8 toIsolationLevel)
 
-    processRows :: [(Text, Maybe Text, [(Text, Text)])] -> (RoleSettings, RoleIsolationLvl)
-    processRows rs =
-      let
-        rowsWRoleSettings = [ (x, z) | (x, _, z) <- rs ]
-        rowsWIsolation    = [ (x, y) | (x, Just y, _) <- rs ]
-      in
-      ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
-      , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
-      )
-
-    rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
-    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+    rows :: HD.Result [(Text, Text)]
+    rows = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-compositeField :: HD.Value a -> HD.Composite a
-compositeField = HD.field . HD.nonNullable
-
-compositeArrayColumn :: HD.Composite a -> HD.Row [a]
-compositeArrayColumn = arrayColumn . HD.composite
-
-arrayColumn :: HD.Value a -> HD.Row [a]
-arrayColumn = column . HD.listArray . HD.nonNullable
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable

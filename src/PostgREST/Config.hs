@@ -61,8 +61,7 @@ import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
-import PostgREST.Config.Database         (RoleIsolationLvl,
-                                          RoleSettings)
+import PostgREST.Config.Database         (RoleIsolationLvl)
 import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
                                           JSPathExp (..), dumpJSPath,
                                           pRoleClaimKey)
@@ -98,6 +97,7 @@ data AppConfig = AppConfig
   , configDbRootSpec                :: Maybe QualifiedIdentifier
   , configDbSchemas                 :: NonEmpty Text
   , configDbConfig                  :: Bool
+  , configDbHasParameterPrivilege   :: Bool
   , configDbPreConfig               :: Maybe QualifiedIdentifier
   , configDbTimezoneEnabled         :: Bool
   , configDbTxAllowOverride         :: Bool
@@ -126,7 +126,6 @@ data AppConfig = AppConfig
   , configAdminServerPort           :: Maybe Int
   , configAdminServerUnixSocket     :: Maybe FilePath
   , configAdminServerUnixSocketMode :: FileMode
-  , configRoleSettings              :: RoleSettings
   , configRoleIsoLvl                :: RoleIsolationLvl
   , configInternalSCQuerySleepFst   :: Maybe Int32
   , configInternalSCQuerySleepSnd   :: Maybe Int32
@@ -250,13 +249,13 @@ instance JustIfMaybe a (Maybe a) where
 
 -- | Reads and parses the config and overrides its parameters from env vars,
 -- files or db settings.
-readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> IO (Either Text AppConfig)
-readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
+readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> Bool -> RoleIsolationLvl -> IO (Either Text AppConfig)
+readAppConfig dbSettings optPath prevDbUri hasParameterPrivilege roleIsolationLvl = do
   env <- readPGRSTEnvironment
   -- if no filename provided, start with an empty map to read config from environment
   conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
+  case C.runParser (parser optPath env dbSettings hasParameterPrivilege roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
@@ -273,8 +272,8 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
       readSecretFile =<<
       readDbUriFile prevDbUri parsedConfig
 
-parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
-parser optPath env dbSettings roleSettings roleIsolationLvl =
+parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> Bool -> RoleIsolationLvl -> C.Parser C.Config AppConfig
+parser optPath env dbSettings hasParameterPrivilege roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
     <*> parseErrorVerbosity "client-error-verbosity"
@@ -300,6 +299,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
                                     (optString "root-spec"))
     <*> parseDbSchemas "db-schemas" "db-schema"
     <*> (fromMaybe True <$> optBool "db-config")
+    <*> pure hasParameterPrivilege
     <*> (fmap toQi <$> optString "db-pre-config")
     <*> (fromMaybe True <$> optBool "db-timezone-enabled")
     <*> parseTxEnd "db-tx-end" snd
@@ -331,7 +331,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseAdminServerPort "admin-server-port"
     <*> (fmap T.unpack <$> optString "admin-server-unix-socket")
     <*> parseSocketFileMode "admin-server-unix-socket-mode"
-    <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-query-sleep-before-queries"
     <*> optInt "internal-schema-cache-query-sleep"
