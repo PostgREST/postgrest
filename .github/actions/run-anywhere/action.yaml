@@ -17,7 +17,7 @@ runs:
   using: composite
   steps:
     - if: ${{ inputs.vm == 'freebsd' }}
-      uses: vmactions/freebsd-vm@a6de9343ef5747433d9c25784c90e84998b9d69a # v1.4.6
+      uses: vmactions/freebsd-vm@bac9cda6a14057f08e3793f6a5e037292b59868f # v1.4.7
       with:
         envs: ${{ inputs.envs }}
         prepare: ${{ inputs.prepare }}
