@@ -8,9 +8,9 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-pgErrorCodeMapping :: SpecWithConfig
-pgErrorCodeMapping withConfig = withConfig baseCfg $ do
-  describe "PostreSQL error code mappings" $ do
+spec :: SpecWithConfig
+spec withConfig = withConfig baseCfg $ do
+  describe "Test PostgreSQL and PostgREST errors" $ do
     it "should return 500 for cardinality_violation" $
       get "/bad_subquery" `shouldRespondWith` 500
 
