@@ -96,8 +96,7 @@ mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCa
     isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan
     dbHandler = do
-      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqTxVars
-          HD.noResult configDbPreparedStatements
+      lift $ SQL.statement () mqTxVars
       lift $ whenJust mqPreReq $ \q ->
         SQL.statement mempty $ SQL.dynamicallyParameterized q
           HD.noResult configDbPreparedStatements
