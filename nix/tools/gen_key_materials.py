@@ -37,22 +37,14 @@ def main():
     jwks.add(hs)
     jwks.add(rsa)
 
-    try:
-        # Technically, this exports the private keys, because HS does not have the concept
-        # of a public key. This is not a problem for tests, though, PostgREST can verify
-        # tokens with the private key just as well.
-        args.jwks_path.write_text(jwks.export())
-        print(f"Created JWKSet on {args.jwks_path}")
-    except OSError as e:
-        print(f"Error writing to {args.jwks_path}:{e}", file=sys.stderr)
-        sys.exit(1)
+    # Technically, this exports the private keys, because HS does not have the concept
+    # of a public key. This is not a problem for tests, though, PostgREST can verify
+    # tokens with the private key just as well.
+    args.jwks_path.write_text(jwks.export())
+    print(f"Created JWKSet on {args.jwks_path}")
 
-    try:
-        args.private_key_path.write_text(rsa.export_private())
-        print(f"Created private key on {args.private_key_path}")
-    except OSError as e:
-        print(f"Error writing to {args.private_key_path}:{e}", file=sys.stderr)
-        sys.exit(1)
+    args.private_key_path.write_text(rsa.export_private())
+    print(f"Created private key on {args.private_key_path}")
 
 
 if __name__ == "__main__":
