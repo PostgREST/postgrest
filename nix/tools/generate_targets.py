@@ -58,9 +58,10 @@ def main():
         description="Generate Vegeta targets with unique JWTs"
     )
     parser.add_argument(
-        "targets_path",
-        metavar="TARGETS_PATH",
-        help="Path to write the generated targets file",
+        "generated_path",
+        metavar="GENERATED_PATH",
+        help="Path to write the generated files",
+        type=Path,
     )
     parser.add_argument(
         "--private-key",
@@ -78,6 +79,8 @@ def main():
     )
 
     args = parser.parse_args()
+
+    targets_path = args.generated_path / "gen_targets.http"
 
     rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm] = None
 
@@ -134,10 +137,10 @@ def main():
             lines.extend(target)
 
     try:
-        with open(args.targets_path, "w") as f:
+        with open(targets_path, "w") as f:
             f.write("\n".join(lines))
     except IOError as e:
-        print(f"Error writing to {args.targets_path}: {e}", file=sys.stderr)
+        print(f"Error writing to {targets_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Created {ntargets} targets", end=" ")
