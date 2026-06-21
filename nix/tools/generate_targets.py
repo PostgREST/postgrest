@@ -14,41 +14,45 @@ import time
 import argparse
 import sys
 import random
-import jwt
+import jwcrypto.jwt as jwt
 from typing import Optional
 from pathlib import Path
 
 URL = "http://postgrest"
 
-secret_key = b"reallyreallyreallyreallyverysafe"
+secret_key = "reallyreallyreallyreallyverysafe"
 
 
 def generate_target(
     now: int,
     exp_inc: Optional[int],
-    rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm],
+    rsa_private_key: Optional[jwt.JWK],
 ) -> list[str]:
     """Generate a target using an HS256 or RS256 JWT"""
-    payload = {
+    headers = {
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
-        "role": "postgrest_test_author",
     }
 
     if exp_inc is not None:
-        payload["exp"] = now + exp_inc
+        headers["exp"] = now + exp_inc
+
+    claims = {
+        "role": "postgrest_test_author",
+    }
 
     if rsa_private_key is None:
-        key = secret_key
-        alg = "HS256"
+        key = jwt.JWK.from_password(secret_key)
+        headers["alg"] = "HS256"
     else:
         key = rsa_private_key
-        alg = "RS256"
-    token = jwt.encode(payload, key, alg)
+        headers["alg"] = "RS256"
+    token = jwt.JWT(headers, claims)
+    token.make_signed_token(key)
 
     return [
-        f"OPTIONS {URL}/authors_only?{alg}",
-        f"Authorization: Bearer {token}",
+        f"OPTIONS {URL}/authors_only?{headers["alg"]}",
+        f"Authorization: Bearer {token.serialize()}",
         "",  # blank line to separate requests
     ]
 
@@ -82,7 +86,7 @@ def main():
 
     targets_path = args.generated_path / "gen_targets.http"
 
-    rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm] = None
+    rsa_private_key: Optional[jwt.JWK] = None
 
     nsamples = 500  # per algorithm
     ntargets = 100000
@@ -98,7 +102,7 @@ def main():
         sys.exit(1)
 
     try:
-        rsa_private_key = jwt.algorithms.RSAAlgorithm.from_jwk(private_key_data)
+        rsa_private_key = jwt.JWK.from_json(private_key_data)
     except Exception as exc:  # broad exception to capture parsing errors
         err = f"Error loading RSA private key from {args.private_key_path}: " f"{exc}"
         print(err, file=sys.stderr)

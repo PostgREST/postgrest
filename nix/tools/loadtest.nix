@@ -312,7 +312,7 @@ let
   genTargets =
     writers.writePython3 "postgrest-gen-loadtest-targets"
       {
-        libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
+        libraries = [ python3Packages.jwcrypto ];
         doCheck = false; # postgrest-style conflicts with this
       }
       (builtins.readFile ./generate_targets.py);
