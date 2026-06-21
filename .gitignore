@@ -25,7 +25,7 @@ loadtest
 .history
 .docs-build
 gen_targets.http
-gen_jwk.json
+gen_jwks.json
 gen_private.json
 .pytest_cache
 .ruff_cache

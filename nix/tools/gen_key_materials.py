@@ -1,4 +1,4 @@
-# Generate RSA JWK/public material for loadtests.
+# Generate HS & RSA JWK/public material for loadtests.
 
 import argparse
 import sys
@@ -12,12 +12,12 @@ def main():
         description="Generate RSA JWK/private key pair for loadtests"
     )
     parser.add_argument(
-        "--rsa",
-        dest="jwk_path",
-        metavar="JWK_PATH",
+        "--jwks",
+        dest="jwks_path",
+        metavar="JWKS_PATH",
         type=Path,
         required=True,
-        help="Path to write the RSA JWK file",
+        help="Path to write the JWKS file",
     )
     parser.add_argument(
         "--private-key",
@@ -30,18 +30,25 @@ def main():
 
     args = parser.parse_args()
 
-    key = jwk.JWK.generate(kty="RSA", size=4096)
-    private_jwk, public_jwk = key.export_private(), key.export_public()
+    hs = jwk.JWK.from_password("reallyreallyreallyreallyverysafe")
+    rsa = jwk.JWK.generate(kty="RSA", size=4096)
+
+    jwks = jwk.JWKSet()
+    jwks.add(hs)
+    jwks.add(rsa)
 
     try:
-        args.jwk_path.write_text(public_jwk)
-        print(f"Created RSA JWK on {args.jwk_path}")
+        # Technically, this exports the private keys, because HS does not have the concept
+        # of a public key. This is not a problem for tests, though, PostgREST can verify
+        # tokens with the private key just as well.
+        args.jwks_path.write_text(jwks.export())
+        print(f"Created JWKSet on {args.jwks_path}")
     except OSError as e:
-        print(f"Error writing to {args.jwk_path}:{e}", file=sys.stderr)
+        print(f"Error writing to {args.jwks_path}:{e}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        args.private_key_path.write_text(private_jwk)
+        args.private_key_path.write_text(rsa.export_private())
         print(f"Created private key on {args.private_key_path}")
     except OSError as e:
         print(f"Error writing to {args.private_key_path}:{e}", file=sys.stderr)

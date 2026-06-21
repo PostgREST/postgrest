@@ -48,7 +48,7 @@ def generate_target(
     token = jwt.encode(payload, key, alg)
 
     return [
-        f"OPTIONS {URL}/authors_only",
+        f"OPTIONS {URL}/authors_only?{alg}",
         f"Authorization: Bearer {token}",
         "",  # blank line to separate requests
     ]
@@ -90,7 +90,6 @@ def main():
         metavar="PRIVATE_KEY_PATH",
         type=Path,
         help="Path to the RSA private key file",
-        default=None,
     )
     parser.add_argument(
         "--worst",
@@ -104,35 +103,25 @@ def main():
 
     rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm] = None
 
-    is_hs = args.private_key_path is None
+    nsamples = 500  # per algorithm
+    ntargets = 100000
 
-    nsamples = 1000
+    try:
+        private_key_data = args.private_key_path.read_text()
+    except OSError as e:
+        err = (
+            f"Error reading RSA private key from {args.private_key_path}: "
+            f"{e}. Generate RSA materials first with gen_rsa_materials.py."
+        )
+        print(err, file=sys.stderr)
+        sys.exit(1)
 
-    if is_hs:
-        ntargets = 200000
-    else:
-        # The asymmetric targets take too long to compute so we reduce them
-        ntargets = 50000
-
-    if not is_hs:
-        try:
-            private_key_data = args.private_key_path.read_text()
-        except OSError as e:
-            err = (
-                f"Error reading RSA private key from {args.private_key_path}: "
-                f"{e}. Generate RSA materials first with gen_rsa_materials.py."
-            )
-            print(err, file=sys.stderr)
-            sys.exit(1)
-
-        try:
-            rsa_private_key = jwt.algorithms.RSAAlgorithm.from_jwk(private_key_data)
-        except Exception as exc:  # broad exception to capture parsing errors
-            err = (
-                f"Error loading RSA private key from {args.private_key_path}: " f"{exc}"
-            )
-            print(err, file=sys.stderr)
-            sys.exit(1)
+    try:
+        rsa_private_key = jwt.algorithms.RSAAlgorithm.from_jwk(private_key_data)
+    except Exception as exc:  # broad exception to capture parsing errors
+        err = f"Error loading RSA private key from {args.private_key_path}: " f"{exc}"
+        print(err, file=sys.stderr)
+        sys.exit(1)
 
     print(f"Generating {ntargets} targets...")
 
@@ -151,14 +140,19 @@ def main():
 
         for i in range(ntargets):
             target = generate_target(
-                now, run_postgrest_time + i // 1000, rsa_private_key
+                now,
+                run_postgrest_time + i // 1000,
+                rsa_private_key if i % 2 == 0 else None,
             )
             lines.extend(target)
 
     else:
-        targets = [generate_target(now, None, rsa_private_key) for _ in range(nsamples)]
+        hs_targets = [generate_target(now, None, None) for _ in range(nsamples)]
+        rsa_targets = [
+            generate_target(now, None, rsa_private_key) for _ in range(nsamples)
+        ]
         for i in range(ntargets):
-            target = random.choice(targets)
+            target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
             lines.extend(target)
 
     try:

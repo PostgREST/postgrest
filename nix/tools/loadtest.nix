@@ -45,7 +45,7 @@ let
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs,jwt-hs-cache,jwt-hs-cache-worst,jwt-rsa,jwt-rsa-cache,jwt-rsa-cache-worst])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt,jwt-cache,jwt-cache-worst])"
           "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -64,43 +64,11 @@ let
         abs_output="$(realpath "$_arg_output")"
 
         case "$_arg_kind" in
-          jwt-hs)
+          jwt)
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
 
-            ${genTargets} "$_arg_testdir"/gen_targets.http
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
-            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ;;
-
-          jwt-hs-cache)
-            ${genTargets} "$_arg_testdir"/gen_targets.http
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
-            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ;;
-
-          jwt-hs-cache-worst)
-            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst "$_arg_testdir"/gen_targets.http
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
-            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ;;
-
-          jwt-rsa)
-            export PGRST_JWT_CACHE_MAX_ENTRIES="0"
-
-            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
             ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
 
@@ -111,9 +79,9 @@ let
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
-          jwt-rsa-cache)
-            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+          jwt-cache)
+            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
             ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
 
@@ -124,9 +92,9 @@ let
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
-          jwt-rsa-cache-worst)
-            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+          jwt-cache-worst)
+            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
             ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
 
@@ -349,13 +317,13 @@ let
       }
       (builtins.readFile ./generate_targets.py);
 
-  genRsaMaterials =
-    writers.writePython3 "postgrest-gen-rsa-materials"
+  genKeyMaterials =
+    writers.writePython3 "postgrest-gen-key-materials"
       {
         libraries = [ python3Packages.jwcrypto ];
         doCheck = false; # postgrest-style conflicts with this
       }
-      (builtins.readFile ./gen_rsa_materials.py);
+      (builtins.readFile ./gen_key_materials.py);
 
   mergeMonitorResults =
     writers.writePython3 "postgrest-merge-monitor-results"
