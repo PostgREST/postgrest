@@ -77,8 +77,7 @@ def main():
     jwks_path.write_text(jwks.export())
     print(f"Created JWKSet on {jwks_path}")
 
-    nsamples = 500  # per algorithm
-    ntargets = 100000
+    ntargets = 1000
 
     print(f"Generating {ntargets} targets...")
 
@@ -86,10 +85,8 @@ def main():
 
     lines = []
 
-    hs_targets = [generate_target(now, hs) for _ in range(nsamples)]
-    rsa_targets = [generate_target(now, rsa) for _ in range(nsamples)]
     for i in range(ntargets):
-        target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
+        target = generate_target(now, hs if i % 2 == 0 else rsa)
         lines.extend(target)
 
     with open(targets_path, "w") as f:

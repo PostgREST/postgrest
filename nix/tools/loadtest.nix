@@ -73,7 +73,7 @@ let
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
-            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+            ${runner} -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           # here we sleep purposefully to check how much memory does the schema cache consume in the final report
