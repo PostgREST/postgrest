@@ -45,7 +45,7 @@ let
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt,jwt-cache,jwt-cache-worst])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-cache,jwt-cache-worst])"
           "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -64,19 +64,6 @@ let
         abs_output="$(realpath "$_arg_output")"
 
         case "$_arg_kind" in
-          jwt)
-            export PGRST_JWT_CACHE_MAX_ENTRIES="0"
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
-
-            ${genTargets} "$_arg_testdir"
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
-            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ;;
-
           jwt-cache)
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
