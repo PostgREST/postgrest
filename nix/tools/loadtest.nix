@@ -279,12 +279,15 @@ let
 
 
         def evaluate_change(df):
-            return ((df['head'] / df['main'] - 1) * 100) \
-              .map(lambda r: "{icon} {ratio:.1f} %".format(
-                ratio=r,
-                # Hardcoded failure threshold for CI is 5% here.
-                icon="" if r < 5 else ":x:"
-              ))
+            try:
+                return ((df['head'] / df['main'] - 1) * 100) \
+                  .map(lambda r: "{icon} {ratio:.1f} %".format(
+                    ratio=r,
+                    # Hardcoded failure threshold for CI is 5% here.
+                    icon="" if r < 5 else ":x:"
+                  ))
+            except KeyError:
+                return None
 
 
         pd.read_json(sys.stdin) \
