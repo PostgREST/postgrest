@@ -312,14 +312,14 @@ let
           if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
             echo -n "${commandName}: Building postgrest (nix)... "
             # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
-            nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
+            nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
               echo "failed, output:"
               cat "$tmpdir"/build.log
               exit 1
             }
-            PGRST_CMD=$(echo ./result*/bin/postgrest)
+            PGRST_CMD="$(nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage')/bin/postgrest"
             # To avoid glibc mismatches with back-branches, we need to take libfaketime from the target branch.
-            FAKETIME_CMD="$(nix-build -A pkgs.libfaketime)/bin/faketime"
+            FAKETIME_CMD="$(nix-build --no-out-link -A pkgs.libfaketime)/bin/faketime"
           else
             echo -n "${commandName}: Building postgrest (cabal)... "
             postgrest-build
