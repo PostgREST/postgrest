@@ -70,7 +70,7 @@ let
             ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -83,7 +83,7 @@ let
             ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -96,7 +96,7 @@ let
             ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
