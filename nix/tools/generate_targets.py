@@ -63,13 +63,6 @@ def main():
         type=Path,
     )
     parser.add_argument(
-        "--private-key",
-        dest="private_key_path",
-        metavar="PRIVATE_KEY_PATH",
-        type=Path,
-        help="Path to the RSA private key file",
-    )
-    parser.add_argument(
         "--worst",
         dest="worst",
         action=argparse.BooleanOptionalAction,
@@ -81,14 +74,23 @@ def main():
 
     targets_path = args.generated_path / "gen_targets.http"
 
-    rsa_private_key: Optional[jwt.JWK] = None
+    hs = jwt.JWK.from_password(secret_key)
+    rsa = jwt.JWK.generate(kty="RSA", size=4096)
+
+    jwks = jwt.JWKSet()
+    jwks.add(hs)
+    jwks.add(rsa)
+
+    jwks_path = args.generated_path / "gen_jwks.json"
+
+    # Technically, this exports the private keys, because HS does not have the concept
+    # of a public key. This is not a problem for tests, though, PostgREST can verify
+    # tokens with the private key just as well.
+    jwks_path.write_text(jwks.export())
+    print(f"Created JWKSet on {jwks_path}")
 
     nsamples = 500  # per algorithm
     ntargets = 100000
-
-    hs = jwt.JWK.from_password(secret_key)
-    private_key_data = args.private_key_path.read_text()
-    rsa = jwt.JWK.from_json(private_key_data)
 
     print(f"Generating {ntargets} targets...")
 

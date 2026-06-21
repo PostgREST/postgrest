@@ -66,11 +66,9 @@ let
         case "$_arg_kind" in
           jwt)
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
-
-            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
+            ${genTargets} "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -80,10 +78,9 @@ let
             ;;
 
           jwt-cache)
-            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${genTargets} --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
+            ${genTargets} "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -93,10 +90,9 @@ let
             ;;
 
           jwt-cache-worst)
-            ${genKeyMaterials} --jwks="$_arg_testdir"/gen_jwks.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} --worst "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -316,14 +312,6 @@ let
         doCheck = false; # postgrest-style conflicts with this
       }
       (builtins.readFile ./generate_targets.py);
-
-  genKeyMaterials =
-    writers.writePython3 "postgrest-gen-key-materials"
-      {
-        libraries = [ python3Packages.jwcrypto ];
-        doCheck = false; # postgrest-style conflicts with this
-      }
-      (builtins.readFile ./gen_key_materials.py);
 
   mergeMonitorResults =
     writers.writePython3 "postgrest-merge-monitor-results"
