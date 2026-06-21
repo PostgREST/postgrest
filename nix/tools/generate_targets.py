@@ -25,7 +25,7 @@ secret_key = "reallyreallyreallyreallyverysafe"
 def generate_target(
     now: int,
     exp_inc: Optional[int],
-    rsa_private_key: Optional[jwt.JWK],
+    key: jwt.JWK,
 ) -> list[str]:
     """Generate a target using an HS256 or RS256 JWT"""
     headers = {
@@ -40,12 +40,8 @@ def generate_target(
         "role": "postgrest_test_author",
     }
 
-    if rsa_private_key is None:
-        key = jwt.JWK.from_password(secret_key)
-        headers["alg"] = "HS256"
-    else:
-        key = rsa_private_key
-        headers["alg"] = "RS256"
+    headers["alg"] = "RS256" if key.get("kty") == "RSA" else "HS256"
+
     token = jwt.JWT(headers, claims)
     token.make_signed_token(key)
 
@@ -90,8 +86,9 @@ def main():
     nsamples = 500  # per algorithm
     ntargets = 100000
 
+    hs = jwt.JWK.from_password(secret_key)
     private_key_data = args.private_key_path.read_text()
-    rsa_private_key = jwt.JWK.from_json(private_key_data)
+    rsa = jwt.JWK.from_json(private_key_data)
 
     print(f"Generating {ntargets} targets...")
 
@@ -110,17 +107,13 @@ def main():
 
         for i in range(ntargets):
             target = generate_target(
-                now,
-                run_postgrest_time + i // 1000,
-                rsa_private_key if i % 2 == 0 else None,
+                now, run_postgrest_time + i // 1000, rsa if i % 2 == 0 else hs
             )
             lines.extend(target)
 
     else:
-        hs_targets = [generate_target(now, None, None) for _ in range(nsamples)]
-        rsa_targets = [
-            generate_target(now, None, rsa_private_key) for _ in range(nsamples)
-        ]
+        hs_targets = [generate_target(now, None, hs) for _ in range(nsamples)]
+        rsa_targets = [generate_target(now, None, rsa) for _ in range(nsamples)]
         for i in range(ntargets):
             target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
             lines.extend(target)
