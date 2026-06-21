@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: ['mixed', 'jwt-hs', 'jwt-hs-cache', 'jwt-hs-cache-worst', 'jwt-rsa', 'jwt-rsa-cache', 'jwt-rsa-cache-worst']
+        kind: ['mixed', 'jwt', 'jwt-cache', 'jwt-cache-worst']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
