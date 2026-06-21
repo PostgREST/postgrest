@@ -14,7 +14,6 @@ import time
 import argparse
 import random
 import jwcrypto.jwt as jwt
-from typing import Optional
 from pathlib import Path
 
 URL = "http://postgrest"
@@ -24,7 +23,6 @@ secret_key = "reallyreallyreallyreallyverysafe"
 
 def generate_target(
     now: int,
-    exp_inc: Optional[int],
     key: jwt.JWK,
 ) -> list[str]:
     """Generate a target using an HS256 or RS256 JWT"""
@@ -32,9 +30,6 @@ def generate_target(
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
     }
-
-    if exp_inc is not None:
-        headers["exp"] = now + exp_inc
 
     claims = {
         "role": "postgrest_test_author",
@@ -61,13 +56,6 @@ def main():
         metavar="GENERATED_PATH",
         help="Path to write the generated files",
         type=Path,
-    )
-    parser.add_argument(
-        "--worst",
-        dest="worst",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Generate worst case targets for a JWT cache",
     )
 
     args = parser.parse_args()
@@ -98,27 +86,11 @@ def main():
 
     lines = []
 
-    # We want to ensure 401 Unauthorized responses don't happen during
-    # JWT validation, this can happen when the jwt `exp` is too short.
-    # At the same time, we want to ensure the `exp` is not too big,
-    # so expires will occur and postgREST needs to
-    # clean cached expired JWTs
-    if args.worst:
-        # estimated time it takes to run postgrest itself
-        run_postgrest_time = 2
-
-        for i in range(ntargets):
-            target = generate_target(
-                now, run_postgrest_time + i // 1000, rsa if i % 2 == 0 else hs
-            )
-            lines.extend(target)
-
-    else:
-        hs_targets = [generate_target(now, None, hs) for _ in range(nsamples)]
-        rsa_targets = [generate_target(now, None, rsa) for _ in range(nsamples)]
-        for i in range(ntargets):
-            target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
-            lines.extend(target)
+    hs_targets = [generate_target(now, hs) for _ in range(nsamples)]
+    rsa_targets = [generate_target(now, rsa) for _ in range(nsamples)]
+    for i in range(ntargets):
+        target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
+        lines.extend(target)
 
     with open(targets_path, "w") as f:
         f.write("\n".join(lines))
