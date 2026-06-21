@@ -89,8 +89,8 @@ def main():
         dest="private_key_path",
         metavar="PRIVATE_KEY_PATH",
         type=Path,
+        help="Path to the RSA private key file",
         default=None,
-        help="Path to the RSA private key file (required when --rsa is used)",
     )
     parser.add_argument(
         "--worst",
@@ -99,20 +99,12 @@ def main():
         default=False,
         help="Generate worst case targets for a JWT cache",
     )
-    parser.add_argument(
-        "--rsa",
-        dest="jwk_path",
-        metavar="JWK_PATH",
-        type=Path,
-        default=None,
-        help="Path to an existing RSA JWK file used for signing tokens",
-    )
 
     args = parser.parse_args()
 
     rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm] = None
 
-    is_hs = args.jwk_path is None
+    is_hs = args.private_key_path is None
 
     nsamples = 1000
 
@@ -123,8 +115,6 @@ def main():
         ntargets = 50000
 
     if not is_hs:
-        if args.private_key_path is None:
-            parser.error("--rsa requires the --private-key option")
         try:
             private_key_data = args.private_key_path.read_text()
         except OSError as e:
