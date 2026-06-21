@@ -67,11 +67,11 @@ let
           jwt-cache)
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
 
-            ${genTargets} "$_arg_testdir"
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} "$_arg_testdir"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
