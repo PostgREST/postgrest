@@ -12,7 +12,6 @@
 # from an array
 import time
 import argparse
-import sys
 import random
 import jwcrypto.jwt as jwt
 from typing import Optional
@@ -91,22 +90,8 @@ def main():
     nsamples = 500  # per algorithm
     ntargets = 100000
 
-    try:
-        private_key_data = args.private_key_path.read_text()
-    except OSError as e:
-        err = (
-            f"Error reading RSA private key from {args.private_key_path}: "
-            f"{e}. Generate RSA materials first with gen_rsa_materials.py."
-        )
-        print(err, file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        rsa_private_key = jwt.JWK.from_json(private_key_data)
-    except Exception as exc:  # broad exception to capture parsing errors
-        err = f"Error loading RSA private key from {args.private_key_path}: " f"{exc}"
-        print(err, file=sys.stderr)
-        sys.exit(1)
+    private_key_data = args.private_key_path.read_text()
+    rsa_private_key = jwt.JWK.from_json(private_key_data)
 
     print(f"Generating {ntargets} targets...")
 
@@ -140,12 +125,8 @@ def main():
             target = random.choice(hs_targets if i % 2 == 0 else rsa_targets)
             lines.extend(target)
 
-    try:
-        with open(targets_path, "w") as f:
-            f.write("\n".join(lines))
-    except IOError as e:
-        print(f"Error writing to {targets_path}: {e}", file=sys.stderr)
-        sys.exit(1)
+    with open(targets_path, "w") as f:
+        f.write("\n".join(lines))
 
     print(f"Created {ntargets} targets", end=" ")
 
