@@ -12,7 +12,6 @@
 # from an array
 import time
 import argparse
-import subprocess
 import sys
 import random
 import jwt
@@ -52,27 +51,6 @@ def generate_target(
         f"Authorization: Bearer {token}",
         "",  # blank line to separate requests
     ]
-
-
-# we use this to chain commands on loadtest.nix
-def run_command(command: list[str]):
-    if not command:
-        return
-
-    if command[0] == "--":
-        command = command[1:]
-
-    if not command:
-        return
-
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exc:
-        print(
-            f"Error executing command {' '.join(command)}: {exc}",
-            file=sys.stderr,
-        )
-        sys.exit(exc.returncode)
 
 
 def main():
