@@ -24,12 +24,12 @@ URL = "http://postgrest"
 secret_key = b"reallyreallyreallyreallyverysafe"
 
 
-def generate_jwt(
+def generate_target(
     now: int,
     exp_inc: Optional[int],
     rsa_private_key: Optional[jwt.algorithms.RSAAlgorithm],
-) -> str:
-    """Generate an HS256 or RS256 JWT"""
+) -> list[str]:
+    """Generate a target using an HS256 or RS256 JWT"""
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
@@ -45,13 +45,13 @@ def generate_jwt(
     else:
         key = rsa_private_key
         alg = "RS256"
-    return jwt.encode(payload, key, alg)
+    token = jwt.encode(payload, key, alg)
 
-
-def append_targets(lines: list[str], token: str):
-    lines.append(f"OPTIONS {URL}/authors_only")
-    lines.append(f"Authorization: Bearer {token}")
-    lines.append("")  # blank line to separate requests
+    return [
+        f"OPTIONS {URL}/authors_only",
+        f"Authorization: Bearer {token}",
+        "",  # blank line to separate requests
+    ]
 
 
 # we use this to chain commands on loadtest.nix
@@ -150,14 +150,16 @@ def main():
         run_postgrest_time = 2
 
         for i in range(ntargets):
-            token = generate_jwt(now, run_postgrest_time + i // 1000, rsa_private_key)
-            append_targets(lines, token)
+            target = generate_target(
+                now, run_postgrest_time + i // 1000, rsa_private_key
+            )
+            lines.extend(target)
 
     else:
-        tokens = [generate_jwt(now, None, rsa_private_key) for _ in range(nsamples)]
+        targets = [generate_target(now, None, rsa_private_key) for _ in range(nsamples)]
         for i in range(ntargets):
-            token = random.choice(tokens)
-            append_targets(lines, token)
+            target = random.choice(targets)
+            lines.extend(target)
 
     try:
         with open(args.targets_path, "w") as f:
