@@ -28,7 +28,7 @@ module PostgREST.SchemaCache
   , queryTimingsWLabels
   ) where
 
-import           Data.Aeson ((.=))
+import           Data.Aeson ((.:), (.=))
 import qualified Data.Aeson as JSON
 
 import qualified Data.ByteString.Char8      as BS
@@ -100,6 +100,17 @@ instance JSON.ToJSON SchemaCache where
     , "dbMediaHandlers"   .= JSON.toJSON hdlers
     , "dbTimezones"       .= JSON.toJSON tzs
     ]
+
+instance JSON.FromJSON SchemaCache where
+  parseJSON = JSON.withObject "SchemaCache" $ \o -> do
+    tabs <- o .: "dbTables"
+    SchemaCache tabs
+      <$> o .: "dbRelationships"
+      <*> o .: "dbRoutines"
+      <*> o .: "dbRepresentations"
+      <*> o .: "dbMediaHandlers"
+      <*> o .: "dbTimezones"
+      <*> pure (tablesFuzzyIndex tabs)
 
 showSummary :: SchemaCache -> Text
 showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
@@ -188,16 +199,21 @@ querySchemaCache conf@AppConfig{..} = do
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
 
-    , dbTablesFuzzyIndex =
-        -- Only build fuzzy index for schemas with a reasonable number of tables
-        -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
-        Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
+    , dbTablesFuzzyIndex = tablesFuzzyIndex tabsWViewsPks
     }, qsTime)
   where
     schemas = toList configDbSchemas
     isLogDebug = configLogLevel == LogDebug
     sqlTimedStmt = sqlTimedStatement isLogDebug
     sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True
+
+tablesFuzzyIndex :: TablesMap -> TablesFuzzyIndex
+tablesFuzzyIndex tabs =
+  -- Only build fuzzy index for schemas with a reasonable number of tables.
+  -- Fuzzy.FuzzySet is memory heavy so we do not use it for large schemas.
+  Fuzzy.fromList <$>
+    HM.filter ((< maxDbTablesForFuzzySearch) . length)
+      (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabs))
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap

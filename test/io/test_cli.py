@@ -259,7 +259,6 @@ def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
     assert formatted == snapshot_yaml
 
 
-@pytest.mark.xfail(reason="--load-schema-cache is not implemented", strict=True)
 def test_load_schema_cache_dump_at_startup(tmp_path, defaultenv, metapostgrest):
     "A valid schema cache dump should be loaded at startup."
 
@@ -289,7 +288,6 @@ def test_load_schema_cache_dump_at_startup(tmp_path, defaultenv, metapostgrest):
         reset_statement_timeout(metapostgrest, role)
 
 
-@pytest.mark.xfail(reason="--load-schema-cache is not implemented", strict=True)
 def test_load_schema_cache_dump_missing_file_falls_back_to_database(
     tmp_path, defaultenv
 ):
