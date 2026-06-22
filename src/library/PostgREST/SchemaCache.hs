@@ -28,7 +28,7 @@ module PostgREST.SchemaCache
   , queryTimingsWLabels
   ) where
 
-import           Data.Aeson ((.=))
+import           Data.Aeson ((.:), (.=))
 import qualified Data.Aeson as JSON
 
 import qualified Data.ByteString.Char8      as BS
@@ -93,6 +93,17 @@ instance JSON.ToJSON SchemaCache where
     , "dbMediaHandlers"   .= JSON.toJSON hdlers
     , "dbTimezones"       .= JSON.toJSON tzs
     ]
+
+instance JSON.FromJSON SchemaCache where
+  parseJSON = JSON.withObject "SchemaCache" $ \o -> do
+    tabs <- o .: "dbTables"
+    SchemaCache tabs
+      <$> o .: "dbRelationships"
+      <*> o .: "dbRoutines"
+      <*> o .: "dbRepresentations"
+      <*> o .: "dbMediaHandlers"
+      <*> o .: "dbTimezones"
+      <*> pure (tablesFuzzyIndex tabs)
 
 showSummary :: SchemaCache -> Text
 showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =

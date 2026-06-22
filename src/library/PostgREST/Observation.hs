@@ -34,6 +34,7 @@ data Observation
   | DBConnectedObs Text
   | SchemaCacheEmptyObs
   | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
+  | SchemaCacheInitialLoadFailureObs Text Text
   | SchemaCacheQueriedObs Double (Maybe QueryTimings)
   | SchemaCacheLoadedObs Double Text
   | ConnectionRetryObs Int
