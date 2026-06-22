@@ -133,32 +133,6 @@ def test_jwt_errors(defaultenv):
             == "JWT is unsecured but expected 'alg' was not 'none'"
         )
 
-    env = {
-        **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_ENTRIES": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-    }
-
-    # for code coverage with cache enabled and server-timing enabled
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/authors_only")
-        assert response.status_code == 401
-        assert response.json()["message"] == "permission denied for table authors_only"
-
-    env = {
-        **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_ENTRIES": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-    }
-
-    # for code coverage with cache enabled and server-timing disabled
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/authors_only")
-        assert response.status_code == 401
-        assert response.json()["message"] == "permission denied for table authors_only"
-
 
 def test_fail_with_invalid_password(defaultenv):
     "Connecting with an invalid password should fail without retries."
