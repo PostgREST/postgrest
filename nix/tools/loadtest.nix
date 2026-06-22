@@ -192,6 +192,9 @@ let
             Run the vegeta loadtest against every target branch and HEAD:
             - once on the every <target-#> branch
             - once in the current worktree
+
+            Note that the Nix tooling is always taken from the HEAD branch, while the PostgREST binary is taken from the target branch.
+            For a discussion on why this is set up like this, see https://github.com/PostgREST/postgrest/pull/5013#discussion_r3431508441.
           '';
         args = [
           "ARG_POSITIONAL_INF([target], [Commit-ish reference to compare with], 1)"
