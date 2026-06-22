@@ -5,12 +5,14 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig baseCfg $ do
-  describe "Test PostgreSQL and PostgREST errors" $ do
+spec withConfig = do
+  withConfig baseCfg $ describe "Test PostgreSQL and PostgREST errors" $ do
     it "should return 500 for cardinality_violation" $
       get "/bad_subquery" `shouldRespondWith` 500
 
@@ -100,3 +102,124 @@ spec withConfig = withConfig baseCfg $ do
           , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
                            , "Content-Length" <:> "119" ]
           }
+
+    context "JWT Errors" $ do
+      it "error on jwt encoded with wrong secret" $ do
+        let jwtPayload = [json|{}|]
+            auth = authHeaderJWT $ generateJWTWithSecret jwtPayload "wrong secret"
+        request methodGet "/authors_only" [auth] ""
+          `shouldRespondWith`
+          [json|{
+            "code":"PGRST301",
+            "details":"None of the keys was able to decode the JWT",
+            "hint":null,
+            "message":"No suitable key or wrong key type"
+          }|]
+          { matchStatus = 401 }
+
+      it "when role does not exist" $ do
+        let jwtPayload = [json|{ "role": "not existing" }|]
+            auth = authHeaderJWT $ generateJWT jwtPayload
+        request methodGet "/authors_only" [auth] ""
+          `shouldRespondWith`
+          [json|{
+            "code":"22023",
+            "details":null,
+            "hint":null,
+            "message":"role \"not existing\" does not exist"
+          }|]
+          { matchStatus = 401 }
+
+      context "we allow 30 seconds clock skew" $ do
+        it "it should return error if expired" $ do
+          currentTime <- liftIO $ relativeSeconds (-35)
+          let jwtPayload = [json|{ "exp": #{currentTime} }|]
+              auth = authHeaderJWT $ generateJWT jwtPayload
+          request methodGet "/authors_only" [auth] ""
+            `shouldRespondWith`
+            [json|{
+              "code":"PGRST303",
+              "details":null,
+              "hint":null,
+              "message":"JWT expired"
+            }|]
+            { matchStatus = 401 }
+
+        it "it should return error if used before it is valid" $ do
+          currentTime <- liftIO $ relativeSeconds 35
+          let jwtPayload = [json|{ "nbf": #{currentTime} }|]
+              auth = authHeaderJWT $ generateJWT jwtPayload
+          request methodGet "/authors_only" [auth] ""
+            `shouldRespondWith`
+            [json|{
+              "code":"PGRST303",
+              "details":null,
+              "hint":null,
+              "message":"JWT not yet valid"
+            }|]
+            { matchStatus = 401 }
+
+        it "it should return error if issued at future" $ do
+          currentTime <- liftIO $ relativeSeconds 35
+          let jwtPayload = [json|{ "iat": #{currentTime} }|]
+              auth = authHeaderJWT $ generateJWT jwtPayload
+          request methodGet "/authors_only" [auth] ""
+            `shouldRespondWith`
+            [json|{
+              "code":"PGRST303",
+              "details":null,
+              "hint":null,
+              "message":"JWT issued at future"
+            }|]
+            { matchStatus = 401 }
+
+  withConfig baseCfg { configJwtAudience = Just "spec tests" } $ describe "Test JWT Audience error" $ do
+    it "it should return error if JWT not in audience" $ do
+      let jwtPayload = [json|{ "aud": "not set" }|]
+          auth = authHeaderJWT $ generateJWT jwtPayload
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST303",
+          "details":null,
+          "hint":null,
+          "message":"JWT not in audience"
+        }|]
+        { matchStatus = 401 }
+
+  withConfig baseCfg $ describe "Test JWT Token format errors" $ do
+    it "when partial token is provided" $ do
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGFuIG9iamVjdA"
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST301",
+          "details":null,
+          "hint":null,
+          "message":"Expected 3 parts in JWT; got 2"
+        }|]
+        { matchStatus = 401 }
+
+    it "when token is complete but random characters" $ do
+      let auth = authHeaderJWT "quifquirndsjagnrgniur.fonvoienqhhdj.iuqvnvhojah"
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST301",
+          "details":null,
+          "hint":null,
+          "message":"JWT cryptographic operation failed"
+        }|]
+        { matchStatus = 401 }
+
+    it "when token with algorithm 'none' is used" $ do
+      let auth = authHeaderJWT "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI"
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST301",
+          "details":"JWT is unsecured but expected 'alg' was not 'none'",
+          "hint":null,
+          "message":"Wrong or unsupported encoding algorithm"
+        }|]
+        { matchStatus = 401 }

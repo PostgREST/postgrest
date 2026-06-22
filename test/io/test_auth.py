@@ -7,7 +7,7 @@ import time
 import pytest
 
 from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
-from util import authheader, jwtauthheader, parse_server_timings_header, relativeSeconds
+from util import authheader, jwtauthheader, parse_server_timings_header
 from postgrest import (
     run,
     sleep_until_postgrest_config_reload,
@@ -65,73 +65,6 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         response = postgrest.session.get("/authors_only", headers=headers)
         print(response.text)
         assert response.status_code == 200
-
-
-def test_jwt_errors(defaultenv):
-    "invalid JWT should throw error"
-
-    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
-
-    with run(env=env) as postgrest:
-        headers = jwtauthheader({}, "other secret")
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "No suitable key or wrong key type"
-        assert (
-            response.json()["details"] == "None of the keys was able to decode the JWT"
-        )
-
-        headers = jwtauthheader({"role": "not_existing"}, SECRET)
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == 'role "not_existing" does not exist'
-
-        # -35 seconds, because we allow clock skew of 30 seconds
-        headers = jwtauthheader({"exp": relativeSeconds(-35)}, SECRET)
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "JWT expired"
-
-        # 35 seconds, because we allow clock skew of 30 seconds
-        headers = jwtauthheader({"nbf": relativeSeconds(35)}, SECRET)
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "JWT not yet valid"
-
-        # 35 seconds, because we allow clock skew of 35 seconds
-        headers = jwtauthheader({"iat": relativeSeconds(35)}, SECRET)
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "JWT issued at future"
-
-        headers = jwtauthheader({"aud": "not set"}, SECRET)
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "JWT not in audience"
-
-        # partial token, no signature
-        headers = authheader("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGFuIG9iamVjdA")
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "Expected 3 parts in JWT; got 2"
-
-        # complete token but random characters
-        headers = authheader("quifquirndsjagnrgniur.fonvoienqhhdj.iuqvnvhojah")
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "JWT cryptographic operation failed"
-
-        # token with algorithm "none"
-        headers = authheader(
-            "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI"
-        )
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 401
-        assert response.json()["message"] == "Wrong or unsupported encoding algorithm"
-        assert (
-            response.json()["details"]
-            == "JWT is unsecured but expected 'alg' was not 'none'"
-        )
 
 
 def test_fail_with_invalid_password(defaultenv):

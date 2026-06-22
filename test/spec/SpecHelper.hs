@@ -13,14 +13,15 @@ import qualified Jose.Jwa               as JWT
 import qualified Jose.Jws               as JWT
 import qualified Jose.Jwt               as JWT
 
-import Data.Aeson           ((.=))
-import Data.CaseInsensitive (CI (..), original)
-import Data.List            (lookup)
-import Data.List.NonEmpty   (fromList)
-import Network.Wai          (Application)
-import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.IO.Unsafe     (unsafePerformIO)
-import Text.Regex.TDFA      ((=~))
+import Data.Aeson            ((.=))
+import Data.CaseInsensitive  (CI (..), original)
+import Data.List             (lookup)
+import Data.List.NonEmpty    (fromList)
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Network.Wai           (Application)
+import Network.Wai.Test      (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import System.IO.Unsafe      (unsafePerformIO)
+import Text.Regex.TDFA       ((=~))
 
 
 import Network.HTTP.Types
@@ -207,6 +208,10 @@ generateJWT :: BL.ByteString -> ByteString
 generateJWT claims =
   either mempty JWT.unJwt $ JWT.hmacEncode JWT.HS256 generateSecret (BL.toStrict claims)
 
+generateJWTWithSecret :: BL.ByteString -> ByteString -> ByteString
+generateJWTWithSecret claims secret =
+  either mempty JWT.unJwt $ JWT.hmacEncode JWT.HS256 secret (BL.toStrict claims)
+
 -- | Tests whether the text can be parsed as a json object containing
 -- the key "message", and optional keys "details", "hint", "code",
 -- and no extraneous keys
@@ -245,3 +250,8 @@ getInsertDataForTiobePlsTable rows =
 
 readFixtureFile :: FilePath -> BL.ByteString
 readFixtureFile file = unsafePerformIO $ BL.readFile $ "test/spec/fixtures/" <> file
+
+relativeSeconds :: Integer -> IO Integer
+relativeSeconds s = do
+  currTime <- getPOSIXTime
+  return $ floor currTime + s

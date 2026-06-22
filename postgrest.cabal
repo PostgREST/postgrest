@@ -298,6 +298,7 @@ test-suite spec
                     , regex-tdfa        >= 1.2.2 && < 1.4
                     , scientific        >= 0.3.4 && < 0.4
                     , text              >= 1.2.2 && < 2.2
+                    , time              >= 1.6 && < 1.15
                     , transformers-base >= 0.4.4 && < 0.5
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.2
