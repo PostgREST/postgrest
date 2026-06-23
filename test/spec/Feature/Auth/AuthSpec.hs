@@ -84,6 +84,13 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
+  it "succeeds with a valid iat claim in jwt" $ do
+    currentTime <- liftIO $ relativeSeconds 0
+    let jwtPayload = [json|{ "role": "postgrest_test_author", "iat": #{currentTime} }|]
+        auth = authHeaderJWT $ generateJWT jwtPayload
+    request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` 200
+
   it "fails when auth header is sent empty" $ do
     let auth = authHeaderJWT ""
     request methodGet "/authors_only" [auth] ""
