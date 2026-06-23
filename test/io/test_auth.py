@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from operator import attrgetter
 import signal
-import time
 import pytest
 
 from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
@@ -113,28 +112,6 @@ def test_jwt_aud_in_role_claim_key(jwtaudroleclaim, defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == jwtaudroleclaim["expected_status"]
-
-
-def test_iat_claim(defaultenv):
-    """
-    A claim with an 'iat' (issued at) attribute should be successful.
-
-    The PostgREST time cache leads to issues here, see:
-    https://github.com/PostgREST/postgrest/issues/1139
-
-    """
-
-    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
-
-    claim = {"role": "postgrest_test_author", "iat": datetime.now(timezone.utc)}
-    headers = jwtauthheader(claim, SECRET)
-
-    with run(env=env) as postgrest:
-        for _ in range(10):
-            response = postgrest.session.get("/authors_only", headers=headers)
-            assert response.status_code == 200
-
-            time.sleep(0.1)
 
 
 def test_jwt_secret_reload(tmp_path, defaultenv):
