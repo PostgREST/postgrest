@@ -22,6 +22,7 @@ module PostgREST.SchemaCache
   ( SchemaCache(..)
   , TablesFuzzyIndex
   , querySchemaCache
+  , dumpSchemaCache
   , showSummary
   , decodeFuncs
   , QueryTimings(..)
@@ -32,6 +33,7 @@ import           Data.Aeson ((.:), (.=))
 import qualified Data.Aeson as JSON
 
 import qualified Data.ByteString.Char8      as BS
+import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
@@ -104,6 +106,9 @@ instance JSON.FromJSON SchemaCache where
       <*> o .: "dbMediaHandlers"
       <*> o .: "dbTimezones"
       <*> pure (tablesFuzzyIndex tabs)
+
+dumpSchemaCache :: SchemaCache -> LBS.ByteString
+dumpSchemaCache = JSON.encode
 
 showSummary :: SchemaCache -> Text
 showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =

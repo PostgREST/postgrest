@@ -32,6 +32,7 @@ module PostgREST.AppState
   ) where
 
 import qualified Data.ByteString.Char8      as BS
+import qualified Data.ByteString.Lazy       as LBS
 import           Data.Either.Combinators    (whenLeft)
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
@@ -63,16 +64,15 @@ import PostgREST.Config.Database         (queryDbSettings, queryPgVersion,
                                           queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..), minimumPgVersion)
 import PostgREST.Debounce                (makeDebouncer)
-import PostgREST.SchemaCache             (SchemaCache (..), querySchemaCache,
-                                          showSummary)
+import PostgREST.SchemaCache             (SchemaCache (..), dumpSchemaCache,
+                                          querySchemaCache, showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString.Lazy as LBS
-import qualified Network.HTTP.Client  as HC
-import           Network.URI          (URI (..), URIAuth (..), parseURI,
-                                       unEscapeString)
-import           System.IO.Error      (userError)
+import qualified Data.Aeson          as JSON
+import qualified Network.HTTP.Client as HC
+import           Network.URI         (URI (..), URIAuth (..), parseURI,
+                                      unEscapeString)
+import           System.IO.Error     (userError)
 
 import Protolude
 
@@ -163,6 +163,14 @@ fetchInitialSchemaCache observer uri = flip catches [
     fileURIPath (Just URIAuth{uriRegName=""}) path = pure $ unEscapeString path
     fileURIPath (Just URIAuth{uriRegName="localhost"}) path = pure $ unEscapeString path
     fileURIPath _ _ = throwIO $ userError "Only local file URIs are supported"
+
+writeSchemaCacheDump :: ObservationHandler -> FilePath -> SchemaCache -> IO ()
+writeSchemaCacheDump observer path sCache =
+  LBS.writeFile path (dumpSchemaCache sCache) `catch` handleWriteError
+  where
+    handleWriteError :: IOException -> IO ()
+    handleWriteError =
+      observer . SchemaCacheDumpFailureObs (toS path)
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
 initWithPool pool conf loggerState metricsState observer appKiller = mdo
@@ -391,6 +399,8 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
           -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
           markSchemaCachePending appState
           putSchemaCache appState $ Just sCache
+          for_ configSchemaCacheDumpPath $ \path ->
+            writeSchemaCacheDump observer path sCache
           (loadTime, summary) <- timeItT (evaluate $ showSummary sCache)
           -- Flush the pool after loading the schema cache to reset any stale session cache entries
           -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)

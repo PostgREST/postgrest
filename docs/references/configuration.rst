@@ -884,6 +884,33 @@ openapi-server-proxy-uri
       ]
     }
 
+.. _schema-cache-dump-path:
+
+schema-cache-dump-path
+----------------------
+
+  =============== ==========================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_SCHEMA_CACHE_DUMP_PATH
+  **In-Database** `n/a`
+  =============== ==========================
+
+  Specifies a local file path where PostgREST writes a JSON dump of the runtime
+  :ref:`schema_cache` after each successful schema cache load or reload.
+
+  The parent directory must already exist and be writable by the PostgREST
+  process. If writing the dump fails, PostgREST logs the failure and continues
+  serving with the loaded schema cache.
+
+  The dump can be loaded on a later start with :ref:`cli_schema_cache_uri`. See
+  :ref:`schema_cache_dumping` for a startup workflow.
+
+  .. code:: bash
+
+    schema-cache-dump-path = "/var/lib/postgrest/schema-cache.json"
+
 .. _server_cors_allowed_origins:
 
 server-cors-allowed-origins

@@ -8,7 +8,6 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
-import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Transaction.Sessions as SQL
@@ -17,7 +16,7 @@ import qualified Options.Applicative        as O
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.Observation (Observation (..))
-import PostgREST.SchemaCache (querySchemaCache)
+import PostgREST.SchemaCache (dumpSchemaCache, querySchemaCache)
 import PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.App      as App
@@ -71,7 +70,7 @@ dumpSchema appState = do
       let observer = AppState.getObserver appState
       observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
       exitFailure
-    Right (sCache, _) -> return $ JSON.encode sCache
+    Right (sCache, _) -> return $ dumpSchemaCache sCache
 
 -- | Command line interface options
 data CLI = CLI

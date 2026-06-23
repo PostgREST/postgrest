@@ -158,6 +158,8 @@ observationMessages = \case
       <> " and "
       <> "db-extra-search-path=" <> T.intercalate "," extraPaths
       <> ". " <> jsonMessage usageErr
+  SchemaCacheDumpFailureObs path err ->
+    pure $ "Failed to write schema cache dump to " <> path <> ". " <> show err
   SchemaCacheInitialLoadFailureObs uri err ->
     pure $ "Failed to load schema cache dump from " <> uri <> ". " <> err
   SchemaCacheQueriedObs resultTime timings ->

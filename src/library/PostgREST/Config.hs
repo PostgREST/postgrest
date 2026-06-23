@@ -111,6 +111,7 @@ data AppConfig = AppConfig
   , configOpenApiMode               :: OpenAPIMode
   , configOpenApiSecurityActive     :: Bool
   , configOpenApiServerProxyUri     :: Maybe Text
+  , configSchemaCacheDumpPath       :: Maybe FilePath
   , configServerCorsAllowedOrigins  :: [Text]
   , configServerHost                :: Text
   , configServerPort                :: Int
@@ -199,6 +200,7 @@ toText conf =
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
+      ,("schema-cache-dump-path",    q . maybe mempty T.pack . configSchemaCacheDumpPath)
       ,("server-cors-allowed-origins", q . T.intercalate "," . configServerCorsAllowedOrigins)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
@@ -319,6 +321,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
+    <*> (fmap T.unpack <$> optString "schema-cache-dump-path")
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
     <*> (defaultServerHost <$> optString "server-host")
     <*> parseServerPort "server-port"
@@ -781,6 +784,9 @@ exampleConfigFile = S.unlines
   , ""
   , "## Base url for the OpenAPI output"
   , "openapi-server-proxy-uri = \"\""
+  , ""
+  , "## File path for writing a schema cache dump after successful schema cache loads"
+  , "# schema-cache-dump-path = \"/var/lib/postgrest/schema-cache.json\""
   , ""
   , "## Configurable CORS origins"
   , "# server-cors-allowed-origins = \"\""

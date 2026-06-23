@@ -1072,6 +1072,61 @@ def test_notify_reloading_catalog_cache(defaultenv):
         assert response.status_code == 200
 
 
+def test_dump_schema_cache_after_reload_used_on_startup(
+    tmp_path, defaultenv, metapostgrest
+):
+    "A schema cache dump written after reload should be usable on startup."
+
+    role = defaultenv["PGUSER"]
+    table = "schema_cache_dump_reload_items"
+    schema_cache_dump = tmp_path / "schema-cache.json"
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "public",
+        "PGRST_SCHEMA_CACHE_DUMP_PATH": str(schema_cache_dump),
+    }
+
+    try:
+        psql_as_superuser(f"drop table if exists {table};")
+
+        with run(env=env) as postgrest:
+            response = postgrest.session.get(f"/{table}")
+            assert response.status_code == 404
+            assert response.json()["code"] == "PGRST205"
+
+            psql_as_superuser(
+                f"""
+                create table {table}(id int primary key);
+                insert into {table} values (1);
+                grant select on {table} to postgrest_test_anonymous;
+                notify pgrst, 'reload schema';
+                """
+            )
+            sleep_until_postgrest_scache_reload()
+
+            response = postgrest.session.get(f"/{table}")
+            assert response.status_code == 200
+
+        set_statement_timeout(metapostgrest, role, 400)
+        slow_start_env = {
+            **env,
+            "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
+        }
+
+        with run(
+            env=slow_start_env,
+            args=["--schema-cache-uri", schema_cache_dump.as_uri()],
+            wait_max_seconds=2,
+        ) as postgrest:
+            response = postgrest.session.get(f"/{table}")
+            assert response.status_code == 200
+    finally:
+        reset_statement_timeout(metapostgrest, role)
+        psql_as_superuser(f"drop table if exists {table};")
+
+
 def test_stale_schema_cache_dropped_table_returns_database_error(defaultenv):
     "dropped table should return a database error while schema cache is stale"
 

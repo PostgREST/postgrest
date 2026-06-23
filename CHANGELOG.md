@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
 - Add `--schema-cache-uri` CLI option to asynchronously load an initial schema cache from a schema cache dump source by @mkleczek in #5031
   + Valid sources can be from a `http(s)` or local `file://` URI.
+- Add `schema-cache-dump-path` to automatically dump the schema cache after each reload for fast restarts and scale-to-zero setups by @mkleczek in #5082
 
 ### Fixed
 
