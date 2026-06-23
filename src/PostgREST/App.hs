@@ -106,7 +106,12 @@ run appState = do
   address <- resolveSocketToAddress mainSocket
   observer $ AppServerAddressObs address
 
-  Warp.runSettingsSocket (serverSettings conf & setOnException onWarpException) mainSocket app
+  let
+    appServerSettings = serverSettings conf
+      & setPort (configServerPort conf)
+      & setOnException onWarpException
+
+  Warp.runSettingsSocket appServerSettings mainSocket app
   where
     observer = AppState.getObserver appState
 
@@ -129,7 +134,6 @@ serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
   defaultSettings
     & setHost (fromString $ toS configServerHost)
-    & setPort configServerPort
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application

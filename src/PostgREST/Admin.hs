@@ -11,7 +11,8 @@ import Control.Monad.Extra       (whenJust)
 import Network.Socket            hiding (addrFamily)
 import Network.Socket.ByteString
 
-import PostgREST.AppState    (AppState)
+import PostgREST.AppState    (AppState, getConfig)
+import PostgREST.Config      (AppConfig (..))
 import PostgREST.MediaType   (MediaType (..), toContentType)
 import PostgREST.Metrics     (metricsToText)
 import PostgREST.Network     (resolveSocketToAddress)
@@ -24,13 +25,18 @@ import           Protolude
 
 runAdmin :: AppState -> Maybe NS.Socket -> IO (Maybe NS.Socket) -> Warp.Settings -> IO ()
 runAdmin appState maybeAdminSocket getSocketREST settings = do
+  conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
     observer $ AdminStartObs address
-    void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
+    void . forkIO $ Warp.runSettingsSocket (adminServerSettings conf) adminSocket adminApp
   where
     adminApp = admin appState getSocketREST
     observer = AppState.getObserver appState
+    adminServerSettings config =
+      case configAdminServerPort config of
+        Just p  -> settings & Warp.setPort p
+        Nothing -> settings
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
