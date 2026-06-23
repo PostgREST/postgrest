@@ -75,6 +75,8 @@ Dump Schema
 
 Dumps the schema cache in JSON format.
 
+.. _cli_schema_cache_uri:
+
 Schema Cache URI
 ----------------
 

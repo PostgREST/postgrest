@@ -33,6 +33,7 @@ data Observation
   | ExitDBFatalError ObsFatalError SQL.UsageError
   | DBConnectedObs Text
   | SchemaCacheEmptyObs
+  | SchemaCacheDumpFailureObs Text IOException
   | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
   | SchemaCacheInitialLoadFailureObs Text Text
   | SchemaCacheQueriedObs Double (Maybe QueryTimings)
