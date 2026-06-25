@@ -1,43 +1,43 @@
 {-# LANGUAGE TupleSections #-}
 module SpecHelper where
 
-import           Control.Lens           ((^?))
 import qualified Data.Aeson             as JSON
-import           Data.Aeson.Lens
 import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
-import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
 import qualified Jose.Jwa               as JWT
 import qualified Jose.Jws               as JWT
 import qualified Jose.Jwt               as JWT
 
+import Control.Lens          ((^?))
 import Data.Aeson            ((.=))
 import Data.CaseInsensitive  (CI (..), original)
 import Data.List             (lookup)
 import Data.List.NonEmpty    (fromList)
+import Data.Scientific       (toRealFloat)
+import Data.String           (String)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Network.Wai           (Application)
 import Network.Wai.Test      (SResponse (simpleBody, simpleHeaders, simpleStatus))
 import System.IO.Unsafe      (unsafePerformIO)
 import Text.Regex.TDFA       ((=~))
 
-
-import Network.HTTP.Types
-import Test.Hspec
-import Test.Hspec.Wai
-
-import Data.String                       (String)
 import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
                                           Verbosity (..), parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import Protolude                         hiding (get, toS)
-import Protolude.Conv                    (toS)
+
+import Data.Aeson.Lens
+import Network.HTTP.Types
+import Test.Hspec
+import Test.Hspec.Wai
+
+import Protolude      hiding (get, toS)
+import Protolude.Conv (toS)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
