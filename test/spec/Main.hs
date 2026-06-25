@@ -150,7 +150,7 @@ main = do
         , ("Feature.Query.Preferences.TimezoneSpec.enabledSpec", Feature.Query.Preferences.TimezoneSpec.enabledSpec)
         , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
         , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec)
-        , ("Feature.Query.QuerySpec.specNoLegacyTargetNames"   , Feature.Query.QuerySpec.specNoLegacyTargetNames)
+        , ("Feature.Query.QuerySpec.specLegacyTargetNames"     , Feature.Query.QuerySpec.specLegacyTargetNames)
         , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)

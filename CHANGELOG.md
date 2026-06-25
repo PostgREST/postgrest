@@ -15,14 +15,13 @@ All notable changes to this project will be documented in this file. From versio
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
 - Support running the admin server on a unix socket by @wolfgangwalther in #5003
-- Add config `url-use-legacy-target-names` to allow using target names in filters when it has an alias by @laurenceisla in #4075
+- Add config `url-use-legacy-target-names` to allow using target names in filters, orders or limits when it has an alias by @laurenceisla in #4075
 
 ### Fixed
 
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
-  + You need to set the `url-use-legacy-target-names` config to `false`.
 - If the schema cache fails to reload, PostgREST will no longer stop serving requests and will continue doing so in a "best effort" basis by @mkleczek in #4873 #4869
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
 
@@ -34,13 +33,13 @@ All notable changes to this project will be documented in this file. From versio
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
+- The name of an embedded table can no longer be used in filters, orders or limits if it has an alias by @steve-chavez, @laurenceisla in #4075
+  + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+  + You can bypass this breaking change by setting `url-use-legacy-target-names = true` (you will see a warning in the logs when this happens)
 
 ### Deprecated
 
-- Deprecate filtering by the name of an embedded table when it has an alias by @steve-chavez, @laurenceisla in #4075
-  + e.g. `?select=alias:table(*)&table.id=eq.1` will not be possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
-  + You will see a warning in the logs when this happens.
-  + You can disable this behavior now by setting `url-use-legacy-target-names = false`.
+- Deprecate bypassing breaking change using `url-use-legacy-target-names = true` by @steve-chavez, @laurenceisla in #4075
 
 ## [14.13] - 2026-06-04
 

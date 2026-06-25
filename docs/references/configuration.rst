@@ -1017,22 +1017,29 @@ url-use-legacy-target-names
 
   =============== =================================
   **Type**        Boolean
-  **Default**     True
+  **Default**     False
   **Reloadable**  Y
   **Environment** PGRST_URL_USE_LEGACY_TARGET_NAMES
   **In-Database** pgrst.url_use_legacy_target_names
   =============== =================================
 
-  When active, it allows using the target name of the relationship in filters even if it has an alias:
+  When active, it allows using the the name of an embedded table in filters, orders or limits even if it has an alias:
 
   .. code:: bash
 
-    /table?select=alias:target(*)&target.order=id
+    curl "http://localhost:3000/table?select=alias:target(*)&target.order=id" -i
 
-  This feature will be removed in a future release, so you should start using the ``alias`` in these cases.
-  You will see a warning in the logs when this happens.
+  .. code:: text
+
+    Warning: 299 PostgRESTv15(pre-release) "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release. Update `target` to `alias` in query string filters, orders or limits."
+    [...]
+
+  You will receive a deprecation message in the ``Warning`` header.
+  This will also show in the PostgREST logs when ``log-level = warn``:
 
   .. code::
 
     28/May/2026:20:33:22 -0500: WARNING: Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release.
-    28/May/2026:20:33:22 -0500: Please update the filters that use `target` to `alias` in `GET /table?select=alias:target(*)&target.order=id`
+    28/May/2026:20:33:22 -0500: Please update filters, orders or limits that use `target` to `alias` in `GET /table?select=alias:target(*)&target.order=id`
+
+  This feature will be removed in a future release, so you should start using the ``alias`` in these cases.
