@@ -19,26 +19,31 @@ module PostgREST.Auth.JwtCache
   , lookupJwtCache
   ) where
 
-import qualified Data.Aeson        as JSON
-import qualified Data.Aeson.KeyMap as KM
-
-import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
-
 import           Control.Concurrent.STM      (newTVarIO, readTVar,
                                               writeTVar)
 import           Control.Concurrent.STM.TVar (TVar)
 import           Control.Monad.Error.Class   (liftEither)
-import           Data.ByteString             hiding (all, init)
+import qualified Data.Aeson                  as JSON
+import qualified Data.Aeson.KeyMap           as KM
+import qualified Data.ByteString             as BS
+import qualified Data.ByteString.Internal    as BS
+import           Data.Either.Extra
 import           Data.IORef                  (IORef, newIORef,
                                               readIORef, writeIORef)
 import           Jose.Jwk                    (JwkSet)
-import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
+import qualified Jose.Jwk                    as JWT
+import qualified Jose.Jwt                    as JWT
 import           PostgREST.Cache.Sieve       (alwaysValid)
 import qualified PostgREST.Cache.Sieve       as SC
 import           PostgREST.Config            (AppConfig (..))
+import           PostgREST.Error             (Error (..),
+                                              JwtClaimsError (..),
+                                              JwtDecodeError (..),
+                                              JwtError (..))
 import           PostgREST.Observation       (Observation (JwtCacheEviction, JwtCacheLookup),
                                               ObservationHandler)
-import           Protolude
+
+import Protolude
 
 data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
 
@@ -113,3 +118,33 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
 
 lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> Maybe ByteString -> m JSON.Object
 lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
+
+parseAndDecodeClaims :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
+parseAndDecodeClaims jwkSet = decodeClaims <=< parseToken jwkSet
+  where
+    decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
+    decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
+
+-- | Receives the JWT secret and audience (from config) and a JWT and returns a
+-- JSON object of JWT claims.
+parseToken :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JWT.JwtContent
+parseToken _ "" = throwError $ JwtErr $ JwtDecodeErr EmptyAuthHeader
+parseToken secret tkn = do
+  tknWith3Parts <- hasThreeParts tkn
+  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
+  liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
+  where
+      hasThreeParts token = case BS.count (BS.c2w '.') token of
+        2 -> pure token
+        n -> throwError $ JwtErr $ JwtDecodeErr $ UnexpectedParts (n + 1)
+
+      jwtDecodeError :: JWT.JwtError -> JwtError
+      -- The only errors we can get from JWT.decode function are:
+      --   BadAlgorithm
+      --   KeyError
+      --   BadCrypto
+      jwtDecodeError (JWT.KeyError m)     = JwtDecodeErr $ KeyError m
+      jwtDecodeError (JWT.BadAlgorithm m) = JwtDecodeErr $ BadAlgorithm m
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeErr BadCrypto
+      -- Control never reaches here, the decode function only returns the above three
+      jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError
