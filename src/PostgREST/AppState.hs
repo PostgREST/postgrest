@@ -63,7 +63,8 @@ import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
                                           queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..),
-                                          minimumPgVersion)
+                                          minimumPgVersion,
+                                          pgVersion150)
 import PostgREST.Debounce                (makeDebouncer)
 import PostgREST.SchemaCache             (SchemaCache (..),
                                           querySchemaCache,
@@ -406,17 +407,17 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         Right x -> pure x
     else
       pure mempty
-  (roleSettings, roleIsolationLvl) <-
+  roleIsolationLvl <-
     if configDbConfig conf then do
-      rSettings <- usePool appState (queryRoleSettings pgVer)
+      rSettings <- usePool appState queryRoleSettings
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e
-          pure (mempty, mempty)
+          pure mempty
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
+  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) (pgVer >= pgVersion150) roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up

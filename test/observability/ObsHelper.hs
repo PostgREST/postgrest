@@ -90,6 +90,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbRootSpec                = Nothing
   , configDbSchemas                 = fromList ["test"]
   , configDbConfig                  = False
+  , configDbHasParameterPrivilege   = False
   , configDbPreConfig               = Nothing
   , configDbTimezoneEnabled         = True
   , configDbUri                     = "postgresql://"
@@ -117,7 +118,6 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configAdminServerPort           = Nothing
   , configAdminServerUnixSocket     = Nothing
   , configAdminServerUnixSocketMode = 432
-  , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
   , configInternalSCQuerySleepFst   = Nothing
   , configInternalSCQuerySleepSnd   = Nothing
