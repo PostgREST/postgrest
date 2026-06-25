@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module SpecHelper where
 
 import           Control.Lens           ((^?))
@@ -82,6 +83,26 @@ matchServerTimingHasTiming metric = MatchHeader $ \headers _body ->
                   then Nothing
                   else Just $ "missing metric: " <> metric <> "\n"
     Nothing  -> Just "missing Server-Timing header\n"
+
+parseServerTimingHeader :: [Header] -> M.Map BS.ByteString Double
+parseServerTimingHeader []     = M.empty
+parseServerTimingHeader (h:hs) =
+  case h of
+    ("Server-Timing", timingHeader) ->
+      let
+        timings = BS.split ',' timingHeader
+      in
+        M.fromList $ mapMaybe splitEachTiming timings
+    _ -> parseServerTimingHeader hs
+  where
+    splitEachTiming :: ByteString -> Maybe (BS.ByteString, Double)
+    splitEachTiming t =
+      case BS.split ';' t of
+        [name, durationText] ->
+          case BS.split '=' durationText of
+            [_, duration] -> (name,) <$> readMaybe (BS.unpack duration)
+            _ -> Nothing
+        _ -> Nothing
 
 validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do

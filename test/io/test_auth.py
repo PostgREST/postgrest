@@ -1,12 +1,11 @@
 "Auth related IO tests for PostgREST"
 
-from datetime import datetime, timedelta, timezone
 from operator import attrgetter
 import signal
 import pytest
 
 from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
-from util import authheader, jwtauthheader, parse_server_timings_header
+from util import authheader, jwtauthheader
 from postgrest import (
     run,
     sleep_until_postgrest_config_reload,
@@ -185,92 +184,6 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
-
-
-# TODO: This test is more related to observability than authentication.
-#       So, move it an appropriate test module.
-def test_jwt_cache_server_timing(defaultenv):
-    "server-timing duration is exposed for JWT with expiry"
-
-    env = {
-        **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_ENTRIES": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-        "PGRST_DB_CONFIG": "false",
-    }
-
-    headers = jwtauthheader(
-        {
-            "role": "postgrest_test_author",
-            "exp": int(
-                (datetime.now(timezone.utc) + timedelta(minutes=30)).timestamp()
-            ),
-        },
-        SECRET,
-    )
-
-    with run(env=env) as postgrest:
-        first = postgrest.session.get("/authors_only", headers=headers)
-        second = postgrest.session.get("/authors_only", headers=headers)
-
-        assert first.status_code == 200
-        assert second.status_code == 200
-
-        first_dur = parse_server_timings_header(first.headers["Server-Timing"])["jwt"]
-        second_dur = parse_server_timings_header(second.headers["Server-Timing"])["jwt"]
-
-        # with jwt caching the parse time of second request with the same token
-        # should be at least as fast as the first one
-        assert second_dur <= first_dur
-
-
-def test_jwt_cache_without_server_timing(defaultenv):
-    "JWT cache does not break requests with server-timing disabled"
-
-    env = {
-        **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_ENTRIES": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-        "PGRST_DB_CONFIG": "false",
-    }
-
-    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
-
-    with run(env=env) as postgrest:
-        first = postgrest.session.get("/authors_only", headers=headers)
-        second = postgrest.session.get("/authors_only", headers=headers)
-
-        assert first.status_code == 200
-        assert second.status_code == 200
-
-
-def test_jwt_cache_without_exp_claim(defaultenv):
-    "server-timing duration is exposed for JWT without expiry"
-
-    env = {
-        **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_ENTRIES": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-        "PGRST_DB_CONFIG": "false",
-    }
-
-    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)  # no exp
-
-    with run(env=env) as postgrest:
-        first = postgrest.session.get("/authors_only", headers=headers)
-        second = postgrest.session.get("/authors_only", headers=headers)
-
-        assert first.status_code == 200
-        assert second.status_code == 200
-
-        first_dur = parse_server_timings_header(first.headers["Server-Timing"])["jwt"]
-        second_dur = parse_server_timings_header(second.headers["Server-Timing"])["jwt"]
-
-        assert first_dur >= 0
-        assert second_dur >= 0
 
 
 def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):

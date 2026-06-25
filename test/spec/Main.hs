@@ -24,6 +24,7 @@ import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
+import qualified Feature.Auth.JwtCacheSpec
 import qualified Feature.Auth.NoAnonSpec
 import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
@@ -115,6 +116,7 @@ main = do
         , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.spec)
         , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.spec)
         , ("Feature.Auth.BinaryJwtSecretSpec"                  , Feature.Auth.BinaryJwtSecretSpec.spec)
+        , ("Feature.Auth.JwtCacheSpec"                         , Feature.Auth.JwtCacheSpec.spec)
         , ("Feature.Auth.NoAnonSpec"                           , Feature.Auth.NoAnonSpec.spec)
         , ("Feature.Auth.NoJwtSecretSpec"                      , Feature.Auth.NoJwtSecretSpec.spec)
         , ("Feature.ConcurrentSpec"                            , Feature.ConcurrentSpec.spec)
