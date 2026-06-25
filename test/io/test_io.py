@@ -1559,6 +1559,40 @@ def test_log_postgrest_host_and_port(host, defaultenv):
             match_log(output, [r".*API server listening on .+:\d+"])
 
 
+@pytest.mark.parametrize(
+    "host", ["127.0.0.1", "::1", None], ids=["IPv4", "IPv6", "Unix"]
+)
+def test_log_postgrest_admin_server_host_and_port(host, defaultenv):
+    "PostgREST should log the admin server host and port"
+
+    # We run admin server on unix socket when host and admin_port are set to None
+    is_unix = host is None
+    port = None if is_unix else freeport()
+    admin_port = None if is_unix else freeport(used_ports=[port])
+
+    with run(
+        env=defaultenv,
+        host=host,
+        port=port,
+        admin_port=admin_port,
+        no_startup_stdout=False,
+        wait_for=Admin.ready,
+    ) as postgrest:
+        output = postgrest.read_stdout(nlines=11)
+
+        # Cannot assume a particular log entry order
+        # Listening on a socket happens after schema querying
+        # but is concurrent to the schema loading process
+        # and migh happen before or after writing of the
+        # "Schema cache loaded" log entry
+        if is_unix:
+            match_log(output, [r".*Admin server listening on .*/tmp/.*\.sock"])
+        elif is_ipv6(host):
+            match_log(output, [r".*Admin server listening on \[.+]:\d+"])
+        else:  # IPv4
+            match_log(output, [r".*Admin server listening on .+:\d+"])
+
+
 def test_succeed_w_role_having_superuser_settings(defaultenv):
     "Should succeed when having superuser settings on the impersonated role"
 
