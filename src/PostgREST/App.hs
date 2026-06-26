@@ -29,8 +29,8 @@ import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.IORef               (atomicWriteIORef, newIORef,
                                  readIORef)
 import Data.String              (IsString (..), String)
-import Network.Wai.Handler.Warp (defaultSettings, setHost,
-                                 setOnException, setPort,
+import Network.Wai.Handler.Warp (defaultSettings, setBeforeMainLoop,
+                                 setHost, setOnException, setPort,
                                  setServerName)
 
 import qualified Data.Text.Encoding       as T
@@ -104,12 +104,12 @@ run appState = do
   let app = postgrest appState (AppState.schemaCacheLoader appState)
 
   address <- resolveSocketToAddress mainSocket
-  observer $ AppServerAddressObs address
 
   let
     appServerSettings = serverSettings conf
       & setPort (configServerPort conf)
       & setOnException onWarpException
+      & setBeforeMainLoop (observer $ AppServerAddressObs address)
 
   Warp.runSettingsSocket appServerSettings mainSocket app
   where
