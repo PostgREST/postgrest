@@ -211,9 +211,6 @@ The loadtests ensure that performance doesn't drop on a change. Underlyingly the
 # You can loadtest comparing to a different branch
 [nix-shell]$ postgrest-loadtest-against master
 
-# You can simulate latency client/postgrest and postgrest/database
-[nix-shell]$ PGRST_DELAY=5ms PGDELAY=5ms postgrest-loadtest
-
 # You can build postgrest directly with cabal for faster iteration
 [nix-shell]$ PGRST_BUILD_CABAL=1 postgrest-loadtest
 
