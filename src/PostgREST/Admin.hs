@@ -28,15 +28,14 @@ runAdmin appState maybeAdminSocket getSocketREST settings = do
   conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
-    observer $ AdminStartObs address
-    void . forkIO $ Warp.runSettingsSocket (adminServerSettings conf) adminSocket adminApp
+    void . forkIO $ Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
     adminApp = admin appState getSocketREST
     observer = AppState.getObserver appState
-    adminServerSettings config =
-      case configAdminServerPort config of
-        Just p  -> settings & Warp.setPort p
-        Nothing -> settings
+    adminServerSettings config addr=
+      settings
+        & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
+        & maybe identity Warp.setPort (configAdminServerPort config)
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
