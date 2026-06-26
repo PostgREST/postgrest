@@ -49,6 +49,16 @@ let
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
       fuzzyset = prev.fuzzyset_0_2_4;
 
+      # TODO: Remove once available in nixpkgs
+      aeson-jsonpath =
+        prev.callHackageDirect
+          {
+            pkg = "aeson-jsonpath";
+            ver = "0.4.2.0";
+            sha256 = "sha256-K+3brf1zjSSjojtSCXFrip5rrP7AO/S4zndAxAnvEfc=";
+          }
+          { };
+
       http2 =
         prev.callHackageDirect
           {

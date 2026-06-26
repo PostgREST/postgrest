@@ -34,6 +34,19 @@ All notable changes to this project will be documented in this file. From versio
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
+- Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
+
+#### Changed Syntax for JWT Role Extraction
+
+The `jwt-role-claim-key` config should be updated according to the following:
+
+- All config values must start with `$` character.
+  + Example: `.roles.read` -> `$.roles.read`
+- Keys with special characters, with the exception of `_` char must be quoted.
+  + Example: `.roles.write-role` -> `$.roles["write-role"]`
+- String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
+  + Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
+- Detailed reference for syntax: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
 
 ## [14.13] - 2026-06-04
 

@@ -31,7 +31,7 @@ import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), audMatchesCfg)
-import PostgREST.Config.JSPath (walkJSPath)
+import PostgREST.Config.JSPath (evaluateJSPath)
 import PostgREST.Error         (Error (..), JwtClaimsError (..),
                                 JwtDecodeError (..), JwtError (..))
 
@@ -114,7 +114,7 @@ parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims 
   validateClaims time (audMatchesCfg cfg) mclaims
   -- role defaults to anon if not specified in jwt
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
-    unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
+    unquoted <$> evaluateJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
   pure AuthResult
            { authClaims = mclaims
            , authRole = role

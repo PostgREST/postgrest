@@ -24,10 +24,10 @@ import qualified Jose.Jwt                        as JWT
 import           Network.HTTP.Types
 import qualified PostgREST.AppState              as AppState
 import           PostgREST.Config                (AppConfig (..),
-                                                  JSPathExp (..),
                                                   LogLevel (..),
                                                   OpenAPIMode (..),
                                                   Verbosity (..),
+                                                  defaultRoleJSPathKey,
                                                   parseSecret)
 import qualified PostgREST.Metrics               as Metrics
 import           PostgREST.Observation           (Observation (..))
@@ -96,7 +96,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
   , configJwtAudience               = Nothing
-  , configJwtRoleClaimKey           = [JSPKey "role"]
+  , configJwtRoleClaimKey           = defaultRoleJSPathKey -- $.role
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10
