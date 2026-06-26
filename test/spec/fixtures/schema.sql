@@ -3585,6 +3585,14 @@ create table project_invoices (
 , project_id integer references projects(id)
 );
 
+-- Regression: a table AND a column literally named "countdistinct" must not
+-- collide with the countdistinct() aggregate keyword.
+create table countdistinct (
+  id            int primary key
+, countdistinct text
+, amount        numeric
+);
+
 create table budget_categories (
   id int primary key
 , category_name text
