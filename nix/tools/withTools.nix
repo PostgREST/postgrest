@@ -304,7 +304,7 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
-        FAKETIME_CMD="${libfaketime}/bin/faketime"
+        FAKETIME_LIB="${libfaketime}/lib/libfaketime.so.1"
 
         if [ -z "''${PGRST_CMD:-}" ]; then
           rm -f result
@@ -319,7 +319,7 @@ let
             }
             PGRST_CMD="$(nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage')/bin/postgrest"
             # To avoid glibc mismatches with back-branches, we need to take libfaketime from the target branch.
-            FAKETIME_CMD="$(nix-build --no-out-link -A pkgs.libfaketime)/bin/faketime"
+            FAKETIME_LIB="$(nix-build --no-out-link -A pkgs.libfaketime)/lib/libfaketime.so.1"
           else
             echo -n "${commandName}: Building postgrest (cabal)... "
             postgrest-build
@@ -334,7 +334,7 @@ let
         echo -n "${commandName}: Starting $ver... "
 
         if [[ -n "$_arg_faketime" ]]; then
-          $FAKETIME_CMD "$_arg_faketime" "$PGRST_CMD" > "$tmpdir"/run.log 2>&1 &
+          LD_PRELOAD="$FAKETIME_LIB" FAKETIME="$_arg_faketime" "$PGRST_CMD" > "$tmpdir"/run.log 2>&1 &
         else
           $PGRST_CMD > "$tmpdir"/run.log 2>&1 &
         fi
