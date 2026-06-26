@@ -9,6 +9,7 @@ nix:
     - zlib
 
 extra-deps:
+  - aeson-jsonpath-0.4.2.0
   - configurator-pg-0.2.11
   - fuzzyset-0.2.4
   - hasql-notifications-0.2.4.0

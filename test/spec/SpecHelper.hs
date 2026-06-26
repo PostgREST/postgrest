@@ -25,10 +25,11 @@ import System.IO.Unsafe      (unsafePerformIO)
 import Text.Regex.TDFA       ((=~))
 
 import PostgREST.Config                  (AppConfig (..),
-                                          JSPathExp (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
-                                          Verbosity (..), parseSecret)
+                                          Verbosity (..),
+                                          defaultRoleJSPathKey,
+                                          parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Data.Aeson.Lens
@@ -159,7 +160,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
   , configJwtAudience               = Nothing
-  , configJwtRoleClaimKey           = [JSPKey "role"]
+  , configJwtRoleClaimKey           = defaultRoleJSPathKey -- $.role
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10

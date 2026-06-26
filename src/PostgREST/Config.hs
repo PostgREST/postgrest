@@ -15,8 +15,7 @@ module PostgREST.Config
   ( AppConfig (..)
   , Environment
   , JSPath
-  , JSPathExp(..)
-  , FilterExp(..)
+  , defaultRoleJSPathKey
   , LogLevel(..)
   , OpenAPIMode(..)
   , Proxy(..)
@@ -63,9 +62,9 @@ import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.Database         (RoleIsolationLvl,
                                           RoleSettings)
-import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
-                                          JSPathExp (..), dumpJSPath,
-                                          pRoleClaimKey)
+import PostgREST.Config.JSPath           (JSPath (..),
+                                          defaultRoleJSPathKey,
+                                          dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
@@ -192,7 +191,7 @@ toText conf =
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
-      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
+      ,("jwt-role-claim-key",        q . dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-entries",         show . configJwtCacheMaxEntries)
@@ -428,7 +427,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath
     parseRoleClaimKey k al =
       optWithAlias (optString k) (optString al) >>= \case
-        Nothing  -> pure [JSPKey "role"]
+        Nothing  -> pure defaultRoleJSPathKey -- $.role
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
 
     parseCORSAllowedOrigins k =

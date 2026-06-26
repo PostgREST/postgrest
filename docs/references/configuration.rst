@@ -694,7 +694,7 @@ jwt-role-claim-key
 
   =============== =================================
   **Type**        String
-  **Default**     .role
+  **Default**     $.role
   **Reloadable**  Y
   **Environment** PGRST_JWT_ROLE_CLAIM_KEY
   **In-Database** pgrst.jwt_role_claim_key
@@ -703,6 +703,10 @@ jwt-role-claim-key
   *For backwards compatibility, this config parameter is also available without prefix as "role-claim-key".*
 
   See :ref:`jwt_role_extract` on how to specify key paths and usage examples.
+
+.. warning::
+
+  Only when using :ref:`file_config`, the ``$`` char needs to be escaped, so use ``$$`` and PostgREST will interpret it as a single ``$`` character.
 
 .. _jwt-secret:
 
