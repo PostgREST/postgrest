@@ -126,6 +126,64 @@
     tableSchema: public
     tableUpdatable: false
 
+- - qiName: awards
+    qiSchema: public
+  - tableColumns:
+      director_id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: director_id
+        colNominalType: integer
+        colNullable: true
+        colType: integer
+      film_id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: film_id
+        colNominalType: integer
+        colNullable: true
+        colType: integer
+      id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: id
+        colNominalType: integer
+        colNullable: false
+        colType: integer
+      name:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: name
+        colNominalType: text
+        colNullable: true
+        colType: text
+      year:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: year
+        colNominalType: integer
+        colNullable: true
+        colType: integer
+    tableDeletable: true
+    tableDescription: null
+    tableInsertable: true
+    tableIsView: false
+    tableName: awards
+    tablePKCols:
+    - id
+    tableSchema: public
+    tableUpdatable: true
+
 - - qiName: films
     qiSchema: public
   - tableColumns:

@@ -33,6 +33,16 @@ CREATE TABLE test.roles (
   character TEXT
 );
 
+CREATE TABLE test.awards (
+  film INT REFERENCES test.films,
+  name TEXT PRIMARY KEY,
+  year INT
+);
+
+CREATE TABLE test.specs (
+  film INT PRIMARY KEY REFERENCES test.films,
+  runtime TIME
+);
 
 CREATE TABLE test.authors_only ();
 
