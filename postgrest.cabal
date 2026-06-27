@@ -178,7 +178,7 @@ library
     if flag(hpc)
       ghc-options: -fhpc -hpcdir .hpc
   else
-    ghc-options: -O2  
+    ghc-options: -O2
     if impl(ghc >= 9.12)
       -- Makes GHC consider cross-module specialization for polymorphic functions
       -- without explicitly needing to add INLINE, INLINABLE or SPECIALIZE pragmas.
