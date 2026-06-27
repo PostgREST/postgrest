@@ -118,7 +118,7 @@ data CrudPlan
   , crQi       :: QualifiedIdentifier
   }
 
--- Plan for reading db object metadadta
+-- Plan for reading db object metadata
 data InspectPlan = InspectPlan {
     ipMedia    :: MediaType
   , ipTxmode   :: SQL.Mode
