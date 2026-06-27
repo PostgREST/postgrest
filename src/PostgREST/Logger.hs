@@ -132,6 +132,9 @@ observationMessages :: Observation -> [Text]
 observationMessages = \case
   AdminStartObs address ->
     pure $ "Admin server listening on " <> address
+  -- DO NTO MERGE: TODO: Improve observation message
+  AdminFailureObs ex s ->
+    pure $ "Admin server failed to start: " <> (showOnSingleLine '\t' . show) ex <> ". Retrying in " <> show s <> "s..."
   AppStartObs ver ->
     pure $ "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerAddressObs address ->
