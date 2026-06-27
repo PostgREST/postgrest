@@ -81,21 +81,6 @@ postgrest-commitlint
 
 Most of these commands provide a `--help` output, make sure to check it out.
 
-The `docker` module has large dependencies to be build before the shell becomes
-available, which could take an especially long time if the cachix binary cache
-is not used. You can activate it by passing a flag to `nix-shell` with
-`nix-shell --arg docker true`. This will make the respective utilities available:
-
-```bash
-$ nix-shell --arg docker true
-[nix-shell]$ postgrest-docker-<tab>
-postgrest-docker-load
-...
-
-```
-
-Note that `postgrest-docker-load` is now also available.
-
 To run one-off commands, you can also use `nix-shell --run <command>`, which
 will launch the Nix shell, run that one command and exit. Note that the tab
 completion will not work with `nix-shell --run`, as Nix has yet to evaluate
