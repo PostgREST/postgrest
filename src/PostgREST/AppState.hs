@@ -14,6 +14,7 @@ module PostgREST.AppState
   , getTime
   , getJwtCacheState
   , init
+  , initWithSchemaCache
   , initWithPool
   , putConfig -- For tests TODO refactoring
   , putSchemaCache
@@ -119,6 +120,13 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   pool <- initPool conf observer
   initWithPool pool conf loggerState metricsState observer
+
+initWithSchemaCache :: AppConfig -> SchemaCache -> IO AppState
+initWithSchemaCache conf sCache = do
+  appState <- init conf
+  putSchemaCache appState $ Just sCache
+  markSchemaCacheLoaded appState
+  pure appState
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool pool conf loggerState metricsState observer = mdo

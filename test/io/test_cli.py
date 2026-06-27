@@ -13,7 +13,13 @@ from config import (
     get_admin_host_and_port_from_config,
     hpctixfile,
 )
-from postgrest import freeport, is_ipv6, run, set_statement_timeout
+from postgrest import (
+    freeport,
+    is_ipv6,
+    reset_statement_timeout,
+    run,
+    set_statement_timeout,
+)
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
@@ -251,6 +257,48 @@ def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
         Dumper=yaml.SafeDumper if key == "dbTimezones" else ExtraNewLinesDumper,
     )
     assert formatted == snapshot_yaml
+
+
+def test_load_schema_cache_dump_at_startup(tmp_path, defaultenv, metapostgrest):
+    "A valid schema cache dump should be loaded at startup."
+
+    role = defaultenv["PGUSER"]
+    schema_cache_dump = tmp_path / "schema-cache.json"
+    schema_cache_dump.write_text(cli(["--dump-schema"], env=defaultenv))
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "public",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
+    }
+
+    try:
+        set_statement_timeout(metapostgrest, role, 400)
+
+        with run(
+            env=env,
+            args=["--load-schema-cache", str(schema_cache_dump)],
+            wait_max_seconds=2,
+        ) as postgrest:
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 200
+    finally:
+        reset_statement_timeout(metapostgrest, role)
+
+
+def test_load_schema_cache_dump_missing_file_falls_back_to_database(
+    tmp_path, defaultenv
+):
+    "A missing schema cache dump should be ignored during startup."
+
+    with run(
+        env=defaultenv,
+        args=["--load-schema-cache", str(tmp_path / "missing-schema-cache.json")],
+    ) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
 
 
 def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
