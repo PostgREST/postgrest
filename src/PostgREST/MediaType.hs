@@ -39,6 +39,7 @@ data MediaType
   | MTVndSingularJSON Bool
   -- TODO MTVndPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
   | MTVndPlan MediaType MTVndPlanFormat [MTVndPlanOption]
+  | MTVndSQL MediaType
   deriving (Eq, Show, Generic, JSON.ToJSON)
 instance Hashable MediaType
 
@@ -80,6 +81,9 @@ toMime (MTVndPlan mt fmt opts)   =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   ("; for=\"" <> toMime mt <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
+toMime (MTVndSQL mt) =
+  "application/vnd.pgrst.sql" <>
+  ("; for=\"" <> toMime mt <> "\"")
 
 toMimePlanOption :: MTVndPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
@@ -127,6 +131,12 @@ toMimePlanFormat PlanText = "text"
 --
 -- >>> decodeMediaType "application/vnd.twkb"
 -- MTOther "application/vnd.twkb"
+--
+-- >>> decodeMediaType "application/vnd.pgrst.sql"
+-- MTVndSQL MTApplicationJSON
+--
+-- >>> decodeMediaType "application/vnd.pgrst.sql;for=\"text/csv\""
+-- MTVndSQL MTTextCSV
 
 decodeMediaType :: ByteString -> MediaType
 decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
@@ -145,6 +155,7 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         ("application", "vnd.pgrst.plan", _)        -> getPlan PlanText
         ("application", "vnd.pgrst.plan+text", _)   -> getPlan PlanText
         ("application", "vnd.pgrst.plan+json", _)   -> getPlan PlanJSON
+        ("application", "vnd.pgrst.sql", _)         -> MTVndSQL $ decodeMediaType' $ fromMaybe "application/json" (params !? "for")
         ("application", "vnd.pgrst.object+json", _) -> MTVndSingularJSON strippedNulls
         ("application", "vnd.pgrst.object", _)      -> MTVndSingularJSON strippedNulls
         ("application", "vnd.pgrst.array+json", _)  -> checkArrayNullStrip

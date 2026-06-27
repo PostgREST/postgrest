@@ -22,8 +22,10 @@ import qualified Data.ByteString.Char8             as BS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Session                     as SQL (Session)
+import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
@@ -65,6 +67,7 @@ data MainTx
 data DbResult
   = DbCrudResult  CrudPlan ResultSet
   | DbPlanResult  MediaType BS.ByteString
+  | SQLResult     MediaType BS.ByteString
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
 
@@ -106,6 +109,7 @@ mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCa
 planTxMode :: DbActionPlan -> SQL.Mode
 planTxMode (DbCrud _ x) = pTxMode x
 planTxMode (MayUseDb x) = ipTxmode x
+planTxMode (SQLOnly x)  = planTxMode x
 
 planIsoLvl :: AppConfig -> ByteString -> DbActionPlan -> SQL.IsolationLevel
 planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
@@ -114,11 +118,27 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
+-- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
+-- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
+renderSnippet :: SQL.Snippet -> ByteString
+renderSnippet snippet =
+  let SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder False
+      decoder = HD.noResult -- unused
+  in
+    sql
+
 actionResult :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction DbResult
 actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
   explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
   optionalRollback conf apiReq
   pure $ DbPlanResult (pMedia plan) explRes
+
+actionResult MainQuery{..} (SQLOnly (DbCrud _ plan)) _ _ _ =
+  pure $ SQLResult (pMedia plan) $ BS.intercalate "\n\n" $ filter (/= mempty) snipts
+  where
+    snipts = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, fromMaybe mempty mqExplain]
+
+actionResult mq (SQLOnly dbplan) conf apiReq sCache = actionResult mq dbplan conf apiReq sCache
 
 actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet@RSStandard{rsTableTotal=tableTotal} <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
