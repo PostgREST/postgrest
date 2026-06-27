@@ -162,9 +162,6 @@ The loadtests ensure that performance doesn't drop on a change. Underlyingly the
 # You can loadtest comparing to a different branch
 [nix-shell]$ postgrest-loadtest-against main
 
-# You can build postgrest directly with cabal for faster iteration
-[nix-shell]$ PGRST_BUILD_CABAL=1 postgrest-loadtest
-
 # Produce a markdown report to be used on CI
 [nix-shell]$ postgrest-loadtest-report
 ```

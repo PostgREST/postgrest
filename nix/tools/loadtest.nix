@@ -1,5 +1,6 @@
 { buildToolbox
 , checkedShellScript
+, git
 , jq
 , libfaketime
 , python3Packages
@@ -43,7 +44,6 @@ let
         docs = "Run the vegeta loadtests with PostgREST.";
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
-          "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-cache,jwt-cache-worst])"
           "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
@@ -65,23 +65,23 @@ let
 
         case "$_arg_kind" in
           jwt-cache)
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwks.json"
+            export PGRST_JWT_SECRET="@test/load/gen_jwks.json"
 
-            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} "$_arg_testdir"
+            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} test/load
 
             # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPg} -f test/load/fixtures.sql \
             ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
+            sh -c "cd test/load && \
             ${runner} -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           # here we sleep purposefully to check how much memory does the schema cache consume in the final report
           mixed)
             # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPg} -f test/load/fixtures.sql \
             ${withTools.withPgrst} --timeout 2 --sleep 5 -m "$_arg_monitor" \
-            sh -c "cd \"$_arg_testdir\" && \
+            sh -c "cd test/load && \
             ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
         esac
@@ -146,7 +146,39 @@ let
         workingDir = "/";
       }
       ''
-        # run loadtest for every target and HEAD
+        # Build postgrest for every target and HEAD.
+        # Keeps a reference to the postgrest binary and faketime lib for every branch to run later.
+        declare -A pgrst faketime
+        for tgt in "''${_arg_target[@]}" HEAD; do
+          # not using withTmpDir here, because we don't want to keep the directory on error
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+
+          ${git}/bin/git worktree add -f "$tmpdir" "$tgt" > /dev/null
+          pushd "$tmpdir" > /dev/null
+
+          build_start=$SECONDS
+          echo -n "${name}: Building postgrest (nix) on $tgt... "
+          # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
+          nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > build.log 2>&1 || {
+            echo "failed, output:"
+            cat build.log
+            exit 1
+          }
+          pgrst[$tgt]="$(nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage')/bin/postgrest"
+          # To avoid glibc mismatches with back-branches, we need to take libfaketime from the target branch.
+          faketime[$tgt]="$(nix-build --no-out-link -A pkgs.libfaketime)/lib/libfaketime.so.1"
+          build_end=$((SECONDS - build_start))
+          printf "done in %ss.\n" "$build_end"
+
+          popd > /dev/null
+          ${git}/bin/git worktree remove -f "$tmpdir" > /dev/null
+          rm -rf "$tmpdir"
+        done
+
+        # Run loadtest for every target and HEAD.
+        # Running the tests is separated from building them to reduce the chances of
+        # other processes skewing the results between two runs.
         for tgt in "''${_arg_target[@]}" HEAD; do
 
         cat << EOF
@@ -155,12 +187,7 @@ let
 
         EOF
 
-        # Runs the test files from the current working tree
-        # to make sure both tests are run with the same files.
-        # Save the results in the current working tree, too,
-        # otherwise they'd be lost in the temporary working tree
-        # created by withTools.withGit.
-        ${withTools.withGit} "$tgt" ${loadtest} -k "$_arg_kind" -m "$PWD/loadtest/$tgt.csv" --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
+        FAKETIME_LIB="''${faketime[$tgt]}" PGRST_CMD="''${pgrst[$tgt]}" ${loadtest} -k "$_arg_kind" -m "loadtest/$tgt.csv" --output "loadtest/$tgt.bin"
 
         cat << EOF
 

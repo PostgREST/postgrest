@@ -130,7 +130,7 @@ rec {
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie withTools; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
 
   # Documentation tools.
   docs =
