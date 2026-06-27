@@ -7,11 +7,13 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion190)
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWithConfig
-spec withConfig = withConfig baseCfg $ do
+spec :: PgVersion -> SpecWithConfig
+spec actualPgVersion withConfig = withConfig baseCfg $ do
 
   describe "Querying a table with a column called count" $
     it "should not confuse count column with pg_catalog.count aggregate" $
@@ -1651,14 +1653,17 @@ spec withConfig = withConfig baseCfg $ do
     -- verifies we don't panic or add inappropriate SQL to the filters.
     it "fails safely on user trying to use ilike operator on data reps column" $
       get "/datarep_todos?select=id,name&label_color=ilike.#*100" `shouldRespondWith`
-        [json|
-          {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
-        |]
+        (if actualPgVersion < pgVersion190 then
+          [json|
+            {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
+          |]
+         else
+          [json|
+            {"code":"42883","details":"No operator of that name accepts the given argument types.","hint":"You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
+          |]
+        )
         { matchStatus  = 404
-        , matchHeaders = [
-            "Content-Length" <:> "200",
-            matchContentTypeJson
-          ]
+        , matchHeaders = [ matchContentTypeJson ]
         }
 
   context "searching for an empty string" $ do

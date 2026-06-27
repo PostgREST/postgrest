@@ -55,7 +55,7 @@ packages:
     hackage: warp-3.4.13
 snapshots:
 - completed:
-    sha256: 3c412a7c13dba6d3d808455a458e0776c58b6cf99b8a7961a2f5e55589d6f1d6
-    size: 729011
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/24/43.yaml
-  original: lts-24.43
+    sha256: 3286bb954fe0e7e0291ca61fac01a689b7165da9d7e8ba3c3a045be989c860fd
+    size: 732677
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/24/48.yaml
+  original: lts-24.48

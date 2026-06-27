@@ -365,7 +365,7 @@ spec withConfig = withConfig baseCfg $
     context "tables with self reference foreign keys" $ do
       context "one self reference foreign key" $ do
         it "embeds parents recursively" $
-          get "/family_tree?id=in.(3,4)&select=id,parent(id,name,parent(*))" `shouldRespondWith`
+          get "/family_tree?id=in.(3,4)&select=id,parent(id,name,parent(*))&order=id" `shouldRespondWith`
             [json|[
               { "id": "3", "parent": { "id": "1", "name": "Parental Unit", "parent": null } },
               { "id": "4", "parent": { "id": "2", "name": "Kid One", "parent": { "id": "1", "name": "Parental Unit", "parent": null } } }
@@ -390,7 +390,7 @@ spec withConfig = withConfig baseCfg $
             }]|] { matchHeaders = [matchContentTypeJson] }
 
         it "embeds parent and then embeds children on a view" $
-          get "/job?select=id,parent_id(*),children:job!parent_id(id,parent_id)" `shouldRespondWith`
+          get "/job?select=id,parent_id(*),children:job!parent_id(id,parent_id)&order=id" `shouldRespondWith`
             [json|[
               {
                 "id": 1,
@@ -527,13 +527,13 @@ spec withConfig = withConfig baseCfg $
     context "embedding with col as a target doesn't consider views" $ do
       -- https://github.com/PostgREST/postgrest/issues/1643
       it "works with self reference both ways(m2o and o2m)" $ do
-        get "/test?select=id,parent_id,parent:parent_id(id)" `shouldRespondWith`
+        get "/test?select=id,parent_id,parent:parent_id(id)&order=id" `shouldRespondWith`
           [json| [
             { "id": 1, "parent_id": null, "parent": null },
             { "id": 2, "parent_id": 1, "parent": { "id": 1 } }
           ] |]
           { matchHeaders = [matchContentTypeJson] }
-        get "/test?select=id,parent_id,childs:test(id)" `shouldRespondWith`
+        get "/test?select=id,parent_id,childs:test(id)&order=id" `shouldRespondWith`
           [json| [
             { "id": 1, "parent_id": null, "childs": [ { "id": 2 } ] },
             { "id": 2, "parent_id": 1, "childs": [] }

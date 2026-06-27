@@ -2056,11 +2056,7 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
 
     with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
         output = postgrest.read_stdout(nlines=8)
-        assert any(
-            'Failed to query database settings for the config parameters.{"code":"42883","details":null,"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","message":"function select() does not exist"}'
-            in line
-            for line in output
-        )
+        assert any("function select() does not exist" in line for line in output)
 
 
 def test_server_timing_transaction_duration_with_role_statement_timeout(

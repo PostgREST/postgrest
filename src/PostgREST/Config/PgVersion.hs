@@ -5,6 +5,7 @@ module PostgREST.Config.PgVersion
   , minimumPgVersion
   , pgVersion150
   , pgVersion180
+  , pgVersion190
   ) where
 
 import qualified Data.Aeson as JSON
@@ -34,3 +35,6 @@ pgVersion150 = PgVersion 150000 "15.0" "15.0"
 
 pgVersion180 :: PgVersion
 pgVersion180 = PgVersion 180000 "18.0" "18.0"
+
+pgVersion190 :: PgVersion
+pgVersion190 = PgVersion 190000 "19.0" "19.0"

@@ -5,11 +5,13 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion190)
+
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWithConfig
-spec withConfig = withConfig baseCfg $ describe "json and jsonb operators" $ do
+spec :: PgVersion -> SpecWithConfig
+spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb operators" $ do
   context "Shaping response with select parameter" $ do
     it "obtains a json subfield one level with casting" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
@@ -67,15 +69,27 @@ spec withConfig = withConfig baseCfg $ describe "json and jsonb operators" $ do
     it "fails when a double arrow ->> is followed with a single arrow ->" $ do
       get "/json_arr?select=data->>c->1"
         `shouldRespondWith`
-        [json|
-          {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
-           "details":null,"code":"42883","message":"operator does not exist: text -> integer"} |]
+        (if actualPgVersion < pgVersion190 then
+          [json|
+            {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
+             "details":null,"code":"42883","message":"operator does not exist: text -> integer"} |]
+         else
+          [json|
+            {"hint":"You might need to add explicit type casts.","details":"No operator of that name accepts the given argument types.",
+             "code":"42883","message":"operator does not exist: text -> integer"} |]
+        )
         { matchStatus  = 404 , matchHeaders = [] }
       get "/json_arr?select=data->>c->b"
         `shouldRespondWith`
-        [json|
-          {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
-           "details":null,"code":"42883","message":"operator does not exist: text -> unknown"} |]
+        (if actualPgVersion < pgVersion190 then
+          [json|
+            {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
+             "details":null,"code":"42883","message":"operator does not exist: text -> unknown"} |]
+         else
+          [json|
+            {"hint":"You might need to add explicit type casts.","details":"No operator of that name accepts the given argument types.",
+             "code":"42883","message":"operator does not exist: text -> unknown"} |]
+        )
         { matchStatus  = 404 , matchHeaders = [] }
 
     context "with array index" $ do
