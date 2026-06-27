@@ -57,6 +57,7 @@ let
         export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
         export PGRST_DB_CONFIG="false"
         export PGRST_DB_POOL="1"
+        export PGRST_DB_PLAN_ENABLED="1"
         export PGRST_DB_SCHEMAS="test"
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
