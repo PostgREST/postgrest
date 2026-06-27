@@ -3,7 +3,9 @@
 , git
 , jq
 , libfaketime
+, python3
 , python3Packages
+, runCommand
 , vegeta
 , withTools
 , writers
@@ -65,15 +67,13 @@ let
 
         case "$_arg_kind" in
           jwt-cache)
-            export PGRST_JWT_SECRET="@test/load/gen_jwks.json"
-
-            ${libfaketime}/bin/faketime '2000-01-01 00:00:00' ${genTargets} test/load
+            export PGRST_JWT_SECRET="@${generatedTargets}/gen_jwks.json"
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f test/load/fixtures.sql \
             ${withTools.withPgrst} --faketime '2000-01-01 00:00:00' -m "$_arg_monitor" \
             sh -c "cd test/load && \
-            ${runner} -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+            ${runner} -targets ${generatedTargets}/gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           # here we sleep purposefully to check how much memory does the schema cache consume in the final report
@@ -291,13 +291,15 @@ let
           | ${mergeMonitorResults}
       '';
 
-  genTargets =
-    writers.writePython3 "postgrest-gen-loadtest-targets"
+  generatedTargets =
+    runCommand "postgrest-loadtest-targets"
       {
-        libraries = [ python3Packages.jwcrypto ];
-        doCheck = false; # postgrest-style conflicts with this
+        nativeBuildInputs = [ (python3.withPackages (pyps: [ pyps.jwcrypto ])) ];
       }
-      (builtins.readFile ./generate_targets.py);
+      ''
+        mkdir -p "$out"
+        ${libfaketime}/bin/faketime '2000-01-01 00:00:00' python3 ${./generate_targets.py} "$out"
+      '';
 
   mergeMonitorResults =
     writers.writePython3 "postgrest-merge-monitor-results"
