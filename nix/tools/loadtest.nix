@@ -146,8 +146,8 @@ let
         workingDir = "/";
       }
       ''
-        # run loadtest for every target
-        for tgt in "''${_arg_target[@]}"; do
+        # run loadtest for every target and HEAD
+        for tgt in "''${_arg_target[@]}" HEAD; do
 
         cat << EOF
 
@@ -169,22 +169,6 @@ let
         EOF
 
         done
-
-        # run loadtest once on HEAD
-
-        cat << EOF
-
-        Running "$_arg_kind" loadtest on HEAD...
-
-        EOF
-
-        ${loadtest} -k "$_arg_kind" -m "$PWD/loadtest/head.csv" --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
-
-        cat << EOF
-
-        Done running on HEAD.
-
-        EOF
       '';
 
   reporter =
@@ -217,7 +201,7 @@ let
 
         def evaluate_change(df):
             try:
-                return ((df['head'] / df['main'] - 1) * 100) \
+                return ((df['HEAD'] / df['main'] - 1) * 100) \
                   .map(lambda r: "{icon} {ratio:.1f} %".format(
                     ratio=r,
                     # Hardcoded failure threshold for CI is 5% here.
