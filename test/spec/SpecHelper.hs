@@ -250,7 +250,7 @@ planCost :: SResponse -> Float
 planCost resp =
   let res = simpleBody resp ^? nth 0 . key "Plan" . key "Total Cost" in
   -- big value in case parsing fails
-  fromMaybe 1000000000.0 $ unbox =<< res
+  fromMaybe 1_000_000_000.0 $ unbox =<< res
   where
     unbox :: JSON.Value -> Maybe Float
     unbox (JSON.Number n) = Just $ toRealFloat n

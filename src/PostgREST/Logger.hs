@@ -52,7 +52,7 @@ data LoggerState = LoggerState
 init :: IO LoggerState
 init = mdo
   let
-    oneSecond = 1000000
+    oneSecond = 1_000_000
     loggerState = LoggerState zTime debouncePoolTimeout
   zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
   debouncePoolTimeout <- makeDebouncer $

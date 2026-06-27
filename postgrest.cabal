@@ -41,6 +41,7 @@ library
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
                       NoImplicitPrelude
+                      NumericUnderscores
   hs-source-dirs:     src
   exposed-modules:    PostgREST.Admin
                       PostgREST.App
@@ -218,6 +219,7 @@ test-suite spec
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
+                      NumericUnderscores
   hs-source-dirs:     test/spec
   main-is:            Main.hs
   other-modules:      Feature.Auth.AsymmetricJwtSpec
@@ -317,6 +319,7 @@ test-suite observability
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
+                      NumericUnderscores
   hs-source-dirs:     test/observability
   main-is:            Main.hs
   other-modules:      ObsHelper

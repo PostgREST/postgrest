@@ -97,7 +97,7 @@ retryingListen appState nextDelay hasDbListenerBug = do
   where
     observer = AppState.getObserver appState
     mainThreadId = AppState.getMainThreadId appState
-    oneSecondInMicro = 1000000
+    oneSecondInMicro = 1_000_000
     maxDelay = 32
 
     handleNotification channel msg =
