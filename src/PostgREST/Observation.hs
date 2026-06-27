@@ -25,6 +25,7 @@ import Protolude hiding (toList)
 
 data Observation
   = AdminStartObs Text
+  | AdminFailureObs SomeException Int
   | AppStartObs ByteString
   | AppServerAddressObs Text
   | ExitUnsupportedPgVersion PgVersion PgVersion

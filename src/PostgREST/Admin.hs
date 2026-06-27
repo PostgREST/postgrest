@@ -8,6 +8,8 @@ import qualified Network.Wai               as Wai
 import qualified Network.Wai.Handler.Warp  as Warp
 
 import Control.Monad.Extra       (whenJust)
+import Data.IORef                (IORef, newIORef, readIORef,
+                                  writeIORef)
 import Network.Socket            hiding (addrFamily)
 import Network.Socket.ByteString
 
@@ -25,17 +27,33 @@ import           Protolude
 
 runAdmin :: AppState -> Maybe NS.Socket -> IO (Maybe NS.Socket) -> Warp.Settings -> IO ()
 runAdmin appState maybeAdminSocket getSocketREST settings = do
-  conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
-    address <- resolveSocketToAddress adminSocket
-    void . forkIO $ Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
+    nextDelay <- newIORef 1
+    retryAdminServer appState nextDelay settings adminSocket adminApp
   where
     adminApp = admin appState getSocketREST
-    observer = AppState.getObserver appState
-    adminServerSettings config addr=
-      settings
-        & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
-        & maybe identity Warp.setPort (configAdminServerPort config)
+
+-- | Keep retrying running admin server on Exception
+retryAdminServer :: AppState -> IORef Int -> Warp.Settings -> NS.Socket -> Wai.Application -> IO ()
+retryAdminServer appState nextDelay settings adminSocket adminApp = do
+  conf <- getConfig appState
+  address <- resolveSocketToAddress adminSocket
+  void $ forkIO $
+    handle onError $ Warp.runSettingsSocket (adminSettings conf address) adminSocket adminApp
+    where
+      observer = AppState.getObserver appState
+      adminSettings config addr =
+        settings
+          & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
+          & maybe identity Warp.setPort (configAdminServerPort config)
+
+      onError ex = do
+        delay <- readIORef nextDelay
+        observer $ AdminFailureObs ex delay
+        let oneSecondInMicro = 1000000
+        threadDelay (delay * oneSecondInMicro)
+        writeIORef nextDelay (delay * 2)
+        retryAdminServer appState nextDelay settings adminSocket adminApp
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
