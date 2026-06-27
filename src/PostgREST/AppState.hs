@@ -371,7 +371,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
       let delayMicroseconds = 32*oneSecondInUs {-32 seconds-} in
       capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 
-    oneSecondInUs = 1000000 -- one second in microseconds
+    oneSecondInUs = 1_000_000 -- one second in microseconds
 
 newSchemaCacheStatus :: IO SchemaCacheStatus
 newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyTMVarIO

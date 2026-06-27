@@ -46,4 +46,4 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "SchemaCacheQueriedObs" $ \x -> [ o | o@SchemaCacheQueriedObs{} <- pure x ]
         waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [ o | o@SchemaCacheLoadedObs{} <- pure x ]
   where
-    sec = 1000000
+    sec = 1_000_000

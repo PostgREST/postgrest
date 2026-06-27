@@ -206,7 +206,7 @@ waitForObs (ObsChan orig copy) t msg f =
     -- duplicate the provided channel and construct wairFor function binding both channels
     -- accumulate effecful computation results into a list for specified time
     takeUntilTimeout t' = fmap reverse . accumulateUntilTimeout t' (flip (:)) []
-    decisecond = 100000
+    decisecond = 100_000
 
 obsDiagMessage :: Observation -> Text
 obsDiagMessage = \case
