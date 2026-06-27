@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file. From versio
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
 - Support running the admin server on a unix socket by @wolfgangwalther in #5003
+- Support returning the request's SQL query when setting `Accept: application/vnd.pgrst.sql` by @wolfgangwalther in #3580
 
 ### Fixed
 
