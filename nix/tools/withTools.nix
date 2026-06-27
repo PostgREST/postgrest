@@ -1,7 +1,6 @@
 { buildToolbox
 , checkedShellScript
 , curl
-, git
 , lib
 , libfaketime
 , postgresqlVersions
@@ -197,47 +196,6 @@ let
 
   withPg = withTmpDb (builtins.head postgresqlVersions);
 
-  withGit =
-    let
-      name = "postgrest-with-git";
-    in
-    checkedShellScript
-      {
-        inherit name;
-        docs =
-          ''
-            Create a new worktree of the postgrest repo in a temporary directory and
-            check out <commit>, then run <command> with arguments inside the temporary folder.
-          '';
-        args =
-          [
-            "ARG_POSITIONAL_SINGLE([commit], [Commit-ish reference to run command with])"
-            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
-            "ARG_LEFTOVERS([command arguments])"
-          ];
-        positionalCompletion =
-          ''
-            if test "$prev" == "${name}"; then
-              __gitcomp_nl "$(__git_refs)"
-            else
-              _command_offset 2
-            fi
-          '';
-        workingDir = "/";
-      }
-      ''
-        # not using withTmpDir here, because we don't want to keep the directory on error
-        tmpdir="$(mktemp -d)"
-        trap 'rm -rf "$tmpdir"' EXIT
-
-        ${git}/bin/git worktree add -f "$tmpdir" "$_arg_commit" > /dev/null
-
-        cd "$tmpdir"
-        ("$_arg_command" "''${_arg_leftovers[@]}")
-
-        ${git}/bin/git worktree remove -f "$tmpdir" > /dev/null
-      '';
-
   waitForPgrstReady =
     checkedShellScript
       {
@@ -294,7 +252,8 @@ let
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
             "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
             "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring])"
-            "ARG_USE_ENV([PGRST_CMD], [], [PostgREST executable to run])"
+            "ARG_USE_ENV([FAKETIME_LIB], [${libfaketime}/lib/libfaketime.so.1], [Faketime Library to preload])"
+            "ARG_USE_ENV([PGRST_CMD], [postgrest-run], [PostgREST executable to run])"
           ];
         positionalCompletion = "_command";
         workingDir = "/";
@@ -304,27 +263,10 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
-        FAKETIME_LIB="${libfaketime}/lib/libfaketime.so.1"
-
-        if [ -z "''${PGRST_CMD:-}" ]; then
-          rm -f result
+        if [ "''${PGRST_CMD}" == "postgrest-run" ]; then
           build_start=$SECONDS
-          if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
-            echo -n "${commandName}: Building postgrest (nix)... "
-            # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
-            nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
-              echo "failed, output:"
-              cat "$tmpdir"/build.log
-              exit 1
-            }
-            PGRST_CMD="$(nix-build --no-out-link -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage')/bin/postgrest"
-            # To avoid glibc mismatches with back-branches, we need to take libfaketime from the target branch.
-            FAKETIME_LIB="$(nix-build --no-out-link -A pkgs.libfaketime)/lib/libfaketime.so.1"
-          else
-            echo -n "${commandName}: Building postgrest (cabal)... "
-            postgrest-build
-            PGRST_CMD=postgrest-run
-          fi
+          echo -n "${commandName}: Building postgrest (cabal)... "
+          postgrest-build
           build_end=$((SECONDS - build_start))
           printf "done in %ss.\n" "$build_end"
         fi
@@ -387,7 +329,6 @@ buildToolbox
   name = "postgrest-with";
   tools = {
     inherit
-      withGit
       withPgAll
       withPgrst;
   } // builtins.listToAttrs (
