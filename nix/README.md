@@ -70,40 +70,16 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 `<tab>`) in `nix-shell` to see all that are available:
 
 ```bash
-# Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-build                   postgrest-parallel-curl
-postgrest-check                   postgrest-profiled-run
-postgrest-clean                   postgrest-push-cachix
-postgrest-commitlint              postgrest-release
-postgrest-coverage                postgrest-repl
-postgrest-coverage-draft-overlay  postgrest-run
-postgrest-docs-build              postgrest-style
-postgrest-docs-check              postgrest-style-check
-postgrest-docs-dictcheck          postgrest-test-big-schema
-postgrest-docs-linkcheck          postgrest-test-doctests
-postgrest-docs-render             postgrest-test-io
-postgrest-docs-serve              postgrest-test-memory
-postgrest-docs-spellcheck         postgrest-test-replica
-postgrest-dump-minimal-imports    postgrest-test-spec
-postgrest-dump-schema             postgrest-test-spec-idempotence
-postgrest-gen-ctags               postgrest-watch
-postgrest-gen-jwt                 postgrest-with-all
-postgrest-gen-secret              postgrest-with-git
-postgrest-git-hooks               postgrest-with-pgrst
-postgrest-hsie-graph-modules      postgrest-with-pg-14
-postgrest-hsie-graph-symbols      postgrest-with-pg-15
-postgrest-hsie-minimal-imports    postgrest-with-pg-16
-postgrest-lint                    postgrest-with-pg-17
-postgrest-loadtest                postgrest-with-pg-18
-postgrest-loadtest-against        postgrest-with-slow-pg
-postgrest-loadtest-report         postgrest-with-slow-postgrest
-postgrest-nixpkgs-upgrade
+postgrest-build
+postgrest-cabal-update
+postgrest-check
+postgrest-clean
+postgrest-commitlint
 ...
-
-[nix-shell]$
-
 ```
+
+Most of these commands provide a `--help` output, make sure to check it out.
 
 The `docker` module has large dependencies to be build before the shell becomes
 available, which could take an especially long time if the cachix binary cache
