@@ -93,7 +93,7 @@ main = do
 
   let
     initApp sCache config = do
-      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState)
+      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState) mempty
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest appState (pure ()))

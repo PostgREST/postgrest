@@ -42,11 +42,12 @@ runClientCommand conf CmdReady = Client.ready conf
 -- | Run postgrest with command
 runAppCommand :: AppConfig -> RunCommand -> IO ()
 runAppCommand conf@AppConfig{..} runCmd = do
+  mainThreadId <- myThreadId
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf)
+    (AppState.init conf (killThread mainThreadId))
     AppState.destroy
     (\appState -> case runCmd of
       CmdDumpConfig -> do

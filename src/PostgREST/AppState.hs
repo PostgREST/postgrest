@@ -8,13 +8,13 @@ module PostgREST.AppState
   , destroy
   , getConfig
   , getSchemaCache
-  , getMainThreadId
   , getPgVersion
   , getNextDelay
   , getTime
   , getJwtCacheState
   , init
   , initWithPool
+  , killApp
   , putConfig -- For tests TODO refactoring
   , putSchemaCache
   , putPgVersion
@@ -90,7 +90,7 @@ data AppState = AppState
   -- | Time used for verifying JWT expiration
   , stateGetTime          :: IO UTCTime
   -- | Used for killing the main thread in case a subthread fails
-  , stateMainThreadId     :: ThreadId
+  , stateKillApp          :: IO ()
   -- | Keeps track of the next delay for db connection retry
   , stateNextDelay        :: IORef Int
   -- | Observation handler
@@ -109,8 +109,8 @@ newtype SchemaCacheStatus = SchemaCacheStatus
   { getSCStatusTMVar :: TMVar Bool
   }
 
-init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init :: AppConfig -> IO () -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -118,10 +118,10 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer
+  initWithPool pool conf loggerState metricsState observer appKiller
 
-initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool pool conf loggerState metricsState observer = mdo
+initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
+initWithPool pool conf loggerState metricsState observer appKiller = mdo
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -131,7 +131,7 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
-    <*> myThreadId
+    <*> pure appKiller
     <*> newIORef 0
     <*> pure observer
     <*> JwtCache.init conf observer
@@ -156,7 +156,7 @@ initPool cfg@AppConfig{..} observer = do
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} sess = do
+usePool appState@AppState{stateObserver=observer, ..} sess = do
     observer PoolRequest
 
     res <- SQL.use statePool sess
@@ -170,7 +170,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
         let failureMessage = BS.unpack $ fromMaybe mempty e in
         when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
           observer $ ExitDBFatalError ServerAuthError err
-          killThread mainThreadId
+          killApp appState
       err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
         handleResultError err tpl resultErr
       err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr))) ->
@@ -188,32 +188,32 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
       case resultErr of
         SQL.UnexpectedResult{} -> do
           observer $ ExitDBFatalError ServerPgrstBug err
-          killThread mainThreadId
+          killApp appState
         SQL.RowError{} -> do
           observer $ ExitDBFatalError ServerPgrstBug err
-          killThread mainThreadId
+          killApp appState
         SQL.UnexpectedAmountOfRows{} -> do
           observer $ ExitDBFatalError ServerPgrstBug err
-          killThread mainThreadId
+          killApp appState
         -- Check for a syntax error (42601 is the pg code) only for queries that don't have `WITH pgrst_source` as prefix.
         -- This would mean the error is on our schema cache queries, so we treat it as fatal.
         -- TODO have a better way to mark this as a schema cache query
         SQL.ServerError "42601" _ _ _ _ ->
           unless ("WITH pgrst_source" `BS.isPrefixOf` tpl) $ do
             observer $ ExitDBFatalError ServerPgrstBug err
-            killThread mainThreadId
+            killApp appState
         -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
         -- This would mean that a connection pooler in transaction mode is being used
         -- while prepared statements are enabled in the PostgREST configuration,
         -- both of which are incompatible with each other.
         SQL.ServerError "42P05" _ _ _ _ -> do
           observer $ ExitDBFatalError ServerError42P05 err
-          killThread mainThreadId
+          killApp appState
         -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
         -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
         SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _ -> do
           observer $ ExitDBFatalError ServerError08P01 err
-          killThread mainThreadId
+          killApp appState
         SQL.ServerError{} ->
           when (Error.status (Error.PgError False err) >= HTTP.status500) $
             observer $ QueryErrorCodeHighObs err
@@ -261,8 +261,8 @@ getTime = stateGetTime
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
 
-getMainThreadId :: AppState -> ThreadId
-getMainThreadId = stateMainThreadId
+killApp :: AppState -> IO ()
+killApp = stateKillApp
 
 isConnEstablished :: AppState -> IO Bool
 isConnEstablished appState = do
@@ -298,7 +298,7 @@ getObserver = stateObserver
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
 retryingSchemaCacheLoad :: AppState -> IO ()
-retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
+retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
   void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
@@ -316,12 +316,12 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
           observer $ QueryPgVersionError e
           unless configDbPoolAutomaticRecovery $ do
             observer ExitDBNoRecoveryObs
-            killThread mainThreadId
+            killApp appState
           return Nothing
         Right actualPgVersion ->
           if actualPgVersion < minimumPgVersion then do
             observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
-            killThread mainThreadId
+            killApp appState
             return Nothing
           else do
             observer $ DBConnectedObs $ pgvFullName actualPgVersion
