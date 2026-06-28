@@ -24,7 +24,6 @@ import GHC.IO.Exception (IOErrorType (..))
 import System.IO.Error  (ioeGetErrorType)
 
 import Control.Monad.Except     (liftEither)
-import Control.Monad.Extra      (whenJust)
 import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.IORef               (atomicWriteIORef, newIORef,
                                  readIORef)
@@ -83,38 +82,43 @@ run appState = do
   conf <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
-  adminSocket <- initAdminServerSocket conf
+  let setMainSocketRef = atomicWriteIORef mainSocketRef . Just
+      clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
 
-  let closeSockets = do
-        whenJust adminSocket NS.close
-        readIORef mainSocketRef >>= foldMap NS.close
-  Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+  bracket (initAdminServerSocket conf) ensureSocketClosed $ \adminSocket -> do
 
-  Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) (serverSettings conf)
+    let closeSockets = do
+          ensureSocketClosed adminSocket
+          ensureSocketClosed =<< readIORef mainSocketRef
+    Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-  Listener.runListener appState
+    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) (serverSettings conf)
 
-  -- Kick off and wait for the initial SchemaCache load before creating the
-  -- main API socket.
-  AppState.schemaCacheLoader appState
-  AppState.waitForSchemaCacheInit appState
+    Listener.runListener appState
 
-  mainSocket <- initServerSocket conf
-  atomicWriteIORef mainSocketRef $ Just mainSocket
+    -- Kick off and wait for the initial SchemaCache load before creating the
+    -- main API socket.
+    AppState.schemaCacheLoader appState
+    AppState.waitForSchemaCacheInit appState
 
-  let app = postgrest appState (AppState.schemaCacheLoader appState)
+    bracket (initServerSocket conf) NS.close $ \mainSocket -> do
 
-  address <- resolveSocketToAddress mainSocket
+      let app = postgrest appState (AppState.schemaCacheLoader appState)
 
-  let
-    appServerSettings = serverSettings conf
-      & setPort (configServerPort conf)
-      & setOnException onWarpException
-      & setBeforeMainLoop (observer $ AppServerAddressObs address)
+      address <- resolveSocketToAddress mainSocket
 
-  Warp.runSettingsSocket appServerSettings mainSocket app
+      let
+        appServerSettings = serverSettings conf
+          & setPort (configServerPort conf)
+          & setOnException onWarpException
+          & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
+
+      Warp.runSettingsSocket appServerSettings mainSocket app
+        `finally` clearMainSocketRef
   where
     observer = AppState.getObserver appState
+
+    ensureSocketClosed = foldMap NS.close
 
     onWarpException :: Maybe Wai.Request -> SomeException -> IO ()
     onWarpException _ ex =
