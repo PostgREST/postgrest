@@ -45,7 +45,7 @@ jobs:
 
       # Backport action that creates the PR with given settings
       - name: Create backport PR
-        uses: korthout/backport-action@66065406958f46e82238fd59546f5a99e69e22aa # v4.5
+        uses: korthout/backport-action@2e830a1d0b8269505846ddd407a70876913ad1f8 # v4.6
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           pull_description: 'Backport for #${pull_number}.'
