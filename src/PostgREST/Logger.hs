@@ -160,6 +160,8 @@ observationMessage :: Observation -> Text
 observationMessage = \case
   AdminStartObs address ->
     "Admin server listening on " <> address
+  AdminServerCrashedObs ex ->
+    "FAILURE: Admin server crashed unexpectedly: " <> (showOnSingleLine '\t' . show) ex
   AppStartObs ver ->
     "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerAddressObs address ->

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- Fix admin server not logging cause of failure by @taimoorzaeem in #5012
+
 ## [14.13] - 2026-06-04
 
 ### Fixed
