@@ -23,7 +23,6 @@ All notable changes to this project will be documented in this file. From versio
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
 - If the schema cache fails to reload, PostgREST will no longer stop serving requests and will continue doing so in a "best effort" basis by @mkleczek in #4873 #4869
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
-- Fix admin server not logging cause of failure by @taimoorzaeem in #5012
 
 ### Changed
 
@@ -48,6 +47,12 @@ The `jwt-role-claim-key` config should be updated according to the following:
 - String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
   + Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
 - Detailed reference for syntax: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
+
+## [14.14] - 2026-06-29
+
+### Fixed
+
+- Fix admin server not logging cause of failure by @taimoorzaeem in #5012
 
 ## [14.13] - 2026-06-04
 
