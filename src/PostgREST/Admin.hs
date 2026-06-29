@@ -28,7 +28,8 @@ runAdmin appState maybeAdminSocket getSocketREST settings = do
   conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
-    void . forkIO $ Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
+    void . forkIO $ handle (onError adminSocket) $
+      Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
     adminApp = admin appState getSocketREST
     observer = AppState.getObserver appState
@@ -36,6 +37,10 @@ runAdmin appState maybeAdminSocket getSocketREST settings = do
       settings
         & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
         & maybe identity Warp.setPort (configAdminServerPort config)
+
+    onError adminSock ex = do
+      observer $ AdminServerCrashedObs ex
+      NS.close adminSock -- we close the socket so request doesn't hang
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
