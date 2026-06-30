@@ -40,6 +40,8 @@ Check the [development docs](https://github.com/PostgREST/postgrest/blob/main/ni
 
 * All fixes or features must have a test proving the improvement.
 
+* All features must document the new behavior. Critical fixes that introduce new behavior must be documented too.
+
 * All code must also pass a [linter](http://community.haskell.org/~ndm/hlint/) and [styler](https://github.com/jaspervdj/stylish-haskell)
   with no warnings. This helps enforce a uniform style for all committers. Continuous integration will check this as well on every
   pull request. There are useful tools in the nix-shell that help with checking this locally. You can run `postgrest-check` to do this manually but
