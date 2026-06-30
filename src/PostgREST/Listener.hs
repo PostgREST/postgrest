@@ -48,7 +48,7 @@ retryingListen appState nextDelay hasDbListenerBug = do
       when (isDbListenerBug err) $
         observer DBListenBugCallQueryFix
       unless configDbPoolAutomaticRecovery $
-        killThread mainThreadId
+        AppState.killMainThread appState
 
       -- retry the listener
       delay <- readIORef nextDelay
@@ -96,7 +96,6 @@ retryingListen appState nextDelay hasDbListenerBug = do
           exitFailure
   where
     observer = AppState.getObserver appState
-    mainThreadId = AppState.getMainThreadId appState
     oneSecondInMicro = 1_000_000
     maxDelay = 32
 
