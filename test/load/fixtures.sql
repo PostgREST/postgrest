@@ -1,3 +1,5 @@
+\ir ../orioledb.sql
+
 CREATE ROLE postgrest_test_anonymous;
 CREATE ROLE postgrest_test_author;
 GRANT postgrest_test_anonymous TO :"PGUSER";
