@@ -172,7 +172,7 @@ Go back to :ref:`tut1_step3` and change the payload to
 
 .. code-block:: bash
 
-  payload=$(echo -n "{\"role\":\"todo_user\",\"exp\":\"123456789\"}" | _base64)
+  payload=$(echo -n "{\"role\":\"todo_user\",\"exp\":123456789}" | _base64)
 
   echo -n "$header.$payload.$signature"
 
