@@ -957,7 +957,9 @@ def test_log_query(level, defaultenv):
         root_procs_regx = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND p.pronamespace = \$1::regnamespace"
         root_descr_regx = r".+: SELECT pg_catalog\.obj_description\(\$1::regnamespace, 'pg_namespace'\)"
         set_config_regx = (
-            r".+: select set_config\('search_path', \$1, true\), set_config\("
+            r".+: select set_config\(setting, value, true\) "
+            r"from unnest\(\$1::text\[\], \$2::text\[\]\) with ordinality as _\(setting, value, ordinality\) "
+            r"order by ordinality"
         )
 
         output = drain_stdout(postgrest)
