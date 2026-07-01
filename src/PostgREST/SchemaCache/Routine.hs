@@ -20,7 +20,7 @@ module PostgREST.SchemaCache.Routine
   , MediaHandler(..)
   ) where
 
-import           Data.Aeson                 ((.=))
+import           Data.Aeson                 ((.:), (.=))
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
@@ -36,18 +36,18 @@ import Protolude
 data PgType
   = Scalar QualifiedIdentifier
   | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data RetType
   = Single PgType
   | SetOf PgType
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data FuncVolatility
   = Volatile
   | Stable
   | Immutable
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 type FuncSettings = [(Text,Text)]
 
@@ -77,6 +77,19 @@ instance JSON.ToJSON Routine where
     , "pdFuncSettings" .= JSON.toJSON sets
     ]
 
+instance JSON.FromJSON Routine where
+  parseJSON = JSON.withObject "Routine" $ \o ->
+    Function
+      <$> o .: "pdSchema"
+      <*> o .: "pdName"
+      <*> o .: "pdDescription"
+      <*> o .: "pdParams"
+      <*> o .: "pdReturnType"
+      <*> o .: "pdVolatility"
+      <*> o .: "pdHasVariadic"
+      <*> pure Nothing
+      <*> o .: "pdFuncSettings"
+
 data RoutineParam = RoutineParam
   { ppName          :: Text
   , ppType          :: Text
@@ -84,7 +97,7 @@ data RoutineParam = RoutineParam
   , ppReq           :: Bool
   , ppVar           :: Bool
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where
@@ -109,7 +122,7 @@ data MediaHandler
    -- custom
    | CustomFunc QualifiedIdentifier RelIdentifier
    | NoAgg
-   deriving (Eq, Show, Generic, JSON.ToJSON)
+   deriving (Eq, Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 funcReturnsSingle :: Routine -> Bool
 funcReturnsSingle proc = case proc of

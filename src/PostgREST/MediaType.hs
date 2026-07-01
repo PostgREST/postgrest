@@ -39,17 +39,17 @@ data MediaType
   | MTVndSingularJSON Bool
   -- TODO MTVndPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
   | MTVndPlan MediaType MTVndPlanFormat [MTVndPlanOption]
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Generic, JSON.FromJSON, JSON.ToJSON)
 instance Hashable MediaType
 
 data MTVndPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Generic, JSON.FromJSON, JSON.ToJSON)
 instance Hashable MTVndPlanOption
 
 data MTVndPlanFormat
   = PlanJSON | PlanText
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Generic, JSON.FromJSON, JSON.ToJSON)
 instance Hashable MTVndPlanFormat
 
 -- | Convert MediaType to a Content-Type HTTP Header

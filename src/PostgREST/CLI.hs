@@ -12,11 +12,12 @@ import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
+import           System.IO.Error            (isDoesNotExistError)
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.Observation (Observation (..))
-import PostgREST.SchemaCache (querySchemaCache)
+import PostgREST.SchemaCache (SchemaCache, querySchemaCache)
 import PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.App      as App
@@ -28,25 +29,32 @@ import Protolude
 
 
 main :: CLI -> IO ()
-main CLI{cliCommand, cliPath} = do
+main CLI{cliCommand, cliPath, cliSchemaCachePath} = do
   conf <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
   case cliCommand of
     Client adminCmd -> runClientCommand conf adminCmd
-    Run runCmd      -> runAppCommand conf runCmd
+    Run runCmd      -> runAppCommand conf cliSchemaCachePath runCmd
 
 -- | Run command using http-client to communicate with an already running postgrest
 runClientCommand :: AppConfig -> ClientCommand -> IO ()
 runClientCommand conf CmdReady = Client.ready conf
 
 -- | Run postgrest with command
-runAppCommand :: AppConfig -> RunCommand -> IO ()
-runAppCommand conf@AppConfig{..} runCmd = do
+runAppCommand :: AppConfig -> Maybe FilePath -> RunCommand -> IO ()
+runAppCommand conf@AppConfig{..} schemaCachePath runCmd = do
+  initAppState <- case runCmd of
+    CmdRun -> do
+      initialSchemaCache <- join <$> traverse readSchemaCacheDump schemaCachePath
+      pure $ maybe (AppState.init conf) (AppState.initWithSchemaCache conf) initialSchemaCache
+    _ ->
+      pure $ AppState.init conf
+
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf)
+    initAppState
     AppState.destroy
     (\appState -> case runCmd of
       CmdDumpConfig -> do
@@ -55,7 +63,8 @@ runAppCommand conf@AppConfig{..} runCmd = do
       CmdDumpSchema -> do
         when configDbConfig $ AppState.readInDbConfig True appState
         putStrLn =<< dumpSchema appState
-      CmdRun -> App.run appState)
+      CmdRun ->
+        App.run appState)
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -70,10 +79,23 @@ dumpSchema appState = do
       exitFailure
     Right (sCache, _) -> return $ JSON.encode sCache
 
+readSchemaCacheDump :: FilePath -> IO (Maybe SchemaCache)
+readSchemaCacheDump path =
+  fmap decodeSchemaCache <$> catch (Just <$> LBS.readFile path) handleReadError
+  where
+    decodeSchemaCache =
+      fromRight (panic $ "Error loading schema cache dump from " <> toS path) . JSON.eitherDecode
+
+    handleReadError :: IOException -> IO (Maybe LBS.ByteString)
+    handleReadError e
+      | isDoesNotExistError e = pure Nothing
+      | otherwise             = throwIO e
+
 -- | Command line interface options
 data CLI = CLI
-  { cliCommand :: Command
-  , cliPath    :: Maybe FilePath
+  { cliCommand         :: Command
+  , cliPath            :: Maybe FilePath
+  , cliSchemaCachePath :: Maybe FilePath
   }
 
 data Command
@@ -120,11 +142,18 @@ readCLIShowHelp =
       CLI
         <$> (dumpConfigFlag <|> dumpSchemaFlag <|> readyFlag)
         <*> O.optional configFileOption
+        <*> O.optional loadSchemaCacheOption
 
     configFileOption =
       O.strArgument $
         O.metavar "FILENAME"
         <> O.help "Path to configuration file"
+
+    loadSchemaCacheOption =
+      O.strOption $
+        O.long "load-schema-cache"
+        <> O.metavar "FILENAME"
+        <> O.help "Load schema cache from JSON dump at startup if the file exists"
 
     dumpConfigFlag =
       O.flag (Run CmdRun) (Run CmdDumpConfig) $
