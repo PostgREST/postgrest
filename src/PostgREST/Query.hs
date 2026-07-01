@@ -56,3 +56,4 @@ mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange=range, i
       genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
     MayUseDb InspectPlan{ipSchema=tSchema} ->
       genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema) mempty
+    SQLOnly dbplan -> mainQuery (Db dbplan) conf apiReq authRes preReq

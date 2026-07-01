@@ -206,6 +206,10 @@ actionResponse (DbPlanResult media plan) ctxApiRequest _ _ _ =
   let body = LBS.fromStrict plan in
   Right $ PgrstResponse HTTP.status200 (contentLengthHeader body : contentTypeHeaders media ctxApiRequest) body
 
+actionResponse (SQLResult media sql) ctxApiRequest _ _ _ =
+  let body = LBS.fromStrict sql in
+  Right $ PgrstResponse HTTP.status200 (contentLengthHeader body : contentTypeHeaders media ctxApiRequest) body
+
 actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) ApiRequest{..} versions conf sCache =
   let
     rsBody = maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body

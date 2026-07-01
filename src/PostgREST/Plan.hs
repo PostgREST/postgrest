@@ -118,7 +118,7 @@ data CrudPlan
   , crQi       :: QualifiedIdentifier
   }
 
--- Plan for reading db object metadadta
+-- Plan for reading db object metadata
 data InspectPlan = InspectPlan {
     ipMedia    :: MediaType
   , ipTxmode   :: SQL.Mode
@@ -137,6 +137,7 @@ type IsDbExplain = Bool
 data DbActionPlan
   = DbCrud   IsDbExplain CrudPlan
   | MayUseDb InspectPlan
+  | SQLOnly  DbActionPlan -- return the SQL query for a hypothetical request as text; does not actually *use* the DB
 
 -- Plans that don't use the database
 data InfoPlan
@@ -165,8 +166,10 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
     MayUseDb <$> inspectPlan apiReq headersOnly tSchema
   where
     toDbActPlan pl = case pMedia pl of
-      MTVndPlan{} -> DbCrud True pl
-      _           -> DbCrud False pl
+      MTVndPlan{}          -> DbCrud True pl
+      MTVndSQL MTVndPlan{} -> SQLOnly $ DbCrud True pl
+      MTVndSQL{}           -> SQLOnly $ DbCrud False pl
+      _                    -> DbCrud False pl
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
