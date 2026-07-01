@@ -67,6 +67,7 @@ import qualified Feature.Query.RpcSpec
 import qualified Feature.Query.ServerTimingSpec
 import qualified Feature.Query.SingularSpec
 import qualified Feature.Query.SpreadQueriesSpec
+import qualified Feature.Query.SQLSpec
 import qualified Feature.Query.UnicodeSpec
 import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
@@ -154,6 +155,8 @@ main = do
         , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.RpcSpec"                             , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.SQLSpec.disabledSpec"               , Feature.Query.SQLSpec.disabledSpec)
+        , ("Feature.Query.SQLSpec.spec"                       , Feature.Query.SQLSpec.spec)
         , ("Feature.Query.ServerTimingSpec"                    , Feature.Query.ServerTimingSpec.spec)
         , ("Feature.Query.SingularSpec"                        , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"                   , Feature.Query.SpreadQueriesSpec.spec)
