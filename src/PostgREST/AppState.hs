@@ -55,7 +55,6 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO,
                                           putTMVar, readTMVar,
                                           tryReadTMVar, tryTakeTMVar)
-import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
                                           readAppConfig,
                                           toConnectionSettings)
@@ -258,7 +257,7 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCacheState :: AppState -> JwtCacheState
+getJwtCacheState :: AppState -> JwtCache.JwtCacheState
 getJwtCacheState = stateJwtCache
 
 getMainThreadId :: AppState -> ThreadId
@@ -422,14 +421,21 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         panic err -- die on invalid config if the program is starting up
       else
         observer $ ConfigInvalidObs err
-    Right newConf -> do
-      putConfig appState newConf
-      -- After the config has reloaded, jwt-secret might have changed, so
-      -- if it has changed, it is important to invalidate the jwt cache
-      -- entries, because they were cached using the old secret
-      update (getJwtCacheState appState) newConf
+    Right newConf ->
+      updateAfterConfigReload appState newConf startingUp
 
-      if startingUp then
-        pass
-      else
-        observer ConfigSucceededObs
+-- | Updates and changes that need to be done after config reload
+updateAfterConfigReload :: AppState -> AppConfig -> Bool -> IO ()
+updateAfterConfigReload appState newConf startingUp = do
+  putConfig appState newConf
+  -- After the config has reloaded, jwt-secret might have changed, so
+  -- if it has changed, it is important to invalidate the jwt cache
+  -- entries, because they were cached using the old secret
+  JwtCache.update (getJwtCacheState appState) newConf
+
+  if startingUp then
+    pass
+  else
+    observer ConfigSucceededObs
+    where
+      observer = stateObserver appState
