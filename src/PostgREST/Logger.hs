@@ -192,6 +192,10 @@ observationMessages = \case
       let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       in
         showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
+  LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
+    [ "WARNING: " <> warningMsg
+    , "Please update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
+    ]
   ConfigReadErrorObs usageErr ->
     pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->

@@ -71,6 +71,7 @@ dbSettingsNames =
   ,"server_cors_allowed_origins"
   ,"server_trace_header"
   ,"server_timing_enabled"
+  ,"url_use_legacy_target_names"
   ]
 
 queryPgVersion :: Session PgVersion

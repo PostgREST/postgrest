@@ -175,6 +175,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerTraceHeader         = Nothing
   , configServerUnixSocket          = Nothing
   , configServerUnixSocketMode      = 432
+  , configUrlUseLegacyTargetNames   = False
   , configDbTxAllowOverride         = True
   , configDbTxRollbackAll           = True
   , configAdminServerHost           = "localhost"
