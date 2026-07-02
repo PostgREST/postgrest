@@ -825,10 +825,6 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         assert response.status_code == 500
 
 
-@pytest.mark.xfail(
-    reason="Admin server crashes when the first admin accept hits EMFILE",
-    strict=True,
-)
 def test_admin_server_does_not_crash_when_file_limit_is_reached(defaultenv):
     "Admin server should keep running when accept reaches the open file limit."
 

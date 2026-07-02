@@ -92,7 +92,8 @@ run appState = do
           ensureSocketClosed =<< readIORef mainSocketRef
     Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) (serverSettings conf)
+    (adminState, adminSettings) <- fmap (serverSettings conf) <$> Warp.makeSettingsAndServerState
+    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) adminState adminSettings
 
     Listener.runListener appState
 
@@ -108,7 +109,7 @@ run appState = do
       address <- resolveSocketToAddress mainSocket
 
       let
-        appServerSettings = serverSettings conf
+        appServerSettings = serverSettings conf defaultSettings
           & setPort (configServerPort conf)
           & setOnException onWarpException
           & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
@@ -135,9 +136,9 @@ run appState = do
         | Just (ioeGetErrorType -> et) <- fromException se, et == ResourceVanished || et == InvalidArgument = False
         | otherwise = True
 
-serverSettings :: AppConfig -> Warp.Settings
-serverSettings AppConfig{..} =
-  defaultSettings
+serverSettings :: AppConfig -> Warp.Settings -> Warp.Settings
+serverSettings AppConfig{..} settings =
+  settings
     & setHost (fromString $ toS configServerHost)
     & setServerName ("postgrest/" <> prettyVersion)
 

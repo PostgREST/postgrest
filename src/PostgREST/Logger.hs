@@ -134,6 +134,8 @@ observationMessages = \case
     pure $ "Admin server listening on " <> address
   AdminServerCrashedObs ex ->
     pure $ "FAILURE: Admin server crashed unexpectedly: " <> (showOnSingleLine '\t' . show) ex
+  AdminServerAcceptEMFILEFailure ->
+    pure "Admin server failed to accept connection due to file descriptor exhaustion (EMFILE)"
   AppStartObs ver ->
     pure $ "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerAddressObs address ->
