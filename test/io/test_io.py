@@ -1,8 +1,10 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
+import contextlib
 import os
 import re
 import signal
+import socket
 import subprocess
 import time
 import pytest
@@ -29,6 +31,7 @@ from postgrest import (
     sleep_until_postgrest_full_reload,
     sleep_until_postgrest_scache_reload,
     wait_until_exit,
+    wait_until_status_code,
 )
 
 
@@ -820,6 +823,53 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/live")
         assert response.status_code == 500
+
+
+@pytest.mark.xfail(
+    reason="Admin server crashes when the first admin accept hits EMFILE",
+    strict=True,
+)
+def test_admin_server_does_not_crash_when_file_limit_is_reached(defaultenv):
+    "Admin server should keep running when accept reaches the open file limit."
+
+    nofile_limit = 64
+    env = {**defaultenv, "PGRST_LOG_LEVEL": "info"}
+
+    with run(env=env, wait_for=None, rlimit_nofile=nofile_limit) as postgrest:
+        wait_until_status_code(postgrest.session.baseurl + "/", 5, 200)
+
+        main_socket = postgrest.config["PGRST_SERVER_UNIX_SOCKET"]
+
+        with contextlib.ExitStack() as stack:
+            opened_sockets = 0
+            for _ in range(nofile_limit * 3):
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                sock.settimeout(0.2)
+                try:
+                    sock.connect(main_socket)
+                    sock.sendall(b"GET /projects HTTP/1.1\r\nHost: localhost\r\n")
+                except OSError:
+                    sock.close()
+                    break
+                stack.callback(sock.close)
+                opened_sockets += 1
+
+            assert opened_sockets >= nofile_limit
+            time.sleep(0.2)
+
+            # This is the first admin request after startup. The held
+            # sockets are connected to the main server, so the admin server has
+            # no active accepted connections when accept hits EMFILE.
+            with pytest.raises(requests.RequestException):
+                postgrest.admin.get("/live", timeout=0.2)
+
+        # Once fd pressure is over, admin server should respond successfully
+        wait_until_status_code(postgrest.admin.baseurl + "/live", 5, 200)
+
+        output = drain_stdout(postgrest)
+
+        assert any("EMFILE" in line for line in output)
+        assert not any("Admin server crashed unexpectedly" in line for line in output)
 
 
 @pytest.mark.parametrize("specialhostvalue", FIXTURES["specialhostvalues"])

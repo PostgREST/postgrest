@@ -5,6 +5,7 @@ import dataclasses
 import enum
 import os
 import pathlib
+import resource
 import socket
 import subprocess
 import tempfile
@@ -101,6 +102,7 @@ def run(
     wait_max_seconds=1,
     no_pool_connection_available=False,
     no_startup_stdout=True,
+    rlimit_nofile=None,
 ):
     "Run PostgREST and yield an endpoint that is ready for connections."
 
@@ -142,12 +144,16 @@ def run(
         if configpath:
             command.append(configpath)
 
+        def set_rlimit_nofile():
+            resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit_nofile, rlimit_nofile))
+
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=env,
+            preexec_fn=set_rlimit_nofile if rlimit_nofile else None,
         )
 
         os.set_blocking(process.stdout.fileno(), False)
