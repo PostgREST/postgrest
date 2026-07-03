@@ -29,3 +29,4 @@ gen_jwks.json
 gen_private.json
 .pytest_cache
 .ruff_cache
+postgrest-module-graph.png
