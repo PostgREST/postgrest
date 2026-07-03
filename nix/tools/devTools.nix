@@ -129,7 +129,7 @@ let
       {
         name = "postgrest-hsie-graph-modules";
         docs = "Create a PNG graph of modules imported within the codebase.";
-        args = [ "ARG_POSITIONAL_SINGLE([outfile], [Output filename])" ];
+        args = [ "ARG_OPTIONAL_SINGLE([outfile], [o], [Output filename], [postgrest-module-graph.png])" ];
       }
       ''
         ${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
