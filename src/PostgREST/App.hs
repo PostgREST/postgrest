@@ -10,6 +10,7 @@ Some of its functionality includes:
 - Content Negotiation
 -}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,8 +20,9 @@ module PostgREST.App
   , run
   ) where
 
-
+import GHC.Conc         (ThreadStatus (..), threadStatus)
 import GHC.IO.Exception (IOErrorType (..))
+import GHC.Weak
 import System.IO.Error  (ioeGetErrorType)
 
 import Control.Monad.Except     (liftEither)
@@ -71,14 +73,14 @@ import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
 import           Network.HTTP.Types.Header (hVary)
 import qualified Network.Socket            as NS
-import           Network.Socket.ByteString (send)
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           System.Posix.Types        (FileMode)
 
-import Protolude hiding (Handler)
+import Protolude        hiding (Handler)
+import System.Directory (doesPathExist)
 
-run :: AppState -> IO ()
-run appState = do
+run :: AppState -> Weak ThreadId -> IO ()
+run appState mainThreadIdRef = do
   conf <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
@@ -92,7 +94,7 @@ run appState = do
           ensureSocketClosed =<< readIORef mainSocketRef
     Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) (serverSettings conf)
+    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
 
     Listener.runListener appState
 
@@ -297,21 +299,21 @@ initAdminServerSocket AppConfig{..} =
     configAdminServerUnixSocket configAdminServerUnixSocketMode
     configAdminServerHost configAdminServerPort
 
-checkMainAppLive :: IO (Maybe NS.Socket) -> IO Bool
-checkMainAppLive getMainSocket =
-  getMainSocket >>= maybe (pure False) (fmap isRight . reachMainApp)
-
--- Try to connect to the main app socket
--- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
-reachMainApp :: NS.Socket -> IO (Either IOException ())
-reachMainApp appSock = do
-  sockAddr <- NS.getSocketName appSock
-  sock <- NS.socket (addrFamily sockAddr) NS.Stream NS.defaultProtocol
-  try $ do
-    NS.connect sock sockAddr
-    NS.withSocketsDo $ bracket (pure sock) NS.close sendEmpty
+checkMainAppLive :: IO (Maybe NS.Socket) -> Weak ThreadId -> IO Bool
+checkMainAppLive getMainSocket mainThreadIdRef =
+  handle (\(_ :: IOException) -> pure False) $
+    checkMainThread <&&> checkSocket
   where
-    sendEmpty sock = void $ send sock mempty
-    addrFamily (NS.SockAddrInet _ _) = NS.AF_INET
-    addrFamily (NS.SockAddrInet6 {}) = NS.AF_INET6
-    addrFamily (NS.SockAddrUnix _)   = NS.AF_UNIX
+    checkSocket = getMainSocket >>=
+      maybe (pure False)
+      (NS.getSocketName >=> \case
+        -- in case of unix socket, check if it still exists
+        NS.SockAddrUnix fp -> doesPathExist fp
+        _ -> pure True)
+    checkMainThread = deRefWeak mainThreadIdRef >>=
+      maybe (pure False)
+      (fmap isRunning . threadStatus)
+    isRunning = \case
+      ThreadRunning -> True
+      ThreadBlocked _ -> True
+      _ -> False
