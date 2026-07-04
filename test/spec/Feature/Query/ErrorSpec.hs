@@ -5,7 +5,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config (AppConfig (..))
+import PostgREST.Config (AppConfig (..), Verbosity (..))
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -223,3 +223,15 @@ spec withConfig = do
           "message":"Wrong or unsupported encoding algorithm"
         }|]
         { matchStatus = 401 }
+
+  -- By default, error verbosity is set to 'verbose', which returns all error
+  -- fields. No need to test that explicitly.
+  withConfig baseCfg { configClientErrorVerbosity = Minimal } $ describe "Test client-error-verbosity config" $
+    it "hides details and hint when set to 'minimal'" $
+      request methodGet "/itemsx" [] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST205",
+          "message":"Could not find the table 'test.itemsx' in the schema cache"
+        }|]
+        { matchStatus = 404 }

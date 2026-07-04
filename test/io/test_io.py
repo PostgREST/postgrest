@@ -2087,38 +2087,6 @@ def test_server_timing_transaction_duration_with_role_statement_timeout(
         assert 2000 <= response_dur < 3000
 
 
-def test_client_error_verbosity_config(defaultenv):
-    "Test PostgREST errors with different error verbosity settings"
-
-    env = {
-        **defaultenv,
-        "PGRST_CLIENT_ERROR_VERBOSITY": "minimal",  # hide details and hint
-    }
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/itemsx")
-        assert response.status_code == 404
-        assert response.json() == {
-            "code": "PGRST205",
-            "message": "Could not find the table 'public.itemsx' in the schema cache",
-        }
-
-    env = {
-        **defaultenv,
-        "PGRST_CLIENT_ERROR_VERBOSITY": "verbose",
-    }
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/itemsx")
-        assert response.status_code == 404
-        assert response.json() == {
-            "code": "PGRST205",
-            "message": "Could not find the table 'public.itemsx' in the schema cache",
-            "details": None,
-            "hint": "Perhaps you meant the table 'public.items'",
-        }
-
-
 def test_positive_pool_metric(defaultenv):
     "When a network failure is caused on the pg connection, pgrst_db_pool_available stays positive"
 
