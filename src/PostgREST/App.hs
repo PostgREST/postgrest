@@ -72,6 +72,7 @@ import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP
 import           Network.HTTP.Types.Header (hVary)
 import qualified Network.Socket            as NS
+import           Network.Socket.ByteString (send)
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           System.Posix.Types        (FileMode)
 
@@ -89,7 +90,7 @@ run appState = do
         readIORef mainSocketRef >>= foldMap NS.close
   Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-  Admin.runAdmin appState adminSocket (readIORef mainSocketRef) (serverSettings conf)
+  Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef)) (serverSettings conf)
 
   Listener.runListener appState
 
@@ -291,3 +292,22 @@ initAdminServerSocket AppConfig{..} =
   initSocket
     configAdminServerUnixSocket configAdminServerUnixSocketMode
     configAdminServerHost configAdminServerPort
+
+checkMainAppLive :: IO (Maybe NS.Socket) -> IO Bool
+checkMainAppLive getMainSocket =
+  getMainSocket >>= maybe (pure False) (fmap isRight . reachMainApp)
+
+-- Try to connect to the main app socket
+-- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
+reachMainApp :: NS.Socket -> IO (Either IOException ())
+reachMainApp appSock = do
+  sockAddr <- NS.getSocketName appSock
+  sock <- NS.socket (addrFamily sockAddr) NS.Stream NS.defaultProtocol
+  try $ do
+    NS.connect sock sockAddr
+    NS.withSocketsDo $ bracket (pure sock) NS.close sendEmpty
+  where
+    sendEmpty sock = void $ send sock mempty
+    addrFamily (NS.SockAddrInet _ _) = NS.AF_INET
+    addrFamily (NS.SockAddrInet6 {}) = NS.AF_INET6
+    addrFamily (NS.SockAddrUnix _)   = NS.AF_UNIX
