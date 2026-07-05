@@ -7,9 +7,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 import qualified Network.Wai.Handler.Warp  as Warp
 
-import Control.Monad.Extra       (whenJust)
-import Network.Socket            hiding (addrFamily)
-import Network.Socket.ByteString
+import Control.Monad.Extra (whenJust)
 
 import PostgREST.AppState    (AppState, getConfig)
 import PostgREST.Config      (AppConfig (..))
@@ -23,15 +21,15 @@ import qualified PostgREST.AppState as AppState
 import qualified Network.Socket as NS
 import           Protolude
 
-runAdmin :: AppState -> Maybe NS.Socket -> IO (Maybe NS.Socket) -> Warp.Settings -> IO ()
-runAdmin appState maybeAdminSocket getSocketREST settings = do
+runAdmin :: AppState -> Maybe NS.Socket -> IO Bool -> Warp.Settings -> IO ()
+runAdmin appState maybeAdminSocket checkMainAppLive settings = do
   conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
     void . forkIO $ handle (onError adminSocket) $
       Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
-    adminApp = admin appState getSocketREST
+    adminApp = admin appState checkMainAppLive
     observer = AppState.getObserver appState
     adminServerSettings config addr=
       settings
@@ -43,19 +41,19 @@ runAdmin appState maybeAdminSocket getSocketREST settings = do
       NS.close adminSock -- we close the socket so request doesn't hang
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> IO (Maybe NS.Socket) -> Wai.Application
-admin appState getSocketREST req respond = do
-  isMainAppReachable <- getSocketREST >>= maybe (pure False) (fmap isRight . reachMainApp)
+admin :: AppState.AppState -> IO Bool -> Wai.Application
+admin appState checkMainAppLive req respond = do
+  isMainAppLive <- checkMainAppLive
   isLoaded <- AppState.isLoaded appState
   isPending <- AppState.isPending appState
 
   case Wai.pathInfo req of
     ["live"] ->
-      respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status500) [] mempty
+      respond $ Wai.responseLBS (if isMainAppLive then HTTP.status200 else HTTP.status500) [] mempty
     ["ready"] ->
       let
         status | isPending              = HTTP.status503
-               | not isMainAppReachable = HTTP.status500
+               | not isMainAppLive      = HTTP.status500
                | isLoaded               = HTTP.status200
                | otherwise              = HTTP.status500
       in
@@ -68,18 +66,3 @@ admin appState getSocketREST req respond = do
       respond $ Wai.responseLBS HTTP.status200 [toContentType MTTextPlain] mets -- Content-Type is required for prometheus compliance
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
-
--- Try to connect to the main app socket
--- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
-reachMainApp :: Socket -> IO (Either IOException ())
-reachMainApp appSock = do
-  sockAddr <- getSocketName appSock
-  sock <- socket (addrFamily sockAddr) Stream defaultProtocol
-  try $ do
-    connect sock sockAddr
-    withSocketsDo $ bracket (pure sock) close sendEmpty
-  where
-    sendEmpty sock = void $ send sock mempty
-    addrFamily (SockAddrInet _ _) = AF_INET
-    addrFamily (SockAddrInet6 {}) = AF_INET6
-    addrFamily (SockAddrUnix _)   = AF_UNIX
