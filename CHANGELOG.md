@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
 - If the schema cache fails to reload, PostgREST will no longer stop serving requests and will continue doing so in a "best effort" basis by @mkleczek in #4873 #4869
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
+- Fix admin server dying silently by @Vlix, @mkleczek, @steve-chavez in #5012
 
 ### Changed
 
