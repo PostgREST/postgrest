@@ -251,10 +251,6 @@ select * from projects;
 create or replace view infinite_recursion as
 select * from infinite_recursion;
 
-create or replace function "true"() returns boolean as $_$
-  select true;
-$_$ language sql;
-
 create or replace function notify_pgrst() returns void as $$
   notify pgrst;
 $$ language sql;

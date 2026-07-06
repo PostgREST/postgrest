@@ -3877,3 +3877,7 @@ create or replace function custom_vary_hdr() returns void as $$
     perform set_config('response.headers', '[{"Vary": "X-Test-Accept"}]', false);
   end
 $$ language plpgsql;
+
+create or replace function "true"() returns boolean as $_$
+  select true;
+$_$ language sql;
