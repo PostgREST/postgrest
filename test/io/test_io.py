@@ -2049,6 +2049,10 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
         response = postgrest.session.post("/rpc/true")
         assert response.status_code == 200
 
+
+def test_db_pre_config_with_non_existent_function(defaultenv):
+    "Log error when db-pre-config is set to non-existent function"
+
     env = {
         **defaultenv,
         "PGRST_DB_PRE_CONFIG": "select",  # no "select" function in our fixtures, fail gracefully at startup
