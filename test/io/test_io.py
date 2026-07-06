@@ -2037,19 +2037,6 @@ def test_connection_error_message_does_not_claim_retry(defaultenv):
         assert any('"message":"Database connection error."' in line for line in output)
 
 
-def test_db_pre_config_with_pg_reserved_words(defaultenv):
-    "The db-pre-config should not fail unexpectedly when function name is a postgres reserved word"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_PRE_CONFIG": "true",  # call true function
-    }
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.post("/rpc/true")
-        assert response.status_code == 200
-
-
 def test_db_pre_config_with_non_existent_function(defaultenv):
     "Log error when db-pre-config is set to non-existent function"
 

@@ -10,14 +10,16 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion180)
+import PostgREST.Config                  (AppConfig (..))
+import PostgREST.Config.PgVersion        (PgVersion, pgVersion180)
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Protolude  hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWithConfig
-spec actualPgVersion withConfig = withConfig baseCfg $
-  describe "remote procedure call" $ do
+spec actualPgVersion withConfig = do
+  withConfig baseCfg $ describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       context "returns paginated results" $ do
         it "using the Range header" $
@@ -1490,3 +1492,9 @@ spec actualPgVersion withConfig = withConfig baseCfg $
           `shouldRespondWith`
           [json| 1 |]
           { matchStatus = 200 }
+
+  withConfig baseCfg { configDbPreConfig = Just $ QualifiedIdentifier "test" "true" } $
+    it "should not fail when function name is a pg reserved word" $
+      request methodGet "/rpc/true"
+        [] ""
+        `shouldRespondWith` 200
