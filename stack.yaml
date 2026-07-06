@@ -9,9 +9,18 @@ nix:
   pure: false
 
 extra-deps:
+  - auto-update-0.2.6
   - configurator-pg-0.2.11
   - fuzzyset-0.2.4
   - hasql-pool-1.0.1
+  - http-semantics-0.4.0
+  - http2-5.4.0
   - jose-jwt-0.10.0
+  - network-control-0.1.7
   - postgresql-libpq-0.10.1.0
   - streaming-commons-0.2.3.1
+  - time-manager-0.3.2
+  - git: https://github.com/yesodweb/wai.git
+    commit: ad041216b643f69a2a9c87cbf4c2988aa4633dd5
+    subdirs:
+      - warp

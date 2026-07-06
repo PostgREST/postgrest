@@ -70,6 +70,53 @@ let
           }
           { };
 
+      http2 =
+        prev.callHackageDirect
+          {
+            pkg = "http2";
+            ver = "5.4.0";
+            sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+          }
+          { };
+
+      http-semantics =
+        prev.callHackageDirect
+          {
+            pkg = "http-semantics";
+            ver = "0.4.0";
+            sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+          }
+          { };
+
+      time-manager =
+        prev.callHackageDirect
+          {
+            pkg = "time-manager";
+            ver = "0.2.4";
+            sha256 = "sha256-sAt/331YLQ2IU3z90aKYSq1nxoazv87irsuJp7ZG3pw=";
+          }
+          { };
+
+      network-run =
+        prev.callHackageDirect
+          {
+            pkg = "network-run";
+            ver = "0.5.0";
+            sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+          }
+          { };
+
+      warp =
+        lib.dontCheck
+          (prev.callCabal2nixWithOptions "warp"
+            (super.fetchFromGitHub {
+              owner = "yesodweb";
+              repo = "wai";
+              rev = "ad041216b643f69a2a9c87cbf4c2988aa4633dd5";
+              sha256 = "sha256-Dl3wLrGl1HvkF9MqGdY4dzx4z6SlCSiFZgCgprd7Cjg=";
+            }) "--subpath=warp"
+            { });
+
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
