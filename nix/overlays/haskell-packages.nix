@@ -87,13 +87,15 @@ let
           { };
 
       warp =
-        lib.dontCheck (prev.callHackageDirect
-          {
-            pkg = "warp";
-            ver = "3.4.13";
-            sha256 = "sha256-jmr8kpeSPDkOhT0i9PhozZapX4nUs92cOX7POAGb7/M=";
-          }
-          { });
+        lib.dontCheck
+          (prev.callCabal2nixWithOptions "warp"
+            (super.fetchFromGitHub {
+              owner = "yesodweb";
+              repo = "wai";
+              rev = "ad041216b643f69a2a9c87cbf4c2988aa4633dd5";
+              sha256 = "sha256-Dl3wLrGl1HvkF9MqGdY4dzx4z6SlCSiFZgCgprd7Cjg=";
+            }) "--subpath=warp"
+            { });
     };
 in
 {
