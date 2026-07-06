@@ -420,27 +420,6 @@ def test_notify_do_nothing(defaultenv):
         assert output == []
 
 
-def test_db_prepared_statements_enable(defaultenv):
-    "Should use prepared statements when the setting is enabled."
-
-    with run(env=defaultenv) as postgrest:
-        response = postgrest.session.post("/rpc/uses_prepared_statements")
-        assert response.text == "true"
-
-
-def test_db_prepared_statements_disable(defaultenv):
-    "Should not use any prepared statements when the setting is disabled."
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_PREPARED_STATEMENTS": "false",
-    }
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.post("/rpc/uses_prepared_statements")
-        assert response.text == "false"
-
-
 def test_statement_timeout(defaultenv, metapostgrest):
     "Statement timeout times out slow statements"
 

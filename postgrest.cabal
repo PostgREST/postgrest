@@ -260,6 +260,7 @@ test-suite spec
                       Feature.Query.Preferences.HandlingSpec
                       Feature.Query.Preferences.MaxAffectedSpec
                       Feature.Query.Preferences.TimezoneSpec
+                      Feature.Query.PreparedStatementsSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec
                       Feature.Query.RangeSpec
