@@ -87,7 +87,7 @@ jobs:
             runs-on: ubuntu-24.04
             vm: freebsd
             artifact: postgrest-freebsd-x86-64
-            deps: pkg install -y postgresql16-client hs-stack
+            deps: pkg install -y git postgresql16-client hs-stack
 
           - name: Linux aarch64
             runs-on: ubuntu-24.04-arm
