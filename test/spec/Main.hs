@@ -58,6 +58,7 @@ import qualified Feature.Query.PostGISSpec
 import qualified Feature.Query.Preferences.HandlingSpec
 import qualified Feature.Query.Preferences.MaxAffectedSpec
 import qualified Feature.Query.Preferences.TimezoneSpec
+import qualified Feature.Query.PreparedStatementsSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
@@ -148,6 +149,7 @@ main = do
         , ("Feature.Query.Preferences.HandlingSpec"            , Feature.Query.Preferences.HandlingSpec.spec)
         , ("Feature.Query.Preferences.MaxAffectedSpec"         , Feature.Query.Preferences.MaxAffectedSpec.spec)
         , ("Feature.Query.Preferences.TimezoneSpec.enabledSpec", Feature.Query.Preferences.TimezoneSpec.enabledSpec)
+        , ("Feature.Query.PreparedStatementsSpec.spec"         , Feature.Query.PreparedStatementsSpec.spec)
         , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
         , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec actualPgVersion)
         , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)

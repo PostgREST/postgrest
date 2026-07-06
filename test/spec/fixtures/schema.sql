@@ -3881,3 +3881,14 @@ $$ language plpgsql;
 create or replace function "true"() returns boolean as $_$
   select true;
 $_$ language sql;
+
+create function uses_prepared_statements() returns bool as $$
+  select count(*) > 0 from pg_catalog.pg_prepared_statements;
+$$ language sql;
+
+create table never_prepared (id int);
+
+create function never_uses_prepared_statements() returns bool as $$
+  select count(*) = 0 from pg_catalog.pg_prepared_statements
+  where statement ilike '%never_prepared%';
+$$ language sql;

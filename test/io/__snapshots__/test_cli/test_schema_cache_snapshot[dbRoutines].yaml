@@ -512,23 +512,6 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: uses_prepared_statements
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: uses_prepared_statements
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
 - - qiName: repeatable_read_isolation_level
     qiSchema: public
   - - pdDescription: null

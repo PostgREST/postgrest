@@ -54,10 +54,6 @@ create function v1.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
-create function uses_prepared_statements() returns bool as $$
-  select count(name) > 0 from pg_catalog.pg_prepared_statements
-$$ language sql;
-
 create function change_max_rows_config(val int, notify bool default false) returns void as $_$
 begin
   execute format($$
