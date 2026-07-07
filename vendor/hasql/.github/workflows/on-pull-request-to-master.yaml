@@ -1,0 +1,14 @@
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  format:
+    uses: ./.github/workflows/format.yaml
+    secrets: inherit
+
+  check:
+    uses: ./.github/workflows/check.yaml
+    secrets: inherit
