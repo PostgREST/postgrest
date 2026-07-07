@@ -1,0 +1,120 @@
+cabal-version: 3.0
+name: hasql-transaction
+version: 1.2.1
+category: Hasql, Database, PostgreSQL
+synopsis:
+  Composable abstraction over retryable transactions for Hasql
+
+homepage: https://github.com/nikita-volkov/hasql-transaction
+bug-reports: https://github.com/nikita-volkov/hasql-transaction/issues
+author: Nikita Volkov <nikita.y.volkov@mail.ru>
+maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
+copyright: (c) 2015, Nikita Volkov
+license: MIT
+license-file: LICENSE
+extra-source-files: CHANGELOG.md
+tested-with: ghc ==9.8.2 || ==8.10.1
+
+source-repository head
+  type: git
+  location: git://github.com/nikita-volkov/hasql-transaction.git
+
+common base
+  default-language: Haskell2010
+  default-extensions:
+    ApplicativeDo
+    BangPatterns
+    BlockArguments
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveDataTypeable
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveTraversable
+    DerivingVia
+    EmptyDataDecls
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    LiberalTypeSynonyms
+    MultiParamTypeClasses
+    MultiWayIf
+    NoImplicitPrelude
+    NoMonomorphismRestriction
+    OverloadedStrings
+    PatternGuards
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    RoleAnnotations
+    ScopedTypeVariables
+    StandaloneDeriving
+    StrictData
+    TupleSections
+    TypeFamilies
+    TypeOperators
+
+common executable
+  import: base
+  ghc-options:
+    -O2
+    -threaded
+    -with-rtsopts=-N
+    -rtsopts
+    -funbox-strict-fields
+
+common test
+  import: base
+  ghc-options:
+    -threaded
+    -with-rtsopts=-N
+
+library
+  import: base
+  hs-source-dirs: library
+  exposed-modules:
+    Hasql.Transaction
+    Hasql.Transaction.Sessions
+
+  other-modules:
+    Hasql.Transaction.Config
+    Hasql.Transaction.Private.Prelude
+    Hasql.Transaction.Private.SQL
+    Hasql.Transaction.Private.Sessions
+    Hasql.Transaction.Private.Statements
+    Hasql.Transaction.Private.Transaction
+
+  build-depends:
+    base >=4.12 && <5,
+    bytestring >=0.10 && <0.13,
+    bytestring-tree-builder >=0.2.7.8 && <0.3,
+    contravariant >=1.3 && <2,
+    hasql >=1.9 && <1.10,
+    mtl >=2.2 && <3,
+    transformers >=0.5 && <0.7,
+
+test-suite conflicts-test
+  import: test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: conflicts-test
+  main-is: Main.hs
+  other-modules:
+    Main.Statements
+    Main.Transactions
+
+  ghc-options:
+    -O2
+    -threaded
+    -with-rtsopts=-N
+
+  build-depends:
+    async >=2.1 && <3,
+    hasql >=1.9,
+    hasql-transaction,
+    rerebase >=1.11 && <2,
