@@ -1,21 +1,3 @@
-cabal-version: 3.0
-name: hasql-implicits
-version: 0.2.0.1
-synopsis:
-  Implicit definitions for Hasql, such as default codecs for standard types
-
-homepage: https://github.com/nikita-volkov/hasql-implicits
-bug-reports: https://github.com/nikita-volkov/hasql-implicits/issues
-author: Nikita Volkov <nikita.y.volkov@mail.ru>
-maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
-copyright: (c) 2019, Nikita Volkov
-license: MIT
-license-file: LICENSE
-
-source-repository head
-  type: git
-  location: git://github.com/nikita-volkov/hasql-implicits.git
-
 library
   hs-source-dirs: library
   default-extensions:
