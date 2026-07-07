@@ -1,26 +1,3 @@
-cabal-version: 3.0
-name: hasql-pool
-version: 1.3.0.3
-category: Hasql, Database, PostgreSQL
-synopsis: Pool of connections for Hasql
-homepage: https://github.com/nikita-volkov/hasql-pool
-bug-reports: https://github.com/nikita-volkov/hasql-pool/issues
-author: Nikita Volkov <nikita.y.volkov@mail.ru>
-maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
-copyright: (c) 2015, Nikita Volkov
-license: MIT
-license-file: LICENSE
-extra-source-files:
-  CHANGELOG.md
-  diagrams-output/*.png
-
-extra-doc-files:
-  diagrams-output/*.png
-
-source-repository head
-  type: git
-  location: git://github.com/nikita-volkov/hasql-pool.git
-
 common base-settings
   default-language: Haskell2010
   default-extensions:

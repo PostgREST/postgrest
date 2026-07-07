@@ -1,27 +1,3 @@
-cabal-version: 3.0
-name: hasql-dynamic-statements
-version: 0.3.1.8
-synopsis: Toolkit for constructing Hasql statements dynamically
-description:
-  This library introduces into the Hasql ecosystem a new abstraction named Snippet,
-  which makes it trivial to construct SQL, while injecting values.
-  It is intended to be used when the SQL of your statement depends on the parameters,
-  that you want to pass in.
-
-homepage: https://github.com/nikita-volkov/hasql-dynamic-statements
-bug-reports:
-  https://github.com/nikita-volkov/hasql-dynamic-statements/issues
-
-author: Nikita Volkov <nikita.y.volkov@mail.ru>
-maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
-copyright: (c) 2019, Nikita Volkov
-license: MIT
-license-file: LICENSE
-
-source-repository head
-  type: git
-  location: git://github.com/nikita-volkov/hasql-dynamic-statements.git
-
 common base
   default-language: Haskell2010
   default-extensions:
@@ -61,15 +37,6 @@ common base
     TypeApplications
     TypeFamilies
     TypeOperators
-
-common executable
-  import: base
-  ghc-options:
-    -O2
-    -threaded
-    -with-rtsopts=-N
-    -rtsopts
-    -funbox-strict-fields
 
 common test
   import: base
