@@ -1,0 +1,17 @@
+name: Compile, test and check the docs
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+
+  format:
+    uses: ./.github/workflows/format.yaml
+    secrets: inherit
+
+  check:
+    uses: ./.github/workflows/check.yaml
+    secrets: inherit
