@@ -44,26 +44,6 @@ common test
     -threaded
     -with-rtsopts=-N
 
-library
-  import: base
-  hs-source-dirs: library
-  exposed-modules:
-    Hasql.DynamicStatements.Session
-    Hasql.DynamicStatements.Snippet
-    Hasql.DynamicStatements.Statement
-
-  other-modules:
-    Hasql.DynamicStatements.Prelude
-    Hasql.DynamicStatements.Snippet.Defs
-
-  build-depends:
-    base >=4.14 && <5,
-    bytestring >=0.10 && <0.13,
-    containers >=0.6 && <0.8,
-    hasql >=1.8 && <1.10,
-    hasql-implicits >=0.2 && <0.3,
-    ptr >=0.16.7.2 && <0.17,
-
 test-suite test
   import: test
   type: exitcode-stdio-1.0

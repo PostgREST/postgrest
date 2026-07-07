@@ -42,35 +42,6 @@ common base-settings
     TypeFamilies
     TypeOperators
 
-library
-  import: base-settings
-  hs-source-dirs:
-    src/library/exposed
-    src/library/other
-
-  -- cabal-gild: discover src/library/exposed
-  exposed-modules:
-    Hasql.Pool
-    Hasql.Pool.Config
-    Hasql.Pool.Config.Defaults
-    Hasql.Pool.Observation
-
-  -- cabal-gild: discover src/library/other
-  other-modules:
-    Hasql.Pool.Config.Config
-    Hasql.Pool.Config.Setting
-    Hasql.Pool.Prelude
-    Hasql.Pool.SessionErrorDestructors
-
-  build-depends:
-    base >=4.11 && <5,
-    bytestring >=0.10 && <0.14,
-    hasql >=1.9 && <1.10,
-    stm >=2.5 && <3,
-    text >=1.2 && <3,
-    time >=1.9 && <2,
-    uuid >=1.3 && <2,
-
 test-suite test
   import: base-settings
   type: exitcode-stdio-1.0
