@@ -1,0 +1,25 @@
+on:
+  pull_request:
+    branches:
+      - supermajor
+      - major
+      - minor
+      - patch
+
+jobs:
+
+  format:
+    uses: ./.github/workflows/format.yaml
+    secrets: inherit
+
+  check:
+    uses: ./.github/workflows/check.yaml
+    secrets: inherit
+
+  check-changelog:
+    name: Check Changelog Action
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: tarides/changelog-check-action@v2
+        with:
+          changelog: CHANGELOG.md

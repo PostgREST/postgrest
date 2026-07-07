@@ -1,0 +1,252 @@
+cabal-version: 3.0
+name: hasql
+version: 1.9.3.1
+category: Hasql, Database, PostgreSQL
+synopsis: Fast PostgreSQL driver with a flexible mapping API
+description:
+  Root of the \"hasql\" ecosystem.
+  This library provides connection management, execution of queries and mapping of parameters and results.
+  Extended functionality such as pooling, transactions and compile-time checking is provided by extension libraries.
+  For more details and tutorials see <https://github.com/nikita-volkov/hasql the readme>.
+
+  The API comes free from all kinds of exceptions.
+  All error-reporting is explicit and is presented using the 'Either' type.
+
+  \"hasql\" requires you to have the "\libpq\" C-library installed to compile.
+  Starting from version 1.7 of \"hasql\" it requires \"libpq\" of at least version 14.
+  \"libpq\" comes distributed with PostgreSQL,
+  so typically all you need is just to install the latest PostgreSQL distro.
+
+  Despite the mentioned requirements for \"libpq\" \"hasql\" is compatible
+  with a wide range of PostgreSQL servers with tests having been conducted starting from
+  version 8.3.
+
+homepage: https://github.com/nikita-volkov/hasql
+bug-reports: https://github.com/nikita-volkov/hasql/issues
+author: Nikita Volkov <nikita.y.volkov@mail.ru>
+maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
+copyright: (c) 2014, Nikita Volkov
+license: MIT
+license-file: LICENSE
+extra-source-files:
+  CHANGELOG.md
+  README.md
+
+source-repository head
+  type: git
+  location: https://github.com/nikita-volkov/hasql
+
+common base
+  default-language: Haskell2010
+  default-extensions:
+    ApplicativeDo
+    Arrows
+    BangPatterns
+    BlockArguments
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveTraversable
+    DerivingVia
+    EmptyDataDecls
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    LiberalTypeSynonyms
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    NoImplicitPrelude
+    NoMonomorphismRestriction
+    OverloadedStrings
+    PatternGuards
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    RoleAnnotations
+    ScopedTypeVariables
+    StandaloneDeriving
+    StrictData
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+
+common executable
+  import: base
+  ghc-options:
+    -O2
+    -threaded
+    -with-rtsopts=-N
+    -rtsopts
+    -funbox-strict-fields
+
+common test
+  import: base
+  ghc-options:
+    -threaded
+    -with-rtsopts=-N
+
+library
+  import: base
+  hs-source-dirs: library
+  exposed-modules:
+    Hasql.Connection
+    Hasql.Connection.Setting
+    Hasql.Connection.Setting.Connection
+    Hasql.Connection.Setting.Connection.Param
+    Hasql.Decoders
+    Hasql.Encoders
+    Hasql.Pipeline
+    Hasql.Session
+    Hasql.Statement
+
+  other-modules:
+    Hasql.Commands
+    Hasql.Connection.Config
+    Hasql.Connection.Config.ConnectionString
+    Hasql.Connection.Config.ConnectionString.Params
+    Hasql.Connection.Core
+    Hasql.Decoders.All
+    Hasql.Decoders.Array
+    Hasql.Decoders.Composite
+    Hasql.Decoders.Result
+    Hasql.Decoders.Results
+    Hasql.Decoders.Row
+    Hasql.Decoders.Value
+    Hasql.Encoders.All
+    Hasql.Encoders.Array
+    Hasql.Encoders.Params
+    Hasql.Encoders.Value
+    Hasql.Errors
+    Hasql.IO
+    Hasql.LibPq14
+    Hasql.LibPq14.Ffi
+    Hasql.LibPq14.Mappings
+    Hasql.Pipeline.Core
+    Hasql.PostgresTypeInfo
+    Hasql.Prelude
+    Hasql.PreparedStatementRegistry
+    Hasql.Session.Core
+
+  build-depends:
+    aeson >=2 && <3,
+    attoparsec >=0.10 && <0.15,
+    base >=4.14 && <5,
+    bytestring >=0.10 && <0.13,
+    bytestring-strict-builder >=0.4.5.1 && <0.5,
+    containers >=0.6 && <0.9,
+    contravariant >=1.3 && <2,
+    dlist >=0.8 && <0.9 || >=1 && <2,
+    hashable >=1.2 && <2,
+    hashtables >=1.1 && <2,
+    iproute >=1.7 && <1.8,
+    mtl >=2 && <3,
+    postgresql-binary >=0.14.2 && <0.15,
+    postgresql-libpq >=0.10.1 && <0.12,
+    profunctors >=5.1 && <6,
+    scientific >=0.3 && <0.4,
+    text >=1 && <3,
+    text-builder >=1 && <1.1,
+    time >=1.9 && <2,
+    transformers >=0.6 && <0.7,
+    uuid >=1.3 && <2,
+    vector >=0.10 && <0.14,
+    witherable >=0.5 && <0.6,
+
+library testing-kit
+  import: base
+  visibility: private
+  hs-source-dirs: testing-kit
+  exposed-modules:
+    Hasql.TestingKit.Constants
+    Hasql.TestingKit.Preludes.Base
+    Hasql.TestingKit.Statements.BrokenSyntax
+    Hasql.TestingKit.Statements.GenerateSeries
+    Hasql.TestingKit.Statements.WrongDecoder
+    Hasql.TestingKit.TestingDsl
+
+  build-depends:
+    base,
+    bytestring,
+    hasql,
+    transformers,
+    uuid,
+
+test-suite tasty
+  import: base
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tasty
+  main-is: Main.hs
+  other-modules:
+    Main.Connection
+    Main.Prelude
+    Main.Statements
+
+  build-depends:
+    contravariant-extras >=0.3.5.2 && <0.4,
+    hasql,
+    hasql:testing-kit,
+    quickcheck-instances >=0.3.11 && <0.4,
+    rerebase <2,
+    tasty >=0.12 && <2,
+    tasty-hunit >=0.9 && <0.11,
+    tasty-quickcheck >=0.9 && <0.12,
+
+test-suite threads-test
+  import: test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: threads-test
+  main-is: Main.hs
+  other-modules: Main.Statements
+  build-depends:
+    hasql,
+    rerebase,
+
+benchmark benchmarks
+  import: executable
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: Main.hs
+  build-depends:
+    criterion >=1.6 && <2,
+    hasql,
+    rerebase <2,
+
+test-suite profiling
+  import: base
+  type: exitcode-stdio-1.0
+  hs-source-dirs: profiling
+  main-is: Main.hs
+  ghc-options:
+    -O2
+    -threaded
+    -rtsopts
+
+  build-depends:
+    hasql,
+    rerebase >=1 && <2,
+
+test-suite hspec
+  import: test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: hspec
+  main-is: Main.hs
+  other-modules:
+    Hasql.ConnectionSpec
+    Hasql.PipelineSpec
+
+  build-tool-depends: hspec-discover:hspec-discover
+  build-depends:
+    hasql,
+    hasql:testing-kit,
+    hspec,
+    rerebase >=1 && <2,
+    testcontainers-postgresql >=0.0.1 && <0.1,
