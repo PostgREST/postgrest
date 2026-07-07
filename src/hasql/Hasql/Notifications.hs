@@ -38,6 +38,8 @@ import Hasql.Session (run, sql, statement)
 import qualified Hasql.Session as S
 import qualified Hasql.Statement as HST
 
+import Prelude
+
 -- | A wrapped text that represents a properly escaped and quoted PostgreSQL identifier
 newtype PgIdentifier = PgIdentifier Text deriving (Show)
 

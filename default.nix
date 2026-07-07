@@ -33,7 +33,7 @@ let
   src =
     pkgs.lib.sourceFilesBySuffices
       (pkgs.gitignoreSource ./.)
-      [ ".cabal" ".hs" ".lhs" "LICENSE" ];
+      [ ".cabal" ".hs" ".hsc" ".lhs" "LICENSE" ];
 
   allOverlays =
     import nix/overlays;
