@@ -1,0 +1,9 @@
+name: Format
+
+on:
+  workflow_call: 
+
+jobs:
+  format:
+    uses: nikita-volkov/haskell-hackage-lib-github-actions-workflows/.github/workflows/format.yaml@v3
+    secrets: inherit

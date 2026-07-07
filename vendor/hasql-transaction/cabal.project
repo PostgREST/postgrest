@@ -1,0 +1,5 @@
+packages: .
+allow-newer:
+  , *:base
+  , *:template-haskell
+  , *:ghc-prim
