@@ -140,8 +140,10 @@ initWithPool pool conf loggerState metricsState observer appKiller = mdo
 
   return appState
 
+-- | Destroy the pool on shutdown.
+-- | Differs from flushPool in not emiting PoolFlushed observation.
 destroy :: AppState -> IO ()
-destroy = destroyPool
+destroy AppState{..} = SQL.release statePool
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool cfg@AppConfig{..} observer = do
@@ -225,11 +227,6 @@ flushPool :: AppState -> IO ()
 flushPool AppState{..} = do
   SQL.release statePool
   stateObserver PoolFlushed
-
--- | Destroy the pool on shutdown.
--- | Differs from flushPool in not emiting PoolFlushed observation.
-destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = SQL.release statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
