@@ -88,7 +88,7 @@ let
         ${ruff}/bin/ruff check .
 
         echo "Checking consistency of import aliases in Haskell code..."
-        ${hsie} check-aliases main src
+        ${hsie} check-aliases src/library src/executable
 
         echo "Linting Haskell files..."
         ${fd}/bin/fd '\.l?hs$' \
