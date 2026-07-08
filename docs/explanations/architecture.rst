@@ -36,53 +36,53 @@ The starting point of the program is `Main.hs <https://github.com/PostgREST/post
 CLI
 ---
 
-Main then calls `CLI.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/CLI.hs>`_, which is in charge of :ref:`cli`.
+Main then calls `CLI.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/CLI.hs>`_, which is in charge of :ref:`cli`.
 
 App
 ---
 
-`App.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/App.hs>`_ is then in charge of composing the different modules.
+`App.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/App.hs>`_ is then in charge of composing the different modules.
 
 Auth
 ----
 
-`Auth.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Auth.hs>`_ is in charge  of :ref:`authn`.
+`Auth.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Auth.hs>`_ is in charge  of :ref:`authn`.
 
 Api Request
 -----------
 
-`ApiRequest.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/ApiRequest.hs>`_ is in charge of parsing the URL query string (following PostgREST syntax), the request headers, and the request body.
+`ApiRequest.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/ApiRequest.hs>`_ is in charge of parsing the URL query string (following PostgREST syntax), the request headers, and the request body.
 
 A request might be rejected at this level if it's invalid. For example when providing an unknown media type to PostgREST or using an unknown HTTP method.
 
 Plan
 ----
 
-Using the Schema Cache, `Plan.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Plan.hs>`_ generates an internal AST, filling out-of-band SQL details (like an ``ON CONFLICT (pk)`` clause) required to complete the user request.
+Using the Schema Cache, `Plan.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Plan.hs>`_ generates an internal AST, filling out-of-band SQL details (like an ``ON CONFLICT (pk)`` clause) required to complete the user request.
 
 A request might be rejected at this level if it's invalid. For example when doing resource embedding on a nonexistent resource.
 
 Query
 -----
 
-`Query.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Query.hs>`_ generates the SQL queries (parametrized and prepared) required to satisfy the user request.
+`Query.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Query.hs>`_ generates the SQL queries (parametrized and prepared) required to satisfy the user request.
 
 Only at this stage a connection from the pool might be used.
 
 Schema Cache
 ------------
 
-`SchemaCache.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/SchemaCache.hs>`_ is in charge of :ref:`schema_cache`.
+`SchemaCache.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/SchemaCache.hs>`_ is in charge of :ref:`schema_cache`.
 
 Config
 ------
 
-`Config.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Config.hs>`_ is in charge of :ref:`configuration`.
+`Config.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Config.hs>`_ is in charge of :ref:`configuration`.
 
 Admin
 -----
 
-`Admin.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Admin.hs>`_ is in charge of the :ref:`admin_server`.
+`Admin.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Admin.hs>`_ is in charge of the :ref:`admin_server`.
 
 HTTP
 ----
@@ -92,4 +92,4 @@ The HTTP server is provided by `Warp <https://aosabook.org/en/posa/warp.html>`_.
 Listener
 --------
 
-`Listener.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Listener.hs>`_ is in charge of the :ref:`listener`.
+`Listener.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Listener.hs>`_ is in charge of the :ref:`listener`.

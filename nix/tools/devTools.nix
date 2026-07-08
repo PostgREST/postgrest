@@ -132,7 +132,7 @@ let
         args = [ "ARG_OPTIONAL_SINGLE([outfile], [o], [Output filename], [postgrest-module-graph.png])" ];
       }
       ''
-        ${hsie} graph-modules main src | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
+        ${hsie} graph-modules src/library src/executable | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
 
   hsieGraphSymbols =

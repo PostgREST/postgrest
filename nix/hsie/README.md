@@ -5,10 +5,10 @@ project. It's available in PostgREST's `nix-shell` by default.
 
 ## Dumping imports
 
-Given source code in the directories `src` and `main`, for example, you can run:
+Given source code in the directories `src/library` and `src/executable`, for example, you can run:
 
 ```
-hsie dump-imports src main
+hsie dump-imports src/library src/executable
 ```
 
 This dumps all imports of the modules in the given directory to a CSV file,
@@ -18,7 +18,7 @@ To dump to a JSON file (e.g., to further process with `jq`), add the `--json`
 flag:
 
 ```
-hsie dump-imports --json src main
+hsie dump-imports --json src/library src/executable
 ```
 
 ## Graphing imports
@@ -27,7 +27,7 @@ The tool can generate `graphviz` graphs of module and symbol imports by printing
 a file to `stdout` that can directly be rendered with `dot`:
 
 ```
-hsie graph-modules src main | dot -Tpng -o modules.png
+hsie graph-modules src/library src/executable | dot -Tpng -o modules.png
 ```
 
 The command `graph-modules` prints a graph of which modules insert which other
@@ -39,7 +39,7 @@ To check whether modules are imported under consistent aliases in your project,
 run:
 
 ```
-hsie check-aliases main src
+hsie check-aliases src/library src/executable
 ```
 
 This will exit with a non-zero exit code if any inconsistent aliases are found.
@@ -48,13 +48,13 @@ The following command checks whether any modules are imported as wildcards, i.e.
 not qualified and without specifying symbols.
 
 ```
-hsie check-wildcards main src
+hsie check-wildcards src/library src/executable
 ```
 
 To whitelist certain modules to be imported as wildcards, use `--ok`:
 
 ```
-hsie check-wildcards main src --ok Protolude --ok Test.Module
+hsie check-wildcards src/library src/executable --ok Protolude --ok Test.Module
 ```
 
 ## Current limitations
