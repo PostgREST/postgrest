@@ -1,8 +1,8 @@
 module Hasql.Transaction.Private.SQL where
 
-import ByteString.TreeBuilder qualified as D
-import Hasql.Transaction.Config
-import Hasql.Transaction.Private.Prelude
+import qualified ByteString.TreeBuilder            as D
+import           Hasql.Transaction.Config
+import           Hasql.Transaction.Private.Prelude
 
 beginTransaction :: IsolationLevel -> Mode -> ByteString
 beginTransaction isolation mode =
@@ -13,10 +13,10 @@ beginTransaction isolation mode =
       where
         isolationBuilder =
           case isolation of
-            ReadCommitted -> "ISOLATION LEVEL READ COMMITTED"
+            ReadCommitted  -> "ISOLATION LEVEL READ COMMITTED"
             RepeatableRead -> "ISOLATION LEVEL REPEATABLE READ"
-            Serializable -> "ISOLATION LEVEL SERIALIZABLE"
+            Serializable   -> "ISOLATION LEVEL SERIALIZABLE"
         modeBuilder =
           case mode of
             Write -> "READ WRITE"
-            Read -> "READ ONLY"
+            Read  -> "READ ONLY"

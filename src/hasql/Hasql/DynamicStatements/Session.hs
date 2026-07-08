@@ -1,11 +1,11 @@
 module Hasql.DynamicStatements.Session where
 
-import Hasql.Decoders qualified as Decoders
-import Hasql.DynamicStatements.Prelude
-import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
-import Hasql.DynamicStatements.Statement qualified as Statement
-import Hasql.Session
-import Hasql.Session qualified as Session
+import qualified Hasql.Decoders                       as Decoders
+import           Hasql.DynamicStatements.Prelude
+import qualified Hasql.DynamicStatements.Snippet.Defs as SnippetDefs
+import qualified Hasql.DynamicStatements.Statement    as Statement
+import           Hasql.Session
+import qualified Hasql.Session                        as Session
 
 -- |
 -- Execute a dynamically parameterized statement, providing a result decoder.

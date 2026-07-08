@@ -1,7 +1,7 @@
 module Hasql.Decoders.Array where
 
-import Hasql.Prelude
-import PostgreSQL.Binary.Decoding qualified as A
+import           Hasql.Prelude
+import qualified PostgreSQL.Binary.Decoding as A
 
 newtype Array a
   = Array (ReaderT Bool A.Array a)

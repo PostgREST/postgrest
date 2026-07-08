@@ -18,25 +18,27 @@ module Hasql.Notifications
   )
 where
 #if defined(mingw32_HOST_OS)
-import Control.Concurrent ( threadDelay )
+import Control.Concurrent (threadDelay)
 #else
-import Control.Concurrent (threadWaitRead, threadDelay)
+import Control.Concurrent (threadDelay, threadWaitRead)
 #endif
-import Control.Exception (Exception, throw)
-import Control.Monad (forever, unless, void, when)
-import Data.ByteString.Char8 (ByteString)
-import Data.Functor.Contravariant (contramap)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Database.PostgreSQL.LibPQ as PQ
-import Hasql.Connection (Connection, withLibPQConnection)
-import qualified Hasql.Decoders as HD
-import qualified Hasql.Encoders as HE
-import Hasql.Pool (Pool, UsageError, use)
-import Hasql.Session (run, sql, statement)
-import qualified Hasql.Session as S
-import qualified Hasql.Statement as HST
+import           Control.Exception          (Exception, throw)
+import           Control.Monad              (forever, unless, void,
+                                             when)
+import           Data.ByteString.Char8      (ByteString)
+import           Data.Functor.Contravariant (contramap)
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as T
+import qualified Database.PostgreSQL.LibPQ  as PQ
+import           Hasql.Connection           (Connection,
+                                             withLibPQConnection)
+import qualified Hasql.Decoders             as HD
+import qualified Hasql.Encoders             as HE
+import           Hasql.Pool                 (Pool, UsageError, use)
+import           Hasql.Session              (run, sql, statement)
+import qualified Hasql.Session              as S
+import qualified Hasql.Statement            as HST
 
 import Prelude
 

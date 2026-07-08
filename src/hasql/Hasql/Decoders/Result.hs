@@ -1,14 +1,14 @@
 module Hasql.Decoders.Result where
 
-import Data.Attoparsec.ByteString.Char8 qualified as Attoparsec
-import Data.ByteString qualified as ByteString
-import Data.Vector qualified as Vector
-import Data.Vector.Mutable qualified as MutableVector
-import Hasql.Decoders.Row qualified as Row
-import Hasql.Errors
-import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude hiding (many, maybe)
-import Hasql.Prelude qualified as Prelude
+import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
+import qualified Data.ByteString                  as ByteString
+import qualified Data.Vector                      as Vector
+import qualified Data.Vector.Mutable              as MutableVector
+import qualified Hasql.Decoders.Row               as Row
+import           Hasql.Errors
+import qualified Hasql.LibPq14                    as LibPQ
+import           Hasql.Prelude                    hiding (many, maybe)
+import qualified Hasql.Prelude                    as Prelude
 
 newtype Result a
   = Result (ReaderT (Bool, LibPQ.Result) (ExceptT ResultError IO) a)
@@ -97,7 +97,7 @@ serverError =
       Just pos ->
         case Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) pos of
           Right pos -> Just pos
-          _ -> Nothing
+          _         -> Nothing
 
 {-# INLINE maybe #-}
 maybe :: Row.Row a -> Result (Maybe a)

@@ -1,11 +1,11 @@
 module Hasql.Transaction.Private.Statements where
 
-import Hasql.Decoders qualified as C
-import Hasql.Encoders qualified as B
-import Hasql.Statement qualified as A
-import Hasql.Transaction.Config
-import Hasql.Transaction.Private.Prelude
-import Hasql.Transaction.Private.SQL qualified as D
+import qualified Hasql.Decoders                    as C
+import qualified Hasql.Encoders                    as B
+import qualified Hasql.Statement                   as A
+import           Hasql.Transaction.Config
+import           Hasql.Transaction.Private.Prelude
+import qualified Hasql.Transaction.Private.SQL     as D
 
 beginTransaction :: IsolationLevel -> Mode -> A.Statement () ()
 beginTransaction isolation mode =

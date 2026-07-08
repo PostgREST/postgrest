@@ -2,14 +2,14 @@
 -- An API of low-level IO operations.
 module Hasql.IO where
 
-import Hasql.Commands qualified as Commands
-import Hasql.Decoders.Result qualified as ResultDecoders
-import Hasql.Decoders.Results qualified as ResultsDecoders
-import Hasql.Encoders.Params qualified as ParamsEncoders
-import Hasql.Errors
-import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude
-import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
+import qualified Hasql.Commands                  as Commands
+import qualified Hasql.Decoders.Result           as ResultDecoders
+import qualified Hasql.Decoders.Results          as ResultsDecoders
+import qualified Hasql.Encoders.Params           as ParamsEncoders
+import           Hasql.Errors
+import qualified Hasql.LibPq14                   as LibPQ
+import           Hasql.Prelude
+import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
 
 {-# INLINE acquireConnection #-}
 acquireConnection :: ByteString -> IO LibPQ.Connection
@@ -33,7 +33,7 @@ checkConnectionStatus c =
     s <- LibPQ.status c
     case s of
       LibPQ.ConnectionOk -> return Nothing
-      _ -> fmap Just (LibPQ.errorMessage c)
+      _                  -> fmap Just (LibPQ.errorMessage c)
 
 {-# INLINE checkServerVersion #-}
 checkServerVersion :: LibPQ.Connection -> IO (Maybe Int)

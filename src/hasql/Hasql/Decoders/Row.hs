@@ -1,10 +1,10 @@
 module Hasql.Decoders.Row where
 
-import Hasql.Decoders.Value qualified as Value
-import Hasql.Errors
-import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude hiding (error)
-import PostgreSQL.Binary.Decoding qualified as A
+import qualified Hasql.Decoders.Value       as Value
+import           Hasql.Errors
+import qualified Hasql.LibPq14              as LibPQ
+import           Hasql.Prelude              hiding (error)
+import qualified PostgreSQL.Binary.Decoding as A
 
 newtype Row a
   = Row (ReaderT Env (ExceptT RowError IO) a)

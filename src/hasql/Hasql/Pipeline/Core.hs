@@ -1,15 +1,15 @@
 module Hasql.Pipeline.Core where
 
-import Hasql.Decoders.All qualified as Decoders
-import Hasql.Decoders.Result qualified as Decoders.Result
-import Hasql.Decoders.Results qualified as Decoders.Results
-import Hasql.Encoders.All qualified as Encoders
-import Hasql.Encoders.Params qualified as Encoders.Params
-import Hasql.Errors
-import Hasql.LibPq14 qualified as Pq
-import Hasql.Prelude
-import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
-import Hasql.Statement qualified as Statement
+import qualified Hasql.Decoders.All              as Decoders
+import qualified Hasql.Decoders.Result           as Decoders.Result
+import qualified Hasql.Decoders.Results          as Decoders.Results
+import qualified Hasql.Encoders.All              as Encoders
+import qualified Hasql.Encoders.Params           as Encoders.Params
+import           Hasql.Errors
+import qualified Hasql.LibPq14                   as Pq
+import           Hasql.Prelude
+import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
+import qualified Hasql.Statement                 as Statement
 
 run :: forall a. Pipeline a -> Bool -> Pq.Connection -> PreparedStatementRegistry.PreparedStatementRegistry -> Bool -> IO (Either SessionError a)
 run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integerDatetimes = do

@@ -1,11 +1,11 @@
 module Hasql.Encoders.Params where
 
-import Hasql.Encoders.Value qualified as C
-import Hasql.LibPq14 qualified as A
-import Hasql.PostgresTypeInfo qualified as D
-import Hasql.Prelude
-import PostgreSQL.Binary.Encoding qualified as B
-import TextBuilder qualified as E
+import qualified Hasql.Encoders.Value       as C
+import qualified Hasql.LibPq14              as A
+import qualified Hasql.PostgresTypeInfo     as D
+import           Hasql.Prelude
+import qualified PostgreSQL.Binary.Encoding as B
+import qualified TextBuilder                as E
 
 renderReadable :: Params a -> a -> [Text]
 renderReadable (Params _ _ _ printer) params =
@@ -35,10 +35,10 @@ compileUnpreparedStatementData (Params _ columnsMetadata serializer _) integerDa
 -- |
 -- Encoder of some representation of a parameters product.
 data Params a = Params
-  { size :: !Int,
+  { size            :: !Int,
     columnsMetadata :: !(DList (A.Oid, A.Format)),
-    serializer :: Bool -> a -> DList (Maybe ByteString),
-    printer :: a -> DList Text
+    serializer      :: Bool -> a -> DList (Maybe ByteString),
+    printer         :: a -> DList Text
   }
 
 instance Contravariant Params where

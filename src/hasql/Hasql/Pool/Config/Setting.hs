@@ -1,11 +1,11 @@
 module Hasql.Pool.Config.Setting where
 
-import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Pool.Config.Config (Config)
-import Hasql.Pool.Config.Config qualified as Config
-import Hasql.Pool.Observation (Observation)
-import Hasql.Pool.Prelude
-import Hasql.Session qualified as Session
+import qualified Hasql.Connection.Setting as Connection.Setting
+import           Hasql.Pool.Config.Config (Config)
+import qualified Hasql.Pool.Config.Config as Config
+import           Hasql.Pool.Observation   (Observation)
+import           Hasql.Pool.Prelude
+import qualified Hasql.Session            as Session
 
 apply :: Setting -> Config -> Config
 apply (Setting run) = run

@@ -1,14 +1,14 @@
 module Main where
 
-import Data.Vector qualified as F
-import Hasql.Connection qualified as A
-import Hasql.Connection.Setting qualified as E
-import Hasql.Connection.Setting.Connection qualified as F
-import Hasql.Connection.Setting.Connection.Param qualified as G
-import Hasql.Decoders qualified as D
-import Hasql.Session qualified as B
-import Hasql.Statement qualified as C
-import Prelude
+import qualified Data.Vector                               as F
+import qualified Hasql.Connection                          as A
+import qualified Hasql.Connection.Setting                  as E
+import qualified Hasql.Connection.Setting.Connection       as F
+import qualified Hasql.Connection.Setting.Connection.Param as G
+import qualified Hasql.Decoders                            as D
+import qualified Hasql.Session                             as B
+import qualified Hasql.Statement                           as C
+import           Prelude
 
 main :: IO ()
 main =

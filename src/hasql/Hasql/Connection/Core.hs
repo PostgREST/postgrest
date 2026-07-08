@@ -2,12 +2,12 @@
 -- This module provides a low-level effectful API dealing with the connections to the database.
 module Hasql.Connection.Core where
 
-import Hasql.Connection.Config qualified as Config
-import Hasql.Connection.Setting qualified as Setting
-import Hasql.IO qualified as IO
-import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude
-import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
+import qualified Hasql.Connection.Config         as Config
+import qualified Hasql.Connection.Setting        as Setting
+import qualified Hasql.IO                        as IO
+import qualified Hasql.LibPq14                   as LibPQ
+import           Hasql.Prelude
+import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
 
 -- |
 -- A single connection to the database.

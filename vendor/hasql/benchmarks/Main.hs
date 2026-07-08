@@ -1,13 +1,13 @@
 module Main where
 
-import Criterion
-import Criterion.Main
-import Hasql.Connection qualified as A
-import Hasql.Decoders qualified as D
-import Hasql.Pipeline qualified as E
-import Hasql.Session qualified as B
-import Hasql.Statement qualified as C
-import Prelude
+import           Criterion
+import           Criterion.Main
+import qualified Hasql.Connection as A
+import qualified Hasql.Decoders   as D
+import qualified Hasql.Pipeline   as E
+import qualified Hasql.Session    as B
+import qualified Hasql.Statement  as C
+import           Prelude
 
 main :: IO ()
 main =

@@ -1,15 +1,15 @@
 module Hasql.TestingKit.Statements.WrongDecoder where
 
-import Hasql.Decoders qualified as Decoders
-import Hasql.Encoders qualified as Encoders
-import Hasql.Pipeline qualified as Pipeline
-import Hasql.Session qualified as Session
-import Hasql.Statement qualified as Statement
-import Hasql.TestingKit.Preludes.Base
+import qualified Hasql.Decoders                 as Decoders
+import qualified Hasql.Encoders                 as Encoders
+import qualified Hasql.Pipeline                 as Pipeline
+import qualified Hasql.Session                  as Session
+import qualified Hasql.Statement                as Statement
+import           Hasql.TestingKit.Preludes.Base
 
 data Params = Params
   { start :: Int64,
-    end :: Int64
+    end   :: Int64
   }
 
 type Result = [UUID]

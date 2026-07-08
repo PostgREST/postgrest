@@ -4,8 +4,8 @@
 -- Specific interpreters are encouraged to be created as extension libraries.
 module Hasql.Pool.Observation where
 
-import Hasql.Pool.Prelude
-import Hasql.Session qualified as Session
+import           Hasql.Pool.Prelude
+import qualified Hasql.Session      as Session
 
 -- | An observation of a change of the state of a pool.
 data Observation

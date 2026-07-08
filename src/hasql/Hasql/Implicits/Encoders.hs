@@ -2,9 +2,9 @@
 
 module Hasql.Implicits.Encoders where
 
-import qualified Data.Aeson as Aeson
-import Hasql.Encoders
-import Hasql.Implicits.Prelude hiding (bool)
+import qualified Data.Aeson              as Aeson
+import           Hasql.Encoders
+import           Hasql.Implicits.Prelude hiding (bool)
 
 -- | Provides a default implementation of parameter encoder.
 class DefaultParamEncoder a where

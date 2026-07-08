@@ -1,10 +1,10 @@
 module Hasql.Transaction.Private.Transaction where
 
-import Hasql.Session qualified as B
-import Hasql.Statement qualified as A
-import Hasql.Transaction.Config
-import Hasql.Transaction.Private.Prelude
-import Hasql.Transaction.Private.Sessions qualified as D
+import qualified Hasql.Session                      as B
+import qualified Hasql.Statement                    as A
+import           Hasql.Transaction.Config
+import           Hasql.Transaction.Private.Prelude
+import qualified Hasql.Transaction.Private.Sessions as D
 
 -- |
 -- A composable abstraction over the retryable transactions.

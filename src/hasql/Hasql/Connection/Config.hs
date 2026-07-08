@@ -3,7 +3,7 @@ module Hasql.Connection.Config where
 import Hasql.Prelude
 
 data Config = Config
-  { connectionString :: ByteString,
+  { connectionString      :: ByteString,
     usePreparedStatements :: Bool
   }
 
