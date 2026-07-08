@@ -1,0 +1,58 @@
+name: CI
+
+# Trigger the workflow on push or pull request, but only for the main branch
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: build / ${{ matrix.os }} / ghc ${{ matrix.ghc }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        ghc: ["9.6.3"]
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: roottoor
+          POSTGRES_USER: postgres
+          POSTGRES_DB: hasql_notifications_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: haskell-actions/setup@v2
+      name: Setup Haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+
+    - uses: actions/cache@v4
+      name: Cache ~/dist-newstyle
+      with:
+        path: ~/dist-newstyle
+        key: ${{ matrix.os }}-${{ matrix.ghc }}-v4
+
+    - name: Build Dependencies
+      run: |
+        cabal build --only-dependencies
+        cabal install hspec-discover
+
+    - name: Build
+      run: |
+        cabal build
+
+    - name: Test
+      run: |
+        cabal test
+
