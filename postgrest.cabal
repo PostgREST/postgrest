@@ -40,7 +40,6 @@ flag hpc
 library hasql
   default-language:   Haskell2010
   default-extensions: ApplicativeDo
-                      Arrows
                       BangPatterns
                       BlockArguments
                       ConstraintKinds

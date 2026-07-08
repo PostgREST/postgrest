@@ -1,11 +1,11 @@
 module Hasql.Connection.Config.ConnectionString where
 
-import Data.ByteString qualified as B
-import Data.ByteString.Char8 qualified as BC
-import Data.Map.Strict qualified as Map
-import Data.Text.Encoding qualified
-import Hasql.Connection.Config.ConnectionString.Params qualified as Params
-import Hasql.Prelude
+import qualified Data.ByteString                                 as B
+import qualified Data.ByteString.Char8                           as BC
+import qualified Data.Map.Strict                                 as Map
+import qualified Data.Text.Encoding
+import qualified Hasql.Connection.Config.ConnectionString.Params as Params
+import           Hasql.Prelude
 
 type ConnectionString = ByteString
 
@@ -27,5 +27,5 @@ fromParams =
             case w of
               '\'' -> BC.pack "\\'"
               '\\' -> BC.pack "\\\\"
-              _ -> BC.singleton w
+              _    -> BC.singleton w
         )

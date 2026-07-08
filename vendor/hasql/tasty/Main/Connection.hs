@@ -1,8 +1,8 @@
 module Main.Connection where
 
-import Hasql.Connection qualified as HC
-import Hasql.TestingKit.Constants qualified as Constants
-import Main.Prelude
+import qualified Hasql.Connection           as HC
+import qualified Hasql.TestingKit.Constants as Constants
+import           Main.Prelude
 
 with :: (HC.Connection -> IO a) -> IO (Either HC.ConnectionError a)
 with handler =

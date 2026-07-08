@@ -1,7 +1,7 @@
 module Hasql.Errors where
 
-import Data.ByteString.Char8 qualified as BC
-import Hasql.Prelude
+import qualified Data.ByteString.Char8 as BC
+import           Hasql.Prelude
 
 -- | Error during execution of a session.
 data SessionError
@@ -58,7 +58,7 @@ instance Exception SessionError where
 
           prettyQuery :: ByteString
           prettyQuery = case queryContext of
-            Nothing -> query
+            Nothing             -> query
             Just (message, pos) -> formatErrorContext query message pos
        in "QueryError!\n"
             <> "\n  Query:\n"

@@ -1,14 +1,14 @@
 module Hasql.NotificationsSpec (main, spec) where
 
-import Control.Concurrent (forkIO, killThread)
+import Control.Concurrent                  (forkIO, killThread)
 import Control.Concurrent.MVar
-import Control.Monad (void)
+import Control.Monad                       (void)
 import Data.ByteString
 import Hasql.Connection
 import Hasql.Connection.Setting
 import Hasql.Connection.Setting.Connection
 import Hasql.Notifications
-import System.Exit (die)
+import System.Exit                         (die)
 import Test.Hspec
 import Test.QuickCheck
 

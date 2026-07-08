@@ -1,8 +1,8 @@
 module Hasql.TestingKit.Constants where
 
-import Hasql.Connection.Setting qualified as Setting
-import Hasql.Connection.Setting.Connection qualified as Setting.Connection
-import Hasql.Connection.Setting.Connection.Param qualified as Setting.Connection.Component
+import qualified Hasql.Connection.Setting                  as Setting
+import qualified Hasql.Connection.Setting.Connection       as Setting.Connection
+import qualified Hasql.Connection.Setting.Connection.Param as Setting.Connection.Component
 
 localConnectionSettings :: [Setting.Setting]
 localConnectionSettings =

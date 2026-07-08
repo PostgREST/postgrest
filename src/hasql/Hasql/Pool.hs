@@ -10,24 +10,24 @@ module Hasql.Pool
   )
 where
 
-import Data.Text.Encoding qualified as Text
-import Data.Text.Encoding.Error qualified as Text
-import Data.UUID.V4 qualified as Uuid
-import Hasql.Connection (Connection)
-import Hasql.Connection qualified as Connection
-import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Pool.Config.Config qualified as Config
-import Hasql.Pool.Observation
-import Hasql.Pool.Prelude
-import Hasql.Pool.SessionErrorDestructors qualified as ErrorsDestruction
-import Hasql.Session qualified as Session
+import qualified Data.Text.Encoding                 as Text
+import qualified Data.Text.Encoding.Error           as Text
+import qualified Data.UUID.V4                       as Uuid
+import           Hasql.Connection                   (Connection)
+import qualified Hasql.Connection                   as Connection
+import qualified Hasql.Connection.Setting           as Connection.Setting
+import qualified Hasql.Pool.Config.Config           as Config
+import           Hasql.Pool.Observation
+import           Hasql.Pool.Prelude
+import qualified Hasql.Pool.SessionErrorDestructors as ErrorsDestruction
+import qualified Hasql.Session                      as Session
 
 -- | A connection tagged with metadata.
 data Entry = Entry
-  { entryConnection :: Connection,
+  { entryConnection       :: Connection,
     entryCreationTimeNSec :: Word64,
-    entryUseTimeNSec :: Word64,
-    entryId :: UUID
+    entryUseTimeNSec      :: Word64,
+    entryId               :: UUID
   }
 
 entryIsAged :: Word64 -> Word64 -> Entry -> Bool
@@ -41,30 +41,30 @@ entryIsIdle maxIdletime now Entry {..} =
 -- | Pool of connections to DB.
 data Pool = Pool
   { -- | Pool size.
-    poolSize :: Int,
+    poolSize                    :: Int,
     -- | Connection settings.
     poolFetchConnectionSettings :: IO [Connection.Setting.Setting],
     -- | Acquisition timeout, in microseconds.
-    poolAcquisitionTimeout :: Int,
+    poolAcquisitionTimeout      :: Int,
     -- | Maximal connection lifetime, in nanoseconds.
-    poolMaxLifetime :: Word64,
+    poolMaxLifetime             :: Word64,
     -- | Maximal connection idle time, in nanoseconds.
-    poolMaxIdletime :: Word64,
+    poolMaxIdletime             :: Word64,
     -- | Avail connections.
-    poolConnectionQueue :: TQueue Entry,
+    poolConnectionQueue         :: TQueue Entry,
     -- | Remaining capacity.
     -- The pool size limits the sum of poolCapacity, the length
     -- of poolConnectionQueue and the number of in-flight
     -- connections.
-    poolCapacity :: TVar Int,
+    poolCapacity                :: TVar Int,
     -- | Whether to return a connection to the pool.
-    poolReuseVar :: TVar (TVar Bool),
+    poolReuseVar                :: TVar (TVar Bool),
     -- | To stop the manager thread via garbage collection.
-    poolReaperRef :: IORef (),
+    poolReaperRef               :: IORef (),
     -- | Action for reporting the observations.
-    poolObserver :: Observation -> IO (),
+    poolObserver                :: Observation -> IO (),
     -- | Initial session to execute upon every established connection.
-    poolInitSession :: Session.Session ()
+    poolInitSession             :: Session.Session ()
   }
 
 -- | Create a connection-pool.

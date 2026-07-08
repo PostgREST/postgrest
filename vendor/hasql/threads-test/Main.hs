@@ -1,12 +1,12 @@
 module Main where
 
-import Hasql.Connection qualified
-import Hasql.Connection.Setting qualified
-import Hasql.Connection.Setting.Connection qualified
-import Hasql.Connection.Setting.Connection.Param qualified
-import Hasql.Session qualified
-import Main.Statements qualified as Statements
-import Prelude
+import qualified Hasql.Connection
+import qualified Hasql.Connection.Setting
+import qualified Hasql.Connection.Setting.Connection
+import qualified Hasql.Connection.Setting.Connection.Param
+import qualified Hasql.Session
+import qualified Main.Statements                           as Statements
+import           Prelude
 
 main :: IO ()
 main =

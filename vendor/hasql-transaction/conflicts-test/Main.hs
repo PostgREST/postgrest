@@ -1,16 +1,16 @@
 module Main where
 
-import Control.Concurrent.Async qualified as F
-import Hasql.Connection qualified as A
-import Hasql.Connection.Setting qualified as H
-import Hasql.Connection.Setting.Connection qualified as I
-import Hasql.Connection.Setting.Connection.Param qualified as J
-import Hasql.Session qualified as B
-import Hasql.Transaction qualified as C
-import Hasql.Transaction.Sessions qualified as G
-import Main.Statements qualified as D
-import Main.Transactions qualified as E
-import Prelude
+import qualified Control.Concurrent.Async                  as F
+import qualified Hasql.Connection                          as A
+import qualified Hasql.Connection.Setting                  as H
+import qualified Hasql.Connection.Setting.Connection       as I
+import qualified Hasql.Connection.Setting.Connection.Param as J
+import qualified Hasql.Session                             as B
+import qualified Hasql.Transaction                         as C
+import qualified Hasql.Transaction.Sessions                as G
+import qualified Main.Statements                           as D
+import qualified Main.Transactions                         as E
+import           Prelude
 
 main :: IO ()
 main =

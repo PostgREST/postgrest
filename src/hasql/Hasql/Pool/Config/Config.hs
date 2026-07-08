@@ -1,20 +1,20 @@
 module Hasql.Pool.Config.Config where
 
-import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Pool.Config.Defaults qualified as Defaults
-import Hasql.Pool.Observation (Observation)
-import Hasql.Pool.Prelude
-import Hasql.Session qualified as Session
+import qualified Hasql.Connection.Setting   as Connection.Setting
+import qualified Hasql.Pool.Config.Defaults as Defaults
+import           Hasql.Pool.Observation     (Observation)
+import           Hasql.Pool.Prelude
+import qualified Hasql.Session              as Session
 
 -- | Configuration for Hasql connection pool.
 data Config = Config
-  { size :: Int,
-    acquisitionTimeout :: DiffTime,
-    agingTimeout :: DiffTime,
-    idlenessTimeout :: DiffTime,
+  { size                       :: Int,
+    acquisitionTimeout         :: DiffTime,
+    agingTimeout               :: DiffTime,
+    idlenessTimeout            :: DiffTime,
     connectionSettingsProvider :: IO [Connection.Setting.Setting],
-    observationHandler :: Observation -> IO (),
-    initSession :: Session.Session ()
+    observationHandler         :: Observation -> IO (),
+    initSession                :: Session.Session ()
   }
 
 -- | Reasonable defaults, which can be built upon.
