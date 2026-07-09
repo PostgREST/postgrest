@@ -32,7 +32,10 @@ let
   # build of new Nix derivations when changed.
   src =
     pkgs.lib.sourceFilesBySuffices
-      (pkgs.gitignoreSource ./.)
+      (pkgs.lib.cleanSourceWith {
+        src = pkgs.gitignoreSource ./.;
+        filter = path: _: !(pkgs.lib.hasPrefix "${toString ./restart}/" (toString path));
+      })
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
 
   allOverlays =
@@ -69,6 +72,12 @@ let
     ];
 
   haskellPackages = pkgs.haskell.packages."${compiler}";
+
+  restartPackages =
+    import ./restart {
+      inherit system pkgs haskellPackages;
+      lib = pkgs.haskell.lib;
+    };
 
   # Dynamic derivation for PostgREST
   postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix name src { }) [
@@ -119,6 +128,8 @@ rec {
   ];
 
   inherit (postgrest) env;
+
+  inherit (restartPackages) restart;
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
