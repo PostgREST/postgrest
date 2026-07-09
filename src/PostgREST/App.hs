@@ -32,6 +32,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setBeforeMainLoop,
                                  setHost, setOnException, setPort,
                                  setServerName)
 
+import qualified Control.Exception        as E
 import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
@@ -147,10 +148,10 @@ postgrest appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState $
     \req respond -> do
-      appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
-      maybeSchemaCache <- AppState.getSchemaCache appState
-
-      let handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+      (appConf@AppConfig{..}, configGeneration) <- AppState.getConfigWithTenantGeneration appState -- the config must be read again because it can reload
+      let observer = AppState.getObserver appState
+          handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+      hadSchemaCacheRef <- newIORef False
 
       -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
       -- has to be before runExceptT to make sure role is not lost on error
@@ -160,18 +161,34 @@ postgrest appState connWorker =
 
         tell $ pure authRole
 
-        postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req
+        let tenantId = ApiRequest.userTenantId appConf authResult req
+        (hadSchemaCache, tenantResult) <- liftIO $ E.bracket
+          (AppState.resolveTenant appState appConf configGeneration tenantId)
+          (either (const $ pure ()) AppState.releaseTenant)
+          $ \tenantStateE ->
+            case tenantStateE of
+              Left err -> pure (False, Left err)
+              Right tenantState -> do
+                tenantConf <- AppState.getTenantConfig tenantState
+                maybeSchemaCache <- AppState.getTenantSchemaCache tenantState
+                result <- runExceptT $
+                  postgrestResponse appState tenantState tenantConf maybeSchemaCache jwtTime authResult tenantId req
+                pure (isJust maybeSchemaCache, result)
+        liftIO $ atomicWriteIORef hadSchemaCacheRef hadSchemaCache
+        liftEither tenantResult
 
-      AppState.getObserver appState $ genResponseObs (getLast authRole) req response
+      observer $ genResponseObs (getLast authRole) req response
 
-      -- Launch the connWorker when the connection is down. The postgrest
+      -- Launching connWorker when the connection is down is handled after
+      -- tenant resolution. The postgrest
       -- function can respond successfully (with a stale schema cache) before
       -- the connWorker is done. However, when there's an empty schema cache
       -- postgrest responds with the error `PGRST002`; this means that the schema
       -- cache is still loading, so we don't launch the connWorker here because
       -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
       -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
-      when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
+      hadSchemaCache <- readIORef hadSchemaCacheRef
+      when (isServiceUnavailable response && hadSchemaCache) connWorker
       delay <- AppState.getNextDelay appState
       respond $ addRetryHint delay response
   where
@@ -182,15 +199,16 @@ postgrest appState connWorker =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
 postgrestResponse
-  :: (MonadError Error m, MonadIO m)
-  => AppState.AppState
+  :: AppState.AppState
+  -> AppState.TenantState
   -> AppConfig
   -> Maybe SchemaCache
   -> Maybe Double
   -> AuthResult
+  -> Maybe ByteString
   -> Wai.Request
-  -> m Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} req = do
+  -> ExceptT Error IO Wai.Response
+postgrestResponse appState tenantState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} tenantId req = do
   let observer = AppState.getObserver appState
 
   sCache <-
@@ -205,7 +223,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   body <- liftIO $ Wai.strictRequestBody req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf tenantId prefs req body
   (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
@@ -216,7 +234,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx dbSession -> do
-        dbRes <- liftIO $ AppState.usePool appState dbSession
+        dbRes <- liftIO $ AppState.useTenantPool appState tenantState dbSession
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
         -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.

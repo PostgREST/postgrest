@@ -164,6 +164,16 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10
+  , configTenantClaimKey            = Nothing
+  , configTenantDbUriTemplate       = Nothing
+  , configTenantHeader              = Nothing
+  , configTenantHostHeader          = Nothing
+  , configTenantHostRegex           = Nothing
+  , configTenantGucs                = ["request.tenant_id", "app.tenant_id"]
+  , configTenantMaxResident         = 0
+  , configTenantMaxIdletime         = 0
+  , configTenantMaxColdStarts       = 0
+  , configTenantFailureCacheTtl     = 0
   , configLogLevel                  = LogCrit
   , configLogQuery                  = False
   , configOpenApiMode               = OAFollowPriv

@@ -9,8 +9,11 @@ module PostgREST.ApiRequest
   , userApiRequest
   , userPreferences
   , userBearerAuth
+  , userTenantId
   ) where
 
+import qualified Data.Aeson           as JSON
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.CaseInsensitive as CI
 import qualified Data.HashMap.Strict  as HM
 import qualified Data.List.NonEmpty   as NonEmptyList
@@ -25,6 +28,7 @@ import Network.HTTP.Types.Header       (RequestHeaders,
 import Network.Wai                     (Request (..))
 import Network.Wai.Middleware.HttpAuth (extractBearerAuth)
 import Network.Wai.Parse               (parseHttpAccept)
+import Text.Regex.TDFA                 ((=~))
 import Web.Cookie                      (parseCookies)
 
 import PostgREST.ApiRequest.Payload      (getPayload)
@@ -33,8 +37,10 @@ import PostgREST.ApiRequest.Types        (Action (..), DbAction (..),
                                           InvokeMethod (..),
                                           Mutation (..), Payload (..),
                                           RequestBody, Resource (..))
+import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
+import PostgREST.Config.JSPath           (evaluateJSPath)
 import PostgREST.Config.Database         (TimezoneNames)
 import PostgREST.Error                   (ApiRequestError (..),
                                           RangeError (..))
@@ -70,6 +76,7 @@ data ApiRequest = ApiRequest {
   , iColumns             :: S.Set FieldName                  -- ^ parsed columns from &columns parameter and payload
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
+  , iTenantId            :: Maybe ByteString                 -- ^ Tenant id from configured JWT claim or request header
   , iPath                :: ByteString                       -- ^ Raw request path
   , iMethod              :: ByteString                       -- ^ Raw request method
   , iSchema              :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
@@ -79,8 +86,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf prefs req reqBody = do
+userApiRequest :: AppConfig -> Maybe ByteString -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest conf tenantId prefs req reqBody = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
@@ -97,6 +104,7 @@ userApiRequest conf prefs req reqBody = do
   , iColumns = columns
   , iHeaders = iHdrs
   , iCookies = iCkies
+  , iTenantId = tenantId
   , iPath = rawPathInfo req
   , iMethod = method
   , iSchema = schema
@@ -112,6 +120,29 @@ userApiRequest conf prefs req reqBody = do
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
     actIsInvokeSafe x = case x of {ActDb (ActRoutine _  (InvRead _)) -> True; _ -> False}
+
+userTenantId :: AppConfig -> AuthResult -> Request -> Maybe ByteString
+userTenantId conf@AppConfig{configTenantHeader} authResult req =
+  tenantIdFromClaims conf authResult <|> tenantIdFromHost conf req <|> (lookupHeader =<< configTenantHeader)
+  where
+    lookupHeader = flip lookup (requestHeaders req)
+
+tenantIdFromHost :: AppConfig -> Request -> Maybe ByteString
+tenantIdFromHost AppConfig{configTenantHostHeader, configTenantHostRegex} req = do
+  hostHeader <- configTenantHostHeader
+  hostRegex <- configTenantHostRegex
+  host <- lookup hostHeader $ requestHeaders req
+  case host =~ hostRegex :: [[ByteString]] of
+    ((_:tenantId:_):_) -> Just tenantId
+    _                 -> Nothing
+
+tenantIdFromClaims :: AppConfig -> AuthResult -> Maybe ByteString
+tenantIdFromClaims AppConfig{configTenantClaimKey} AuthResult{authClaims} =
+  configTenantClaimKey >>= fmap tenantClaimToByteString . evaluateJSPath (Just $ JSON.Object authClaims)
+
+tenantClaimToByteString :: JSON.Value -> ByteString
+tenantClaimToByteString (JSON.String txt) = encodeUtf8 txt
+tenantClaimToByteString val               = LBS.toStrict $ JSON.encode val
 
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences

@@ -67,6 +67,36 @@ cli:
     env:
       PGRST_JWT_SECRET_IS_BASE64: 'true'
       PGRST_JWT_SECRET: 'no base-64!'
+  - name: invalid tenant-db-uri-template
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_DB_URI_TEMPLATE: 'postgresql://postgres@localhost/static'
+  - name: invalid tenant-host-regex
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_HOST_REGEX: '['
+  - name: invalid tenant-max-resident
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_RESIDENT: '-1'
+  - name: invalid tenant-max-idletime
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_IDLETIME: '-1'
+  - name: invalid tenant-max-cold-starts
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_COLD_STARTS: '-1'
+  - name: invalid tenant-failure-cache-ttl
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_FAILURE_CACHE_TTL: '-1'
 # success: parsing config values
   - name: log-level=
     expect: 'log-level = "error"'
@@ -118,6 +148,56 @@ cli:
     use_defaultenv: true
     env:
       PGRST_DB_TX_END: rollback
+  - name: tenant-claim-key
+    expect: 'tenant-claim-key = "$$.app_metadata.\"tenant-id\""'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_CLAIM_KEY: '$.app_metadata."tenant-id"'
+  - name: tenant-db-uri-template
+    expect: 'tenant-db-uri-template = "postgresql://postgres@localhost/{tenant}"'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_DB_URI_TEMPLATE: 'postgresql://postgres@localhost/{tenant}'
+  - name: tenant-header
+    expect: 'tenant-header = "X-Tenant-ID"'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_HEADER: 'X-Tenant-ID'
+  - name: tenant-host-header
+    expect: 'tenant-host-header = "X-Forwarded-Host"'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_HOST_HEADER: 'X-Forwarded-Host'
+  - name: tenant-host-regex
+    expect: 'tenant-host-regex = "^([a-z0-9_]+)[.]api[.]local"'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_HOST_REGEX: '^([a-z0-9_]+)[.]api[.]local'
+  - name: tenant-gucs
+    expect: 'tenant-gucs = "request.tenant_id,app.tenant_id,app.project_ref"'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_GUCS: 'request.tenant_id,app.tenant_id,app.project_ref'
+  - name: tenant-max-resident
+    expect: 'tenant-max-resident = 500'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_RESIDENT: '500'
+  - name: tenant-max-idletime
+    expect: 'tenant-max-idletime = 30'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_IDLETIME: '30'
+  - name: tenant-max-cold-starts
+    expect: 'tenant-max-cold-starts = 2'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_MAX_COLD_STARTS: '2'
+  - name: tenant-failure-cache-ttl
+    expect: 'tenant-failure-cache-ttl = 15'
+    use_defaultenv: true
+    env:
+      PGRST_TENANT_FAILURE_CACHE_TTL: '15'
 
 roleclaims:
   - key: '$.postgrest.a_role'

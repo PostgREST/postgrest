@@ -13,7 +13,7 @@ import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.ByteString.Lazy.Char8      as LBS
 import qualified Data.HashMap.Strict             as HM
-import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
+import qualified Hasql.DynamicStatements.Snippet as SQL
 
 
 
@@ -40,7 +40,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
     "select " <> intercalateSnippet ", " (
-      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql
+      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ tenantSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql
     )
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -51,6 +51,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
       where
         claims = authClaims & KM.insert "role" (JSON.String $ decodeUtf8 authRole) -- insert "role" to claims as well
 
+    tenantSql = maybe mempty (\tenantId -> fmap (\guc -> setConfigWithDynamicName (toUtf8 guc, tenantId)) configTenantGucs) iTenantId
     roleSql = [setConfigWithConstantName ("role", authRole)]
     roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup authRole configRoleSettings)
     appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings

@@ -59,6 +59,8 @@ import Network.URI             (escapeURIString, isURI,
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
+import Text.Regex.TDFA         (Regex, defaultCompOpt, defaultExecOpt)
+import Text.Regex.TDFA.Text    (compile)
 
 import PostgREST.Config.Database         (RoleIsolationLvl,
                                           RoleSettings)
@@ -109,6 +111,16 @@ data AppConfig = AppConfig
   , configJwtSecret                 :: Maybe BS.ByteString
   , configJwtSecretIsBase64         :: Bool
   , configJwtCacheMaxEntries        :: Int
+  , configTenantClaimKey            :: Maybe JSPath
+  , configTenantDbUriTemplate       :: Maybe Text
+  , configTenantHeader              :: Maybe (CI.CI BS.ByteString)
+  , configTenantHostHeader          :: Maybe (CI.CI BS.ByteString)
+  , configTenantHostRegex           :: Maybe BS.ByteString
+  , configTenantGucs                :: [Text]
+  , configTenantMaxResident         :: Int
+  , configTenantMaxIdletime         :: Int
+  , configTenantMaxColdStarts       :: Int
+  , configTenantFailureCacheTtl     :: Int
   , configLogLevel                  :: LogLevel
   , configLogQuery                  :: Bool
   , configOpenApiMode               :: OpenAPIMode
@@ -195,6 +207,16 @@ toText conf =
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-entries",         show . configJwtCacheMaxEntries)
+      ,("tenant-claim-key",          q . maybe mempty dumpJSPath . configTenantClaimKey)
+      ,("tenant-db-uri-template",    q . fromMaybe mempty . configTenantDbUriTemplate)
+      ,("tenant-header",             q . T.decodeUtf8 . maybe mempty CI.original . configTenantHeader)
+      ,("tenant-host-header",        q . T.decodeUtf8 . maybe mempty CI.original . configTenantHostHeader)
+      ,("tenant-host-regex",         q . T.decodeUtf8 . fromMaybe mempty . configTenantHostRegex)
+      ,("tenant-gucs",               q . T.intercalate "," . configTenantGucs)
+      ,("tenant-max-resident",       show . configTenantMaxResident)
+      ,("tenant-max-idletime",       show . configTenantMaxIdletime)
+      ,("tenant-max-cold-starts",    show . configTenantMaxColdStarts)
+      ,("tenant-failure-cache-ttl",  show . configTenantFailureCacheTtl)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("log-query",                     T.toLower . show . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
@@ -313,6 +335,16 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
     <*> (fromMaybe 1000 <$> optInt "jwt-cache-max-entries")
+    <*> parseTenantClaimKey "tenant-claim-key"
+    <*> parseTenantDbUriTemplate "tenant-db-uri-template"
+    <*> (fmap (CI.mk . encodeUtf8) <$> optString "tenant-header")
+    <*> (fmap (CI.mk . encodeUtf8) <$> optString "tenant-host-header")
+    <*> parseTenantHostRegex "tenant-host-regex"
+    <*> (maybe defaultTenantGucs splitOnCommas <$> optString "tenant-gucs")
+    <*> parseTenantMaxResident "tenant-max-resident"
+    <*> parseTenantMaxIdletime "tenant-max-idletime"
+    <*> parseTenantMaxColdStarts "tenant-max-cold-starts"
+    <*> parseTenantFailureCacheTtl "tenant-failure-cache-ttl"
     <*> parseLogLevel "log-level"
     <*> (fromMaybe False <$> optBool "log-query")
     <*> parseOpenAPIMode "openapi-mode"
@@ -430,6 +462,59 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Nothing  -> pure defaultRoleJSPathKey -- $.role
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
 
+    parseTenantClaimKey :: C.Key -> C.Parser C.Config (Maybe JSPath)
+    parseTenantClaimKey k =
+      optString k >>= traverse (either (fail . show) pure . pRoleClaimKey)
+
+    parseTenantDbUriTemplate :: C.Key -> C.Parser C.Config (Maybe Text)
+    parseTenantDbUriTemplate k =
+      optString k >>= traverse validateTenantDbUriTemplate
+      where
+        validateTenantDbUriTemplate template
+          | "{tenant}" `T.isInfixOf` template = pure template
+          | otherwise = fail "tenant-db-uri-template must contain the literal {tenant} placeholder"
+
+    parseTenantHostRegex :: C.Key -> C.Parser C.Config (Maybe BS.ByteString)
+    parseTenantHostRegex k =
+      optString k >>= traverse validateTenantHostRegex
+      where
+        validateTenantHostRegex hostRegex =
+          case compile defaultCompOpt defaultExecOpt hostRegex :: Either [Char] Regex of
+            Left err -> fail $ "tenant-host-regex is not a valid regular expression: " <> err
+            Right _  -> pure $ encodeUtf8 hostRegex
+
+    parseTenantMaxResident :: C.Key -> C.Parser C.Config Int
+    parseTenantMaxResident k =
+      optInt k >>= \case
+        Nothing -> pure 0
+        Just n
+          | n >= 0    -> pure n
+          | otherwise -> fail "tenant-max-resident must be greater than or equal to 0"
+
+    parseTenantMaxIdletime :: C.Key -> C.Parser C.Config Int
+    parseTenantMaxIdletime k =
+      optInt k >>= \case
+        Nothing -> pure 0
+        Just n
+          | n >= 0    -> pure n
+          | otherwise -> fail "tenant-max-idletime must be greater than or equal to 0"
+
+    parseTenantMaxColdStarts :: C.Key -> C.Parser C.Config Int
+    parseTenantMaxColdStarts k =
+      optInt k >>= \case
+        Nothing -> pure 0
+        Just n
+          | n >= 0    -> pure n
+          | otherwise -> fail "tenant-max-cold-starts must be greater than or equal to 0"
+
+    parseTenantFailureCacheTtl :: C.Key -> C.Parser C.Config Int
+    parseTenantFailureCacheTtl k =
+      optInt k >>= \case
+        Nothing -> pure 0
+        Just n
+          | n >= 0    -> pure n
+          | otherwise -> fail "tenant-failure-cache-ttl must be greater than or equal to 0"
+
     parseCORSAllowedOrigins k =
       optString k >>= \case
         Nothing   -> pure []
@@ -507,6 +592,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     splitOnCommasEmptyable s  = T.strip <$> T.splitOn "," s
 
     defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
+    defaultTenantGucs = ["request.tenant_id", "app.tenant_id"]
 
     defaultServerHost :: Maybe Text -> Text
     defaultServerHost = fromMaybe "!4"
@@ -764,6 +850,18 @@ exampleConfigFile = S.unlines
   , ""
   , "## Enables JWT Cache and sets its max size, disables caching with 0"
   , "# jwt-cache-max-entries = 0"
+  , ""
+  , "## Optional tenant id extraction. The value is exposed to PostgreSQL through tenant-gucs."
+  , "# tenant-claim-key = \".tenant_id\""
+  , "# tenant-db-uri-template = \"postgresql://postgres:postgres@localhost:5432/{tenant}\""
+  , "# tenant-header = \"X-Tenant-ID\""
+  , "# tenant-host-header = \"X-Forwarded-Host\""
+  , "# tenant-host-regex = \"^([a-z0-9_-]+)[.]example[.]com\""
+  , "tenant-gucs = \"request.tenant_id,app.tenant_id\""
+  , "# tenant-max-resident = 0"
+  , "# tenant-max-idletime = 0"
+  , "# tenant-max-cold-starts = 0"
+  , "# tenant-failure-cache-ttl = 0"
   , ""
   , "## Logging level, the admitted values are: crit, error, warn, info and debug."
   , "log-level = \"error\""

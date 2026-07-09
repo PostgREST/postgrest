@@ -103,10 +103,17 @@ retryingListen appState nextDelay hasDbListenerBug = do
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.readInDbConfig False appState
+         | Just tenantKey <- tenantSchemaReloader msg ->
+             observer (DBListenerGotSCacheMsg channel) >> void (AppState.reloadTenantSchemaCache appState tenantKey)
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
       AppState.schemaCacheLoader appState
+
+    tenantSchemaReloader msg =
+      case BS.words msg of
+        ["reload", "tenant", "schema", tenantKey] -> Just tenantKey
+        _                                        -> Nothing
 
     releaseConnection = void . forkIO . handle (observer . DBListenerConnectionCleanupFail) . SQL.release
 

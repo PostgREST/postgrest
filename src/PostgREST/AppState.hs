@@ -5,9 +5,15 @@
 
 module PostgREST.AppState
   ( AppState
+  , ResidentTenantSchemaCache (..)
+  , TenantState
   , destroy
   , getConfig
+  , getConfigWithTenantGeneration
   , getSchemaCache
+  , getResidentTenantSchemaCache
+  , getTenantConfig
+  , getTenantSchemaCache
   , getPgVersion
   , getNextDelay
   , getTime
@@ -20,6 +26,11 @@ module PostgREST.AppState
   , putPgVersion
   , putIsListenerOn
   , usePool
+  , useTenantPool
+  , resolveTenant
+  , releaseTenant
+  , reloadTenantSchemaCache
+  , tenantStateKey
   , readInDbConfig
   , schemaCacheLoader
   , getObserver
@@ -30,6 +41,8 @@ module PostgREST.AppState
 
 import qualified Data.ByteString.Char8      as BS
 import           Data.Either.Combinators    (whenLeft)
+import qualified Data.HashMap.Strict        as HM
+import qualified Data.Text                  as T
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
@@ -39,6 +52,7 @@ import qualified PostgREST.Auth.JwtCache    as JwtCache
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
+import qualified Control.Exception          as E
 import           PostgREST.Observation
 import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
@@ -48,14 +62,16 @@ import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
                            exponentialBackoff, retrying,
                            rsPreviousDelay)
-import Data.IORef         (IORef, atomicWriteIORef, newIORef,
+import Data.IORef         (IORef, atomicModifyIORef', atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
+import Data.Time.Clock.POSIX (POSIXTime, getPOSIXTime)
 
 import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO,
                                           putTMVar, readTMVar,
                                           tryReadTMVar, tryTakeTMVar)
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
+import qualified PostgREST.Config        as Config
 import PostgREST.Config                  (AppConfig (..),
                                           readAppConfig,
                                           toConnectionSettings)
@@ -72,9 +88,47 @@ import PostgREST.SchemaCache.Identifiers (quoteQi)
 
 import Protolude
 
+data TenantState = TenantState
+  { tenantStateKey    :: Maybe ByteString
+  , tenantPool        :: SQL.Pool
+  , tenantConfigRef   :: IORef AppConfig
+  , tenantSchemaCache :: IORef (Maybe SchemaCache)
+  , tenantLastUsed    :: IORef POSIXTime
+  , tenantActiveReqs  :: IORef Int
+  , tenantRetired     :: IORef Bool
+  }
+
+data ResidentTenantSchemaCache
+  = ResidentTenantMissing
+  | ResidentTenantSchemaCachePending
+  | ResidentTenantSchemaCacheLoaded SchemaCache
+
+data TenantInitLock = TenantInitLock
+  { tenantInitLock  :: MVar ()
+  , tenantInitUsers :: IORef Int
+  }
+
+data TenantLookup
+  = TenantFound TenantState
+  | TenantMissing
+  | TenantTooMany Int
+
+data TenantRegistration
+  = TenantRegistered
+  | TenantRegistrationFound TenantState
+  | TenantRegistrationTooMany Int
+  | TenantRegistrationStale
+
 data AppState = AppState
   -- | Database connection pool
-  { statePool             :: SQL.Pool
+  { statePool              :: SQL.Pool
+  , stateDefaultTenant     :: TenantState
+  , stateTenants           :: IORef (HM.HashMap ByteString TenantState)
+  , stateTenantInitLocks   :: IORef (HM.HashMap ByteString TenantInitLock)
+  , stateTenantFailures    :: IORef (HM.HashMap ByteString POSIXTime)
+  , stateTenantColdStarts  :: IORef Int
+  , stateTenantGeneration  :: IORef Int
+  , stateTenantsLock       :: MVar ()
   -- | Database server version
   , statePgVersion        :: IORef PgVersion
   -- | Schema cache
@@ -122,14 +176,28 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
 initWithPool pool conf loggerState metricsState observer appKiller = mdo
+  pgVersionRef <- newIORef minimumPgVersion
+  schemaCacheRef <- newIORef Nothing
+  configRef <- newIORef conf
+  now <- getPOSIXTime
+  lastUsedRef <- newIORef now
+  activeReqsRef <- newIORef 0
+  retiredRef <- newIORef False
+  let defaultTenant = TenantState Nothing pool configRef schemaCacheRef lastUsedRef activeReqsRef retiredRef
 
-  appState <- AppState pool
-    <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
-    <*> newIORef Nothing
+  appState <- AppState pool defaultTenant
+    <$> newIORef mempty
+    <*> newIORef mempty
+    <*> newIORef mempty
+    <*> newIORef 0
+    <*> newIORef 0
+    <*> newMVar ()
+    <*> pure pgVersionRef -- assume we're in a supported version when starting, this will be corrected on a later step
+    <*> pure schemaCacheRef
     <*> newSchemaCacheStatus
     <*> newIORef False
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
-    <*> newIORef conf
+    <*> pure configRef
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> pure appKiller
     <*> newIORef 0
@@ -143,7 +211,10 @@ initWithPool pool conf loggerState metricsState observer appKiller = mdo
 -- | Destroy the pool on shutdown.
 -- | Differs from flushPool in not emiting PoolFlushed observation.
 destroy :: AppState -> IO ()
-destroy AppState{..} = SQL.release statePool
+destroy AppState{..} = do
+  SQL.release statePool
+  tenants <- readIORef stateTenants
+  traverse_ (SQL.release . tenantPool) tenants
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool cfg@AppConfig{..} observer = do
@@ -155,6 +226,46 @@ initPool cfg@AppConfig{..} observer = do
     , SQL.staticConnectionSettings $ toConnectionSettings identity cfg
     , SQL.observationHandler $ observer . HasqlPoolObs
     ]
+
+-- | Run an action with a database connection.
+useTenantPool :: AppState -> TenantState -> SQL.Session a -> IO (Either SQL.UsageError a)
+useTenantPool AppState{stateObserver=observer} tenantState@TenantState{tenantPool} sess =
+  bracket_ (retainTenant tenantState) (releaseTenant tenantState) $ do
+    observer PoolRequest
+    res <- SQL.use tenantPool sess
+    observer PoolRequestFullfilled
+    whenLeft res $ \case
+      SQL.AcquisitionTimeoutUsageError -> observer PoolAcqTimeoutObs
+      err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError{})))) ->
+        when (Error.status (Error.PgError False err) >= HTTP.status500) $
+          observer $ QueryErrorCodeHighObs err
+      _ -> pure ()
+    pure res
+
+retainTenant :: TenantState -> IO ()
+retainTenant TenantState{tenantLastUsed, tenantActiveReqs} = do
+  now <- getPOSIXTime
+  atomicWriteIORef tenantLastUsed now
+  atomicModifyIORef' tenantActiveReqs $ \n -> (n + 1, ())
+
+releaseTenant :: TenantState -> IO ()
+releaseTenant tenantState@TenantState{tenantLastUsed, tenantActiveReqs} = do
+  now <- getPOSIXTime
+  atomicWriteIORef tenantLastUsed now
+  activeReqs <- atomicModifyIORef' tenantActiveReqs $ \n ->
+    let n' = max 0 (n - 1) in (n', n')
+  releaseRetiredTenantIfIdle tenantState activeReqs
+
+retireTenant :: TenantState -> IO ()
+retireTenant TenantState{tenantRetired} =
+  atomicWriteIORef tenantRetired True
+
+releaseRetiredTenantIfIdle :: TenantState -> Int -> IO ()
+releaseRetiredTenantIfIdle TenantState{tenantStateKey, tenantPool, tenantRetired} activeReqs =
+  when (isJust tenantStateKey && activeReqs == 0) $ do
+    shouldRelease <- atomicModifyIORef' tenantRetired $ \retired ->
+      (False, retired)
+    when shouldRelease $ SQL.release tenantPool
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
@@ -237,8 +348,355 @@ putPgVersion = atomicWriteIORef . statePgVersion
 getSchemaCache :: AppState -> IO (Maybe SchemaCache)
 getSchemaCache = readIORef . stateSchemaCache
 
+getResidentTenantSchemaCache :: AppState -> ByteString -> IO (Either Error.Error ResidentTenantSchemaCache)
+getResidentTenantSchemaCache AppState{stateTenants, stateTenantsLock} tenantKey
+  | not $ validTenantKey tenantKey = pure $ Left Error.TenantIdInvalid
+  | otherwise =
+      withMVar stateTenantsLock $ \_ -> do
+        tenants <- readIORef stateTenants
+        case HM.lookup tenantKey tenants of
+          Nothing -> pure $ Right ResidentTenantMissing
+          Just TenantState{tenantSchemaCache} ->
+            readIORef tenantSchemaCache <&> \case
+              Nothing -> Right ResidentTenantSchemaCachePending
+              Just sCache -> Right $ ResidentTenantSchemaCacheLoaded sCache
+
 putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
 putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
+
+getTenantConfig :: TenantState -> IO AppConfig
+getTenantConfig = readIORef . tenantConfigRef
+
+getTenantSchemaCache :: TenantState -> IO (Maybe SchemaCache)
+getTenantSchemaCache = readIORef . tenantSchemaCache
+
+resolveTenant :: AppState -> AppConfig -> Int -> Maybe ByteString -> IO (Either Error.Error TenantState)
+resolveTenant appState conf configGeneration maybeTenantKey
+  | maybe False (not . validTenantKey) maybeTenantKey =
+      pure $ Left Error.TenantIdInvalid
+  | otherwise =
+      case (configTenantDbUriTemplate conf, maybeTenantKey) of
+        (Just template, Just tenantKey) -> getOrCreateTenant appState conf configGeneration template tenantKey
+        (Just _, Nothing)              -> pure $ Left Error.TenantIdRequired
+        (Nothing, Nothing)
+          | tenantContextRequired conf  -> pure $ Left Error.TenantIdRequired
+        (Nothing, _)                   -> do
+          let tenantState = stateDefaultTenant appState
+          retainTenant tenantState
+          pure $ Right tenantState
+  where
+    tenantContextRequired AppConfig{configTenantClaimKey, configTenantHeader, configTenantHostRegex} =
+      isJust configTenantClaimKey || isJust configTenantHeader || isJust configTenantHostRegex
+
+getOrCreateTenant :: AppState -> AppConfig -> Int -> Text -> ByteString -> IO (Either Error.Error TenantState)
+getOrCreateTenant appState@AppState{stateObserver=observer} baseConf configGeneration template tenantKey =
+  if not $ validTenantKey tenantKey
+    then pure $ Left Error.TenantIdInvalid
+    else do
+      lookupResult <- lookupTenant appState baseConf tenantKey
+      case lookupResult of
+        TenantFound tenantState -> ensureResolvedTenant appState baseConf tenantKey tenantState
+        TenantTooMany maxResident -> pure $ Left $ Error.TenantResidentLimitExceeded maxResident
+        TenantMissing -> do
+          cachedFailure <- tenantFailureCached appState baseConf tenantKey
+          if cachedFailure
+            then pure $ Left Error.TenantTemporarilyUnavailable
+            else withTenantInitLock appState tenantKey $ do
+              secondLookup <- lookupTenant appState baseConf tenantKey
+              case secondLookup of
+                TenantFound tenantState -> ensureResolvedTenantLocked appState baseConf tenantKey tenantState
+                TenantTooMany maxResident -> pure $ Left $ Error.TenantResidentLimitExceeded maxResident
+                TenantMissing -> do
+                  cachedFailureAgain <- tenantFailureCached appState baseConf tenantKey
+                  if cachedFailureAgain
+                    then pure $ Left Error.TenantTemporarilyUnavailable
+                    else withTenantColdStartPermit appState baseConf $ do
+                      let tenantText = decodeUtf8 tenantKey
+                          tenantConf = baseConf { configDbUri = T.replace "{tenant}" tenantText template }
+                      pool <- initPool tenantConf observer
+                      (do
+                         schemaCacheRef <- newIORef Nothing
+                         confRef <- newIORef tenantConf
+                         now <- getPOSIXTime
+                         lastUsedRef <- newIORef now
+                         activeReqsRef <- newIORef 0
+                         retiredRef <- newIORef False
+                         let tenantState = TenantState (Just tenantKey) pool confRef schemaCacheRef lastUsedRef activeReqsRef retiredRef
+                         loaded <- loadTenantSchemaCache appState tenantState
+                         if loaded
+                           then do
+                             clearTenantFailure appState tenantKey
+                             registerTenant appState baseConf configGeneration tenantKey tenantState >>= \case
+                               TenantRegistered -> do
+                                 pure $ Right tenantState
+                               TenantRegistrationFound existingTenantState -> do
+                                 SQL.release pool
+                                 ensureResolvedTenantLocked appState baseConf tenantKey existingTenantState
+                               TenantRegistrationTooMany maxResident -> do
+                                 SQL.release pool
+                                 pure $ Left $ Error.TenantResidentLimitExceeded maxResident
+                               TenantRegistrationStale -> do
+                                 retainTenant tenantState
+                                 retireTenant tenantState
+                                 pure $ Right tenantState
+                           else do
+                             recordTenantFailure appState baseConf tenantKey
+                             SQL.release pool
+                             pure $ Left Error.NoSchemaCacheError)
+                        `E.onException` (recordTenantFailure appState baseConf tenantKey >> SQL.release pool)
+validTenantKey :: ByteString -> Bool
+validTenantKey key = not (BS.null key) && BS.all validTenantKeyChar key
+  where
+    validTenantKeyChar c =
+      BS.elem c ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" :: ByteString)
+
+lookupTenant :: AppState -> AppConfig -> ByteString -> IO TenantLookup
+lookupTenant appState@AppState{stateTenants, stateTenantsLock} baseConf tenantKey =
+  withMVar stateTenantsLock $ \_ -> do
+    evictIdleTenants appState baseConf
+    tenants <- readIORef stateTenants
+    case HM.lookup tenantKey tenants of
+      Just tenantState -> do
+        retainTenant tenantState
+        pure $ TenantFound tenantState
+      Nothing
+        | configTenantMaxResident baseConf > 0 && HM.size tenants >= configTenantMaxResident baseConf ->
+            pure $ TenantTooMany $ configTenantMaxResident baseConf
+        | otherwise ->
+            pure TenantMissing
+
+registerTenant :: AppState -> AppConfig -> Int -> ByteString -> TenantState -> IO TenantRegistration
+registerTenant appState@AppState{stateTenants, stateTenantGeneration, stateTenantsLock} baseConf configGeneration tenantKey tenantState =
+  withMVar stateTenantsLock $ \_ -> do
+    currentGeneration <- readIORef stateTenantGeneration
+    if currentGeneration /= configGeneration
+      then pure TenantRegistrationStale
+      else do
+        evictIdleTenants appState baseConf
+        tenants <- readIORef stateTenants
+        case HM.lookup tenantKey tenants of
+          Just existingTenantState -> do
+            retainTenant existingTenantState
+            pure $ TenantRegistrationFound existingTenantState
+          Nothing
+            | configTenantMaxResident baseConf > 0 && HM.size tenants >= configTenantMaxResident baseConf ->
+                pure $ TenantRegistrationTooMany $ configTenantMaxResident baseConf
+            | otherwise -> do
+                retainTenant tenantState
+                atomicModifyIORef' stateTenants $ \m -> (HM.insert tenantKey tenantState m, ())
+                pure TenantRegistered
+
+tenantFailureCached :: AppState -> AppConfig -> ByteString -> IO Bool
+tenantFailureCached AppState{stateTenantFailures, stateTenantsLock} AppConfig{configTenantFailureCacheTtl} tenantKey
+  | configTenantFailureCacheTtl <= 0 = do
+      withMVar stateTenantsLock $ \_ ->
+        atomicModifyIORef' stateTenantFailures $ \m -> (HM.delete tenantKey m, ())
+      pure False
+  | otherwise =
+      withMVar stateTenantsLock $ \_ -> do
+        now <- getPOSIXTime
+        failures <- readIORef stateTenantFailures
+        case HM.lookup tenantKey failures of
+          Just expiresAt
+            | now < expiresAt -> pure True
+            | otherwise -> do
+                atomicModifyIORef' stateTenantFailures $ \m -> (HM.delete tenantKey m, ())
+                pure False
+          Nothing -> pure False
+
+recordTenantFailure :: AppState -> AppConfig -> ByteString -> IO ()
+recordTenantFailure AppState{stateTenantFailures, stateTenantsLock} AppConfig{configTenantFailureCacheTtl} tenantKey
+  | configTenantFailureCacheTtl <= 0 =
+      withMVar stateTenantsLock $ \_ ->
+        atomicModifyIORef' stateTenantFailures $ \m -> (HM.delete tenantKey m, ())
+  | otherwise =
+      withMVar stateTenantsLock $ \_ -> do
+        now <- getPOSIXTime
+        let expiresAt = now + fromIntegral configTenantFailureCacheTtl
+        atomicModifyIORef' stateTenantFailures $ \m -> (HM.insert tenantKey expiresAt m, ())
+
+clearTenantFailure :: AppState -> ByteString -> IO ()
+clearTenantFailure AppState{stateTenantFailures, stateTenantsLock} tenantKey =
+  withMVar stateTenantsLock $ \_ ->
+    atomicModifyIORef' stateTenantFailures $ \m -> (HM.delete tenantKey m, ())
+
+withTenantColdStartPermit :: AppState -> AppConfig -> IO (Either Error.Error a) -> IO (Either Error.Error a)
+withTenantColdStartPermit appState baseConf@AppConfig{configTenantMaxColdStarts} action
+  | configTenantMaxColdStarts <= 0 = action
+  | otherwise = do
+      acquired <- tryAcquireTenantColdStart appState baseConf
+      if not acquired
+        then pure $ Left $ Error.TenantColdStartLimitExceeded configTenantMaxColdStarts
+        else E.finally action $ releaseTenantColdStart appState
+
+tryAcquireTenantColdStart :: AppState -> AppConfig -> IO Bool
+tryAcquireTenantColdStart AppState{stateTenantColdStarts, stateTenantsLock} AppConfig{configTenantMaxColdStarts} =
+  withMVar stateTenantsLock $ \_ -> do
+    active <- readIORef stateTenantColdStarts
+    if active >= configTenantMaxColdStarts
+      then pure False
+      else do
+        atomicModifyIORef' stateTenantColdStarts $ \n -> (n + 1, ())
+        pure True
+
+releaseTenantColdStart :: AppState -> IO ()
+releaseTenantColdStart AppState{stateTenantColdStarts, stateTenantsLock} =
+  withMVar stateTenantsLock $ \_ ->
+    atomicModifyIORef' stateTenantColdStarts $ \n -> (max 0 (n - 1), ())
+
+ensureResolvedTenant :: AppState -> AppConfig -> ByteString -> TenantState -> IO (Either Error.Error TenantState)
+ensureResolvedTenant appState baseConf tenantKey tenantState =
+  readIORef (tenantSchemaCache tenantState) >>= \case
+    Just _  -> pure $ Right tenantState
+    Nothing -> do
+      cachedFailure <- tenantFailureCached appState baseConf tenantKey
+      if cachedFailure
+        then do
+          releaseTenant tenantState
+          pure $ Left Error.TenantTemporarilyUnavailable
+        else withTenantInitLock appState tenantKey $
+          ensureResolvedTenantLocked appState baseConf tenantKey tenantState
+
+ensureResolvedTenantLocked :: AppState -> AppConfig -> ByteString -> TenantState -> IO (Either Error.Error TenantState)
+ensureResolvedTenantLocked appState baseConf tenantKey tenantState =
+  readIORef (tenantSchemaCache tenantState) >>= \case
+    Just _ -> do
+      clearTenantFailure appState tenantKey
+      pure $ Right tenantState
+    Nothing -> do
+      cachedFailure <- tenantFailureCached appState baseConf tenantKey
+      if cachedFailure
+        then do
+          releaseTenant tenantState
+          pure $ Left Error.TenantTemporarilyUnavailable
+        else do
+          loaded <- loadTenantSchemaCache appState tenantState
+          if loaded
+            then do
+              clearTenantFailure appState tenantKey
+              pure $ Right tenantState
+            else do
+              recordTenantFailure appState baseConf tenantKey
+              releaseTenant tenantState
+              dropTenant appState tenantKey tenantState
+              pure $ Left Error.NoSchemaCacheError
+
+withTenantInitLock :: AppState -> ByteString -> IO a -> IO a
+withTenantInitLock appState tenantKey action =
+  E.bracket (acquireTenantInitLock appState tenantKey) (releaseTenantInitLock appState tenantKey) $
+    \TenantInitLock{tenantInitLock} -> withMVar tenantInitLock $ \_ -> action
+
+acquireTenantInitLock :: AppState -> ByteString -> IO TenantInitLock
+acquireTenantInitLock AppState{stateTenantInitLocks, stateTenantsLock} tenantKey =
+  withMVar stateTenantsLock $ \_ -> do
+    locks <- readIORef stateTenantInitLocks
+    case HM.lookup tenantKey locks of
+      Just lock@TenantInitLock{tenantInitUsers} -> do
+        atomicModifyIORef' tenantInitUsers $ \n -> (n + 1, ())
+        pure lock
+      Nothing -> do
+        lock <- TenantInitLock <$> newMVar () <*> newIORef 1
+        atomicModifyIORef' stateTenantInitLocks $ \m -> (HM.insert tenantKey lock m, ())
+        pure lock
+
+releaseTenantInitLock :: AppState -> ByteString -> TenantInitLock -> IO ()
+releaseTenantInitLock AppState{stateTenantInitLocks, stateTenantsLock} tenantKey TenantInitLock{tenantInitUsers} =
+  withMVar stateTenantsLock $ \_ -> do
+    users <- atomicModifyIORef' tenantInitUsers $ \n ->
+      let n' = max 0 (n - 1) in (n', n')
+    when (users == 0) $
+      atomicModifyIORef' stateTenantInitLocks $ \m -> (HM.delete tenantKey m, ())
+
+dropTenant :: AppState -> ByteString -> TenantState -> IO ()
+dropTenant AppState{stateTenants, stateTenantsLock} tenantKey tenantState =
+  withMVar stateTenantsLock (\_ -> do
+    removed <- atomicModifyIORef' stateTenants $ \m ->
+      case HM.lookup tenantKey m of
+        Just current | tenantSchemaCache current == tenantSchemaCache tenantState ->
+          (HM.delete tenantKey m, True)
+        _ ->
+          (m, False)
+    when removed $ retireTenant tenantState
+    pure removed
+  ) >>= \removed ->
+    when removed $ do
+      -- Waiters for the same tenant already retained this state before blocking
+      -- on the init lock, so the pool can only be released after they drain.
+      activeReqs <- readIORef $ tenantActiveReqs tenantState
+      releaseRetiredTenantIfIdle tenantState activeReqs
+
+evictIdleTenants :: AppState -> AppConfig -> IO ()
+evictIdleTenants AppState{stateTenants} AppConfig{configTenantMaxIdletime} =
+  when (configTenantMaxIdletime > 0) $ do
+    now <- getPOSIXTime
+    tenants <- readIORef stateTenants
+    evictable <- fmap catMaybes . for (HM.toList tenants) $ \(tenantKey, tenantState@TenantState{tenantLastUsed, tenantActiveReqs}) -> do
+      lastUsed <- readIORef tenantLastUsed
+      activeReqs <- readIORef tenantActiveReqs
+      pure $
+        if activeReqs == 0 && now - lastUsed >= fromIntegral configTenantMaxIdletime
+          then Just (tenantKey, tenantState)
+          else Nothing
+    unless (null evictable) $ do
+      atomicModifyIORef' stateTenants $ \m -> (foldr (HM.delete . fst) m evictable, ())
+      traverse_ (SQL.release . tenantPool . snd) evictable
+
+loadTenantSchemaCache :: AppState -> TenantState -> IO Bool
+loadTenantSchemaCache appState@AppState{stateObserver=observer} tenantState@TenantState{tenantStateKey=maybeTenantKey, tenantPool, tenantConfigRef, tenantSchemaCache} = do
+  conf@AppConfig{..} <- readIORef tenantConfigRef
+  result <- useTenantPool appState tenantState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+  case result of
+    Left e -> do
+      atomicWriteIORef tenantSchemaCache Nothing
+      for_ maybeTenantKey $ recordTenantFailure appState conf
+      observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
+      pure False
+    Right (sCache, _queryTimings) -> do
+      atomicWriteIORef tenantSchemaCache $ Just sCache
+      for_ maybeTenantKey $ clearTenantFailure appState
+      observer $ SchemaCacheLoadedObs 0 $ showSummary sCache
+      SQL.release tenantPool
+      observer PoolFlushed
+      pure True
+
+reloadResidentTenantSchemaCaches :: AppState -> IO ()
+reloadResidentTenantSchemaCaches appState = do
+  tenants <- retainedResidentTenants appState
+  for_ tenants $ \(tenantKey, tenantState) -> do
+    loaded <- E.bracket_ (pure ()) (releaseTenant tenantState) $
+      withTenantInitLock appState tenantKey $
+        loadTenantSchemaCache appState tenantState
+    unless loaded $ dropTenant appState tenantKey tenantState
+
+reloadTenantSchemaCache :: AppState -> ByteString -> IO Bool
+reloadTenantSchemaCache appState tenantKey
+  | not $ validTenantKey tenantKey = pure False
+  | otherwise =
+      retainedTenant appState tenantKey >>= \case
+        Nothing -> pure False
+        Just tenantState -> do
+          loaded <- E.bracket_ (pure ()) (releaseTenant tenantState) $
+            withTenantInitLock appState tenantKey $
+              loadTenantSchemaCache appState tenantState
+          unless loaded $ dropTenant appState tenantKey tenantState
+          pure loaded
+
+retainedResidentTenants :: AppState -> IO [(ByteString, TenantState)]
+retainedResidentTenants AppState{stateTenants, stateTenantsLock} =
+  withMVar stateTenantsLock $ \_ -> do
+    tenants <- HM.toList <$> readIORef stateTenants
+    traverse_ (retainTenant . snd) tenants
+    pure tenants
+
+retainedTenant :: AppState -> ByteString -> IO (Maybe TenantState)
+retainedTenant AppState{stateTenants, stateTenantsLock} tenantKey =
+  withMVar stateTenantsLock $ \_ -> do
+    tenants <- readIORef stateTenants
+    case HM.lookup tenantKey tenants of
+      Nothing -> pure Nothing
+      Just tenantState -> do
+        retainTenant tenantState
+        pure $ Just tenantState
 
 schemaCacheLoader :: AppState -> IO ()
 schemaCacheLoader = debouncedSCacheLoader
@@ -249,8 +707,33 @@ getNextDelay = readIORef . stateNextDelay
 getConfig :: AppState -> IO AppConfig
 getConfig = readIORef . stateConf
 
+getConfigWithTenantGeneration :: AppState -> IO (AppConfig, Int)
+getConfigWithTenantGeneration AppState{stateConf, stateTenantGeneration, stateTenantsLock} =
+  withMVar stateTenantsLock $ \_ ->
+    (,) <$> readIORef stateConf <*> readIORef stateTenantGeneration
+
 putConfig :: AppState -> AppConfig -> IO ()
 putConfig = atomicWriteIORef . stateConf
+
+putConfigAndMaybeRetireResidentTenants :: AppState -> AppConfig -> IO ()
+putConfigAndMaybeRetireResidentTenants AppState{stateConf, stateTenantGeneration, stateTenants, stateTenantFailures, stateTenantsLock} newConf = do
+  retiredTenants <- withMVar stateTenantsLock $ \_ -> do
+    oldConf <- readIORef stateConf
+    tenants <- HM.elems <$> readIORef stateTenants
+    atomicWriteIORef stateConf newConf
+    if Config.toText oldConf == Config.toText newConf
+      then pure mempty
+      else do
+        atomicModifyIORef' stateTenantGeneration $ \generation ->
+          let generation' = generation + 1 in (generation', ())
+        atomicWriteIORef stateTenants mempty
+        atomicWriteIORef stateTenantFailures mempty
+        traverse_ retireTenant tenants
+        pure tenants
+
+  for_ retiredTenants $ \tenantState -> do
+    activeReqs <- readIORef $ tenantActiveReqs tenantState
+    releaseRetiredTenantIfIdle tenantState activeReqs
 
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
@@ -355,6 +838,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
           observer $ SchemaCacheQueriedObs resultTime queryTimings
           observer $ SchemaCacheLoadedObs loadTime summary
           markSchemaCacheLoaded appState
+          reloadResidentTenantSchemaCaches appState
           return $ Just sCache
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
@@ -420,7 +904,10 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       else
         observer $ ConfigInvalidObs err
     Right newConf -> do
-      putConfig appState newConf
+      if startingUp then
+        putConfig appState newConf
+      else
+        putConfigAndMaybeRetireResidentTenants appState newConf
       -- After the config has reloaded, jwt-secret might have changed, so
       -- if it has changed, it is important to invalidate the jwt cache
       -- entries, because they were cached using the old secret

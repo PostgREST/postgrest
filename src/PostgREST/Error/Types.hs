@@ -32,6 +32,11 @@ data Error
   | SchemaCacheErr SchemaCacheError
   | JwtErr JwtError
   | NoSchemaCacheError
+  | TenantResidentLimitExceeded Int
+  | TenantIdRequired
+  | TenantIdInvalid
+  | TenantTemporarilyUnavailable
+  | TenantColdStartLimitExceeded Int
   | PgErr PgError
   deriving Show
 

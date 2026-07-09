@@ -596,12 +596,22 @@ instance ErrorHeaders Error where
   status (SchemaCacheErr err) = status err
   status (JwtErr err)         = status err
   status NoSchemaCacheError   = HTTP.status503
+  status TenantResidentLimitExceeded{} = HTTP.status503
+  status TenantIdRequired     = HTTP.status400
+  status TenantIdInvalid      = HTTP.status400
+  status TenantTemporarilyUnavailable = HTTP.status503
+  status TenantColdStartLimitExceeded{} = HTTP.status503
   status (PgErr err)          = status err
 
   headers (ApiRequestErr err)  = headers err
   headers (SchemaCacheErr err) = headers err
   headers (JwtErr err)         = headers err
   headers (PgErr err)          = headers err
+  headers TenantResidentLimitExceeded{} = mempty
+  headers TenantIdRequired = mempty
+  headers TenantIdInvalid = mempty
+  headers TenantTemporarilyUnavailable = mempty
+  headers TenantColdStartLimitExceeded{} = mempty
   headers NoSchemaCacheError   = mempty
 
 instance ErrorBody Error where
@@ -609,24 +619,44 @@ instance ErrorBody Error where
   code (SchemaCacheErr err) = code err
   code (JwtErr err)         = code err
   code NoSchemaCacheError   = "PGRST002"
+  code TenantResidentLimitExceeded{} = "PGRSTMT001"
+  code TenantIdRequired = "PGRSTMT002"
+  code TenantIdInvalid = "PGRSTMT003"
+  code TenantTemporarilyUnavailable = "PGRSTMT004"
+  code TenantColdStartLimitExceeded{} = "PGRSTMT005"
   code (PgErr err)          = code err
 
   message (ApiRequestErr err) = message err
   message (SchemaCacheErr err)  = message err
   message (JwtErr err)          = message err
   message NoSchemaCacheError    = "Could not query the database for the schema cache. Retrying."
+  message TenantResidentLimitExceeded{} = "Tenant resident limit exceeded. Refusing to create another tenant pool."
+  message TenantIdRequired      = "Tenant id is required when tenant-db-uri-template or tenant context propagation is configured."
+  message TenantIdInvalid       = "Tenant id contains characters that are not allowed in a tenant database URI template."
+  message TenantTemporarilyUnavailable = "Tenant is temporarily unavailable after a recent schema cache load failure."
+  message TenantColdStartLimitExceeded{} = "Tenant cold-start limit exceeded. Refusing to create another tenant pool right now."
   message (PgErr err)           = message err
 
   details (ApiRequestErr err)  = details err
   details (SchemaCacheErr err) = details err
   details (JwtErr err)         = details err
   details NoSchemaCacheError   = Nothing
+  details (TenantResidentLimitExceeded maxResident) = Just $ JSON.String $ "tenant-max-resident=" <> show maxResident
+  details TenantIdRequired     = Nothing
+  details TenantIdInvalid      = Nothing
+  details TenantTemporarilyUnavailable = Nothing
+  details (TenantColdStartLimitExceeded maxColdStarts) = Just $ JSON.String $ "tenant-max-cold-starts=" <> show maxColdStarts
   details (PgErr err)          = details err
 
   hint (ApiRequestErr err)  = hint err
   hint (SchemaCacheErr err) = hint err
   hint (JwtErr err)         = hint err
   hint NoSchemaCacheError   = Nothing
+  hint TenantResidentLimitExceeded{} = Just $ JSON.String "Increase tenant-max-resident, reduce tenant idle TTL, or route this tenant to another PostgREST worker."
+  hint TenantIdRequired     = Just $ JSON.String "Send the configured tenant claim or tenant header."
+  hint TenantIdInvalid      = Just $ JSON.String "Use a stable tenant id containing only ASCII letters, digits, underscore, or hyphen."
+  hint TenantTemporarilyUnavailable = Just $ JSON.String "Retry after tenant-failure-cache-ttl expires, or fix the tenant database/schema configuration."
+  hint TenantColdStartLimitExceeded{} = Just $ JSON.String "Retry shortly, increase tenant-max-cold-starts, or route this tenant to another PostgREST worker."
   hint (PgErr err)          = hint err
 
 instance ErrorHeaders JwtError where
