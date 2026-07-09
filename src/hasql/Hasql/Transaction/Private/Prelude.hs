@@ -141,4 +141,4 @@ import Unsafe.Coerce                        as Exports
 
 tryError :: (MonadError e m) => m a -> m (Either e a)
 tryError m =
-  catchError (liftM Right m) (return . Left)
+  catchError (fmap Right m) (return . Left)

@@ -60,7 +60,7 @@ checkExecStatus expectedList =
   {-# SCC "checkExecStatus" #-}
   do
     status <- Result $ ReaderT $ \(_, result) -> lift $ LibPQ.resultStatus result
-    unless (elem status expectedList) $ do
+    unless (status `elem` expectedList) $ do
       case status of
         LibPQ.BadResponse -> serverError
         LibPQ.NonfatalError -> serverError
@@ -79,11 +79,9 @@ serverError =
     $ ReaderT
     $ \(_, result) -> ExceptT $ do
       code <-
-        fmap fold
-          $ LibPQ.resultErrorField result LibPQ.DiagSqlstate
+        fold <$> LibPQ.resultErrorField result LibPQ.DiagSqlstate
       message <-
-        fmap fold
-          $ LibPQ.resultErrorField result LibPQ.DiagMessagePrimary
+        fold <$> LibPQ.resultErrorField result LibPQ.DiagMessagePrimary
       detail <-
         LibPQ.resultErrorField result LibPQ.DiagMessageDetail
       hint <-
@@ -113,7 +111,7 @@ maybe rowDec =
           1 -> do
             maxCols <- LibPQ.nfields result
             let fromRowError (col, err) = RowError 0 col err
-            fmap (fmap Just . first fromRowError) $ Row.run rowDec (result, 0, maxCols, integerDatetimes)
+            fmap Just . first fromRowError <$> Row.run rowDec (result, 0, maxCols, integerDatetimes)
           _ -> return (Left (UnexpectedAmountOfRows (rowToInt maxRows)))
   where
     rowToInt (LibPQ.Row n) =
@@ -132,7 +130,7 @@ single rowDec =
           1 -> do
             maxCols <- LibPQ.nfields result
             let fromRowError (col, err) = RowError 0 col err
-            fmap (first fromRowError) $ Row.run rowDec (result, 0, maxCols, integerDatetimes)
+            first fromRowError <$> Row.run rowDec (result, 0, maxCols, integerDatetimes)
           _ -> return (Left (UnexpectedAmountOfRows (rowToInt maxRows)))
   where
     rowToInt (LibPQ.Row n) =
@@ -153,7 +151,7 @@ vector rowDec =
         forMFromZero_ (rowToInt maxRows) $ \rowIndex -> do
           rowResult <- Row.run rowDec (result, intToRow rowIndex, maxCols, integerDatetimes)
           case rowResult of
-            Left !(!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
+            Left (!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
             Right !x -> MutableVector.unsafeWrite mvector rowIndex x
         readIORef failureRef >>= \case
           Nothing -> Right <$> Vector.unsafeFreeze mvector
@@ -183,8 +181,8 @@ foldl step init rowDec =
             forMFromZero_ (rowToInt maxRows) $ \rowIndex -> do
               rowResult <- Row.run rowDec (result, intToRow rowIndex, maxCols, integerDatetimes)
               case rowResult of
-                Left !(!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
-                Right !x -> modifyIORef' accRef (\acc -> step acc x)
+                Left (!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
+                Right !x -> modifyIORef' accRef (`step` x)
             readIORef failureRef >>= \case
               Nothing -> Right <$> readIORef accRef
               Just x -> pure (Left x)
@@ -210,8 +208,8 @@ foldr step init rowDec =
         forMToZero_ (rowToInt maxRows) $ \rowIndex -> do
           rowResult <- Row.run rowDec (result, intToRow rowIndex, maxCols, integerDatetimes)
           case rowResult of
-            Left !(!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
-            Right !x -> modifyIORef accRef (\acc -> step x acc)
+            Left (!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
+            Right !x -> modifyIORef accRef (step x)
         readIORef failureRef >>= \case
           Nothing -> Right <$> readIORef accRef
           Just x -> pure (Left x)

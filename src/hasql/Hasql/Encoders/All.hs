@@ -500,8 +500,7 @@ field = \case
           Nothing -> A.nullField (PTI.oidWord32 elementOID)
           Just val -> A.field (PTI.oidWord32 elementOID) (encode idt val)
       )
-      ( \val ->
-          case val of
-            Nothing  -> ["NULL"]
-            Just val -> [print val]
+      ( \case
+          Nothing  -> ["NULL"]
+          Just val -> [print val]
       )

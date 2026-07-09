@@ -58,7 +58,7 @@ single resultDec =
 dropRemainders :: Results ()
 dropRemainders =
   {-# SCC "dropRemainders" #-}
-  Results $ ReaderT $ \(integerDatetimes, connection) -> loop integerDatetimes connection
+  Results $ ReaderT $ uncurry loop
   where
     loop integerDatetimes connection =
       getResultMaybe >>= Prelude.maybe (pure ()) onResult
@@ -69,7 +69,7 @@ dropRemainders =
           loop integerDatetimes connection <* checkErrors
           where
             checkErrors =
-              ExceptT $ fmap (first ResultError) $ Result.run Result.noResult integerDatetimes result
+              ExceptT (first ResultError <$> Result.run Result.noResult integerDatetimes result)
 
 refine :: (a -> Either Text b) -> Results a -> Results b
 refine refiner (Results stack) = Results

@@ -20,9 +20,7 @@ main =
       (,) <$> acquire <*> acquire
       where
         acquire =
-          join
-            $ fmap (either (fail . show) return)
-            $ A.acquire connectionSettings
+          either (fail . show) return =<< A.acquire connectionSettings
           where
             connectionSettings =
               [ H.connection

@@ -27,8 +27,8 @@ import qualified Hasql.TestingKit.Constants     as Constants
 import           Hasql.TestingKit.Preludes.Base
 
 data Error
-  = ConnectionError (Connection.ConnectionError)
-  | SessionError (Session.SessionError)
+  = ConnectionError Connection.ConnectionError
+  | SessionError Session.SessionError
   deriving (Show, Eq)
 
 runSessionOnLocalDb :: Session.Session a -> IO (Either Error a)
@@ -36,11 +36,9 @@ runSessionOnLocalDb session =
   runExceptT $ acquire >>= \connection -> use connection <* release connection
   where
     acquire =
-      ExceptT $ fmap (first ConnectionError) $ Connection.acquire Constants.localConnectionSettings
+      ExceptT (first ConnectionError <$> Connection.acquire Constants.localConnectionSettings)
     use connection =
-      ExceptT
-        $ fmap (first SessionError)
-        $ Session.run session connection
+      ExceptT (first SessionError <$> Session.run session connection)
     release connection =
       lift $ Connection.release connection
 

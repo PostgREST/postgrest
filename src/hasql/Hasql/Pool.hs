@@ -92,11 +92,11 @@ acquire config = do
         forM_ agedEntries $ \entry -> do
           Connection.release (entryConnection entry)
           atomically $ modifyTVar' capVar succ
-          (Config.observationHandler config) (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
+          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
         forM_ idleEntries $ \entry -> do
           Connection.release (entryConnection entry)
           atomically $ modifyTVar' capVar succ
-          (Config.observationHandler config) (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
+          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
 
   void . mkWeakIORef reaperRef $ do
     -- When the pool goes out of scope, stop the manager.

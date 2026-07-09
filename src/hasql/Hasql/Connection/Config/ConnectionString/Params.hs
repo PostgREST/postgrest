@@ -15,4 +15,4 @@ fromUpdates :: (Updates a) => [a] -> Params
 fromUpdates = foldl' (flip update) nil
 
 setKeyValue :: ByteString -> ByteString -> Params -> Params
-setKeyValue key value = Map.insert key value
+setKeyValue = Map.insert

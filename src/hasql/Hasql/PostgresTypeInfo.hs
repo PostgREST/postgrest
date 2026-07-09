@@ -220,6 +220,8 @@ tstzmultirange = mkPTI LibPQ.Binary 4534 (Just 6153)
 tsvector :: PTI
 tsvector = mkPTI LibPQ.Binary 3614 (Just 3643)
 
+-- txid_snapshot is the name of a PostgreSQL type, so snake case is correct.
+{- HLINT ignore txid_snapshot "Use camelCase" -}
 txid_snapshot :: PTI
 txid_snapshot = mkPTI LibPQ.Binary 2970 (Just 2949)
 

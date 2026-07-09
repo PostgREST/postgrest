@@ -40,7 +40,7 @@ tree =
         "Regression"
         [ testCase "Missing $ for 1000th parameter string #2"
             $ let snippet =
-                    "SELECT 1 " <> (foldMap @[] ("," <>) $ replicate 1001 $ Snippet.param (10 :: Int64))
+                    "SELECT 1 " <> foldMap @[] ("," <>) (replicate 1001 $ Snippet.param (10 :: Int64))
                   statement =
                     Statement.dynamicallyParameterized snippet Decoders.noResult True
                   sql =

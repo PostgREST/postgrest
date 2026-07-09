@@ -36,10 +36,10 @@ acquire settings =
   {-# SCC "acquire" #-}
   runExceptT $ do
     pqConnection <- lift (IO.acquireConnection (Config.connectionString config))
-    lift (IO.checkConnectionStatus pqConnection) >>= traverse throwError
+    lift (IO.checkConnectionStatus pqConnection) >>= traverse_ throwError
     lift (IO.initConnection pqConnection)
     integerDatetimes <- lift (IO.getIntegerDatetimes pqConnection)
-    registry <- lift (IO.acquirePreparedStatementRegistry)
+    registry <- lift IO.acquirePreparedStatementRegistry
     pqConnectionRef <- lift (newMVar pqConnection)
     pure (Connection (Config.usePreparedStatements config) pqConnectionRef integerDatetimes registry)
   where
