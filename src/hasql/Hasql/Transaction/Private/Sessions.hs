@@ -14,9 +14,7 @@ inRetryingTransaction :: IsolationLevel -> Mode -> Bool -> Session (a, Bool) -> 
 inRetryingTransaction level mode retryOnError session =
   fix $ \retry -> do
     attemptRes <- tryTransaction level mode retryOnError session
-    case attemptRes of
-      Just a  -> return a
-      Nothing -> retry
+    maybe retry return attemptRes
 
 tryTransaction :: IsolationLevel -> Mode -> Bool -> Session (a, Bool) -> Session (Maybe a)
 tryTransaction level mode retryOnError body = do

@@ -16,7 +16,7 @@ newtype Commands
 
 asBytes :: Commands -> ByteString
 asBytes (Commands list) =
-  BL.toStrict $ BB.toLazyByteString $ foldMap (<> BB.char7 ';') $ list
+  BL.toStrict $ BB.toLazyByteString $ foldMap (<> BB.char7 ';') list
 
 setEncodersToUTF8 :: Commands
 setEncodersToUTF8 =

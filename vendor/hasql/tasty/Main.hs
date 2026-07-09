@@ -48,9 +48,9 @@ tree =
                     encoder =
                       contrazip2
                         (Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
-                        (Encoders.param (Encoders.nonNullable (Encoders.text)))
+                        (Encoders.param (Encoders.nonNullable Encoders.text))
                     decoder =
-                      fmap (maybe False (const True)) (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+                      fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
                 session =
                   Session.statement ([3, 7], "a") statement
              in do
@@ -65,7 +65,7 @@ tree =
                     encoder =
                       Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
                     decoder =
-                      fmap (maybe False (const True)) (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+                      fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
                 session =
                   do
                     result1 <- Session.statement [1, 2] statement
@@ -81,7 +81,7 @@ tree =
                     encoder =
                       Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
                     decoder =
-                      fmap (maybe False (const True)) (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+                      fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
                 session =
                   do
                     result1 <- Session.statement [1, 2] statement
@@ -134,8 +134,7 @@ tree =
              in do
                   x <- Connection.with (Session.run session)
                   assertEqual (show x) (Right (Right ((1, True), ("hello", 3)))) x,
-        testGroup "unknownEnum"
-          $ [ testCase "" $ do
+        testGroup "unknownEnum" [ testCase "" $ do
                 res <- Session.runSessionOnLocalDb $ do
                   let statement =
                         Statement.Statement sql mempty Decoders.noResult True
@@ -155,7 +154,7 @@ tree =
                           sql =
                             "select $1"
                           decoder =
-                            (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.enum (Just . id))))
+                            Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.enum Just))
                           encoder =
                             Encoders.param (Encoders.nonNullable (Encoders.unknownEnum id))
                    in Session.statement "ok" statement
@@ -253,7 +252,7 @@ tree =
                                 sql =
                                   "select $1 :: int8"
                                 encoder =
-                                  Encoders.param (Encoders.nonNullable (Encoders.int8))
+                                  Encoders.param (Encoders.nonNullable Encoders.int8)
                                 decoder =
                                   Decoders.singleRow $ (Decoders.column . Decoders.nonNullable) Decoders.int8
                         fail =
@@ -267,8 +266,8 @@ tree =
                     sql =
                       "select ($1 + $2)"
                     encoder =
-                      contramap fst (Encoders.param (Encoders.nonNullable (Encoders.int8)))
-                        <> contramap snd (Encoders.param (Encoders.nonNullable (Encoders.int8)))
+                      contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
+                        <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
                     decoder =
                       Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
                 sumSession :: Session.Session Int64
@@ -290,8 +289,8 @@ tree =
                     sql =
                       "select ($1 + $2)"
                     encoder =
-                      contramap fst (Encoders.param (Encoders.nonNullable (Encoders.int8)))
-                        <> contramap snd (Encoders.param (Encoders.nonNullable (Encoders.int8)))
+                      contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
+                        <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
                     decoder =
                       Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
                 session :: Session.Session Int64
@@ -313,9 +312,9 @@ tree =
                             sql =
                               "select $1 = interval '10 seconds'"
                             decoder =
-                              (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.bool)))
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.bool)
                             encoder =
-                              Encoders.param (Encoders.nonNullable (Encoders.interval))
+                              Encoders.param (Encoders.nonNullable Encoders.interval)
                      in Session.statement (10 :: DiffTime) statement
              in actualIO >>= \x -> assertEqual (show x) (Right True) x,
         testCase "Interval Decoding"
@@ -327,7 +326,7 @@ tree =
                             sql =
                               "select interval '10 seconds'"
                             decoder =
-                              (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.interval)))
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.interval)
                             encoder =
                               Encoders.noParams
                      in Session.statement () statement
@@ -341,9 +340,9 @@ tree =
                             sql =
                               "select $1"
                             decoder =
-                              (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.interval)))
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.interval)
                             encoder =
-                              Encoders.param (Encoders.nonNullable (Encoders.interval))
+                              Encoders.param (Encoders.nonNullable Encoders.interval)
                      in Session.statement (10 :: DiffTime) statement
              in actualIO >>= \x -> assertEqual (show x) (Right (10 :: DiffTime)) x,
         testCase "Unknown"
@@ -367,9 +366,9 @@ tree =
                             sql =
                               "select $1 = ('ok' :: mood)"
                             decoder =
-                              (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.bool)))
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.bool)
                             encoder =
-                              Encoders.param (Encoders.nonNullable (Encoders.unknown))
+                              Encoders.param (Encoders.nonNullable Encoders.unknown)
                      in Session.statement "ok" statement
              in actualIO >>= assertEqual "" (Right True),
         testCase "Enum"
@@ -393,9 +392,9 @@ tree =
                             sql =
                               "select ($1 :: mood)"
                             decoder =
-                              (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.enum (Just . id))))
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.enum Just))
                             encoder =
-                              Encoders.param (Encoders.nonNullable ((Encoders.enum id)))
+                              Encoders.param (Encoders.nonNullable (Encoders.enum id))
                      in Session.statement "ok" statement
              in actualIO >>= assertEqual "" (Right "ok"),
         testCase "The same prepared statement used on different types"
@@ -410,9 +409,9 @@ tree =
                                 sql =
                                   "select $1"
                                 encoder =
-                                  Encoders.param (Encoders.nonNullable (Encoders.text))
+                                  Encoders.param (Encoders.nonNullable Encoders.text)
                                 decoder =
-                                  (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.text)))
+                                  Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.text)
                         effect2 =
                           Session.statement 1 statement
                           where
@@ -422,9 +421,9 @@ tree =
                                 sql =
                                   "select $1"
                                 encoder =
-                                  Encoders.param (Encoders.nonNullable (Encoders.int8))
+                                  Encoders.param (Encoders.nonNullable Encoders.int8)
                                 decoder =
-                                  (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8))
+                                  Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
                      in (,) <$> effect1 <*> effect2
              in actualIO >>= assertEqual "" (Right ("ok", 1)),
         testCase "Affected rows counting"
@@ -438,16 +437,13 @@ tree =
                   where
                     dropTable =
                       Session.statement ()
-                        $ Statements.plain
-                        $ "drop table if exists a"
+                        $ Statements.plain "drop table if exists a"
                     createTable =
                       Session.statement ()
-                        $ Statements.plain
-                        $ "create table a (id bigserial not null, name varchar not null, primary key (id))"
+                        $ Statements.plain "create table a (id bigserial not null, name varchar not null, primary key (id))"
                     insertRow =
                       Session.statement ()
-                        $ Statements.plain
-                        $ "insert into a (name) values ('a')"
+                        $ Statements.plain "insert into a (name) values ('a')"
                     deleteRows =
                       Session.statement () $ Statement.Statement sql mempty decoder False
                       where
@@ -459,15 +455,15 @@ tree =
         testCase "Result of an auto-incremented column"
           $ let actualIO =
                   Session.runSessionOnLocalDb $ do
-                    Session.statement () $ Statements.plain $ "drop table if exists a"
-                    Session.statement () $ Statements.plain $ "create table a (id serial not null, v char not null, primary key (id))"
+                    Session.statement () $ Statements.plain "drop table if exists a"
+                    Session.statement () $ Statements.plain "create table a (id serial not null, v char not null, primary key (id))"
                     id1 <- Session.statement () $ Statement.Statement "insert into a (v) values ('a') returning id" mempty (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int4)) False
                     id2 <- Session.statement () $ Statement.Statement "insert into a (v) values ('b') returning id" mempty (Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int4)) False
-                    Session.statement () $ Statements.plain $ "drop table if exists a"
+                    Session.statement () $ Statements.plain "drop table if exists a"
                     pure (id1, id2)
              in assertEqual "" (Right (1, 2)) =<< actualIO,
         testCase "List decoding"
           $ let actualIO =
-                  Session.runSessionOnLocalDb $ Session.statement () $ Statements.selectList
+                  Session.runSessionOnLocalDb $ Session.statement () Statements.selectList
              in assertEqual "" (Right [(1, 2), (3, 4), (5, 6)]) =<< actualIO
       ]

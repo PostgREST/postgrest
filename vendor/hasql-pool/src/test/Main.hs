@@ -40,8 +40,8 @@ main = do
 
   hspec . describe "" $ do
     it "Releases a spot in the pool when there is a query error" $ withDefaultPool $ \pool -> do
-      use pool badQuerySession `shouldNotReturn` (Right ())
-      use pool selectOneSession `shouldReturn` (Right 1)
+      use pool badQuerySession `shouldNotReturn` Right ()
+      use pool selectOneSession `shouldReturn` Right 1
     it "Simulation of connection error works" $ withDefaultPool $ \pool -> do
       res <- use pool $ closeConnSession >> selectOneSession
       shouldSatisfy res $ \case
@@ -51,27 +51,27 @@ main = do
       _ <- use pool $ closeConnSession >> selectOneSession
       _ <- use pool $ closeConnSession >> selectOneSession
       _ <- use pool $ closeConnSession >> selectOneSession
-      res <- use pool $ selectOneSession
-      shouldSatisfy res $ isRight
+      res <- use pool selectOneSession
+      shouldSatisfy res isRight
     it "Connection gets returned to the pool after normal use" $ withDefaultPool $ \pool -> do
-      _ <- use pool $ selectOneSession
-      _ <- use pool $ selectOneSession
-      _ <- use pool $ selectOneSession
-      _ <- use pool $ selectOneSession
-      res <- use pool $ selectOneSession
-      shouldSatisfy res $ isRight
+      _ <- use pool selectOneSession
+      _ <- use pool selectOneSession
+      _ <- use pool selectOneSession
+      _ <- use pool selectOneSession
+      res <- use pool selectOneSession
+      shouldSatisfy res isRight
     it "Connection gets returned to the pool after non-connection error" $ withDefaultPool $ \pool -> do
-      _ <- use pool $ badQuerySession
-      _ <- use pool $ badQuerySession
-      _ <- use pool $ badQuerySession
-      _ <- use pool $ badQuerySession
-      res <- use pool $ selectOneSession
-      shouldSatisfy res $ isRight
+      _ <- use pool badQuerySession
+      _ <- use pool badQuerySession
+      _ <- use pool badQuerySession
+      _ <- use pool badQuerySession
+      res <- use pool selectOneSession
+      shouldSatisfy res isRight
     it "The pool remains usable after release" $ withDefaultPool $ \pool -> do
-      _ <- use pool $ selectOneSession
+      _ <- use pool selectOneSession
       release pool
-      res <- use pool $ selectOneSession
-      shouldSatisfy res $ isRight
+      res <- use pool selectOneSession
+      shouldSatisfy res isRight
     it "Getting and setting session variables works" $ withDefaultPool $ \pool -> do
       res <- use pool $ getSettingSession "testing.foo"
       res `shouldBe` Right Nothing
@@ -93,6 +93,8 @@ main = do
     it "Times out connection acquisition"
       $
       -- 1ms timeout
+      -- 1ms timeout
+      -- 1ms timeout
       withPool 1 0.001 1_800 1_800 connectionString
       $ \pool -> do
         sleeping <- newEmptyMVar
@@ -107,13 +109,15 @@ main = do
             )
             ( do
                 takeMVar sleeping
-                use pool $ selectOneSession
+                use pool selectOneSession
             )
         t1 <- getCurrentTime
         res `shouldBe` Right (Left AcquisitionTimeoutUsageError)
         diffUTCTime t1 t0 `shouldSatisfy` (< 0.5) -- 0.5s
     it "Passively times out old connections (maxLifetime)"
       $
+      -- 0.5s connection lifetime
+      -- 0.5s connection lifetime
       -- 0.5s connection lifetime
       withPool 1 10 0.5 1_800 connectionString
       $ \pool -> do
@@ -134,7 +138,7 @@ main = do
       withDefaultPool $ \countPool -> do
         (taggedConnectionSettings, appName) <- tagConnection connectionString
         withPool 3 10 0.5 1_800 taggedConnectionSettings $ \limitedPool -> do
-          res <- use limitedPool $ selectOneSession
+          res <- use limitedPool selectOneSession
           res `shouldBe` Right 1
           res2 <- use countPool $ countConnectionsSession appName
           res2 `shouldBe` Right 1
@@ -150,7 +154,7 @@ main = do
         res2 `shouldBe` Right (Just "hello world")
         -- busy sleep, to keep connection alive
         forM_ [1 :: Int .. 10] $ \_ -> do
-          r <- use pool $ selectOneSession
+          r <- use pool selectOneSession
           r `shouldBe` Right 1
           threadDelay 100_000 -- 0.1s
         res3 <- use pool $ getSettingSession "testing.foo"

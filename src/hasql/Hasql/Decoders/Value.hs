@@ -14,8 +14,7 @@ instance Filterable Value where
 
 {-# INLINE run #-}
 run :: Value a -> Bool -> A.Value a
-run (Value imp) integerDatetimes =
-  imp integerDatetimes
+run (Value imp) = imp
 
 {-# INLINE decoder #-}
 decoder :: (Bool -> A.Value a) -> Value a

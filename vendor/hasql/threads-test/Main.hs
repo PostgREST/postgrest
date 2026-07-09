@@ -16,9 +16,7 @@ main =
       (,) <$> acquire <*> acquire
       where
         acquire =
-          join
-            $ fmap (either (fail . show) return)
-            $ Hasql.Connection.acquire connectionSettings
+          either (fail . show) return =<< Hasql.Connection.acquire connectionSettings
           where
             connectionSettings =
               [ Hasql.Connection.Setting.connection

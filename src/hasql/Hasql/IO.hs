@@ -23,8 +23,7 @@ acquirePreparedStatementRegistry =
 
 {-# INLINE releaseConnection #-}
 releaseConnection :: LibPQ.Connection -> IO ()
-releaseConnection connection =
-  LibPQ.finish connection
+releaseConnection = LibPQ.finish
 
 {-# INLINE checkConnectionStatus #-}
 checkConnectionStatus :: LibPQ.Connection -> IO (Maybe (Maybe ByteString))
@@ -43,7 +42,7 @@ checkServerVersion c =
 {-# INLINE getIntegerDatetimes #-}
 getIntegerDatetimes :: LibPQ.Connection -> IO Bool
 getIntegerDatetimes c =
-  fmap decodeValue $ LibPQ.parameterStatus c "integer_datetimes"
+  decodeValue <$> LibPQ.parameterStatus c "integer_datetimes"
   where
     decodeValue =
       \case
@@ -82,7 +81,7 @@ getPreparedStatementKey connection registry template oidList =
     onNewRemoteKey key =
       do
         sent <- LibPQ.sendPrepare connection key template (mfilter (not . null) (Just oidList))
-        fmap resultsMapping $ getResults connection undefined (resultsDecoder sent)
+        resultsMapping <$> getResults connection undefined (resultsDecoder sent)
       where
         resultsDecoder sent =
           if sent
@@ -99,7 +98,7 @@ getPreparedStatementKey connection registry template oidList =
 checkedSend :: LibPQ.Connection -> IO Bool -> IO (Either CommandError ())
 checkedSend connection send =
   send >>= \case
-    False -> fmap (Left . ClientError) $ LibPQ.errorMessage connection
+    False -> Left . ClientError <$> LibPQ.errorMessage connection
     True -> pure (Right ())
 
 {-# INLINE sendPreparedParametricStatement #-}

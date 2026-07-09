@@ -44,9 +44,7 @@ run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integer
 
     runResultsDecoder :: forall a. Decoders.Results.Results a -> ExceptT SessionError IO a
     runResultsDecoder decoder =
-      ExceptT
-        $ fmap (first PipelineError)
-        $ Decoders.Results.run decoder connection integerDatetimes
+      ExceptT (first PipelineError <$> Decoders.Results.run decoder connection integerDatetimes)
 
     runCommand :: IO Bool -> ExceptT SessionError IO ()
     runCommand action =
