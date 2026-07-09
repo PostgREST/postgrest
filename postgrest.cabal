@@ -37,6 +37,43 @@ flag hpc
   manual:      True
   description: Enable HPC (dev only)
 
+library restart
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+                      NoImplicitPrelude
+                      NumericUnderscores
+  hs-source-dirs:     src/restart/common
+  exposed-modules:    System.Process.Restart
+  other-modules:      System.Process.Restart.Impl
+                      System.Process.Restart.Shared
+  build-depends:      base                      >= 4.9 && < 4.22
+                    , bytestring                >= 0.10.8 && < 0.13
+                    , protolude                 >= 0.3.1 && < 0.4
+  ghc-options:        -j -Werror -Wall -fwarn-identities
+                      -fno-spec-constr -optP-Wno-nonportable-include-path
+
+  if flag(dev)
+    ghc-options: -O0 -fwrite-ide-info
+    if flag(hpc)
+      ghc-options: -fhpc -hpcdir .hpc
+  else
+    ghc-options: -O2
+    if impl(ghc >= 9.12)
+      -- Makes GHC consider cross-module specialization for polymorphic functions
+      -- without explicitly needing to add INLINE, INLINABLE or SPECIALIZE pragmas.
+      -- Slightly increases the binary size but improves performance considerably.
+      ghc-options: -fexpose-overloaded-unfoldings -fspecialise-aggressively
+
+  if os(windows)
+    hs-source-dirs:
+      src/restart/windows
+  else
+    hs-source-dirs:
+      src/restart/posix
+    build-depends:      network                   >= 2.6 && < 3.3
+                      , text                      >= 1.2.2 && < 2.2
+                      , unix
+
 library
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
