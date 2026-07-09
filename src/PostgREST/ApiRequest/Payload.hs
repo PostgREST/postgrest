@@ -74,13 +74,13 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
     shouldParsePayload = case action of
       ActDb (ActRelationMut _ MutationDelete) -> False
       ActDb (ActRelationMut _ _)              -> True
-      ActDb (ActRoutine _  Inv)               -> True
+      ActDb (ActRoutine _ Inv)                -> True
       _                                       -> False
 
     columns = case action of
       ActDb (ActRelationMut _ MutationCreate) -> qsColumns
       ActDb (ActRelationMut _ MutationUpdate) -> qsColumns
-      ActDb (ActRoutine     _ Inv)            -> qsColumns
+      ActDb (ActRoutine _ Inv)                -> qsColumns
       _                                       -> Nothing
 
     isProc = case action of
