@@ -32,7 +32,10 @@ let
   # build of new Nix derivations when changed.
   src =
     pkgs.lib.sourceFilesBySuffices
-      (pkgs.gitignoreSource ./.)
+      (pkgs.lib.cleanSourceWith {
+        src = pkgs.gitignoreSource ./.;
+        filter = path: _: !(pkgs.lib.hasPrefix "${toString ./restart/test}/" (toString path));
+      })
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
 
   allOverlays =
