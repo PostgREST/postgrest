@@ -352,14 +352,11 @@ test-suite observability
 test-suite doctests
   type:               exitcode-stdio-1.0
   default-language:   Haskell2010
-  default-extensions: OverloadedStrings
-                      NoImplicitPrelude
   hs-source-dirs:     test/doc
   main-is:            Main.hs
   build-depends:      base              >= 4.9 && < 4.22
-                    , doctest           >= 0.8
+                    , doctest-parallel  >= 0.4
                     , postgrest
                     , pretty-simple
-                    , protolude         >= 0.3.1 && < 0.4
   ghc-options:        -threaded -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path

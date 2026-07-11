@@ -30,3 +30,4 @@ gen_private.json
 .pytest_cache
 .ruff_cache
 postgrest-module-graph.png
+.ghc.environment.*

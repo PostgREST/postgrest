@@ -24,6 +24,7 @@ module PostgREST.Plan
   , InfoPlan(..)
   , CrudPlan(..)
   , legacyWarnings
+  , addNullEmbedFilters
   ) where
 
 import qualified Data.HashMap.Strict           as HM
@@ -87,7 +88,16 @@ import Protolude hiding (from)
 
 -- $setup
 -- Setup for doctests
+-- >>> :set -XDuplicateRecordFields
 -- >>> import Data.Ranged.Ranges (fullRange)
+-- >>> import Data.Tree (Tree (..))
+-- >>> import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+-- >>> import PostgREST.ApiRequest.Types
+-- >>> import PostgREST.Plan.CallPlan
+-- >>> import PostgREST.Plan.MutatePlan
+-- >>> import PostgREST.Plan.ReadPlan as ReadPlan
+-- >>> import PostgREST.Plan.Types
+-- >>> import Protolude
 
 -- Plan for reading or writing to the db
 data CrudPlan

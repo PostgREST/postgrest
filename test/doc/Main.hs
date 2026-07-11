@@ -1,27 +1,7 @@
-module Main (main) where
+module Main where
 
-import Test.DocTest (doctest)
-
-import Protolude
-
+import System.Environment (getArgs)
+import Test.DocTest       (mainFromCabal)
 
 main :: IO ()
-main =
-  doctest
-    [ "-XOverloadedStrings"
-    , "-XNoImplicitPrelude"
-    , "-XStandaloneDeriving"
-    , "-XDuplicateRecordFields"
-    , "-isrc"
-    , "src/PostgREST/ApiRequest/Preferences.hs"
-    , "src/PostgREST/ApiRequest/QueryParams.hs"
-    , "src/PostgREST/Config.hs"
-    , "src/PostgREST/Error.hs"
-    , "src/PostgREST/MediaType.hs"
-    , "src/PostgREST/Network.hs"
-    , "src/PostgREST/Plan.hs"
-    , "src/PostgREST/Query/SqlFragment.hs"
-    , "src/PostgREST/Response.hs"
-    , "src/PostgREST/Response/Performance.hs"
-    , "src/PostgREST/SchemaCache/Identifiers.hs"
-    ]
+main = mainFromCabal "postgrest" =<< getArgs
