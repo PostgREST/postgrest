@@ -215,7 +215,7 @@ def run_pgproxy(env=None, proxy_timeout="1s"):
         )
 
         if process.poll() is not None:
-            (_, stderr_output) = process.communicate(timeout=1)
+            _, stderr_output = process.communicate(timeout=1)
             raise RuntimeError(
                 f"{NGINX_BIN} exited with {process.returncode}: {stderr_output}"
             )
