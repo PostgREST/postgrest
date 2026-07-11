@@ -9,7 +9,18 @@
 module PostgREST.ApiRequest.QueryParams
   ( parse
   , QueryParams(..)
+  , pFieldForest
+  , pFieldName
+  , pFieldSelect
+  , pJsonPath
+  , pLogicTree
+  , pOpExpr
+  , pOrder
+  , pRelationSelect
+  , pRequestFilter
   , pRequestRange
+  , pSingleVal
+  , pSpreadRelationSelect
   ) where
 
 import qualified Data.ByteString.Char8         as BS
@@ -61,6 +72,10 @@ import PostgREST.ApiRequest.Types (AggregateFunction (..),
 import PostgREST.Error (QPError (..))
 
 import Protolude hiding (Sum, try)
+
+-- $setup
+-- >>> import qualified Text.ParserCombinators.Parsec as P
+-- >>> import Protolude hiding (Sum, try)
 
 data QueryParams =
   QueryParams

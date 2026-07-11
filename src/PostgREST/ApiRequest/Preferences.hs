@@ -21,6 +21,7 @@ module PostgREST.ApiRequest.Preferences
   , shouldCount
   , shouldExplainCount
   , prefAppliedHeader
+  , toHeaderValue
   ) where
 
 import qualified Data.ByteString.Char8     as BS
@@ -34,7 +35,10 @@ import Protolude
 
 -- $setup
 -- Setup for doctests
+-- >>> :set -XStandaloneDeriving
 -- >>> import Text.Pretty.Simple (pPrint)
+-- >>> import qualified Data.Set as S
+-- >>> import Protolude
 -- >>> deriving instance Show PreferResolution
 -- >>> deriving instance Show PreferRepresentation
 -- >>> deriving instance Show PreferCount

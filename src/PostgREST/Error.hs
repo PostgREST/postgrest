@@ -19,6 +19,8 @@ module PostgREST.Error
   , JwtClaimsError(..)
   , errorPayload
   , status
+  , noRelBetweenHint
+  , noRpcHint
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -56,6 +58,12 @@ import PostgREST.SchemaCache.Routine      (Routine (..),
 import PostgREST.Error.Types
 
 import Protolude
+
+-- $setup
+-- >>> import qualified Data.HashMap.Strict as HM
+-- >>> import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+-- >>> import PostgREST.SchemaCache.Relationship (Relationship (..))
+-- >>> import PostgREST.SchemaCache.Routine (Routine (..), RoutineParam (..))
 
 -- | Encode Error to ByteString
 errorPayload :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> LByteString

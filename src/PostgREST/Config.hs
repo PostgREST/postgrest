@@ -597,6 +597,7 @@ pgConnString conn | uriDesignator `T.isPrefixOf` conn || shortUriDesignator `T.i
 
 -- | Adds a `fallback_application_name` value to the connection string. This allows querying the PostgREST version on pg_stat_activity.
 --
+-- >>> import Protolude
 -- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
 -- >>> let strangeVer = "11'1&0@#$%,.:\"[]{}?+^()=asdfqwer"::ByteString
 --

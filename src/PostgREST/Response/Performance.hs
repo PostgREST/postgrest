@@ -8,6 +8,9 @@ import qualified Network.HTTP.Types    as HTTP
 import           Numeric               (showFFloat)
 import           Protolude
 
+-- $setup
+-- >>> import Protolude
+
 -- | ServerTiming represents the timing data for a request, in seconds.
 data ServerTiming =
   ServerTiming

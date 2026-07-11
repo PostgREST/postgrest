@@ -9,6 +9,7 @@ module PostgREST.MediaType
   , toContentType
   , toMime
   , decodeMediaType
+  , tokenizeMediaType
   ) where
 
 import qualified Data.Aeson                    as JSON
@@ -21,6 +22,9 @@ import Data.Text.Encoding        (decodeLatin1)
 import Network.HTTP.Types.Header (Header, hContentType)
 
 import Protolude
+
+-- $setup
+-- >>> import qualified Text.ParserCombinators.Parsec as P
 
 -- | Enumeration of currently supported media types
 data MediaType
