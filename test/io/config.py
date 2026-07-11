@@ -4,7 +4,6 @@ import shutil
 import uuid
 import yaml
 
-
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
 CONFIGSDIR = BASEDIR / "configs"
 FIXTURES = yaml.load(
