@@ -62,7 +62,7 @@ def cli(args, env=None, stdin=None, expect_error=False):
 
     process.stdin.write(stdin or b"")
     try:
-        (stdout_output, stderr_output) = process.communicate(timeout=5)
+        stdout_output, stderr_output = process.communicate(timeout=5)
         if expect_error:  # When expected to fail, return stderr, else stdout
             if process.returncode == 0:
                 raise PostgrestError(
@@ -310,7 +310,7 @@ def test_cli_ready_flag_success(host, defaultenv):
     with run(env=defaultenv, host=host, port=port, admin_port=admin_port) as postgrest:
         output = cli(["--ready"], env=postgrest.config)
 
-        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+        admin_host, admin_port = get_admin_host_and_port_from_config(postgrest.config)
 
         if is_ipv6(host):
             assert f"OK: http://[{admin_host}]:{admin_port}/ready" in output
@@ -344,7 +344,7 @@ def test_cli_ready_flag_fail_when_schema_cache_not_loaded(defaultenv, metapostgr
         postgrest.wait_until_scache_starts_loading()
 
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
-        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+        admin_host, admin_port = get_admin_host_and_port_from_config(postgrest.config)
 
         assert f"ERROR: http://{admin_host}:{admin_port}/ready" in output
 
@@ -362,7 +362,7 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
 
         postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(freeport(used_ports))
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
-        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+        admin_host, admin_port = get_admin_host_and_port_from_config(postgrest.config)
 
         assert (
             f"ERROR: connection refused to http://{admin_host}:{admin_port}/ready"
@@ -373,7 +373,7 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
     with run(env=defaultenv, port=port, admin_port=admin_port) as postgrest:
         postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(-1)
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
-        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+        admin_host, admin_port = get_admin_host_and_port_from_config(postgrest.config)
 
         assert f"ERROR: invalid url - http://{admin_host}:{admin_port}/ready" in output
 

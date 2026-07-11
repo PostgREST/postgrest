@@ -21,6 +21,7 @@ let
         name = "postgrest-style";
         docs = "Automatically format Haskell, Nix and Python files.";
         workingDir = "/";
+        withTmpDir = true;
       }
       ''
         # Format Nix files
@@ -32,7 +33,7 @@ let
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
 
         # Format Python files
-        ${black}/bin/black .
+        TMPDIR="$tmpdir" ${black}/bin/black .
       '';
 
   # Script to check whether any uncommitted changes result from postgrest-style
