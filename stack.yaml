@@ -15,10 +15,7 @@ extra-deps:
   - hasql-notifications-0.2.4.0
   - http-semantics-0.4.0
   - http2-5.4.0
-  - git: https://github.com/yesodweb/wai.git
-    commit: ad041216b643f69a2a9c87cbf4c2988aa4633dd5
-    subdirs:
-      - warp
+  - warp-3.4.14
 
 allow-newer: true
 allow-newer-deps:
