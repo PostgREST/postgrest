@@ -128,6 +128,10 @@ renderSnippet snippet =
   in
     sql
 
+renderStatement :: SQL.Statement () () -> ByteString
+renderStatement (SQL.Statement sql _ _ _) =
+  sql
+
 observationMessages :: Observation -> [Text]
 observationMessages = \case
   AdminStartObs address ->
@@ -189,7 +193,7 @@ observationMessages = \case
   DBListenerConnectionCleanupFail ex ->
     pure $ "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
   (QueryObs MainQuery{mqOpenAPI=(x, y, z),..} _) ->
-      let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+      let snipts  = renderStatement mqTxVars : (renderSnippet <$> [fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain])
       in
         showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
