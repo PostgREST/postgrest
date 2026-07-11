@@ -20,7 +20,4 @@ extra-deps:
   - postgresql-libpq-0.10.1.0
   - streaming-commons-0.2.3.1
   - time-manager-0.3.2
-  - git: https://github.com/yesodweb/wai.git
-    commit: ad041216b643f69a2a9c87cbf4c2988aa4633dd5
-    subdirs:
-      - warp
+  - warp-3.4.14

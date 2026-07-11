@@ -82,18 +82,12 @@ packages:
   original:
     hackage: time-manager-0.3.2
 - completed:
-    commit: ad041216b643f69a2a9c87cbf4c2988aa4633dd5
-    git: https://github.com/yesodweb/wai.git
-    name: warp
+    hackage: warp-3.4.14@sha256:66b82af637f79ae4d39f7373b39491067f6d059b2581cb4caf18760f1d82e686,10066
     pantry-tree:
-      sha256: 02665f2d175a7fd683470e608b23e0d661f4e55dd13e073ed203e4b9a5801f8f
-      size: 4975
-    subdir: warp
-    version: 3.4.13.1
+      sha256: 6db2e6d37acebd24d4e73d506481a4a2e0c53b35099756131a3852c8c8b84b45
+      size: 4175
   original:
-    commit: ad041216b643f69a2a9c87cbf4c2988aa4633dd5
-    git: https://github.com/yesodweb/wai.git
-    subdir: warp
+    hackage: warp-3.4.14
 snapshots:
 - completed:
     sha256: 238fa745b64f91184f9aa518fe04bdde6552533d169b0da5256670df83a0f1a9
