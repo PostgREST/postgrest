@@ -62,6 +62,7 @@ import Protolude
 -}
 data ApiRequest = ApiRequest {
     iAction              :: Action                           -- ^ Action on the resource
+  , iResource            :: Resource                         -- ^ Resource resolved from the request path
   , iRange               :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
   , iTopLevelRange       :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
@@ -99,6 +100,7 @@ userApiRequest conf prefs req reqBody = do
   , iCookies = iCkies
   , iPath = rawPathInfo req
   , iMethod = method
+  , iResource = resource
   , iSchema = schema
   , iNegotiatedByProfile = negotiatedByProfile
   , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
@@ -111,7 +113,7 @@ userApiRequest conf prefs req reqBody = do
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
-    actIsInvokeSafe x = case x of {ActDb (ActRoutine _  (InvRead _)) -> True; _ -> False}
+    actIsInvokeSafe x = case x of {ActDb (ActRoutine _ (InvRead _)) -> True; _ -> False}
 
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences
@@ -126,21 +128,21 @@ getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
   []             ->
       case (configOpenApiMode,configDbRootSpec) of
         (OADisabled,_) -> Left OpenAPIDisabled
-        (_, Just qi)   -> Right $ ResourceRoutine (qiName qi)
+        (_, Just qi)   -> Right $ ResourceRoutine (qiName qi) True
         (_, Nothing)   -> Right ResourceSchema
 
   [table]        -> Right $ ResourceRelation table
-  ["rpc", pName] -> Right $ ResourceRoutine pName
+  ["rpc", pName] -> Right $ ResourceRoutine pName False
   _              -> Left InvalidResourcePath
 
 getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
 getAction resource schema method =
   case (resource, method) of
-    (ResourceRoutine rout, "HEAD")    -> Right . ActDb $ ActRoutine (qi rout) $ InvRead True
-    (ResourceRoutine rout, "GET")     -> Right . ActDb $ ActRoutine (qi rout) $ InvRead False
-    (ResourceRoutine rout, "POST")    -> Right . ActDb $ ActRoutine (qi rout) Inv
-    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutineInfo (qi rout) $ InvRead True
-    (ResourceRoutine _, _)            -> Left $ InvalidRpcMethod method
+    (ResourceRoutine rout _, "HEAD")         -> Right . ActDb $ ActRoutine (qi rout) $ InvRead True
+    (ResourceRoutine rout _, "GET")          -> Right . ActDb $ ActRoutine (qi rout) $ InvRead False
+    (ResourceRoutine rout _, "POST")         -> Right . ActDb $ ActRoutine (qi rout) Inv
+    (ResourceRoutine rout _, "OPTIONS")      -> Right $ ActRoutineInfo (qi rout) $ InvRead True
+    (ResourceRoutine _ _, _)                 -> Left $ InvalidRpcMethod method
 
     (ResourceRelation rel, "HEAD")    -> Right . ActDb $ ActRelationRead (qi rel) True
     (ResourceRelation rel, "GET")     -> Right . ActDb $ ActRelationRead (qi rel) False

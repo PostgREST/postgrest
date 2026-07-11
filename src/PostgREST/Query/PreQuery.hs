@@ -13,6 +13,7 @@ import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.ByteString.Lazy.Char8      as LBS
 import qualified Data.HashMap.Strict             as HM
+import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
 
 
@@ -20,6 +21,7 @@ import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferTimezone (..),
                                           Preferences (..))
+import PostgREST.ApiRequest.Types        (Resource (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.Plan                    (CrudPlan (..),
@@ -31,6 +33,7 @@ import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           setConfigWithDynamicName)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine     (Routine (..))
+import PostgREST.Version                 (prettyVersion)
 
 import Protolude hiding (Handler)
 
@@ -40,7 +43,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
     "select " <> intercalateSnippet ", " (
-      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql
+      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql ++ rootSpecSettingsSql
     )
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -54,6 +57,15 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     roleSql = [setConfigWithConstantName ("role", authRole)]
     roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup authRole configRoleSettings)
     appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings
+    rootSpecSettingsSql
+      | isRootSpec iResource =
+          [ setConfigWithConstantName ("pgrst.server_host", toUtf8 configServerHost)
+          , setConfigWithConstantName ("pgrst.server_port", toUtf8 (show configServerPort :: Text))
+          , setConfigWithConstantName ("pgrst.openapi_server_proxy_uri", maybe mempty toUtf8 configOpenApiServerProxyUri)
+          , setConfigWithConstantName ("pgrst.db_schemas", toUtf8 $ T.intercalate "," $ toList configDbSchemas)
+          , setConfigWithConstantName ("pgrst.version", prettyVersion)
+          ]
+      | otherwise = mempty
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
     funcSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> funcSettings
     searchPathSql =
@@ -62,6 +74,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     funcSettings = case dbActPlan of
       DbCrud _ CallReadPlan{crProc} -> pdFuncSettings crProc
       _                             -> mempty
+    isRootSpec resource = case resource of { ResourceRoutine _ True -> True; _ -> False }
 
 -- runs the pre-request function
 preReqQuery :: QualifiedIdentifier -> SQL.Snippet

@@ -58,7 +58,7 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
     -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
     -- TODO: despite no aggregate, these are responding with a Content-Type, which is not correct.
     (ActDb (ActRelationRead _ True), Just (_, mt))       -> Right (NoAgg, mt)
-    (ActDb (ActRoutine  _ (InvRead True)), Just (_, mt)) -> Right (NoAgg, mt)
+    (ActDb (ActRoutine _ (InvRead True)), Just (_, mt)) -> Right (NoAgg, mt)
     (_, Just (x, mt))                                    -> Right (x, mt)
   where
     firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.

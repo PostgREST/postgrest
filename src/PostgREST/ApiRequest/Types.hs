@@ -58,9 +58,11 @@ data Mutation
   | MutationUpdate
   deriving Eq
 
+type IsRoot = Bool
+
 data Resource
   = ResourceRelation Text
-  | ResourceRoutine Text
+  | ResourceRoutine Text IsRoot
   | ResourceSchema
 
 data DbAction
