@@ -20,23 +20,7 @@ import Protolude
 resolveSocketToAddress :: NS.Socket -> IO Text
 resolveSocketToAddress sock = do
   sn <- NS.getSocketName sock
-  return $ showSocketAddr sn
-
--- |
--- >>> let addr_ipv4 = NS.SockAddrInet 80 (NS.tupleToHostAddress (127,0,0,1))
--- >>> let addr_ipv6 = NS.SockAddrInet6 80 0 (0,0,0,1) 0
--- >>> let addr_unix = NS.SockAddrUnix "/tmp/pgrst.sock"
---
--- >>> showSocketAddr addr_ipv4
--- "127.0.0.1:80"
-
--- >>> showSocketAddr addr_ipv6
--- "[::1]:80"
---
--- >>> showSocketAddr addr_unix
--- "/tmp/pgrst.sock"
-showSocketAddr :: NS.SockAddr -> Text
-showSocketAddr = fromString . show
+  return $ fromString $ show sn
 
 -- | When printing special addresses like !4 or *6, we use the following mapping.
 --   These special addresses come from:
