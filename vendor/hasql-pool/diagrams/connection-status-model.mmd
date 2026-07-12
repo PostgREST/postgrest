@@ -1,0 +1,10 @@
+stateDiagram-v2
+
+[*] --> Connecting
+Connecting --> ReadyForUse
+ReadyForUse --> InUse
+InUse --> ReadyForUse
+Connecting --> Terminated
+ReadyForUse --> Terminated
+InUse --> Terminated
+Terminated --> [*]
