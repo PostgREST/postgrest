@@ -477,3 +477,22 @@ For example, to only allow requests from an IP address to get the execution plan
       window.location.href = willRedirectTo;
     }
   </script>
+
+.. _sql_query:
+
+SQL query
+---------
+
+You can get the raw SQL query of a request by adding the ``Accept: application/sql`` header.
+This is enabled by :ref:`db-plan-enabled` (false by default).
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/projects" \
+    -H "Accept: application/sql"
+
+.. code-block:: postgres
+
+  select set_config('search_path', $1, true), set_config('role', $2, true), set_config('request.jwt.claims', $3, true), set_config('request.method', $4, true), set_config('request.path', $5, true), set_config('request.headers', $6, true), set_config('request.cookies', $7, true)
+
+  WITH pgrst_source AS ( SELECT "test"."projects".* FROM "test"."projects"    )  SELECT null::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), '[]') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t
