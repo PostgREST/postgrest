@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.15] - 2026-07-13
+
 ### Fixed
 
 - Fix admin server dying silently by @Vlix, @mkleczek, @steve-chavez in #5012
