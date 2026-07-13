@@ -70,6 +70,61 @@ let
           }
           { };
 
+      http2 =
+        prev.callHackageDirect
+          {
+            pkg = "http2";
+            ver = "5.4.0";
+            sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+          }
+          { };
+
+      http-semantics =
+        prev.callHackageDirect
+          {
+            pkg = "http-semantics";
+            ver = "0.4.0";
+            sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+          }
+          { };
+
+      jose-jwt =
+        prev.callHackageDirect
+          {
+            pkg = "jose-jwt";
+            ver = "0.9.6";
+            sha256 = "sha256-FhBz5wzyNrDvmjHWOeNAHuVMyJUVSlm+DeQQuITSjaI=";
+          }
+          { };
+
+      time-manager =
+        prev.callHackageDirect
+          {
+            pkg = "time-manager";
+            ver = "0.2.4";
+            sha256 = "sha256-sAt/331YLQ2IU3z90aKYSq1nxoazv87irsuJp7ZG3pw=";
+          }
+          { };
+
+      network-run =
+        prev.callHackageDirect
+          {
+            pkg = "network-run";
+            ver = "0.5.0";
+            sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+          }
+          { };
+
+      warp =
+        lib.dontCheck
+          (prev.callHackageDirect
+            {
+              pkg = "warp";
+              ver = "3.4.14";
+              sha256 = "sha256-RnoOUlC6dOP0sK/tYAJCX1oLzVFG1GILUY+yVbmvW8Y=";
+            }
+            { });
+
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
