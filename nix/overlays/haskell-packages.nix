@@ -88,6 +88,15 @@ let
           }
           { };
 
+      jose-jwt =
+        prev.callHackageDirect
+          {
+            pkg = "jose-jwt";
+            ver = "0.9.6";
+            sha256 = "sha256-FhBz5wzyNrDvmjHWOeNAHuVMyJUVSlm+DeQQuITSjaI=";
+          }
+          { };
+
       time-manager =
         prev.callHackageDirect
           {
