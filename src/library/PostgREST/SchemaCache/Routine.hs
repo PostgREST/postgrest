@@ -1,5 +1,7 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PostgREST.SchemaCache.Routine
   ( PgType(..)
@@ -20,7 +22,6 @@ module PostgREST.SchemaCache.Routine
   , MediaHandler(..)
   ) where
 
-import           Data.Aeson                 ((.=))
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
@@ -29,7 +30,6 @@ import qualified PostgREST.MediaType        as MediaType
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           RelIdentifier (..), Schema,
                                           TableName)
-
 
 import Protolude
 
@@ -62,20 +62,11 @@ data Routine = Function
   , pdIsoLvl       :: Maybe SQL.IsolationLevel
   , pdFuncSettings :: FuncSettings
   }
-  deriving (Eq, Show, Generic)
--- need to define JSON manually bc SQL.IsolationLevel doesn't have a JSON instance(and we can't define one for that type without getting a compiler error)
-instance JSON.ToJSON Routine where
-  toJSON (Function sch nam desc params ret vol hasVar _ sets) = JSON.object
-    [
-      "pdSchema"       .= sch
-    , "pdName"         .= nam
-    , "pdDescription"  .= desc
-    , "pdParams"       .= JSON.toJSON params
-    , "pdReturnType"   .= JSON.toJSON ret
-    , "pdVolatility"   .= JSON.toJSON vol
-    , "pdHasVariadic"  .= JSON.toJSON hasVar
-    , "pdFuncSettings" .= JSON.toJSON sets
-    ]
+  deriving (Eq, Show, Generic, JSON.ToJSON)
+
+-- SQL.IsolationLevel doesn't have a default ToJSON instance, so we derive it.
+deriving instance Generic     SQL.IsolationLevel
+deriving instance JSON.ToJSON SQL.IsolationLevel
 
 data RoutineParam = RoutineParam
   { ppName          :: Text

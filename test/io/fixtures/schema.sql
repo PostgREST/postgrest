@@ -165,6 +165,12 @@ returns text as $$
 $$
 language sql set default_transaction_isolation = 'REPEATABLE READ';
 
+create function read_committed_isolation_level()
+returns text as $$
+  select current_setting('transaction_isolation', true);
+$$
+language sql set default_transaction_isolation = 'read committed';
+
 create or replace function create_function() returns void as $_$
   drop function if exists mult_them(int, int);
   create or replace function mult_them(a int, b int) returns int as $$
