@@ -5,6 +5,7 @@
       - - statement_timeout
         - 10s
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: rpc_with_two_hoisted
       pdParams: []
       pdReturnType:
@@ -23,6 +24,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: terminate_pgrst
       pdParams:
       - ppName: appname
@@ -45,6 +47,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: default_isolation_level
       pdParams: []
       pdReturnType:
@@ -62,6 +65,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: change_db_schema_and_full_reload
       pdParams:
       - ppName: schemas
@@ -84,6 +88,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: set_statement_timeout
       pdParams:
       - ppName: role
@@ -111,6 +116,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: notify_pgrst
       pdParams: []
       pdReturnType:
@@ -128,6 +134,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: migrate_function
       pdParams: []
       pdReturnType:
@@ -145,6 +152,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: change_role_statement_timeout
       pdParams:
       - ppName: timeout
@@ -167,6 +175,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: reset_max_rows_config
       pdParams: []
       pdReturnType:
@@ -184,6 +193,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: reset_invalid_role_claim_key
       pdParams: []
       pdReturnType:
@@ -201,6 +211,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: get_postgres_version
       pdParams: []
       pdReturnType:
@@ -218,6 +229,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: do_nothing
       pdParams: []
       pdReturnType:
@@ -235,6 +247,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: get_guc_value
       pdParams:
       - ppName: name
@@ -259,6 +272,7 @@
       - - statement_timeout
         - 1s
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: one_sec_timeout
       pdParams: []
       pdReturnType:
@@ -276,6 +290,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: reload_pgrst_config
       pdParams: []
       pdReturnType:
@@ -295,6 +310,7 @@
       - - statement_timeout
         - 7s
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: rpc_with_one_hoisted
       pdParams: []
       pdReturnType:
@@ -313,6 +329,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: hello
       pdParams: []
       pdReturnType:
@@ -330,6 +347,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: change_db_schemas_config
       pdParams: []
       pdReturnType:
@@ -347,6 +365,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: sleep
       pdParams:
       - ppName: seconds
@@ -371,6 +390,7 @@
       - - default_transaction_isolation
         - serializable
       pdHasVariadic: false
+      pdIsoLvl: Serializable
       pdName: serializable_isolation_level
       pdParams: []
       pdReturnType:
@@ -388,6 +408,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: drop_change_cats
       pdParams: []
       pdReturnType:
@@ -405,6 +426,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: change_max_rows_config
       pdParams:
       - ppName: val
@@ -432,6 +454,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: invalid_role_claim_key_reload
       pdParams: []
       pdReturnType:
@@ -449,6 +472,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: reset_db_schemas_config
       pdParams: []
       pdReturnType:
@@ -466,6 +490,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: root
       pdParams: []
       pdReturnType:
@@ -483,6 +508,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: create_function
       pdParams: []
       pdReturnType:
@@ -500,7 +526,28 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: get_pgrst_version
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: read_committed_isolation_level
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings:
+      - - default_transaction_isolation
+        - read committed
+      pdHasVariadic: false
+      pdIsoLvl: ReadCommitted
+      pdName: read_committed_isolation_level
       pdParams: []
       pdReturnType:
         contents:
@@ -519,6 +566,7 @@
       - - default_transaction_isolation
         - REPEATABLE READ
       pdHasVariadic: false
+      pdIsoLvl: RepeatableRead
       pdName: repeatable_read_isolation_level
       pdParams: []
       pdReturnType:
@@ -536,6 +584,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: get_work_mem
       pdParams: []
       pdReturnType:
@@ -553,6 +602,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: notify_do_nothing
       pdParams: []
       pdReturnType:
@@ -570,6 +620,7 @@
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: rpc_work_mem
       pdParams: []
       pdReturnType:
@@ -590,6 +641,7 @@
       - - statement_timeout
         - 4s
       pdHasVariadic: false
+      pdIsoLvl: null
       pdName: four_sec_timeout
       pdParams: []
       pdReturnType:
