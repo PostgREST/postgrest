@@ -47,12 +47,12 @@ import           PostgREST.Version          (prettyVersion)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
                            exponentialBackoff, retrying, rsPreviousDelay)
-import Data.IORef         (IORef, atomicWriteIORef, newIORef, readIORef)
-import Data.Time.Clock    (UTCTime, getCurrentTime)
+import Data.IORef         (newIORef, readIORef)
+import Data.Time.Clock    (getCurrentTime)
 
-import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO, putTMVar,
-                                          readTMVar, tryReadTMVar, tryTakeTMVar)
-import PostgREST.Auth.JwtCache           (JwtCacheState, update)
+import Control.Concurrent.STM            (newEmptyTMVarIO, putTMVar, readTMVar,
+                                          tryReadTMVar, tryTakeTMVar)
+import PostgREST.Auth.JwtCache           (update)
 import PostgREST.Config                  (AppConfig (..), readAppConfig,
                                           toConnectionSettings)
 import PostgREST.Config.Database         (queryDbSettings, queryPgVersion,
@@ -63,44 +63,9 @@ import PostgREST.SchemaCache             (SchemaCache (..), querySchemaCache,
                                           showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 
+import PostgREST.AppState.Types
+
 import Protolude
-
-data AppState = AppState
-  -- | Database connection pool
-  { statePool             :: SQL.Pool
-  -- | Database server version
-  , statePgVersion        :: IORef PgVersion
-  -- | Schema cache
-  , stateSchemaCache      :: IORef (Maybe SchemaCache)
-  -- | The schema cache status
-  , stateSCacheStatus     :: SchemaCacheStatus
-  -- | State of the LISTEN channel
-  , stateIsListenerOn     :: IORef Bool
-  -- | starts the connection worker with a debounce
-  , debouncedSCacheLoader :: IO ()
-  -- | Config that can change at runtime
-  , stateConf             :: IORef AppConfig
-  -- | Time used for verifying JWT expiration
-  , stateGetTime          :: IO UTCTime
-  -- | Used for killing the main thread in case a subthread fails
-  , stateKillApp          :: IO ()
-  -- | Keeps track of the next delay for db connection retry
-  , stateNextDelay        :: IORef Int
-  -- | Observation handler
-  , stateObserver         :: ObservationHandler
-  -- | JWT Cache
-  , stateJwtCache         :: JwtCache.JwtCacheState
-  , stateLogger           :: Logger.LoggerState
-  , stateMetrics          :: Metrics.MetricsState
-  }
-
--- | Schema cache status.
--- Empty means initial loading on startup, False means pending and True means loaded.
--- "Initial" state is needed so that we can wait with application socket listening
--- until after initial schema cache querying.
-newtype SchemaCacheStatus = SchemaCacheStatus
-  { getSCStatusTMVar :: TMVar Bool
-  }
 
 init :: AppConfig -> IO () -> IO AppState
 init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
@@ -221,39 +186,6 @@ flushPool AppState{..} = do
   SQL.release statePool
   stateObserver PoolFlushed
 
-getPgVersion :: AppState -> IO PgVersion
-getPgVersion = readIORef . statePgVersion
-
-putPgVersion :: AppState -> PgVersion -> IO ()
-putPgVersion = atomicWriteIORef . statePgVersion
-
-getSchemaCache :: AppState -> IO (Maybe SchemaCache)
-getSchemaCache = readIORef . stateSchemaCache
-
-putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
-putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
-
-schemaCacheLoader :: AppState -> IO ()
-schemaCacheLoader = debouncedSCacheLoader
-
-getNextDelay :: AppState -> IO Int
-getNextDelay = readIORef . stateNextDelay
-
-getConfig :: AppState -> IO AppConfig
-getConfig = readIORef . stateConf
-
-putConfig :: AppState -> AppConfig -> IO ()
-putConfig = atomicWriteIORef . stateConf
-
-getTime :: AppState -> IO UTCTime
-getTime = stateGetTime
-
-getJwtCacheState :: AppState -> JwtCacheState
-getJwtCacheState = stateJwtCache
-
-killApp :: AppState -> IO ()
-killApp = stateKillApp
-
 isConnEstablished :: AppState -> IO Bool
 isConnEstablished appState = do
   AppConfig{..} <- getConfig appState
@@ -261,9 +193,6 @@ isConnEstablished appState = do
     readIORef $ stateIsListenerOn appState
   else -- otherwise the only way to check the connection is to make a query
     isRight <$> usePool appState (SQL.sql "SELECT 1")
-
-putIsListenerOn :: AppState -> Bool -> IO ()
-putIsListenerOn = atomicWriteIORef . stateIsListenerOn
 
 isLoaded :: AppState -> IO Bool
 isLoaded x = do
@@ -276,9 +205,6 @@ isPending x = do
   scacheLoaded <- isSchemaCacheLoaded x
   connEstablished <- isConnEstablished x
   return $ not scacheLoaded || not connEstablished
-
-getObserver :: AppState -> ObservationHandler
-getObserver = stateObserver
 
 -- | Try to load the schema cache and retry if it fails.
 --
