@@ -31,7 +31,7 @@ This section talks briefly about various important modules.
 Main
 ----
 
-The starting point of the program is `Main.hs <https://github.com/PostgREST/postgrest/blob/main/main/Main.hs>`_.
+The starting point of the program is `Main.hs <https://github.com/PostgREST/postgrest/blob/main/src/executable/Main.hs>`_.
 
 CLI
 ---
