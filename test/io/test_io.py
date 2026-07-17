@@ -269,7 +269,6 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
     assert failures == []
 
 
-@pytest.mark.xfail(reason="requires SIGHUP restart implementation")
 def test_so_reuseport_sighup_handover_has_no_request_failures(defaultenv):
     "PostgREST should restart itself on SIGHUP without interrupting requests."
 
@@ -338,7 +337,6 @@ def test_so_reuseport_sighup_handover_has_no_request_failures(defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.xfail(reason="requires SIGHUP restart implementation")
 def test_so_reuseport_sighup_handover_notifies_systemd(defaultenv):
     "PostgREST should report reloading, new main PID and readiness to systemd during handover."
 
