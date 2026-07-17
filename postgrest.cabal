@@ -179,6 +179,7 @@ library
                     , optparse-applicative      >= 0.13 && < 0.19
                     , parsec                    >= 3.1.11 && < 3.2
                     , postgresql-libpq          >= 0.10
+                    , restart
                     , prometheus-client         >= 1.1.1 && < 1.2.0
                     , prometheus-metrics-ghc    >= 1.0.1.2 && < 1.2
                     , protolude                 >= 0.3.1 && < 0.4
