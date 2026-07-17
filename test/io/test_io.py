@@ -1035,7 +1035,8 @@ def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
 
     with run(env=env, no_pool_connection_available=True) as postgrest:
         # A JWT with an invalid signature shouldn't open a connection
-        headers = jwtauthheader({"role": "postgrest_test_author"}, "Wrong Secret")
+        wrong_secret = "This is the most wrong secret of all secrets"
+        headers = jwtauthheader({"role": "postgrest_test_author"}, wrong_secret)
         response = postgrest.session.get("/projects", headers=headers)
         assert response.status_code == 401
 
