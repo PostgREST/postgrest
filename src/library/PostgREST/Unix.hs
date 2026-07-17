@@ -1,37 +1,15 @@
-{-# LANGUAGE CPP #-}
-
 module PostgREST.Unix
-  ( installSignalHandlers
-  , createAndBindDomainSocket
+  ( createAndBindDomainSocket
   ) where
 
-#ifndef mingw32_HOST_OS
-import qualified System.Posix.Signals as Signals
-#endif
 import System.Posix.Types       (FileMode)
 import System.PosixCompat.Files (setFileMode)
 
-import           Data.String           (String)
-import qualified Network.Socket        as NS
-import qualified PostgREST.Observation as Observation
+import           Data.String      (String)
+import qualified Network.Socket   as NS
 import           Protolude
-import           System.Directory      (removeFile)
-import           System.IO.Error       (isDoesNotExistError)
-
--- | Set signal handlers, only for systems with signals
-installSignalHandlers :: Observation.ObservationHandler -> IO () -> IO () -> IO () -> IO ()
-#ifndef mingw32_HOST_OS
-installSignalHandlers observer interrupt usr1 usr2 = do
-  install Signals.sigINT  $ observer (Observation.TerminationUnixSignalObs "SIGINT") >> interrupt
-  install Signals.sigTERM $ observer (Observation.TerminationUnixSignalObs "SIGTERM") >> interrupt
-  install Signals.sigUSR1 usr1
-  install Signals.sigUSR2 usr2
-  where
-    install signal handler =
-      void $ Signals.installHandler signal (Signals.Catch handler) Nothing
-#else
-installSignalHandlers _ _ _ _ = pass
-#endif
+import           System.Directory (removeFile)
+import           System.IO.Error  (isDoesNotExistError)
 
 -- | Create a unix domain socket and bind it to the given path.
 -- | The socket file will be deleted if it already exists.
