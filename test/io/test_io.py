@@ -1,8 +1,10 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
+import contextlib
 import os
 import re
 import signal
+import socket
 import subprocess
 import time
 import pytest
@@ -22,6 +24,7 @@ from postgrest import (
     PostgrestTimedOut,
     freeport,
     is_ipv6,
+    wait_process_group_replacement_pids,
     reset_statement_timeout,
     run,
     run_pgproxy,
@@ -44,6 +47,28 @@ def psql_as_superuser(query):
             "-c",
             query,
         ]
+    )
+
+
+@contextlib.contextmanager
+def systemd_notify_socket(path):
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(path)
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    sock.bind(path)
+    sock.settimeout(5)
+    try:
+        yield sock
+    finally:
+        sock.close()
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(path)
+
+
+def recv_systemd_notification(sock):
+    return dict(
+        line.split("=", 1) for line in sock.recv(4096).decode().splitlines() if line
     )
 
 
@@ -242,6 +267,118 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
             requester.join()
 
     assert failures == []
+
+
+@pytest.mark.xfail(reason="requires SIGHUP restart implementation")
+def test_so_reuseport_sighup_handover_has_no_request_failures(defaultenv):
+    "PostgREST should restart itself on SIGHUP without interrupting requests."
+
+    if not hasattr(signal, "SIGHUP") or not hasattr(os, "killpg"):
+        pytest.skip("SIGHUP handover requires Unix signals and process groups")
+
+    host = "0.0.0.0"
+    port = freeport()
+    admin_port = freeport(used_ports=[port])
+    failures = []
+    keep_running = {"value": True}
+
+    with run(
+        env={**defaultenv, "PGRST_SERVER_REUSEPORT": "true"},
+        port=port,
+        host=host,
+        admin_port=admin_port,
+        isolate_process_group=True,
+        wait_max_seconds=5,
+    ) as postgrest:
+
+        def continuously_request():
+            while keep_running["value"]:
+                try:
+                    response = requests.get(
+                        postgrest.session.baseurl + "/projects",
+                        timeout=1,
+                    )
+                    assert response.status_code == 200
+
+                    response = requests.get(
+                        postgrest.admin.baseurl + "/ready",
+                        timeout=1,
+                    )
+                    assert response.status_code == 200
+                except Exception as exc:
+                    failures.append(exc)
+                    break
+                time.sleep(0.02)
+
+        requester = Thread(target=continuously_request)
+        requester.start()
+
+        try:
+            old_pid = postgrest.process.pid
+            time.sleep(0.2)
+            postgrest.process.send_signal(signal.SIGHUP)
+            assert wait_until_exit(postgrest, 5) == 0
+            replacement_pids = wait_process_group_replacement_pids(
+                postgrest.process_group_id,
+                old_pid,
+                timeout=5,
+            )
+            assert old_pid not in replacement_pids
+            assert replacement_pids != []
+        finally:
+            keep_running["value"] = False
+            requester.join()
+
+        assert failures == []
+
+        response = requests.get(postgrest.session.baseurl + "/projects", timeout=1)
+        assert response.status_code == 200
+
+        response = requests.get(postgrest.admin.baseurl + "/ready", timeout=1)
+        assert response.status_code == 200
+
+
+@pytest.mark.xfail(reason="requires SIGHUP restart implementation")
+def test_so_reuseport_sighup_handover_notifies_systemd(defaultenv):
+    "PostgREST should report reloading, new main PID and readiness to systemd during handover."
+
+    if not hasattr(signal, "SIGHUP") or not hasattr(os, "killpg"):
+        pytest.skip("SIGHUP handover requires Unix signals and process groups")
+
+    host = "0.0.0.0"
+    port = freeport()
+    admin_port = freeport(used_ports=[port])
+    notify_socket_path = f"/tmp/pgrst-notify-{os.getpid()}-{port}.sock"
+
+    with systemd_notify_socket(notify_socket_path) as notify_socket:
+        with run(
+            env={
+                **defaultenv,
+                "PGRST_SERVER_REUSEPORT": "true",
+                "NOTIFY_SOCKET": notify_socket_path,
+            },
+            port=port,
+            host=host,
+            admin_port=admin_port,
+            isolate_process_group=True,
+            wait_max_seconds=5,
+        ) as postgrest:
+            old_pid = postgrest.process.pid
+
+            postgrest.process.send_signal(signal.SIGHUP)
+
+            assert recv_systemd_notification(notify_socket) == {"RELOADING": "1"}
+
+            ready_notification = recv_systemd_notification(notify_socket)
+            replacement_pid = int(ready_notification["MAINPID"])
+
+            assert ready_notification["READY"] == "1"
+            assert wait_until_exit(postgrest, 5) == 0
+            assert replacement_pid in wait_process_group_replacement_pids(
+                postgrest.process_group_id,
+                old_pid,
+                timeout=5,
+            )
 
 
 def test_so_reuseport_defaults_to_false(defaultenv):
