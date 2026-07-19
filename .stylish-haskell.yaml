@@ -200,7 +200,7 @@ steps:
 
 # A common setting is the number of columns (parts of) code will be wrapped
 # to. Different steps take this into account. Default: 80.
-columns: 70
+columns: 80
 
 # By default, line endings are converted according to the OS. You can override
 # preferred format here.

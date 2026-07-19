@@ -14,8 +14,7 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier (..),
                                           Schema, TableName)
 
 import Protolude

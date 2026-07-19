@@ -12,8 +12,7 @@ import           Network.Wai            (Application)
 import           ObsHelper
 import qualified PostgREST.AppState     as AppState
 import           PostgREST.Config       (AppConfig (configDbSchemas))
-import           PostgREST.Metrics      (ConnStats (..),
-                                         MetricsState (..),
+import           PostgREST.Metrics      (ConnStats (..), MetricsState (..),
                                          connectionCounts)
 import           PostgREST.Observation
 import           Prometheus             (getCounter, getVectorWith)

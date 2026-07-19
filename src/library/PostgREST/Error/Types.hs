@@ -22,8 +22,7 @@ import qualified Hasql.Pool as SQL
 import PostgREST.MediaType                (MediaType (..))
 import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship (Relationship (..),
-                                           RelationshipsMap)
+import PostgREST.SchemaCache.Relationship (Relationship (..), RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..))
 import Protolude
 

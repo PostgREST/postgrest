@@ -29,8 +29,7 @@ import Data.Tree  (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship (Cardinality (..),
-                                           Junction (..),
+import PostgREST.SchemaCache.Relationship (Cardinality (..), Junction (..),
                                            Relationship (..))
 import PostgREST.SchemaCache.Routine      (RoutineParam (..))
 

@@ -59,7 +59,7 @@ rangeLimit :: NonnegRange -> Maybe Integer
 rangeLimit range =
   case [rangeLower range, rangeUpper range] of
     [BoundaryBelow lower, BoundaryAbove upper] -> Just (1 + upper - lower)
-    _ -> Nothing
+    _                                          -> Nothing
 
 rangeOffset :: NonnegRange -> Integer
 rangeOffset range =

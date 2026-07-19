@@ -7,16 +7,14 @@ module PostgREST.Plan.ReadPlan
 
 import Data.Tree (Tree (..))
 
-import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
-                                           JoinType, NodeName)
+import PostgREST.ApiRequest.Types         (Alias, Depth, Hint, JoinType,
+                                           NodeName)
 import PostgREST.Plan.Types               (CoercibleLogicTree,
                                            CoercibleOrderTerm,
                                            CoercibleSelectField (..),
-                                           RelSelectField (..),
-                                           SpreadType (..))
+                                           RelSelectField (..), SpreadType (..))
 import PostgREST.RangeQuery               (NonnegRange)
-import PostgREST.SchemaCache.Identifiers  (FieldName,
-                                           QualifiedIdentifier)
+import PostgREST.SchemaCache.Identifiers  (FieldName, QualifiedIdentifier)
 import PostgREST.SchemaCache.Relationship (Relationship)
 
 

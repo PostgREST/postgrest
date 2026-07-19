@@ -44,30 +44,22 @@ import           PostgREST.Observation
 import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
 
-import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
-                           updateAction)
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate, updateAction)
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
-                           exponentialBackoff, retrying,
-                           rsPreviousDelay)
-import Data.IORef         (IORef, atomicWriteIORef, newIORef,
-                           readIORef)
+                           exponentialBackoff, retrying, rsPreviousDelay)
+import Data.IORef         (IORef, atomicWriteIORef, newIORef, readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO,
-                                          putTMVar, readTMVar,
-                                          tryReadTMVar, tryTakeTMVar)
+import Control.Concurrent.STM            (TMVar, newEmptyTMVarIO, putTMVar,
+                                          readTMVar, tryReadTMVar, tryTakeTMVar)
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
-import PostgREST.Config                  (AppConfig (..),
-                                          readAppConfig,
+import PostgREST.Config                  (AppConfig (..), readAppConfig,
                                           toConnectionSettings)
-import PostgREST.Config.Database         (queryDbSettings,
-                                          queryPgVersion,
+import PostgREST.Config.Database         (queryDbSettings, queryPgVersion,
                                           queryRoleSettings)
-import PostgREST.Config.PgVersion        (PgVersion (..),
-                                          minimumPgVersion)
+import PostgREST.Config.PgVersion        (PgVersion (..), minimumPgVersion)
 import PostgREST.Debounce                (makeDebouncer)
-import PostgREST.SchemaCache             (SchemaCache (..),
-                                          querySchemaCache,
+import PostgREST.SchemaCache             (SchemaCache (..), querySchemaCache,
                                           showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 

@@ -41,8 +41,7 @@ import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
 import PostgREST.Config                      (AppConfig (..))
-import PostgREST.Error                       (ApiRequestError (..),
-                                              Error (..),
+import PostgREST.Error                       (ApiRequestError (..), Error (..),
                                               SchemaCacheError (..))
 import PostgREST.MediaType                   (MediaType (..))
 import PostgREST.Plan.Negotiate              (negotiateContent)
@@ -52,25 +51,19 @@ import PostgREST.RangeQuery                  (NonnegRange, allRange,
                                               restrictRange)
 import PostgREST.SchemaCache                 (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers     (FieldName,
-                                              QualifiedIdentifier (..),
-                                              Schema)
-import PostgREST.SchemaCache.Relationship    (Cardinality (..),
-                                              Junction (..),
+                                              QualifiedIdentifier (..), Schema)
+import PostgREST.SchemaCache.Relationship    (Cardinality (..), Junction (..),
                                               Relationship (..),
-                                              RelationshipsMap,
-                                              relIsToOne)
+                                              RelationshipsMap, relIsToOne)
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
-import PostgREST.SchemaCache.Routine         (MediaHandler (..),
-                                              Routine (..),
-                                              RoutineMap,
-                                              RoutineParam (..),
+import PostgREST.SchemaCache.Routine         (MediaHandler (..), Routine (..),
+                                              RoutineMap, RoutineParam (..),
                                               funcReturnsScalar,
                                               funcReturnsSetOfScalar,
                                               funcReturnsSingle)
 import PostgREST.SchemaCache.Table           (Column (..), Table (..),
-                                              TablesMap,
-                                              tableColumnsList,
+                                              TablesMap, tableColumnsList,
                                               tablePKCols)
 
 import PostgREST.ApiRequest.Preferences
@@ -463,7 +456,7 @@ addAliases = Right . fmap addAliasToPlan
     isJsonKeyPath _                                 = False
 
     isTransformPath CoercibleField{cfTransform=(Just _), cfName=_} = True
-    isTransformPath _ = False
+    isTransformPath _                                              = False
 
     lastJsonKey CoercibleField{cfName=fieldName, cfJsonPath=jsonPath} =
       case jOp <$> lastMay jsonPath of
@@ -570,7 +563,7 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
           -- we use the table name as an alias so findRel can find the right relationship.
           ActDb (ActRelationMut _ _) -> rPlan{from=newFrom, fromAlias=newAlias}
           ActDb (ActRoutine _ _)     -> rPlan{from=newFrom, fromAlias=newAlias}
-          _                  -> rPlan
+          _                          -> rPlan
       in
       Node newReadPlan <$> updateForest (Just $ Node newReadPlan forest)
   where
@@ -844,7 +837,7 @@ findTable :: QualifiedIdentifier -> SchemaCache -> Either Error QualifiedIdentif
 findTable qi@QualifiedIdentifier{..} sc@SchemaCache{dbTables} =
   case HM.lookup qi dbTables of
     Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName sc
-    Just _ -> Right qi
+    Just _  -> Right qi
 
 addFilters :: ResolverContext -> ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
 addFilters ctx ApiRequest{..} useTargetNames rReq =

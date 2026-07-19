@@ -47,7 +47,7 @@ dumpJSPath (JSPath query) = (escapeDollarChar . escapeDoubleQuotes) jsPathDump
 -- The result of JSON Path query is a Vector, we select the first
 -- string element as the role.
 evaluateJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
-evaluateJSPath Nothing _ = Nothing
+evaluateJSPath Nothing _                  = Nothing
 evaluateJSPath (Just json) (JSPath query) = JSP.queryQQ query json V.!? 0
 
 -- Used for the config value "role-claim-key"

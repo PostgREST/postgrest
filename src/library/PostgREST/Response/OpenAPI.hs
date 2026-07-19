@@ -29,14 +29,11 @@ import PostgREST.MediaType
 import PostgREST.Network                  (escapeHostName)
 import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship (Cardinality (..),
-                                           Relationship (..),
+import PostgREST.SchemaCache.Relationship (Cardinality (..), Relationship (..),
                                            RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
-                                           Routine (..),
+import PostgREST.SchemaCache.Routine      (FuncVolatility (..), Routine (..),
                                            RoutineParam (..))
-import PostgREST.SchemaCache.Table        (Column (..), Table (..),
-                                           TablesMap,
+import PostgREST.SchemaCache.Table        (Column (..), Table (..), TablesMap,
                                            tableColumnsList)
 
 import Protolude hiding (Proxy, get)

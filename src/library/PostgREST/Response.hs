@@ -27,26 +27,20 @@ import qualified PostgREST.Response.OpenAPI as OpenAPI
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           PreferResolution (..),
-                                          Preferences (..),
-                                          prefAppliedHeader,
+                                          Preferences (..), prefAppliedHeader,
                                           shouldCount)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
-import PostgREST.ApiRequest.Types        (InvokeMethod (..),
-                                          Mutation (..))
+import PostgREST.ApiRequest.Types        (InvokeMethod (..), Mutation (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.MainTx                  (DbResult (..),
-                                          ResultSet (..))
+import PostgREST.MainTx                  (DbResult (..), ResultSet (..))
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (CrudPlan (..),
-                                          InfoPlan (..),
+import PostgREST.Plan                    (CrudPlan (..), InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache             (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.SchemaCache.Routine     (FuncVolatility (..),
-                                          Routine (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
+import PostgREST.SchemaCache.Routine     (FuncVolatility (..), Routine (..))
 import PostgREST.SchemaCache.Table       (Table (..))
 
 import qualified PostgREST.SchemaCache.Routine as Routine

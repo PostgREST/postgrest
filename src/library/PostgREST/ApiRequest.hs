@@ -20,8 +20,7 @@ import qualified Data.Text.Encoding   as T
 import Data.List                       (lookup)
 import Data.Ranged.Ranges              (emptyRange, rangeIntersection,
                                         rangeIsEmpty)
-import Network.HTTP.Types.Header       (RequestHeaders,
-                                        hAuthorization, hCookie)
+import Network.HTTP.Types.Header       (RequestHeaders, hAuthorization, hCookie)
 import Network.Wai                     (Request (..))
 import Network.Wai.Middleware.HttpAuth (extractBearerAuth)
 import Network.Wai.Parse               (parseHttpAccept)
@@ -30,21 +29,17 @@ import Web.Cookie                      (parseCookies)
 import PostgREST.ApiRequest.Payload      (getPayload)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.ApiRequest.Types        (Action (..), DbAction (..),
-                                          InvokeMethod (..),
-                                          Mutation (..), Payload (..),
-                                          RequestBody, Resource (..))
-import PostgREST.Config                  (AppConfig (..),
-                                          OpenAPIMode (..))
+                                          InvokeMethod (..), Mutation (..),
+                                          Payload (..), RequestBody,
+                                          Resource (..))
+import PostgREST.Config                  (AppConfig (..), OpenAPIMode (..))
 import PostgREST.Config.Database         (TimezoneNames)
-import PostgREST.Error                   (ApiRequestError (..),
-                                          RangeError (..))
+import PostgREST.Error                   (ApiRequestError (..), RangeError (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          convertToLimitZeroRange,
-                                          hasLimitZero,
+                                          convertToLimitZeroRange, hasLimitZero,
                                           rangeRequested)
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier (..),
                                           Schema)
 
 import qualified PostgREST.ApiRequest.Preferences as Preferences
