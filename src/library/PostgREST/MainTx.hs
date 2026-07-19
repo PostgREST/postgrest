@@ -16,8 +16,7 @@ module PostgREST.MainTx
 import           Control.Lens                      ((^?))
 import           Control.Monad.Extra               (whenJust)
 import qualified Data.Aeson.Lens                   as L
-import qualified Data.ByteString                   as BS hiding
-                                                         (break)
+import qualified Data.ByteString                   as BS hiding (break)
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
@@ -32,21 +31,17 @@ import qualified PostgREST.SchemaCache as SchemaCache
 
 
 import PostgREST.ApiRequest              (ApiRequest (..))
-import PostgREST.ApiRequest.Preferences  (PreferCount (..),
-                                          PreferHandling (..),
+import PostgREST.ApiRequest.Preferences  (PreferCount (..), PreferHandling (..),
                                           PreferMaxAffected (..),
                                           PreferTransaction (..),
                                           Preferences (..))
 import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
-import PostgREST.Config                  (AppConfig (..),
-                                          OpenAPIMode (..))
+import PostgREST.Config                  (AppConfig (..), OpenAPIMode (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (ActionPlan (..),
-                                          CrudPlan (..),
-                                          DbActionPlan (..),
-                                          InfoPlan (..),
+import PostgREST.Plan                    (ActionPlan (..), CrudPlan (..),
+                                          DbActionPlan (..), InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Query                   (MainQuery (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
@@ -110,7 +105,7 @@ planTxMode (MayUseDb x) = ipTxmode x
 planIsoLvl :: AppConfig -> ByteString -> DbActionPlan -> SQL.IsolationLevel
 planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   DbCrud _ CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
-  _                           -> roleIsoLvl
+  _                             -> roleIsoLvl
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 

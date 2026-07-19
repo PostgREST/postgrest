@@ -42,8 +42,7 @@ module PostgREST.ApiRequest.Types
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Set             as S
 
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier (..),
                                           Schema)
 
 import Protolude

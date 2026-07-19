@@ -24,13 +24,12 @@ import qualified Data.Aeson.KeyMap as KM
 
 import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
 
-import           Control.Concurrent.STM      (newTVarIO, readTVar,
-                                              writeTVar)
+import           Control.Concurrent.STM      (newTVarIO, readTVar, writeTVar)
 import           Control.Concurrent.STM.TVar (TVar)
 import           Control.Monad.Error.Class   (liftEither)
 import           Data.ByteString             hiding (all, init)
-import           Data.IORef                  (IORef, newIORef,
-                                              readIORef, writeIORef)
+import           Data.IORef                  (IORef, newIORef, readIORef,
+                                              writeIORef)
 import           Jose.Jwk                    (JwkSet)
 import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
 import           PostgREST.Cache.Sieve       (alwaysValid)

@@ -46,14 +46,10 @@ import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.Config                   (Verbosity (..))
 import PostgREST.SchemaCache              (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
-import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
-                                           Schema)
-import PostgREST.SchemaCache.Relationship (Cardinality (..),
-                                           Junction (..),
-                                           Relationship (..),
-                                           RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (Routine (..),
-                                           RoutineParam (..))
+import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..), Schema)
+import PostgREST.SchemaCache.Relationship (Cardinality (..), Junction (..),
+                                           Relationship (..), RelationshipsMap)
+import PostgREST.SchemaCache.Routine      (Routine (..), RoutineParam (..))
 
 import PostgREST.Error.Types
 

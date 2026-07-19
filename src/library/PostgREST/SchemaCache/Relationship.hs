@@ -12,8 +12,8 @@ module PostgREST.SchemaCache.Relationship
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as HM
 
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier, Schema)
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier,
+                                          Schema)
 
 import Protolude
 

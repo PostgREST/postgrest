@@ -6,10 +6,8 @@ where
 import qualified Data.ByteString.Lazy as LBS
 
 import PostgREST.ApiRequest.Preferences  (PreferResolution)
-import PostgREST.Plan.Types              (CoercibleField,
-                                          CoercibleLogicTree)
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier)
+import PostgREST.Plan.Types              (CoercibleField, CoercibleLogicTree)
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier)
 
 
 import Protolude

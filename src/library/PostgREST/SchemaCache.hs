@@ -44,29 +44,22 @@ import qualified Hasql.Transaction          as SQL
 import Data.Functor.Contravariant ((>$<))
 import NeatInterpolation          (trimming)
 
-import PostgREST.Config                      (AppConfig (..),
-                                              LogLevel (..))
-import PostgREST.Config.Database             (TimezoneNames,
-                                              toIsolationLevel)
+import PostgREST.Config                      (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database             (TimezoneNames, toIsolationLevel)
 import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
-                                              RelIdentifier (..),
-                                              Schema, escapeIdent,
-                                              isAnyElement)
-import PostgREST.SchemaCache.Relationship    (Cardinality (..),
-                                              Junction (..),
+                                              RelIdentifier (..), Schema,
+                                              escapeIdent, isAnyElement)
+import PostgREST.SchemaCache.Relationship    (Cardinality (..), Junction (..),
                                               Relationship (..),
                                               RelationshipsMap)
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
 import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
                                               MediaHandler (..),
-                                              MediaHandlerMap,
-                                              PgType (..),
-                                              RetType (..),
-                                              Routine (..),
-                                              RoutineMap,
-                                              RoutineParam (..))
+                                              MediaHandlerMap, PgType (..),
+                                              RetType (..), Routine (..),
+                                              RoutineMap, RoutineParam (..))
 import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
                                               Table (..), TablesMap)
 

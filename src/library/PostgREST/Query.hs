@@ -19,14 +19,11 @@ import qualified PostgREST.Query.Statements   as Statements
 
 
 import PostgREST.ApiRequest              (ApiRequest (..))
-import PostgREST.ApiRequest.Preferences  (Preferences (..),
-                                          shouldExplainCount)
+import PostgREST.ApiRequest.Preferences  (Preferences (..), shouldExplainCount)
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Plan                    (ActionPlan (..),
-                                          CrudPlan (..),
-                                          DbActionPlan (..),
-                                          InspectPlan (..))
+import PostgREST.Plan                    (ActionPlan (..), CrudPlan (..),
+                                          DbActionPlan (..), InspectPlan (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Protolude hiding (Handler)

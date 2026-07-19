@@ -13,8 +13,7 @@ module PostgREST.Logger
   ) where
 
 import           Control.AutoUpdate                (defaultUpdateSettings,
-                                                    mkAutoUpdate,
-                                                    updateAction)
+                                                    mkAutoUpdate, updateAction)
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
@@ -22,8 +21,7 @@ import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Statement                   as SQL
 
-import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
-                  getZonedTime)
+import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
 
 import Network.HTTP.Types.Status (Status, status400, status500)
 

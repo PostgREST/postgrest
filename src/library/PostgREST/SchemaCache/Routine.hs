@@ -28,8 +28,7 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          RelIdentifier (..), Schema,
-                                          TableName)
+                                          RelIdentifier (..), Schema, TableName)
 
 import Protolude
 

@@ -39,34 +39,28 @@ import Data.List                     (init, last)
 import Data.Ranged.Boundaries        (Boundary (..))
 import Data.Ranged.Ranges            (Range (..))
 import Data.Tree                     (Tree (..))
-import Text.Parsec.Error             (errorMessages,
-                                      showErrorMessages)
-import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
-                                      anyChar, between, char, choice,
-                                      digit, eof, errorPos, letter,
-                                      lookAhead, many1, noneOf,
-                                      notFollowedBy, oneOf,
-                                      optionMaybe, sepBy, sepBy1,
-                                      string, try, (<?>))
+import Text.Parsec.Error             (errorMessages, showErrorMessages)
+import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser, anyChar,
+                                      between, char, choice, digit, eof,
+                                      errorPos, letter, lookAhead, many1,
+                                      noneOf, notFollowedBy, oneOf, optionMaybe,
+                                      sepBy, sepBy1, string, try, (<?>))
 
-import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          rangeGeq, rangeLimit,
-                                          rangeOffset, restrictRange)
+import PostgREST.RangeQuery              (NonnegRange, allRange, rangeGeq,
+                                          rangeLimit, rangeOffset,
+                                          restrictRange)
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
-import PostgREST.ApiRequest.Types (AggregateFunction (..),
-                                   EmbedParam (..), EmbedPath, Field,
-                                   Filter (..), FtsOperator (..),
-                                   Hint, IsVal (..), JoinType (..),
-                                   JsonOperand (..),
-                                   JsonOperation (..), JsonPath,
-                                   ListVal, LogicOperator (..),
-                                   LogicTree (..), OpExpr (..),
-                                   OpQuantifier (..), Operation (..),
-                                   OrderDirection (..),
+import PostgREST.ApiRequest.Types (AggregateFunction (..), EmbedParam (..),
+                                   EmbedPath, Field, Filter (..),
+                                   FtsOperator (..), Hint, IsVal (..),
+                                   JoinType (..), JsonOperand (..),
+                                   JsonOperation (..), JsonPath, ListVal,
+                                   LogicOperator (..), LogicTree (..),
+                                   OpExpr (..), OpQuantifier (..),
+                                   Operation (..), OrderDirection (..),
                                    OrderNulls (..), OrderTerm (..),
-                                   QuantOperator (..),
-                                   SelectItem (..),
+                                   QuantOperator (..), SelectItem (..),
                                    SimpleOperator (..), SingleVal)
 
 import PostgREST.Error (QPError (..))

@@ -13,9 +13,8 @@ module PostgREST.Plan.Types
   , SpreadType(..)
   ) where
 
-import PostgREST.ApiRequest.Types (AggregateFunction, Alias, Cast,
-                                   Field, JsonPath, Language,
-                                   LogicOperator, OpExpr,
+import PostgREST.ApiRequest.Types (AggregateFunction, Alias, Cast, Field,
+                                   JsonPath, Language, LogicOperator, OpExpr,
                                    OrderDirection, OrderNulls)
 
 import PostgREST.SchemaCache.Identifiers (FieldName)

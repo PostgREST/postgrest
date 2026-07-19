@@ -23,8 +23,7 @@ import qualified Jose.Jws                        as JWT
 import qualified Jose.Jwt                        as JWT
 import           Network.HTTP.Types
 import qualified PostgREST.AppState              as AppState
-import           PostgREST.Config                (AppConfig (..),
-                                                  LogLevel (..),
+import           PostgREST.Config                (AppConfig (..), LogLevel (..),
                                                   OpenAPIMode (..),
                                                   Verbosity (..),
                                                   defaultRoleJSPathKey,

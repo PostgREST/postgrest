@@ -27,12 +27,10 @@ import System.IO.Error  (ioeGetErrorType)
 
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft, whenLeft)
-import Data.IORef               (atomicWriteIORef, newIORef,
-                                 readIORef)
+import Data.IORef               (atomicWriteIORef, newIORef, readIORef)
 import Data.String              (IsString (..), String)
-import Network.Wai.Handler.Warp (defaultSettings, setBeforeMainLoop,
-                                 setHost, setOnException, setPort,
-                                 setServerName)
+import Network.Wai.Handler.Warp (defaultSettings, setBeforeMainLoop, setHost,
+                                 setOnException, setPort, setServerName)
 
 import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
@@ -59,8 +57,7 @@ import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..),
-                                       serverTimingHeader)
+import PostgREST.Response.Performance (ServerTiming (..), serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
@@ -68,8 +65,7 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 import           Control.Monad.Writer
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.List                 as L
-import           Data.Streaming.Network    (HostPreference,
-                                            bindPortGenEx,
+import           Data.Streaming.Network    (HostPreference, bindPortGenEx,
                                             bindPortTCP)
 import qualified Data.Text                 as T
 import qualified Network.HTTP.Types        as HTTP

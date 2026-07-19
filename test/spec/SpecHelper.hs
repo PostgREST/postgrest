@@ -24,12 +24,9 @@ import Network.Wai.Test      (SResponse (simpleBody, simpleHeaders, simpleStatus
 import System.IO.Unsafe      (unsafePerformIO)
 import Text.Regex.TDFA       ((=~))
 
-import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..),
-                                          OpenAPIMode (..),
-                                          Verbosity (..),
-                                          defaultRoleJSPathKey,
-                                          parseSecret)
+import PostgREST.Config                  (AppConfig (..), LogLevel (..),
+                                          OpenAPIMode (..), Verbosity (..),
+                                          defaultRoleJSPathKey, parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Data.Aeson.Lens
@@ -102,7 +99,7 @@ parseServerTimingHeader (h:hs) =
         [name, durationText] ->
           case BS.split '=' durationText of
             [_, duration] -> (name,) <$> readMaybe (BS.unpack duration)
-            _ -> Nothing
+            _             -> Nothing
         _ -> Nothing
 
 validateOpenApiResponse :: [Header] -> WaiSession () ()

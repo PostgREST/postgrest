@@ -9,8 +9,7 @@ import Data.Function (id)
 import Test.Hspec
 
 import PostgREST.App             (postgrest)
-import PostgREST.Config          (AppConfig (..),
-                                  toConnectionSettings)
+import PostgREST.Config          (AppConfig (..), toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)

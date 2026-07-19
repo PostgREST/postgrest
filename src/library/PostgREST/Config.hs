@@ -60,15 +60,12 @@ import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
-import PostgREST.Config.Database         (RoleIsolationLvl,
-                                          RoleSettings)
-import PostgREST.Config.JSPath           (JSPath (..),
-                                          defaultRoleJSPathKey,
+import PostgREST.Config.Database         (RoleIsolationLvl, RoleSettings)
+import PostgREST.Config.JSPath           (JSPath (..), defaultRoleJSPathKey,
                                           dumpJSPath, pRoleClaimKey)
-import PostgREST.Config.Proxy            (Proxy (..),
-                                          isMalformedProxyUri, toURI)
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          toQi)
+import PostgREST.Config.Proxy            (Proxy (..), isMalformedProxyUri,
+                                          toURI)
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), toQi)
 
 import PostgREST.Version (prettyVersion)
 import Protolude         hiding (Proxy, toList)

@@ -13,8 +13,7 @@ module PostgREST.Query.Statements
 import qualified Hasql.DynamicStatements.Snippet as SQL
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType              (MTVndPlanFormat (..),
-                                         MediaType (..))
+import PostgREST.MediaType              (MTVndPlanFormat (..), MediaType (..))
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan        as MTPlan
 import PostgREST.Plan.ReadPlan

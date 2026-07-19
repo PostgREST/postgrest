@@ -15,8 +15,7 @@ module PostgREST.Auth
   ( getAuthResult )
   where
 
-import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
-                                getTime)
+import PostgREST.AppState      (AppState, getConfig, getJwtCacheState, getTime)
 import PostgREST.Auth.Jwt      (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult)

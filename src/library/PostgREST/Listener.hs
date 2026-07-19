@@ -18,8 +18,8 @@ import qualified PostgREST.Config   as Config
 import           Control.Arrow              ((&&&))
 import           Data.Bitraversable         (bisequence)
 import           Data.Either.Combinators    (whenRight)
-import           Data.IORef                 (IORef, newIORef,
-                                             readIORef, writeIORef)
+import           Data.IORef                 (IORef, newIORef, readIORef,
+                                             writeIORef)
 import qualified Data.Text                  as T
 import qualified Database.PostgreSQL.LibPQ  as LibPQ
 import qualified Hasql.Session              as SQL

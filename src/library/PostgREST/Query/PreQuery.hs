@@ -18,12 +18,10 @@ import qualified Hasql.DynamicStatements.Snippet as SQL hiding (sql)
 
 
 import PostgREST.ApiRequest              (ApiRequest (..))
-import PostgREST.ApiRequest.Preferences  (PreferTimezone (..),
-                                          Preferences (..))
+import PostgREST.ApiRequest.Preferences  (PreferTimezone (..), Preferences (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Plan                    (CrudPlan (..),
-                                          DbActionPlan (..))
+import PostgREST.Plan                    (CrudPlan (..), DbActionPlan (..))
 import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           intercalateSnippet,
                                           setConfigWithConstantName,

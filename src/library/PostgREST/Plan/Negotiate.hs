@@ -18,8 +18,7 @@ import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           RelIdentifier (..))
-import PostgREST.SchemaCache.Routine     (MediaHandler (..),
-                                          MediaHandlerMap,
+import PostgREST.SchemaCache.Routine     (MediaHandler (..), MediaHandlerMap,
                                           ResolvedHandler)
 
 import           PostgREST.ApiRequest.Preferences

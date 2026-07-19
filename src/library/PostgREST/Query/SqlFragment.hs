@@ -60,20 +60,13 @@ import Control.Arrow ((***))
 import Data.Foldable     (foldr1)
 import NeatInterpolation (trimming)
 
-import PostgREST.ApiRequest.Types        (AggregateFunction (..),
-                                          Alias, Cast,
-                                          FtsOperator (..),
-                                          IsVal (..),
-                                          JsonOperand (..),
-                                          JsonOperation (..),
-                                          JsonPath,
-                                          LogicOperator (..),
-                                          OpExpr (..),
-                                          OpQuantifier (..),
-                                          Operation (..),
-                                          OrderDirection (..),
-                                          OrderNulls (..),
-                                          QuantOperator (..),
+import PostgREST.ApiRequest.Types        (AggregateFunction (..), Alias, Cast,
+                                          FtsOperator (..), IsVal (..),
+                                          JsonOperand (..), JsonOperation (..),
+                                          JsonPath, LogicOperator (..),
+                                          OpExpr (..), OpQuantifier (..),
+                                          Operation (..), OrderDirection (..),
+                                          OrderNulls (..), QuantOperator (..),
                                           SimpleOperator (..))
 import PostgREST.MediaType               (MTVndPlanFormat (..),
                                           MTVndPlanOption (..))
@@ -85,16 +78,13 @@ import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleSelectField (..),
                                           RelSelectField (..),
                                           SpreadSelectField (..),
-                                          ToTsVector (..),
-                                          unknownField)
-import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          rangeLimit, rangeOffset)
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
-                                          RelIdentifier (..),
-                                          escapeIdent, trimNullChars)
-import PostgREST.SchemaCache.Routine     (MediaHandler (..),
-                                          Routine (..),
+                                          ToTsVector (..), unknownField)
+import PostgREST.RangeQuery              (NonnegRange, allRange, rangeLimit,
+                                          rangeOffset)
+import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier (..),
+                                          RelIdentifier (..), escapeIdent,
+                                          trimNullChars)
+import PostgREST.SchemaCache.Routine     (MediaHandler (..), Routine (..),
                                           funcReturnsScalar,
                                           funcReturnsSetOfScalar,
                                           funcReturnsSingle,
