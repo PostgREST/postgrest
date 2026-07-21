@@ -131,7 +131,7 @@ observationMessages = \case
   AdminStartObs address ->
     pure $ "Admin server listening on " <> address
   AdminServerCrashedObs ex ->
-    pure $ "FAILURE: Admin server crashed unexpectedly: " <> (showOnSingleLine '\t' . show) ex
+    pure $ "Admin server crashed unexpectedly: " <> (showOnSingleLine '\t' . show) ex
   AppStartObs ver ->
     pure $ "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerAddressObs address ->
