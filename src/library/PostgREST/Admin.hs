@@ -9,7 +9,7 @@ import qualified Network.Wai.Handler.Warp  as Warp
 
 import Control.Monad.Extra (whenJust)
 
-import PostgREST.AppState    (AppState, getConfig)
+import PostgREST.AppState    (AppState, getConfig, killApp)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.MediaType   (MediaType (..), toContentType)
 import PostgREST.Metrics     (metricsToText)
@@ -26,7 +26,7 @@ runAdmin appState maybeAdminSocket checkMainAppLive settings = do
   conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
-    void . forkIO $ handle (onError adminSocket) $
+    void . forkIO $ handle onError $
       Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
     adminApp = admin appState checkMainAppLive
@@ -36,9 +36,9 @@ runAdmin appState maybeAdminSocket checkMainAppLive settings = do
         & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
         & maybe identity Warp.setPort (configAdminServerPort config)
 
-    onError adminSock ex = do
+    onError ex = do
       observer $ AdminServerCrashedObs ex
-      NS.close adminSock -- we close the socket so request doesn't hang
+      killApp appState -- Admin server crash is deemed unrecoverable, so we kill postgrest
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO Bool -> Wai.Application
