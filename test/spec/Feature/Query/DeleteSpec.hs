@@ -114,7 +114,7 @@ spec withConfig = withConfig baseCfg $
       it "fails with 404" $
         request methodDelete "/foozle?id=eq.101" [] ""
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.foozle' in the schema cache"} |]
+          [json| {"code":"42P01","details":null,"hint":null,"message":"relation \"test.foozle\" does not exist"} |]
           { matchStatus = 404
           , matchHeaders = []
           }
