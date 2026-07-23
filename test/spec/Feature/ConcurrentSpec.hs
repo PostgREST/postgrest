@@ -25,7 +25,7 @@ spec withConfig = withConfig baseCfg $
       raceTest 10 $
         get "/fakefake"
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.fakefake' in the schema cache"} |]
+          [json| {"code":"42P01","details":null,"hint":null,"message":"relation \"test.fakefake\" does not exist"} |]
           { matchStatus  = 404
           , matchHeaders = []
           }

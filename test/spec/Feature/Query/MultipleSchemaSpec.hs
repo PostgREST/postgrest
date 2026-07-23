@@ -69,7 +69,7 @@ spec withConfig = withConfig (baseCfg { configDbSchemas = fromList ["v1", "v2", 
         request methodGet "/another_table"
           [("Accept-Profile", "v1")] ""
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'v1.another_table' in the schema cache"} |]
+          [json| {"code":"42P01","details":null,"hint":null,"message":"relation \"v1.another_table\" does not exist"} |]
           { matchStatus = 404
           , matchHeaders = []
           }

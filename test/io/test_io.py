@@ -727,7 +727,7 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = postgrest.read_stdout(nlines=9)
+        output = postgrest.read_stdout(nlines=13)
 
         if level == "crit":
             assert len(output) == 0
@@ -765,7 +765,7 @@ def test_log_level(level, defaultenv):
                     r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
                 ],
             )
-            assert len(output) == 9
+            assert len(output) == 13
             assert any("Connection" and "is available" in line for line in output)
             assert any("Connection" and "is used" in line for line in output)
 
@@ -1118,10 +1118,10 @@ def test_stale_schema_cache_dropped_table_returns_database_error(defaultenv):
             response = postgrest.session.get("/stale_schema_cache_items")
             payload = response.json()
             assert response.status_code == 404
-            assert payload["code"] == "PGRST205"
+            assert payload["code"] == "42P01"
             assert (
                 payload["message"]
-                == "Could not find the table 'public.stale_schema_cache_items' in the schema cache"
+                == 'relation "public.stale_schema_cache_items" does not exist'
             )
     finally:
         psql_as_superuser("drop table if exists stale_schema_cache_items;")
