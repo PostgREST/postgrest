@@ -76,6 +76,7 @@ library
                       PostgREST.Metrics
                       PostgREST.Network
                       PostgREST.Observation
+                      PostgREST.Process.Restart
                       PostgREST.Query
                       PostgREST.Query.PreQuery
                       PostgREST.Query.QueryBuilder
@@ -100,6 +101,8 @@ library
                       PostgREST.Response.Performance
                       PostgREST.TimeIt
                       PostgREST.Version
+  other-modules:      PostgREST.Process.Restart.Impl
+                      PostgREST.Process.Restart.Shared
   build-depends:      base                      >= 4.9 && < 4.22
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.6
@@ -186,7 +189,12 @@ library
       -- Slightly increases the binary size but improves performance considerably.
       ghc-options: -fexpose-overloaded-unfoldings -fspecialise-aggressively
 
-  if !os(windows)
+  if os(windows)
+    hs-source-dirs:
+      src/library-windows
+  else
+    hs-source-dirs:
+      src/library-posix
     build-depends:
       unix
 

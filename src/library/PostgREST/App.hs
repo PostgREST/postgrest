@@ -37,18 +37,20 @@ import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Header       as WaiHeader
 
-import qualified PostgREST.Admin      as Admin
-import qualified PostgREST.ApiRequest as ApiRequest
-import qualified PostgREST.AppState   as AppState
-import qualified PostgREST.Auth       as Auth
-import qualified PostgREST.Cors       as Cors
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.MainTx     as MainTx
-import qualified PostgREST.Plan       as Plan
-import qualified PostgREST.Query      as Query
-import qualified PostgREST.Response   as Response
-import qualified PostgREST.Unix       as Unix (installSignalHandlers)
+import qualified PostgREST.Admin           as Admin
+import qualified PostgREST.ApiRequest      as ApiRequest
+import qualified PostgREST.AppState        as AppState
+import qualified PostgREST.Auth            as Auth
+import qualified PostgREST.Cors            as Cors
+import qualified PostgREST.Error           as Error
+import qualified PostgREST.Listener        as Listener
+import qualified PostgREST.MainTx          as MainTx
+import qualified PostgREST.Plan            as Plan
+import qualified PostgREST.Process.Restart as Restart
+import qualified PostgREST.Query           as Query
+import qualified PostgREST.Response        as Response
+import qualified PostgREST.Unix            as Unix (installSIGHUPHandler,
+                                                    installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
@@ -79,49 +81,74 @@ import System.Directory (doesPathExist)
 
 run :: AppState -> Weak ThreadId -> IO ()
 run appState mainThreadIdRef = do
-  conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
+  replacementCfg <- Restart.currentReplacementConfig
+  Restart.runRestartable replacementCfg $ \restartMode ready -> do
+    conf@AppConfig{configServerReusePort, configServerUnixSocket, configAdminServerUnixSocket} <- AppState.getConfig appState
 
-  mainSocketRef <- newIORef Nothing
-  let setMainSocketRef = atomicWriteIORef mainSocketRef . Just
-      clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
+    adminSocketRef <- newIORef Nothing
+    mainSocketRef <- newIORef Nothing
+    let setAdminSocketRef = atomicWriteIORef adminSocketRef
+        setMainSocketRef = atomicWriteIORef mainSocketRef . Just
+        clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
 
-  bracket (initAdminServerSocket conf) ensureSocketClosed $ \adminSocket -> do
+        closeSockets = traverse_ ensureSocketClosed [adminSocketRef, mainSocketRef]
 
-    let closeSockets = do
-          ensureSocketClosed adminSocket
-          ensureSocketClosed =<< readIORef mainSocketRef
-    Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+        restartEnabled =
+          configServerReusePort && isNothing configServerUnixSocket && isNothing configAdminServerUnixSocket
 
-    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
+        startAdminServer = do
+          adminSocket <- mask_ $ do
+            sock <- initAdminServerSocket conf
+            setAdminSocketRef sock
+            pure sock
+          Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
 
-    Listener.runListener appState
+    (`finally` closeSockets) $ do
+      Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
-    -- Kick off and wait for the initial SchemaCache load before creating the
-    -- main API socket.
-    AppState.schemaCacheLoader appState
-    if configServerReusePort then
-      AppState.waitForSchemaCacheLoaded appState
-    else
-      AppState.waitForSchemaCacheInit appState
+      when (Restart.isStandalone restartMode) startAdminServer
 
-    bracket (initServerSocket conf) NS.close $ \mainSocket -> do
+      Listener.runListener appState
 
-      let app = postgrest appState (AppState.schemaCacheLoader appState)
+      -- Kick off and wait for the initial SchemaCache load before creating the
+      -- main API socket.
+      AppState.schemaCacheLoader appState
+      if configServerReusePort then
+        AppState.waitForSchemaCacheLoaded appState
+      else
+        AppState.waitForSchemaCacheInit appState
 
-      address <- resolveSocketToAddress mainSocket
+      bracket (initServerSocket conf) NS.close $ \mainSocket -> do
 
-      let
-        appServerSettings = serverSettings conf
-          & setPort (configServerPort conf)
-          & setOnException onWarpException
-          & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
+        address <- resolveSocketToAddress mainSocket
 
-      Warp.runSettingsSocket appServerSettings mainSocket app
-        `finally` clearMainSocketRef
+        let
+          app = postgrest appState (AppState.schemaCacheLoader appState)
+          asyncReady = do
+            appThreadId <- myThreadId
+            void $ forkFinally
+              (do
+                when (Restart.isReplacement restartMode) startAdminServer
+                ready closeSockets $
+                  when restartEnabled . Unix.installSIGHUPHandler)
+              (either (throwTo appThreadId) mempty)
+
+          onBeforeMainLoop = do
+            setMainSocketRef mainSocket
+            observer (AppServerAddressObs address)
+            asyncReady
+
+          appServerSettings = serverSettings conf
+            & setPort (configServerPort conf)
+            & setOnException onWarpException
+            & setBeforeMainLoop onBeforeMainLoop
+
+        Warp.runSettingsSocket appServerSettings mainSocket app
+          `finally` clearMainSocketRef
   where
     observer = AppState.getObserver appState
 
-    ensureSocketClosed = foldMap NS.close
+    ensureSocketClosed = mask_ . liftA2 (*>) (foldMap NS.close <=< readIORef) (`atomicWriteIORef` Nothing)
 
     onWarpException :: Maybe Wai.Request -> SomeException -> IO ()
     onWarpException _ ex =
@@ -301,10 +328,15 @@ initSocket :: (Applicative f, Traversable f) => Maybe String -> FileMode -> Text
 initSocket unixSocket unixSocketMode tcpHost tcpPort bindTCP =
   maybe initTCPSocket initDomainSocket unixSocket
   where
-    initTCPSocket = traverse (`bindTCP` (fromString $ T.unpack tcpHost)) tcpPort
+    initTCPSocket = traverse ((`bindTCP` hostPreference) >=> setSocketCloseOnExec) tcpPort
+    hostPreference = fromString $ T.unpack tcpHost
     -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
     -- but we need to have runtime error if we try to use it in Windows, not compile time error
-    initDomainSocket = fmap pure . (`createAndBindDomainSocket` unixSocketMode)
+    initDomainSocket = fmap pure . ((`createAndBindDomainSocket` unixSocketMode) >=> setSocketCloseOnExec)
+
+setSocketCloseOnExec :: NS.Socket -> IO NS.Socket
+setSocketCloseOnExec sock =
+  NS.withFdSocket sock NS.setCloseOnExecIfNeeded $> sock
 
 initServerSocket :: AppConfig -> IO NS.Socket
 initServerSocket AppConfig{..} =
@@ -318,7 +350,7 @@ initAdminServerSocket AppConfig{..} =
   initSocket
     configAdminServerUnixSocket configAdminServerUnixSocketMode
     configAdminServerHost configAdminServerPort
-    bindPortTCP
+    (if configServerReusePort then bindPortTCPWithReusePort else bindPortTCP)
 
 bindPortTCPWithReusePort :: Int -> HostPreference -> IO NS.Socket
 bindPortTCPWithReusePort port hostPreference =

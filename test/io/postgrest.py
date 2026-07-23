@@ -5,6 +5,7 @@ import dataclasses
 import enum
 import os
 import pathlib
+import signal
 import socket
 import subprocess
 import tempfile
@@ -66,6 +67,7 @@ class PostgrestProcess:
     process: object
     session: object
     config: object
+    process_group_id: object = None
 
     def read_stdout(self, nlines=1):
         "Wait for line(s) on standard output."
@@ -101,6 +103,7 @@ def run(
     wait_max_seconds=1,
     no_pool_connection_available=False,
     no_startup_stdout=True,
+    isolate_process_group=False,
 ):
     "Run PostgREST and yield an endpoint that is ready for connections."
 
@@ -148,7 +151,9 @@ def run(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=env,
+            start_new_session=isolate_process_group,
         )
+        process_group_id = os.getpgid(process.pid) if isolate_process_group else None
 
         os.set_blocking(process.stdout.fileno(), False)
 
@@ -172,17 +177,76 @@ def run(
                 session=PostgrestSession(baseurl),
                 admin=PostgrestSession(adminurl),
                 config=env,
+                process_group_id=process_group_id,
             )
         finally:
             remaining_output = process.stdout.read()
             if remaining_output:
                 print(remaining_output.decode())
-            process.terminate()
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            terminate_process(process, process_group_id)
+
+
+def terminate_process(process, process_group_id=None):
+    "Terminate a PostgREST process, or the whole process group if requested."
+    if process_group_id is None:
+        process.terminate()
+    else:
+        signal_process_group(process_group_id, signal.SIGTERM)
+
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        if process_group_id is None:
+            process.kill()
+        else:
+            signal_process_group(process_group_id, signal.SIGKILL)
+        process.wait()
+
+    if process_group_id is not None and not wait_process_group_exit(process_group_id):
+        signal_process_group(process_group_id, signal.SIGKILL)
+        wait_process_group_exit(process_group_id)
+
+
+def signal_process_group(process_group_id, sig):
+    try:
+        os.killpg(process_group_id, sig)
+    except ProcessLookupError:
+        pass
+
+
+def wait_process_group_exit(process_group_id, timeout=1):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(process_group_id, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def process_group_pids(process_group_id):
+    "Return process IDs that belong to a process group."
+    output = subprocess.check_output(["ps", "-ax", "-o", "pid=,pgid="], text=True)
+    return [
+        int(pid)
+        for (pid, pgid) in map(str.split, output.splitlines())
+        if int(pgid) == process_group_id
+    ]
+
+
+def wait_process_group_replacement_pids(process_group_id, old_pid, timeout=1):
+    "Wait until a process group contains a process different from the old PID."
+    deadline = time.monotonic() + timeout
+    replacement_pids = []
+    while time.monotonic() < deadline:
+        replacement_pids = [
+            pid for pid in process_group_pids(process_group_id) if pid != old_pid
+        ]
+        if replacement_pids:
+            return replacement_pids
+        time.sleep(0.05)
+    return replacement_pids
 
 
 @contextlib.contextmanager
