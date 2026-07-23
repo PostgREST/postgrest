@@ -11410,3 +11410,41 @@ TO postgrest_test_anonymous;
 create or replace function apflora.notify_pgrst() returns void as $$
   notify pgrst;
 $$ language sql;
+
+CREATE SCHEMA bigdata;
+
+GRANT ALL ON SCHEMA bigdata TO postgrest_test_anonymous;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA bigdata
+GRANT SELECT ON TABLES TO PUBLIC;
+
+CREATE OR REPLACE PROCEDURE bigdata.create_tables(
+  table_count integer
+) LANGUAGE plpgsql AS $$
+DECLARE
+  table_idx integer;
+  batch_size integer := 500;
+BEGIN
+  FOR table_idx IN 1..table_count LOOP
+    EXECUTE format('CREATE TABLE bigdata.data_%s (col text)', table_idx);
+
+    -- This batch_size is to avoid the error: HINT:  You might need to increase "max_locks_per_transaction".
+    IF table_idx % batch_size = 0 THEN
+      COMMIT;
+    END IF;
+  END LOOP;
+  NOTIFY pgrst;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION bigdata.create_random_table() RETURNS text AS $$
+DECLARE
+  table_name text := format(
+    'new_data_%s',
+    substring(md5(clock_timestamp()::text || random()::text) from 1 for 12)
+  );
+BEGIN
+  EXECUTE format('CREATE TABLE bigdata.%I (col text)', table_name);
+  NOTIFY pgrst;
+  RETURN table_name;
+END;
+$$ LANGUAGE plpgsql;

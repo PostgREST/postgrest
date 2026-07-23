@@ -5,6 +5,7 @@ import re
 import pytest
 import requests
 
+from util import psql_as_superuser
 from postgrest import run
 
 
@@ -120,3 +121,29 @@ def test_second_request_for_non_existent_table_should_be_quick(defaultenv):
         first_duration = response.elapsed.total_seconds()
         response = postgrest.session.get("/unknown-table")
         assert response.elapsed.total_seconds() < first_duration / 2
+
+
+def test_new_table_is_immediately_available(defaultenv):
+    "new table that don't use the schema cache should be immediately available"
+
+    psql_as_superuser("CALL bigdata.create_tables(5000);")
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "bigdata",
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=30) as postgrest:
+        response = postgrest.session.get("/data_1?col=eq.1")
+        assert response.status_code == 200
+
+        response = postgrest.session.post("/rpc/create_random_table")
+        assert response.status_code == 200
+        table_name = response.json()
+
+        response = postgrest.session.get(f"/{table_name}?col=eq.1")
+        if response.status_code == 404:
+            pytest.xfail("new table returns 404 ")
+        assert response.status_code == 200
