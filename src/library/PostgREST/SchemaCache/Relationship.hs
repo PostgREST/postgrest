@@ -35,7 +35,7 @@ data Relationship = Relationship
   , relToOne        :: Bool
   , relIsSelf       :: Bool
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 -- | The relationship cardinality
 -- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
@@ -48,7 +48,7 @@ data Cardinality
   -- ^ one-to-one, this is a refinement over M2O, operating on it is pretty much the same as M2O when isParent == False
   | M2M Junction
   -- ^ many-to-many
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 type FKConstraint = Text
 
@@ -60,7 +60,7 @@ data Junction = Junction
   , junColsSource  :: [(FieldName, FieldName)]
   , junColsTarget  :: [(FieldName, FieldName)]
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 -- | Key based on the source table and the foreign table schema
 type RelationshipsMap = HM.HashMap (QualifiedIdentifier, Schema)  [Relationship]

@@ -13,6 +13,39 @@ Getting this metadata requires expensive queries. To avoid repeating this work, 
   - If the schema cache queries are slow, the most likely cause is *system catalog bloat*, see `issue#3212 <https://github.com/PostgREST/postgrest/issues/3212>`_ for more details.
   - You can turn the :ref:`log-level` to ``debug`` to see the time of each schema cache query.
 
+.. _schema_cache_dumping:
+
+Schema Cache Dumps
+------------------
+
+PostgREST can write the runtime schema cache to a JSON dump. A new instance can
+then use this dump as its initial schema cache with :ref:`cli_schema_cache_uri`,
+which helps avoid waiting for expensive catalog queries during fast restarts or
+scale-to-zero startup.
+
+To keep a local dump updated automatically, configure :ref:`schema-cache-dump-path`:
+
+.. code:: bash
+
+  schema-cache-dump-path = "/var/lib/postgrest/schema-cache.json"
+
+After each successful schema cache load or reload, PostgREST writes the current
+schema cache to this path. The parent directory must already exist and be writable
+by the PostgREST process. If writing the dump fails, PostgREST logs the failure
+and continues serving with the loaded schema cache.
+
+On the next start, use the dump file as an initial schema cache:
+
+.. code:: bash
+
+  postgrest --schema-cache-uri file:///var/lib/postgrest/schema-cache.json /path/to/postgrest.conf
+
+The dump should be reused only by instances that serve the same database and
+compatible schema cache configuration, such as :ref:`db-schemas` and
+:ref:`db-extra-search-path`. PostgREST still performs the regular database-backed
+schema cache load, so the dump is a startup acceleration path rather than a
+replacement for database metadata loading.
+
 .. _schema_reloading:
 
 Schema Cache Reloading
