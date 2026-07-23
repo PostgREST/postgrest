@@ -21,18 +21,19 @@ let
         name = "postgrest-style";
         docs = "Automatically format Haskell, Nix and Python files.";
         workingDir = "/";
+        withTmpDir = true;
       }
       ''
         # Format Nix files
         ${statix}/bin/statix fix
-        ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
+        ${nixpkgs-fmt}/bin/nixpkgs-fmt .
 
         # Format Haskell files
         ${fd}/bin/fd '\.l?hs$' \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
 
         # Format Python files
-        ${black}/bin/black . 2> /dev/null
+        TMPDIR="$tmpdir" ${black}/bin/black .
       '';
 
   # Script to check whether any uncommitted changes result from postgrest-style

@@ -1084,25 +1084,21 @@ def test_stale_schema_cache_dropped_table_returns_database_error(defaultenv):
     }
 
     try:
-        psql_as_superuser(
-            """
+        psql_as_superuser("""
             drop table if exists stale_schema_cache_items;
             create table stale_schema_cache_items(id int primary key);
             insert into stale_schema_cache_items values (1);
             grant select on stale_schema_cache_items to postgrest_test_anonymous;
-            """
-        )
+            """)
 
         with run(env=env, wait_max_seconds=10) as postgrest:
             response = postgrest.session.get("/stale_schema_cache_items")
             assert response.status_code == 200
 
-            psql_as_superuser(
-                """
+            psql_as_superuser("""
                 drop table stale_schema_cache_items;
                 notify pgrst, 'reload schema';
-                """
-            )
+                """)
 
             response = postgrest.session.get("/stale_schema_cache_items")
             payload = response.json()
