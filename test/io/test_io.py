@@ -3,7 +3,6 @@
 import os
 import re
 import signal
-import subprocess
 import time
 import pytest
 import requests
@@ -16,6 +15,7 @@ from util import (
     relativeSeconds,
     drain_stdout,
     match_log,
+    psql_as_superuser,
 )
 from postgrest import (
     Admin,
@@ -31,20 +31,6 @@ from postgrest import (
     sleep_until_postgrest_scache_reload,
     wait_until_exit,
 )
-
-
-def psql_as_superuser(query):
-    subprocess.check_call(
-        [
-            "psql",
-            "--username",
-            "postgres",
-            "--set",
-            "ON_ERROR_STOP=1",
-            "-c",
-            query,
-        ]
-    )
 
 
 def test_connect_with_dburi(dburi, defaultenv):
@@ -684,24 +670,15 @@ def test_listener_query_is_visible_in_pg_stat_activity(defaultenv):
     }
 
     with run(env=env):
-        query = """
-select query
-from pg_stat_activity
-where application_name = 'listener-query-test'
-  and query = 'LISTEN "pgrst"'
-limit 1;
-"""
-        output = subprocess.check_output(
-            [
-                "psql",
-                "--set",
-                "ON_ERROR_STOP=1",
-                "--tuples-only",
-                "--no-align",
-                "-c",
-                query,
-            ],
-            text=True,
+        output = psql_as_superuser(
+            """
+        select query
+        from pg_stat_activity
+        where application_name = 'listener-query-test'
+          and query = 'LISTEN "pgrst"'
+        limit 1;
+        """,
+            capture_output=True,
         ).strip()
 
         assert output == 'LISTEN "pgrst"'

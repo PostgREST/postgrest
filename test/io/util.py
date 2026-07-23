@@ -1,6 +1,7 @@
 import re
 import threading
 import jwt
+import subprocess
 from datetime import datetime, timedelta, timezone
 
 
@@ -75,3 +76,21 @@ def parse_server_timings_header(header):
         _, duration = duration_text.split("=")
         timings[name.strip()] = float(duration)
     return timings
+
+
+def psql_as_superuser(query, capture_output=False):
+    cmd = [
+        "psql",
+        "--username",
+        "postgres",
+        "--set",
+        "ON_ERROR_STOP=1",
+    ]
+    if capture_output:
+        cmd.extend(["--tuples-only", "--no-align"])
+    cmd.extend(["-c", query])
+
+    if capture_output:
+        return subprocess.check_output(cmd, text=True)
+
+    subprocess.check_call(cmd)
