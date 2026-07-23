@@ -8,7 +8,7 @@ PostgREST provides a CLI with the options listed below:
 .. code:: text
 
   Usage: postgrest [-v|--version] [-e|--example] [--dump-config | --dump-schema | --ready]
-                 [FILENAME]
+                   [--schema-cache-uri URI] [FILENAME]
 
     PostgREST / create a REST API to an existing Postgres
     database
@@ -22,6 +22,7 @@ PostgREST provides a CLI with the options listed below:
                              output structure is unstable)
     --ready                  Checks the health of PostgREST by doing a request on
                              the admin server /ready endpoint
+    --schema-cache-uri URI   Try pre-loading schema cache from provided URI
     FILENAME                 Path to configuration file
 
 FILENAME
@@ -73,6 +74,30 @@ Dump Schema
   $ postgrest --dump-schema
 
 Dumps the schema cache in JSON format.
+
+Schema Cache URI
+----------------
+
+.. code:: bash
+
+  $ postgrest --schema-cache-uri http://localhost/schema-cache.json
+
+Tries to load the initial :ref:`schema_cache` from the given URI when starting PostgREST to speed up its startup.
+The load is asynchronous. Database-backed schema cache load is started in parallel and will overwrite values loaded from the URI once finished.
+
+The supported URI schemes are:
+
+``file:``
+  Loads a schema cache dump from a local file. The URI must point to a local path, for
+  example ``file:///var/lib/postgrest/schema-cache.json``. Remote file authorities are
+  not supported.
+
+``http:`` and ``https:``
+  Loads a schema cache dump over HTTP(S). The response body must be a schema cache JSON
+  dump, such as the output of ``postgrest --dump-schema`` or the runtime cache exposed
+  by another PostgREST instance's :ref:`admin_server`.
+
+Other schemes are rejected as unsupported.
 
 Ready Flag
 ----------

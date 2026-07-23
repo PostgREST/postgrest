@@ -1,5 +1,6 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MonadComprehensions #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE RecordWildCards     #-}
 module PostgREST.CLI
   ( main
   , CLI (..)
@@ -48,7 +49,7 @@ runAppCommand conf@AppConfig{..} runCmd = do
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf (killThread mainThreadId))
+    (AppState.init conf (killThread mainThreadId) [schemaCacheLoadUri | CmdRun (Just schemaCacheLoadUri) <- Just runCmd])
     AppState.destroy
     (\appState -> case runCmd of
       CmdDumpConfig -> do
@@ -57,7 +58,7 @@ runAppCommand conf@AppConfig{..} runCmd = do
       CmdDumpSchema -> do
         when configDbConfig $ AppState.readInDbConfig True appState
         putStrLn =<< dumpSchema appState
-      CmdRun -> App.run appState mainThreadIdRef)
+      CmdRun _ -> App.run appState mainThreadIdRef)
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -86,7 +87,7 @@ data ClientCommand
   = CmdReady
 
 data RunCommand
-  = CmdRun
+  = CmdRun (Maybe Text)
   | CmdDumpConfig
   | CmdDumpSchema
 
@@ -120,8 +121,17 @@ readCLIShowHelp =
     cliParser :: O.Parser CLI
     cliParser =
       CLI
-        <$> (dumpConfigFlag <|> dumpSchemaFlag <|> readyFlag)
+        <$> (dumpConfigFlag <|> dumpSchemaFlag <|> readyFlag <|> runCommand)
         <*> O.optional configFileOption
+
+    runCommand =
+      Run . CmdRun <$> O.optional schemaCacheUriOption
+
+    schemaCacheUriOption =
+      O.strOption $
+        O.long "schema-cache-uri"
+        <> O.metavar "URI"
+        <> O.help "Try pre-loading schema cache from provided URI"
 
     configFileOption =
       O.strArgument $
@@ -129,16 +139,16 @@ readCLIShowHelp =
         <> O.help "Path to configuration file"
 
     dumpConfigFlag =
-      O.flag (Run CmdRun) (Run CmdDumpConfig) $
+      O.flag' (Run CmdDumpConfig) $
         O.long "dump-config"
         <> O.help "Dump loaded configuration and exit"
 
     dumpSchemaFlag =
-      O.flag (Run CmdRun) (Run CmdDumpSchema) $
+      O.flag' (Run CmdDumpSchema) $
         O.long "dump-schema"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
 
     readyFlag =
-      O.flag (Run CmdRun) (Client CmdReady) $
+      O.flag' (Client CmdReady) $
         O.long "ready"
         <> O.help "Checks the health of PostgREST by doing a request on the admin server /ready endpoint"

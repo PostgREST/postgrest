@@ -1,8 +1,16 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
+import contextlib
+from functools import partial
+from http.server import (
+    BaseHTTPRequestHandler,
+    SimpleHTTPRequestHandler,
+    ThreadingHTTPServer,
+)
 from operator import attrgetter
 import signal
 import subprocess
+from threading import Event, Thread
 import pytest
 import yaml
 
@@ -13,7 +21,12 @@ from config import (
     get_admin_host_and_port_from_config,
     hpctixfile,
 )
-from postgrest import freeport, is_ipv6, run, set_statement_timeout
+from postgrest import (
+    freeport,
+    is_ipv6,
+    run,
+    set_statement_timeout,
+)
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
@@ -43,6 +56,72 @@ def itemgetter(*items):
 
 class PostgrestError(Exception):
     "Postgrest exited unexpectedly."
+
+
+class QuietSimpleHTTPRequestHandler(SimpleHTTPRequestHandler):
+    "SimpleHTTPRequestHandler without stderr logging."
+
+    def log_message(self, _format, *args):
+        pass
+
+
+@contextlib.contextmanager
+def serve_directory(directory):
+    "Serve a directory from a local HTTP URI."
+
+    handler = partial(QuietSimpleHTTPRequestHandler, directory=str(directory))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        host, port = server.server_address
+        yield f"http://{host}:{port}"
+    finally:
+        server.shutdown()
+        thread.join(timeout=1)
+        server.server_close()
+
+
+@contextlib.contextmanager
+def serve_blocking_response(body):
+    "Serve a local HTTP response that blocks until released."
+
+    request_started = Event()
+    release_response = Event()
+
+    class BlockingResponseHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            request_started.set()
+            release_response.wait(timeout=30)
+
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except OSError:
+                pass
+
+        def log_message(self, _format, *args):
+            pass
+
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+
+    server = Server(("127.0.0.1", 0), BlockingResponseHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        host, port = server.server_address
+        yield f"http://{host}:{port}/schema-cache.json", request_started, release_response
+    finally:
+        release_response.set()
+        server.shutdown()
+        thread.join(timeout=1)
+        server.server_close()
 
 
 def cli(args, env=None, stdin=None, expect_error=False):
@@ -251,6 +330,122 @@ def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
         Dumper=yaml.SafeDumper if key == "dbTimezones" else ExtraNewLinesDumper,
     )
     assert formatted == snapshot_yaml
+
+
+def test_load_schema_cache_dump_from_http_uri_at_startup(tmp_path, defaultenv):
+    "A valid schema cache dump should be loaded from an HTTP URI."
+
+    schema_cache_dump = tmp_path / "schema-cache.json"
+    schema_cache_dump.write_text(cli(["--dump-schema"], env=defaultenv))
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "public",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "5000",
+    }
+
+    with serve_directory(tmp_path) as schema_cache_base_uri:
+        with run(
+            env=env,
+            args=[
+                "--schema-cache-uri",
+                f"{schema_cache_base_uri}/{schema_cache_dump.name}",
+            ],
+            wait_max_seconds=2,
+        ) as postgrest:
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 200
+
+
+def test_load_schema_cache_dump_from_postgrest_admin_server_at_startup(defaultenv):
+    "A schema cache dump should be loaded from another PostgREST admin server."
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "public",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "5000",
+    }
+
+    with run(env={**defaultenv}, admin_port=freeport()) as source:
+        with run(
+            env=env,
+            args=[
+                "--schema-cache-uri",
+                f"{source.admin.baseurl}/schema_cache",
+            ],
+            wait_max_seconds=2,
+        ) as postgrest:
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 200
+
+
+def test_load_schema_cache_dump_from_file_uri_at_startup(tmp_path, defaultenv):
+    "A valid schema cache dump should be loaded from a local file URI."
+
+    schema_cache_dump = tmp_path / "schema-cache.json"
+    schema_cache_dump.write_text(cli(["--dump-schema"], env=defaultenv))
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "public",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "5000",
+    }
+
+    with run(
+        env=env,
+        args=["--schema-cache-uri", schema_cache_dump.as_uri()],
+        wait_max_seconds=2,
+    ) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+
+def test_load_schema_cache_dump_missing_file_falls_back_to_database(
+    tmp_path, defaultenv
+):
+    "A missing schema cache dump should be ignored during startup."
+
+    env = {**defaultenv}
+
+    with serve_directory(tmp_path) as schema_cache_base_uri:
+        with run(
+            env=env,
+            args=[
+                "--schema-cache-uri",
+                f"{schema_cache_base_uri}/missing-schema-cache.json",
+            ],
+        ) as postgrest:
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 200
+
+
+def test_slow_schema_cache_dump_uri_does_not_delay_startup(defaultenv):
+    "A slow schema cache dump URI should not delay database-backed startup."
+
+    schema_cache_dump = cli(["--dump-schema"], env=defaultenv).encode()
+
+    with serve_blocking_response(schema_cache_dump) as (
+        schema_cache_uri,
+        request_started,
+        release_response,
+    ):
+        with run(
+            env={**defaultenv},
+            args=["--schema-cache-uri", schema_cache_uri],
+            wait_max_seconds=2,
+        ) as postgrest:
+            assert request_started.wait(timeout=2)
+            assert not release_response.is_set()
+
+            response = postgrest.session.get("/projects")
+            assert response.status_code == 200
+            assert not release_response.is_set()
 
 
 def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
