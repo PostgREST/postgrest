@@ -983,7 +983,7 @@ server-reuseport
   When running multiple PostgREST instances on the same :ref:`server-port`, use
   a different ``admin-server-port`` for each instance. Admin ports are not shared
   between instances, so readiness checks always target one specific PostgREST
-  instance.
+  instance. See :ref:`zero_downtime_upgrades` for handover guidance.
 
   This setting does not apply when :ref:`server-unix-socket` is used.
 
