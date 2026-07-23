@@ -46,6 +46,9 @@ library
   exposed-modules:    PostgREST.Admin
                       PostgREST.App
                       PostgREST.AppState
+                      PostgREST.AppState.Pool
+                      PostgREST.AppState.Reload
+                      PostgREST.AppState.Types
                       PostgREST.Auth
                       PostgREST.Auth.Jwt
                       PostgREST.Auth.JwtCache
@@ -68,7 +71,6 @@ library
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
                       PostgREST.Error.Types
-                      PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx
                       PostgREST.Logger.Apache

@@ -43,7 +43,6 @@ import qualified PostgREST.AppState   as AppState
 import qualified PostgREST.Auth       as Auth
 import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
-import qualified PostgREST.Listener   as Listener
 import qualified PostgREST.MainTx     as MainTx
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
@@ -52,6 +51,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
+import PostgREST.AppState.Reload      (runListener)
 import PostgREST.Auth.Types           (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
@@ -94,7 +94,7 @@ run appState mainThreadIdRef = do
 
     Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
 
-    Listener.runListener appState
+    runListener appState
 
     -- Kick off and wait for the initial SchemaCache load before creating the
     -- main API socket.
