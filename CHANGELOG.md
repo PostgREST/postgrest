@@ -11,7 +11,6 @@ All notable changes to this project will be documented in this file. From versio
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
-- Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
 - Support running the admin server on a unix socket by @wolfgangwalther in #5003
