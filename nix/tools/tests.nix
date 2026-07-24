@@ -262,6 +262,31 @@ let
           test/memory/memory-tests.sh
       '';
 
+  testRestartSystemd =
+    checkedShellScript
+      {
+        name = "postgrest-test-restart-systemd";
+        docs = "Run the process restart NixOS VM test under systemd.";
+        args = [ "ARG_LEFTOVERS([nixos-test-driver arguments])" ];
+        redirectTixFiles = false;
+        workingDir = "/";
+      }
+      ''
+        test_dir="''${PROCESS_RESTART_TEST_DIR:-$PWD/restart/test}"
+
+        if [ ! -d "$test_dir" ]; then
+          echo "postgrest-test-restart-systemd: pytest directory not found: $test_dir" >&2
+          echo "Run from the repository root or set PROCESS_RESTART_TEST_DIR." >&2
+          exit 1
+        fi
+
+        test_dir="$(cd "$test_dir" && pwd)"
+        driver="$(nix-build --no-out-link default.nix -A restart-systemd-test-driver)"
+
+        export PROCESS_RESTART_TEST_DIR="$test_dir"
+        exec "$driver/bin/nixos-test-driver" "''${_arg_leftovers[@]}"
+      '';
+
 in
 buildToolbox
 {
@@ -278,6 +303,7 @@ buildToolbox
       dumpSchema
       coverage
       coverageDraftOverlay
-      testMemory;
+      testMemory
+      testRestartSystemd;
   };
 }

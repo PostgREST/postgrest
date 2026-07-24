@@ -38,6 +38,11 @@ let
       })
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
 
+  restartTestAppSrc =
+    pkgs.lib.sourceFilesBySuffices
+      ./restart/test
+      [ ".cabal" ".hs" ];
+
   allOverlays =
     import nix/overlays;
 
@@ -91,14 +96,16 @@ let
   inherit (pkgs.haskell) lib;
 
   nixos-lib = import (pkgs.path + "/nixos/lib") { };
-  runTest = postgrest: test: (nixos-lib.runTest {
+  mkNixosTest = testPackages: test: nixos-lib.runTest {
     hostPkgs = pkgs;
-    # Replace the top-level `pkgs.postgrest` attribute with our current version on this branch.
-    defaults.nixpkgs.overlays = [ (_: _: { inherit postgrest; }) ];
+    # Replace selected package attributes with the current version on this branch.
+    defaults.nixpkgs.overlays = [ (_: _: testPackages) ];
     # Speeds up evaluation a little bit; documentation is really not required for tests.
     defaults.documentation.enable = pkgs.lib.mkDefault false;
     imports = [ test ];
-  }).config.result;
+  };
+
+  runTest = testPackages: test: (mkNixosTest testPackages test).config.result;
 in
 rec {
   inherit nixpkgs pkgs;
@@ -186,5 +193,20 @@ rec {
     pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 
   # NixOS VM tests
-  nixpkgs-nixos-test = runTest postgrestStatic (pkgs.path + "/nixos/tests/postgrest.nix");
+  nixpkgs-nixos-test = runTest { postgrest = postgrestStatic; } (pkgs.path + "/nixos/tests/postgrest.nix");
+
+  restartTestApp =
+    pkgs.lib.pipe (haskellPackages.callCabal2nix "process-restart-test-app" restartTestAppSrc { postgrest = lib.dontCheck postgrest; }) [
+      lib.dontCheck
+      lib.disableLibraryProfiling
+      lib.disableSharedLibraries
+    ];
+
+  restartSystemdTest =
+    mkNixosTest
+      { inherit restartTestApp; }
+      ./restart/test/process-restart-systemd.nix;
+
+  restart-systemd-test-driver =
+    restartSystemdTest.config.driver;
 }
