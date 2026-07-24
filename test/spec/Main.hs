@@ -149,7 +149,7 @@ main = do
         , ("Feature.Query.PlanSpec.spec"                       , Feature.Query.PlanSpec.spec)
         , ("Feature.Query.Preferences.HandlingSpec"            , Feature.Query.Preferences.HandlingSpec.spec)
         , ("Feature.Query.Preferences.MaxAffectedSpec"         , Feature.Query.Preferences.MaxAffectedSpec.spec)
-        , ("Feature.Query.Preferences.TimezoneSpec.enabledSpec", Feature.Query.Preferences.TimezoneSpec.enabledSpec)
+        , ("Feature.Query.Preferences.TimezoneSpec"            , Feature.Query.Preferences.TimezoneSpec.spec)
         , ("Feature.Query.PreparedStatementsSpec.spec"         , Feature.Query.PreparedStatementsSpec.spec)
         , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
         , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec actualPgVersion)
@@ -174,7 +174,6 @@ main = do
     parallel $ describe "Feature.ExtraSearchPathSpec" $ Feature.ExtraSearchPathSpec.spec withConfigDbs
     parallel $ describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec withConfigDbs
     parallel $ describe "Feature.Query.MultipleSchemaSpec" $ Feature.Query.MultipleSchemaSpec.spec withConfigDbs
-    parallel $ describe "Feature.Query.Preferences.TimezoneSpec.disabledSpec" $ Feature.Query.Preferences.TimezoneSpec.disabledSpec withConfigDbs
 
     -- Note: the rollback tests can not run in parallel, because they test persistence and
     -- this results in race conditions
