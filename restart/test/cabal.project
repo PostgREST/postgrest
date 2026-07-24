@@ -1,0 +1,3 @@
+packages:
+  ../restart.cabal
+  process-restart-test-app.cabal

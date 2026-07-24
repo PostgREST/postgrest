@@ -9,7 +9,10 @@
 let
   src =
     pkgs.lib.sourceFilesBySuffices
-      (pkgs.lib.cleanSource ./.)
+      (pkgs.lib.cleanSourceWith {
+        src = pkgs.lib.cleanSource ./.;
+        filter = path: _: !(pkgs.lib.hasPrefix "${toString ./test}/" (toString path));
+      })
       [ ".cabal" ".hs" "LICENSE" "README.md" ];
 
   restart =
@@ -17,7 +20,28 @@ let
       lib.disableLibraryProfiling
       lib.disableSharedLibraries
     ];
+
+  processRestartTestAppSrc =
+    pkgs.lib.sourceFilesBySuffices
+      ./test
+      [ ".cabal" ".hs" ];
+
+  processRestartTestApp =
+    pkgs.lib.pipe (haskellPackages.callCabal2nix "process-restart-test-app" processRestartTestAppSrc { inherit restart; }) [
+      lib.dontCheck
+      lib.disableLibraryProfiling
+      lib.disableSharedLibraries
+    ];
+
+  nixos-lib = import (pkgs.path + "/nixos/lib") { };
 in
 {
-  inherit restart src;
+  inherit processRestartTestApp restart src;
+} // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+  process-restart-systemd-test = (nixos-lib.runTest {
+    hostPkgs = pkgs;
+    defaults.nixpkgs.overlays = [ (_: _: { inherit processRestartTestApp; }) ];
+    defaults.documentation.enable = pkgs.lib.mkDefault false;
+    imports = [ ./test/process-restart-systemd.nix ];
+  }).config.result;
 }
