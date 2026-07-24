@@ -159,15 +159,13 @@ querySchemaCache conf@AppConfig{..} = do
   cRels   <- sqlTimedStmt gucCRels mempty allComputedRels
   reps    <- sqlTimedStmt gucDReps conf   dataRepresentations
   mHdlers <- sqlTimedStmt gucMHdrs conf   mediaHandlers
-  tzones  <- if configDbTimezoneEnabled
-    then sqlTimedStmt gucTzones mempty timezones
-    else pure S.empty
+  tzones  <- sqlTimedStmt gucTzones mempty timezones
 
   for_ configInternalSCQuerySleepSnd (`SQL.statement` sleepCall) -- only used for testing
 
   qsTime <-
     if isLogDebug
-      then Just <$> SQL.statement mempty (extractTimings configDbTimezoneEnabled)
+      then Just <$> SQL.statement mempty (extractTimings True)
       else pure Nothing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
