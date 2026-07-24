@@ -107,16 +107,20 @@ ready processCfg childControl handoverLock stopAction withRequestReplacement =
   markReadyForHandover *> (Just <$> withRequestReplacement requestReplacement)
   where
     markReadyForHandover =
-      foldMap (finally <$> markChildReady <*> closeDuplexChannel) childControl
-    markChildReady = liftA2 (*>) (`writeDuplexChannelLine` "READY") receiveCommit
+      maybe parentReady (finally <$> childReady <*> closeDuplexChannel) childControl
+
+    parentReady = withSystemdNotifier ($ pure NotifyReady)
+
+    childReady = liftA2 (*>) (`writeDuplexChannelLine` "READY") receiveCommit
+
     requestReplacement =
       withMVar handoverLock $ const $ runReplacementHandover processCfg stopAction
-    receiveCommit childChannel =
-      (readDuplexChannelLine childChannel >>= handleCommit) `finally` closeDuplexChannel childChannel
-    handleCommit = \case
-      Just "COMMIT" -> pass
-      Nothing       -> throwIO $ HandoverProtocolError "Parent closed the handover channel before committing this process."
-      Just msg      -> throwIO $ HandoverProtocolError $ "Unexpected parent handover message: " <> msg
+
+    receiveCommit=
+      readDuplexChannelLine >=> \case
+        Just "COMMIT" -> pass
+        Nothing       -> throwIO $ HandoverProtocolError "Parent closed the handover channel before committing this process."
+        Just msg      -> throwIO $ HandoverProtocolError $ "Unexpected parent handover message: " <> msg
 
 runReplacementHandover :: ProcessConfig -> IO a -> IO a
 runReplacementHandover processCfg stopAction = do
