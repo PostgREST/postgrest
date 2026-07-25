@@ -45,7 +45,7 @@ import Data.Functor.Contravariant ((>$<))
 import NeatInterpolation          (trimming)
 
 import PostgREST.Config                      (AppConfig (..), LogLevel (..))
-import PostgREST.Config.Database             (TimezoneNames, toIsolationLevel)
+import PostgREST.Config.Database             (toIsolationLevel)
 import PostgREST.Config.PgVersion            (PgVersion, pgVersion170)
 import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
@@ -78,7 +78,6 @@ data SchemaCache = SchemaCache
   , dbRoutines         :: RoutineMap
   , dbRepresentations  :: RepresentationsMap
   , dbMediaHandlers    :: MediaHandlerMap
-  , dbTimezones        :: TimezoneNames
   -- Memoized fuzzy index of table names per schema to support approximate matching
   -- Since index construction can be expensive, we build it once and store in the SchemaCache
   -- Haskell lazy evaluation ensures it's only built on first use and memoized afterwards
@@ -86,24 +85,22 @@ data SchemaCache = SchemaCache
   } deriving (Show)
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps hdlers tzs _) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps hdlers _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
     , "dbRepresentations" .= JSON.toJSON reps
     , "dbMediaHandlers"   .= JSON.toJSON hdlers
-    , "dbTimezones"       .= JSON.toJSON tzs
     ]
 
 showSummary :: SchemaCache -> Text
-showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs _) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
   , show (HM.size routs)      <> " RPCs"
   , show (HM.size reps)       <> " Domain Representations"
   , show (HM.size mediaHdlrs) <> " Media Type Handlers"
-  , show (S.size tzs)         <> " Timezones"
   ]
 
 -- | A view foreign key or primary key dependency detected on its source table
@@ -160,13 +157,12 @@ querySchemaCache pgVer conf@AppConfig{..} = do
   cRels   <- sqlTimedStmt gucCRels mempty allComputedRels
   reps    <- sqlTimedStmt gucDReps conf   dataRepresentations
   mHdlers <- sqlTimedStmt gucMHdrs conf   mediaHandlers
-  tzones  <- sqlTimedStmt gucTzones mempty timezones
 
   for_ configInternalSCQuerySleepSnd (`SQL.statement` sleepCall) -- only used for testing
 
   qsTime <-
     if isLogDebug
-      then Just <$> SQL.statement mempty (extractTimings True)
+      then Just <$> SQL.statement mempty extractTimings
       else pure Nothing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
@@ -178,7 +174,6 @@ querySchemaCache pgVer conf@AppConfig{..} = do
     , dbRoutines = funcs
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
-    , dbTimezones = tzones
 
     , dbTablesFuzzyIndex =
         -- Only build fuzzy index for schemas with a reasonable number of tables
@@ -221,7 +216,6 @@ removeInternal schemas dbStruct =
     , dbRoutines        = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
     , dbMediaHandlers   = dbMediaHandlers dbStruct
-    , dbTimezones       = dbTimezones dbStruct
     , dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
     }
   where
@@ -1108,19 +1102,6 @@ decodeMediaHandlers =
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
 
-timezones :: SQL.Statement () TimezoneNames
-timezones = SQL.Statement sql HE.noParams decodeTimezones True
-  where
-    sql = encodeUtf8 $ unlines
-      -- This CTE wrapper is only added for clarifying the query under pg_stat_statements
-      ["WITH pgrst_timezones AS ("
-      , "  SELECT name FROM pg_timezone_names"
-      , ")"
-      , "SELECT * FROM pgrst_timezones"
-      ]
-    decodeTimezones :: HD.Result TimezoneNames
-    decodeTimezones = S.fromList <$> HD.rowList (column HD.text)
-
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
 
@@ -1168,21 +1149,21 @@ sqlTimedStatement isLogDebug guc params stmt =
     eFrag = "select set_config('pgrst." <> guc <> "', (clock_timestamp() - current_setting('pgrst." <> guc <> "', false)::timestamptz)::text, true)"
 
 -- Extract all the generated timings (see sqlTimedStatement) converting the value to milliseconds.
-extractTimings :: Bool -> SQL.Statement () QueryTimings
-extractTimings hasTimezones = SQL.Statement sql HE.noParams decodeThem True
+extractTimings :: SQL.Statement () QueryTimings
+extractTimings = SQL.Statement sql HE.noParams decodeThem True
   where
     qFrag setting = "extract('milliseconds' from current_setting('pgrst." <> setting <> "', false)::interval)::text"
     sql = "SELECT " <> BS.intercalate ","
       [ qFrag gucTbls,  qFrag gucKDeps, qFrag gucRels
       , qFrag gucFuncs, qFrag gucCRels, qFrag gucDReps
-      , qFrag gucMHdrs, if hasTimezones then qFrag gucTzones else "'0.0'"
+      , qFrag gucMHdrs
       ]
     decodeThem :: HD.Result QueryTimings
     decodeThem = HD.singleRow $
       QueryTimings
         <$> column HD.text <*> column HD.text <*> column HD.text
         <*> column HD.text <*> column HD.text <*> column HD.text
-        <*> column HD.text <*> column HD.text
+        <*> column HD.text
 
 data QueryTimings = QueryTimings
   { qtTables  :: Text
@@ -1192,7 +1173,6 @@ data QueryTimings = QueryTimings
   , qtCRels   :: Text
   , qtDReps   :: Text
   , qtMHdrs   :: Text
-  , qtTzones  :: Text
   } deriving (Show)
 
 queryTimingsWLabels :: QueryTimings -> [(ByteString, Text)]
@@ -1204,10 +1184,9 @@ queryTimingsWLabels qt =
   , (gucCRels,  qtCRels qt)
   , (gucDReps,  qtDReps qt)
   , (gucMHdrs,  qtMHdrs qt)
-  , (gucTzones, qtTzones qt)
   ]
 
-gucTbls, gucKDeps, gucRels, gucFuncs, gucCRels, gucDReps, gucMHdrs, gucTzones :: ByteString
+gucTbls, gucKDeps, gucRels, gucFuncs, gucCRels, gucDReps, gucMHdrs :: ByteString
 gucTbls   = "tables"
 gucKDeps  = "keydeps"
 gucRels   = "rels"
@@ -1215,4 +1194,3 @@ gucFuncs  = "funcs"
 gucCRels  = "comprels"
 gucDReps  = "dreps"
 gucMHdrs  = "mhandlers"
-gucTzones = "tzones"

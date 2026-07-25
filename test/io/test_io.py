@@ -1002,9 +1002,8 @@ def test_schema_cache_query_timings_log(level, defaultenv):
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
     }
-    # here we also capture the tzones: <value> ms
     log_pattern = re.compile(
-        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms, tzones: ([\d.]+) ms"
+        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms"
     )
 
     with run(env=env, no_startup_stdout=False) as postgrest:
@@ -1015,7 +1014,6 @@ def test_schema_cache_query_timings_log(level, defaultenv):
 
         if level == "debug":
             assert len(timing_matches) == 1
-            assert float(timing_matches[0].group(1)) > 0
         else:
             assert not timing_matches
 

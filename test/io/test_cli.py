@@ -237,7 +237,6 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
         "dbRepresentations",
         "dbRoutines",
         "dbTables",
-        "dbTimezones",
     ],
 )
 def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
@@ -248,7 +247,7 @@ def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
         schema_cache[key],
         encoding="utf8",
         allow_unicode=True,
-        Dumper=yaml.SafeDumper if key == "dbTimezones" else ExtraNewLinesDumper,
+        Dumper=ExtraNewLinesDumper,
     )
     assert formatted == snapshot_yaml
 

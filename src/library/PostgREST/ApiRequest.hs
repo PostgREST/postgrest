@@ -33,7 +33,6 @@ import PostgREST.ApiRequest.Types        (Action (..), DbAction (..),
                                           Payload (..), RequestBody,
                                           Resource (..))
 import PostgREST.Config                  (AppConfig (..), OpenAPIMode (..))
-import PostgREST.Config.Database         (TimezoneNames)
 import PostgREST.Error                   (ApiRequestError (..), RangeError (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -109,8 +108,8 @@ userApiRequest conf prefs req reqBody = do
     actIsInvokeSafe x = case x of {ActDb (ActRoutine _  (InvRead _)) -> True; _ -> False}
 
 -- | Parses the Prefer header
-userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences
-userPreferences conf req timezones = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones $ requestHeaders req
+userPreferences :: AppConfig -> Request -> Preferences.Preferences
+userPreferences conf req = Preferences.fromHeaders (configDbTxAllowOverride conf) $ requestHeaders req
 
 -- | Obtains the Bearer Auth
 userBearerAuth :: Request -> Maybe ByteString
