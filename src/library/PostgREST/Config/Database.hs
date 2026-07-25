@@ -7,7 +7,6 @@ module PostgREST.Config.Database
   , queryRoleSettings
   , RoleSettings
   , RoleIsolationLvl
-  , TimezoneNames
   , toIsolationLevel
   ) where
 
@@ -31,7 +30,6 @@ import Protolude
 
 type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
-type TimezoneNames    = Set Text -- cache timezone names for prefer timezone=
 
 toIsolationLevel :: Text -> SQL.IsolationLevel
 toIsolationLevel a = case T.toLower a of

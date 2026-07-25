@@ -17,6 +17,9 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
 - Make config `log-level` reloadable by @taimoorzaeem in #5113
 - Optimize schema cache domain type resolution by using `pg_basetype` on PostgreSQL 17+ by @joelonsql in #4567
+- `Prefer: timezone` is optimized so it no longer requires the schema cache by @steve-chavez in #5100
+  + Previously this required caching `pg_timezone_names` which was slow in some systems
+- `Prefer: timezone` now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
 
 ### Fixed
 
@@ -39,6 +42,7 @@ All notable changes to this project will be documented in this file. From versio
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
+- `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
 
 #### Changed Syntax for JWT Role Extraction
 

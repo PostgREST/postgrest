@@ -26,10 +26,7 @@ module PostgREST.ApiRequest.Preferences
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.Map                  as Map
-import qualified Data.Set                  as S
 import qualified Network.HTTP.Types.Header as HTTP
-
-import PostgREST.Config.Database (TimezoneNames)
 
 import Protolude
 
@@ -66,10 +63,8 @@ data Preferences
 -- |
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
 --
--- >>> let sc = S.fromList ["America/Los_Angeles"]
---
 -- One header with comma-separated values can be used to set multiple preferences:
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
+-- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -86,7 +81,7 @@ data Preferences
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
+-- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -102,13 +97,13 @@ data Preferences
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders True sc [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders True [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders True sc $
+--   preferResolution . fromHeaders True $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -118,7 +113,7 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders True sc [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
+-- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -131,8 +126,8 @@ data Preferences
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
-fromHeaders :: Bool -> TimezoneNames -> [HTTP.Header] -> Preferences
-fromHeaders allowTxDbOverride acceptedTzNames headers =
+fromHeaders :: Bool -> [HTTP.Header] -> Preferences
+fromHeaders allowTxDbOverride headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
@@ -140,7 +135,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
-    , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
+    , preferTimezone       = PreferTimezone <$> timezonePref
     , preferMaxAffected    = PreferMaxAffected <$> maxAffectedPref
     , invalidPrefs         = filter isUnacceptable prefs
     }
@@ -160,12 +155,11 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     listStripPrefix prefix prefList = listToMaybe $ mapMaybe (BS.stripPrefix prefix) prefList
 
     timezonePref = listStripPrefix "timezone=" prefs
-    isTimezonePrefAccepted = ((S.member . decodeUtf8 <$> timezonePref) <*> pure acceptedTzNames) == Just True
 
     maxAffectedPref = listStripPrefix "max-affected=" prefs >>= readMaybe . BS.unpack
 
     isUnacceptable p = p `notElem` acceptedPrefs &&
-                       (isNothing (BS.stripPrefix "timezone=" p) ||  not isTimezonePrefAccepted) &&
+                       isNothing (BS.stripPrefix "timezone=" p) &&
                        isNothing (BS.stripPrefix "max-affected=" p)
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
