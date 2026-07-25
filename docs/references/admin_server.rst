@@ -74,5 +74,4 @@ Provides the ``schema_cache`` endpoint that prints the runtime :ref:`schema_cach
     "dbRepresentations": ["..."],
     "dbRoutines": ["..."],
     "dbTables": ["..."],
-    "dbTimezones": ["..."]
   }

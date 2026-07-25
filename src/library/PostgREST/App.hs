@@ -204,7 +204,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         liftIO $ observer SchemaCacheEmptyObs
         throwError Error.NoSchemaCacheError
 
-  let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
+  let prefs = ApiRequest.userPreferences conf req
 
   body <- liftIO $ Wai.strictRequestBody req
 

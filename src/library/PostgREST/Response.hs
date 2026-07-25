@@ -293,4 +293,6 @@ responsePreferences plan ApiRequest{iPreferences=Preferences{..}, iQueryParams=Q
       CallReadPlan{}                            -> preferMaxAffected
       _                                         -> Nothing
 
-    in Preferences preferResolution' preferRepresentation' preferCount preferTransaction preferMissing' preferHandling preferTimezone preferMaxAffected' []
+    preferTimezone' = preferTimezone
+
+    in Preferences preferResolution' preferRepresentation' preferCount preferTransaction preferMissing' preferHandling preferTimezone' preferMaxAffected' []

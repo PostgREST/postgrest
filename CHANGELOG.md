@@ -11,12 +11,14 @@ All notable changes to this project will be documented in this file. From versio
   + Removed unnecessary double count when building the `Content-Range`.
 - Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
 - Add `Vary` header to responses by @develop7 in #4609
-- Add config `db-timezone-enabled` for optional querying of timezones by @taimoorzaeem in #4751
 - Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
 - Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
 - Support running the admin server on a unix socket by @wolfgangwalther in #5003
 - Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
 - Make config `log-level` reloadable by @taimoorzaeem in #5113
+- `Prefer: timezone` is optimized so it no longer requires the schema cache by @steve-chavez in #5100
+  + Previously this required caching `pg_timezone_names` which was slow in some systems
+- `Prefer: timezone` now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
 
 ### Fixed
 
@@ -39,6 +41,7 @@ All notable changes to this project will be documented in this file. From versio
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
+- `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
 
 #### Changed Syntax for JWT Role Extraction
 

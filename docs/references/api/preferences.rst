@@ -62,8 +62,11 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 Timezone
 ========
 
-The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
+.. important::
 
+  ``handling=lenient`` is ignored for ``timezone``. Invalid time zones always return an error.
+
+The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
 
 .. code-block:: bash
 
@@ -84,7 +87,7 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
     {"t":"2023-10-18T09:37:59.611-07:00"}
   ]
 
-For an invalid time zone, PostgREST returns values with the default time zone (configured on ``postgresql.conf`` or as a setting on the :ref:`authenticator <roles>`).
+For an invalid time zone, PostgREST returns a database error.
 
 .. code-block:: bash
 
@@ -104,14 +107,21 @@ For an invalid time zone, PostgREST returns values with the default time zone (c
     {"t":"2023-10-18T16:37:59.611+00:00"}
   ]
 
-Note that there's no ``Preference-Applied`` in the response.
-
-However, with ``handling=strict``, an invalid time zone preference will throw an :ref:`error <pgrst122>`.
+This happens regardless of ``handling`` mode.
 
 .. code-block:: bash
 
   curl -i "http://localhost:3000/timestamps" \
     -H "Prefer: handling=strict, timezone=Jupiter/Red_Spot"
+
+.. code-block:: http
+
+  HTTP/1.1 400 Bad Request
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/timestamps" \
+    -H "Prefer: handling=lenient, timezone=Jupiter/Red_Spot"
 
 .. code-block:: http
 

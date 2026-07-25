@@ -1278,20 +1278,16 @@ def test_schema_cache_query_sleep_logs(defaultenv):
         assert 1000 < observed_ms < 2000
 
 
-@pytest.mark.parametrize("timezone_enabled", ["true", "false"])
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
-def test_schema_cache_query_timings_log(level, timezone_enabled, defaultenv):
+def test_schema_cache_query_timings_log(level, defaultenv):
     "Schema cache query timings should be logged on log-level=debug."
 
     env = {
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
-        # when this is disabled, it should log 0 for tzones
-        "PGRST_DB_TIMEZONE_ENABLED": timezone_enabled,
     }
-    # here we also capture the tzones: <value> ms
     log_pattern = re.compile(
-        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms, tzones: ([\d.]+) ms"
+        r".+: tables: [\d.]+ ms, keydeps: [\d.]+ ms, rels: [\d.]+ ms, funcs: [\d.]+ ms, comprels: [\d.]+ ms, dreps: [\d.]+ ms, mhandlers: [\d.]+ ms"
     )
 
     with run(env=env, no_startup_stdout=False) as postgrest:
@@ -1302,10 +1298,6 @@ def test_schema_cache_query_timings_log(level, timezone_enabled, defaultenv):
 
         if level == "debug":
             assert len(timing_matches) == 1
-            if timezone_enabled == "false":
-                assert float(timing_matches[0].group(1)) == 0
-            else:
-                assert float(timing_matches[0].group(1)) > 0
         else:
             assert not timing_matches
 
