@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE StandaloneDeriving #-}
+-- Needed to derive orphan FromJSON and ToJSON instances for SQL.IsolationLevel
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PostgREST.SchemaCache.Routine
@@ -35,18 +36,18 @@ import Protolude
 data PgType
   = Scalar QualifiedIdentifier
   | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data RetType
   = Single PgType
   | SetOf PgType
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data FuncVolatility
   = Volatile
   | Stable
   | Immutable
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 type FuncSettings = [(Text,Text)]
 
@@ -61,11 +62,12 @@ data Routine = Function
   , pdIsoLvl       :: Maybe SQL.IsolationLevel
   , pdFuncSettings :: FuncSettings
   }
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
 
 -- SQL.IsolationLevel doesn't have a default ToJSON instance, so we derive it.
-deriving instance Generic     SQL.IsolationLevel
-deriving instance JSON.ToJSON SQL.IsolationLevel
+deriving instance Generic       SQL.IsolationLevel
+deriving instance JSON.ToJSON   SQL.IsolationLevel
+deriving instance JSON.FromJSON SQL.IsolationLevel
 
 data RoutineParam = RoutineParam
   { ppName          :: Text
@@ -74,7 +76,7 @@ data RoutineParam = RoutineParam
   , ppReq           :: Bool
   , ppVar           :: Bool
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where
@@ -99,7 +101,7 @@ data MediaHandler
    -- custom
    | CustomFunc QualifiedIdentifier RelIdentifier
    | NoAgg
-   deriving (Eq, Show, Generic, JSON.ToJSON)
+   deriving (Eq, Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 funcReturnsSingle :: Routine -> Bool
 funcReturnsSingle proc = case proc of
