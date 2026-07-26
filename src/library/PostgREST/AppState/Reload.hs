@@ -30,15 +30,17 @@ import Data.Bitraversable      (bisequence)
 import Data.Either.Combinators (whenRight)
 import Data.IORef              (IORef, newIORef, readIORef, writeIORef)
 
+import qualified Data.ByteString.Lazy as LBS
+
 import PostgREST.AppState.Pool           (flushPool, usePool)
 import PostgREST.Auth.JwtCache           (update)
 import PostgREST.Config                  (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings, queryPgVersion,
                                           queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..), minimumPgVersion)
-import PostgREST.Observation             (Observation (..))
-import PostgREST.SchemaCache             (SchemaCache (..), querySchemaCache,
-                                          showSummary)
+import PostgREST.Observation             (Observation (..), ObservationHandler)
+import PostgREST.SchemaCache             (SchemaCache (..), dumpSchemaCache,
+                                          querySchemaCache, showSummary)
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.TimeIt                  (timeItT)
 
@@ -113,6 +115,8 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
           observer $ SchemaCacheQueriedObs resultTime queryTimings
           observer $ SchemaCacheLoadedObs loadTime summary
           markSchemaCacheLoaded appState
+          for_ configSchemaCacheDumpPath $ \path ->
+            writeSchemaCacheDump observer path sCache
           return $ Just sCache
 
     shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
@@ -127,6 +131,15 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
       capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 
     oneSecondInUs = 1_000_000 -- one second in microseconds
+
+writeSchemaCacheDump :: ObservationHandler -> FilePath -> SchemaCache -> IO ()
+writeSchemaCacheDump observer path sCache =
+  LBS.writeFile path (dumpSchemaCache sCache) `catch` handleWriteError
+  where
+    handleWriteError :: IOException -> IO ()
+    handleWriteError =
+      observer . SchemaCacheDumpFailureObs (toS path)
+
 
 markSchemaCachePending :: AppState -> IO ()
 markSchemaCachePending = atomically . liftA2 (*>) tryTakeTMVar (`putTMVar` False) . getSCStatusTMVar . stateSCacheStatus

@@ -1,6 +1,8 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo     #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE RecordWildCards  #-}
+{-# LANGUAGE RecursiveDo      #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE TypeApplications #-}
 
 module PostgREST.AppState
   ( AppState
@@ -38,8 +40,8 @@ import           PostgREST.Version       (prettyVersion)
 
 import Control.AutoUpdate         (defaultUpdateSettings, mkAutoUpdate,
                                    updateAction)
-import Control.Concurrent.STM     (newEmptyTMVarIO)
-import Data.IORef                 (newIORef, readIORef)
+import Control.Concurrent.STM     (newEmptyTMVarIO, tryPutTMVar)
+import Data.IORef                 (atomicModifyIORef, newIORef, readIORef)
 import Data.Time.Clock            (getCurrentTime)
 import PostgREST.AppState.Pool    (destroy, initPool, usePool)
 import PostgREST.AppState.Reload  (isSchemaCacheLoaded, readInDbConfig,
@@ -50,11 +52,19 @@ import PostgREST.AppState.Types
 import PostgREST.Config           (AppConfig (..))
 import PostgREST.Config.PgVersion (minimumPgVersion)
 import PostgREST.Debounce         (makeDebouncer)
+import PostgREST.SchemaCache      (SchemaCache (..))
+
+import qualified Data.Aeson           as JSON
+import qualified Data.ByteString.Lazy as LBS
+import qualified Network.HTTP.Client  as HC
+import           Network.URI          (URI (..), URIAuth (..), parseURI,
+                                       unEscapeString)
+import           System.IO.Error      (userError)
 
 import Protolude
 
-init :: AppConfig -> IO () -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
+init :: AppConfig -> IO () -> Maybe Text -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller schemaCacheLoadUri = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -62,7 +72,47 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer appKiller
+  appState <- initWithPool pool conf loggerState metricsState observer appKiller
+
+  runInitialSchemaCacheLoader observer schemaCacheLoadUri appState
+
+  pure appState
+
+runInitialSchemaCacheLoader :: ObservationHandler -> Maybe Text -> AppState -> IO ()
+runInitialSchemaCacheLoader observer schemaCacheLoadUri AppState{stateSchemaCache, stateSCacheStatus=SchemaCacheStatus{getSCStatusTMVar}} = do
+  void $ forkIO $
+    traverse (fetchInitialSchemaCache observer) schemaCacheLoadUri >>= foldMap setInitialSchemaCache . join
+  where
+    setInitialSchemaCache sc =
+      whenM (atomically $ tryPutTMVar getSCStatusTMVar True) $
+        atomicModifyIORef stateSchemaCache $ (, ()) . maybe (Just sc) Just
+
+fetchInitialSchemaCache :: ObservationHandler -> Text -> IO (Maybe SchemaCache)
+fetchInitialSchemaCache observer uri = flip catches [
+  Handler (handleError @IOException),
+  Handler (handleError @HC.HttpException),
+  Handler (handleError @JSON.AesonException)
+  ] $ maybe (throwIO $ userError "Invalid schema cache dump URI") pure =<< traverse fetchURI (parseURI $ toS uri)
+  where
+    handleError :: Show e => e -> IO (Maybe a)
+    handleError = (Nothing <$) . observer . SchemaCacheInitialLoadFailureObs uri . show
+
+    fetchURI URI{uriScheme, ..}
+      | uriScheme == "file:" = do
+          path <- fileURIPath uriAuthority uriPath
+          Just <$> (JSON.throwDecode =<< LBS.readFile path)
+      | uriScheme `elem` ["http:", "https:"] = do
+          request <- HC.parseUrlThrow $ toS uri
+          manager <- HC.newManager HC.defaultManagerSettings
+          HC.withResponse request manager $ \response ->
+            Just <$> (JSON.throwDecode . LBS.fromChunks =<< HC.brConsume (HC.responseBody response))
+      | otherwise =
+          throwIO $ userError $ "Unsupported schema cache dump URI scheme: " <> uriScheme
+
+    fileURIPath Nothing path = pure $ unEscapeString path
+    fileURIPath (Just URIAuth{uriRegName=""}) path = pure $ unEscapeString path
+    fileURIPath (Just URIAuth{uriRegName="localhost"}) path = pure $ unEscapeString path
+    fileURIPath _ _ = throwIO $ userError "Only local file URIs are supported"
 
 initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
 initWithPool pool conf loggerState metricsState observer appKiller = mdo
