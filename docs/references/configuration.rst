@@ -767,7 +767,7 @@ log-level
   =============== =================================
   **Type**        String
   **Default**     error
-  **Reloadable**  N
+  **Reloadable**  Y
   **Environment** PGRST_LOG_LEVEL
   **In-Database** `n/a`
   =============== =================================

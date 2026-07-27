@@ -39,7 +39,7 @@ import           PostgREST.Version       (prettyVersion)
 import Control.AutoUpdate         (defaultUpdateSettings, mkAutoUpdate,
                                    updateAction)
 import Control.Concurrent.STM     (newEmptyTMVarIO)
-import Data.IORef                 (newIORef, readIORef)
+import Data.IORef                 (IORef, newIORef, readIORef)
 import Data.Time.Clock            (getCurrentTime)
 import PostgREST.AppState.Pool    (destroy, initPool, usePool)
 import PostgREST.AppState.Reload  (isSchemaCacheLoaded, readInDbConfig,
@@ -54,26 +54,29 @@ import PostgREST.Debounce         (makeDebouncer)
 import Protolude
 
 init :: AppConfig -> IO () -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} appKiller = do
-  loggerState  <- Logger.init
+init conf@AppConfig{configDbPoolSize} appKiller = do
+  -- We need to create IORef first, so we can make its read action part of
+  -- loggerState. This is needed for log-level config reloading.
+  confRef <- newIORef conf
+  loggerState  <- Logger.init (configLogLevel <$> readIORef confRef)
   metricsState <- Metrics.init configDbPoolSize
-  let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
+  let observer = liftA2 (>>) (Logger.observationLogger loggerState) (Metrics.observationMetrics metricsState)
 
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer appKiller
+  initWithPool pool confRef loggerState metricsState observer appKiller
 
-initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
-initWithPool pool conf loggerState metricsState observer appKiller = mdo
-
+initWithPool :: SQL.Pool -> IORef AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
+initWithPool pool confRef loggerState metricsState observer appKiller = mdo
+  conf <- readIORef confRef
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newSchemaCacheStatus
     <*> newIORef False
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
-    <*> newIORef conf
+    <*> pure confRef
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> pure appKiller
     <*> newIORef 0

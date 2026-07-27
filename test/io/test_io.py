@@ -1931,3 +1931,40 @@ def test_use_legacy_target_names(enabled, defaultenv):
         else:
             assert response.status_code == 400
             assert not has_warning_log and not has_hint_log
+
+
+def test_config_log_level_is_reloadable(tmp_path, defaultenv):
+    "Config log-level should be reloadable on SIGUSR2"
+
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    # Delete the env variable for "log-level" so the config file value isn't overridden
+    del defaultenv["PGRST_LOG_LEVEL"]
+
+    with run(configfile, env=defaultenv) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+        output = postgrest.read_stdout(nlines=5)
+
+        # log-level = error, so this log line shouldn't be logged
+        assert not any(
+            "Trying to borrow a connection from pool" in line for line in output
+        )
+
+        # change setting
+        configfile.write_text(
+            config.replace('log-level = "error"', 'log-level = "debug"')
+        )
+        # reload
+        postgrest.process.send_signal(signal.SIGUSR2)
+
+        sleep_until_postgrest_config_reload()
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+        output = postgrest.read_stdout(nlines=5)
+
+        # log-level = debug now, so this log line must be logged
+        assert any("Trying to borrow a connection from pool" in line for line in output)
