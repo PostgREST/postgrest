@@ -5,6 +5,7 @@ import qualified Hasql.Pool.Config          as P
 import qualified Hasql.Transaction.Sessions as HT
 
 import Data.Function (id)
+import Data.IORef    (newIORef, readIORef)
 
 import Test.Hspec
 
@@ -88,12 +89,13 @@ main = do
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool baseCfg
-  loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize baseCfg)
 
   let
     initApp sCache config = do
-      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState) mempty
+      confRef <- newIORef config
+      loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
+      appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState) mempty
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest appState (pure ()))
