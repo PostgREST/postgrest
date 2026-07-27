@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.16] - 2026-07-27
+
 ### Fixed
 
 - Fix admin server crashing without a way to recover by @taimoorzaeem in #5096
