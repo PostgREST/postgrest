@@ -28,7 +28,6 @@ All notable changes to this project will be documented in this file. From versio
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
 - Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
 - Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
-- Fix admin server crashing without a way to recover by @taimoorzaeem in #5096
 
 ### Changed
 
@@ -58,6 +57,12 @@ The `jwt-role-claim-key` config should be updated according to the following:
   + e.g. `?select=alias:table(*)&table.id=eq.1` will not be possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
   + You will see a warning in the logs when this happens.
   + You can disable this behavior now by setting `url-use-legacy-target-names = false`.
+
+## [14.16] - 2026-07-27
+
+### Fixed
+
+- Fix admin server crashing without a way to recover by @taimoorzaeem in #5096
 
 ## [14.15] - 2026-07-13
 
