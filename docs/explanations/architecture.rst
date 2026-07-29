@@ -92,4 +92,4 @@ The HTTP server is provided by `Warp <https://aosabook.org/en/posa/warp.html>`_.
 Listener
 --------
 
-`Listener.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Listener.hs>`_ is in charge of the :ref:`listener`.
+`Reload.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/AppState/Reload.hs>`_ is in charge of the :ref:`listener`.
