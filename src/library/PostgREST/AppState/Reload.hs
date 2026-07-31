@@ -149,11 +149,11 @@ waitForSchemaCacheLoaded = atomically . (check <=< readTMVar) . getSCStatusTMVar
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
 readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
-  conf <- getConfig appState
+  oldConf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
-    if configDbConfig conf then do
-      qDbSettings <- usePool appState (queryDbSettings (quoteQi <$> configDbPreConfig conf))
+    if configDbConfig oldConf then do
+      qDbSettings <- usePool appState (queryDbSettings (quoteQi <$> configDbPreConfig oldConf))
       case qDbSettings of
         Left e -> do
           observer $ ConfigReadErrorObs e
@@ -162,7 +162,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
     else
       pure mempty
   (roleSettings, roleIsolationLvl) <-
-    if configDbConfig conf then do
+    if configDbConfig oldConf then do
       rSettings <- usePool appState (queryRoleSettings pgVer)
       case rSettings of
         Left e -> do
@@ -171,7 +171,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
+  readAppConfig dbSettings (configFilePath oldConf) (Just $ configDbUri oldConf) roleSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
