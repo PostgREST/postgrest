@@ -38,18 +38,7 @@ All notable changes to this project will be documented in this file. From versio
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
 - Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
-
-#### Changed Syntax for JWT Role Extraction
-
-The `jwt-role-claim-key` config should be updated according to the following:
-
-- All config values must start with `$` character.
-  + Example: `.roles.read` -> `$.roles.read`
-- Keys with special characters, with the exception of `_` char must be quoted.
-  + Example: `.roles.write-role` -> `$.roles["write-role"]`
-- String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
-  + Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
-- Detailed reference for syntax: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
+  + See the [Changed Syntax for JWT Role Extraction](https://docs.postgrest.org/en/latest/how-tos/migrate-to-v16.html) section to update your config according to new syntax.
 
 ### Deprecated
 
