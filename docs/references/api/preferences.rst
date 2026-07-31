@@ -66,7 +66,8 @@ Timezone
 
   ``handling=lenient`` is ignored for ``timezone``. Invalid time zones always return an error.
 
-The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
+The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_.
+It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_ and numeric offsets.
 
 .. code-block:: bash
 
@@ -86,6 +87,29 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
     {"t":"2023-10-18T07:37:59.611-07:00"},
     {"t":"2023-10-18T09:37:59.611-07:00"}
   ]
+
+Offsets are also accepted:
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/timestamps" \
+    -H "Prefer: timezone=05:30"
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json; charset=utf-8
+  Preference-Applied: timezone=05:30
+
+.. code-block:: json
+
+  [
+    {"t":"2023-10-18T17:07:59.611+05:30"},
+    {"t":"2023-10-18T19:07:59.611+05:30"},
+    {"t":"2023-10-18T21:07:59.611+05:30"}
+  ]
+
+You can also use negative offsets like ``-03:00``.
 
 For an invalid time zone, PostgREST returns a database error.
 
