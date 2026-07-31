@@ -70,7 +70,7 @@ class PostgrestProcess:
     def read_stdout(self, nlines=1):
         "Wait for line(s) on standard output."
         output = []
-        for _ in range(10):
+        for _ in range(15):
             self.process.stdout.flush()
             line = self.process.stdout.readline()
             if line:

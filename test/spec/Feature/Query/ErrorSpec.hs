@@ -40,12 +40,12 @@ spec withConfig = do
           }
 
       it "works with SchemaCache error" $
-        get "/non_existent_table"
+        get "/items?nonexistent=eq.1"
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.non_existent_table' in the schema cache"} |]
-          { matchStatus  = 404
-          , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                           , "Content-Length" <:> "129" ]
+          [json| {"code":"42703","details":null,"hint":null,"message":"column items.nonexistent does not exist"} |]
+          { matchStatus  = 400
+          , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=42703"
+                           , "Content-Length" <:> "95" ]
           }
 
       it "works with Jwt error" $ do
@@ -74,33 +74,6 @@ spec withConfig = do
           { matchStatus  = 332
           , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=123"
                            , "Content-Length" <:> "59" ]
-          }
-
-    context "show hint on PGRST205 table not found error" $ do
-      it "show hint when similarity score is at least 75%" $ do
-        get "/projectx" -- at least 75% similar to "projects"
-          `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.projects'","message":"Could not find the table 'test.projectx' in the schema cache"} |]
-          { matchStatus  = 404
-          , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                           , "Content-Length" <:> "160" ]
-          }
-
-        get "/projecxx" -- at least 75% similar to "projects"
-          `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.projects'","message":"Could not find the table 'test.projecxx' in the schema cache"} |]
-          { matchStatus  = 404
-          , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                           , "Content-Length" <:> "160" ]
-          }
-
-      it "don't show hint when similarity score is less than 75%" $
-        get "/projxxxx" -- less than 75% similar to "projects"
-          `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.projxxxx' in the schema cache"} |]
-          { matchStatus  = 404
-          , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                           , "Content-Length" <:> "119" ]
           }
 
     context "JWT Errors" $ do
@@ -231,7 +204,7 @@ spec withConfig = do
       request methodGet "/itemsx" [] ""
         `shouldRespondWith`
         [json|{
-          "code":"PGRST205",
-          "message":"Could not find the table 'test.itemsx' in the schema cache"
+          "code":"42P01",
+          "message":"relation \"test.itemsx\" does not exist"
         }|]
         { matchStatus = 404 }

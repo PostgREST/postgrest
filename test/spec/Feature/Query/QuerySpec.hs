@@ -28,9 +28,9 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "causes a 404" $
       get "/faketable"
       `shouldRespondWith`
-      [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.faketable' in the schema cache"} |]
+      [json|{"code":"42P01","details":null,"hint":null,"message":"relation \"test.faketable\" does not exist"}|]
       { matchStatus = 404
-      , matchHeaders = ["Content-Length" <:> "120"]
+      , matchHeaders = ["Content-Length" <:> "98"]
       }
 
   describe "Filtering response" $ do
@@ -854,8 +854,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
       -- the existence of first table, #3869
       it "table not found error if first table does not exist" $
         get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_model_sales_202101' in the schema cache"} |]
-          { matchStatus  = 404
+          [json|{"code":"PGRST200","details":"Searched for a foreign key relationship between 'car_model_sales_202101' and 'car_models' in the schema 'test', but no matches were found.","hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.","message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"}|]
+          { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 
@@ -872,8 +872,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
 
       it "table not found error if first table does not exist" $
         get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_models_default' in the schema cache"} |]
-          { matchStatus  = 404
+          [json| {"code":"PGRST200","details":"Searched for a foreign key relationship between 'car_models_default' and 'car_model_sales' in the schema 'test', but no matches were found.","hint":"Perhaps you meant 'car_model_sales' instead of 'car_models_default'.","message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
+          { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 

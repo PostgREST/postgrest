@@ -480,7 +480,7 @@ spec withConfig = withConfig baseCfg $ do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.garlic' in the schema cache"} |]
+          [json|{"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.garlic' in the schema cache"}|]
           { matchStatus  = 404
           , matchHeaders = []
           }
