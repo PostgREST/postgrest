@@ -75,6 +75,7 @@ initWithPool pool confRef loggerState metricsState observer appKiller = mdo
     <*> newIORef Nothing
     <*> newSchemaCacheStatus
     <*> newIORef False
+    <*> newIORef Nothing
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
     <*> pure confRef
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }

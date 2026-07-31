@@ -2,6 +2,7 @@
 Module      : PostgREST.AppState.Types
 Description : AppState data type and stateful functions
 -}
+{-# LANGUAGE DeriveAnyClass #-}
 module PostgREST.AppState.Types where
 
 import qualified Hasql.Pool              as SQL
@@ -32,6 +33,8 @@ data AppState = AppState
   , stateSCacheStatus     :: SchemaCacheStatus
   -- | State of the LISTEN channel
   , stateIsListenerOn     :: IORef Bool
+  -- | Listener Thread ID
+  , stateListenerThreadId :: IORef (Maybe ThreadId)
   -- | starts the connection worker with a debounce
   , debouncedSCacheLoader :: IO ()
   -- | Config that can change at runtime
@@ -57,6 +60,12 @@ data AppState = AppState
 newtype SchemaCacheStatus = SchemaCacheStatus
   { getSCStatusTMVar :: TMVar Bool
   }
+
+-- |
+-- We define a custom exception and throw this on listener reload. The
+-- KillThread exception can occur in an unexpected scenario, so we should
+-- avoid using that.
+data ListenerException = ListenerRestart deriving (Show, Exception)
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
@@ -93,6 +102,12 @@ killApp = stateKillApp
 
 putIsListenerOn :: AppState -> Bool -> IO ()
 putIsListenerOn = atomicWriteIORef . stateIsListenerOn
+
+getListenerThreadId :: AppState -> IO (Maybe ThreadId)
+getListenerThreadId = readIORef . stateListenerThreadId
+
+putListenerThreadId :: AppState -> Maybe ThreadId -> IO ()
+putListenerThreadId = atomicWriteIORef . stateListenerThreadId
 
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver

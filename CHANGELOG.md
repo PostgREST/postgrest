@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file. From versio
 - Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
 - Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
 - Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
+- Fix config `db-channel-enabled` not reloadable on config reload by @taimoorzaeem in #4894
 
 ### Changed
 

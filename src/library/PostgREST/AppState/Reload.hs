@@ -184,10 +184,19 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       -- entries, because they were cached using the old secret
       update (getJwtCacheState appState) newConf
 
+      -- If db-channel-enabled is changed, then reload listener
+      when (((/=) `on` configDbChannelEnabled) newConf oldConf) $ do
+        -- 1. Kill the listener thread
+        getListenerThreadId appState >>= mapM_ (`throwTo` ListenerRestart)
+        putIsListenerOn appState False
+        -- 2. Restart listener
+        runListener appState
+
       if startingUp then
         pass
       else
         observer ConfigSucceededObs
+
 
 -- | Starts the Listener in a thread
 runListener :: AppState -> IO ()
@@ -195,31 +204,35 @@ runListener appState = do
   AppConfig{..} <- getConfig appState
   when configDbChannelEnabled $ do
     nextDelay <- newIORef 1
-    void . forkIO . void $ retryingListen appState nextDelay False
+    listenerThreadId <- forkIO . void $ retryingListen appState nextDelay False
+    putListenerThreadId appState (Just listenerThreadId)
 
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
 -- | This function never returns (but can throw) and return type enforces that.
-retryingListen :: AppState -> IORef Int -> Bool -> IO Void
+retryingListen :: AppState -> IORef Int -> Bool -> IO ()
 retryingListen appState nextDelay hasDbListenerBug = do
   cfg@AppConfig{..} <- getConfig appState
   let
     dbChannel = toS configDbChannel
-    onError err = do
-      putIsListenerOn appState False
-      observer $ DBListenFail dbChannel (Right err)
-      when (isDbListenerBug err) $
-        observer DBListenBugCallQueryFix
-      unless configDbPoolAutomaticRecovery $
-        killApp appState
 
-      -- retry the listener
-      delay <- readIORef nextDelay
-      observer $ DBListenRetry delay
-      threadDelay (delay * oneSecondInMicro)
-      unless (delay == maxDelay) $
-        writeIORef nextDelay (delay * 2)
-      -- loop running the listener
-      retryingListen appState nextDelay (isDbListenerBug err)
+    onError err = case fromException err of
+      Just ListenerRestart -> traverse_ killThread =<< getListenerThreadId appState
+      Nothing -> do -- for any other exception
+        putIsListenerOn appState False
+        observer $ DBListenFail dbChannel (Right err)
+        when (isDbListenerBug err) $
+          observer DBListenBugCallQueryFix
+        unless configDbPoolAutomaticRecovery $
+          killApp appState
+
+        -- retry the listener
+        delay <- readIORef nextDelay
+        observer $ DBListenRetry delay
+        threadDelay (delay * oneSecondInMicro)
+        unless (delay == maxDelay) $
+          writeIORef nextDelay (delay * 2)
+        -- loop running the listener
+        retryingListen appState nextDelay (isDbListenerBug err)
 
   -- Execute the listener with error handling
   handle onError $ do
