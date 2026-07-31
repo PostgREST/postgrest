@@ -1968,3 +1968,61 @@ def test_config_log_level_is_reloadable(tmp_path, defaultenv):
 
         # log-level = debug now, so this log line must be logged
         assert any("Trying to borrow a connection from pool" in line for line in output)
+
+
+def test_config_db_channel_enabled_is_reloadable(tmp_path, defaultenv):
+    "Config db-channel-enabled should be reloadable on SIGUSR2"
+
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    with run(configfile, env=defaultenv, no_startup_stdout=False) as postgrest:
+        output = postgrest.read_stdout(nlines=7)
+
+        # db-channel-enabled = false, so this shouldn't be logged
+        assert not any(
+            f'"{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            in line
+            for line in output
+        )
+
+        # change setting
+        configfile.write_text(
+            config.replace(
+                'db-channel-enabled = "false"', 'db-channel-enabled = "true"'
+            )
+        )
+
+        # reload
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+
+        output = postgrest.read_stdout(nlines=7)
+
+        # db-channel-enabled = true, so this logged
+        assert any(
+            f'"{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            in line
+            for line in output
+        )
+
+        # change setting back to false
+        configfile.write_text(
+            configfile.read_text().replace(
+                'db-channel-enabled = "true"', 'db-channel-enabled = "false"'
+            )
+        )
+
+        # reload
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+
+        output = postgrest.read_stdout(nlines=7)
+
+        # db-channel-enabled = false, so this shouldn't be logged
+        assert not any(
+            f'"{defaultenv["PGHOST"]}:5432" and listening for database notifications on the "pgrst" channel'
+            in line
+            for line in output
+        )
