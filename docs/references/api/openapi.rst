@@ -66,23 +66,33 @@ You can override the whole default response with a function result. To do this, 
 
    db-root-spec = "root"
 
+When this function is called, the ``request.root.configs`` GUC contains a JSON object with the following keys:
+
+* ``server_host`` (string)
+* ``server_port`` (string)
+* ``openapi_server_proxy_uri`` (string)
+* ``db_schemas`` (JSON array of strings)
+* ``version`` (string)
+
+The root spec function can read this JSON and use its values when constructing the response:
+
 .. code:: postgres
 
   create or replace function root() returns json as $_$
   declare
-  openapi json = $$
-    {
-      "swagger": "2.0",
-      "info":{
-        "title":"Overridden",
-        "description":"This is a my own API"
-      }
-    }
-  $$;
+  configs json := current_setting('request.root.configs', true)::json;
   begin
-    return openapi;
+    return json_build_object(
+      'swagger', '2.0',
+      'info', json_build_object(
+        'title', 'Overridden',
+        'description', 'This is my own API',
+        'version', configs->>'version'
+      )
+    );
   end
   $_$ language plpgsql;
+
 
 .. code-block:: bash
 
@@ -96,6 +106,7 @@ You can override the whole default response with a function result. To do this, 
     "swagger": "2.0",
     "info":{
       "title":"Overridden",
-      "description":"This is a my own API"
+      "description":"This is my own API",
+      "version":"14.0.0"
     }
   }
