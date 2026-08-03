@@ -8,11 +8,9 @@ This module provides implementation of a mutable cache on Sieve algorithm.
 {-# LANGUAGE GADTs           #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE PolyKinds       #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RecursiveDo     #-}
 {-# LANGUAGE StrictData      #-}
-{-# LANGUAGE TupleSections   #-}
 
 module PostgREST.Cache.Sieve (
       Cache

@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-|
 Module      : PostgREST.Observation
 Description : This module holds an Observation type which is the core of Observability for PostgREST.

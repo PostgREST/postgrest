@@ -1,6 +1,5 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE NamedFieldPuns   #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Observation.JwtCache where
 
 import Network.Wai (Application)

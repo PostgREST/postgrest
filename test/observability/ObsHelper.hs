@@ -1,14 +1,6 @@
-{-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DeriveAnyClass            #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE LambdaCase                #-}
-{-# LANGUAGE RankNTypes                #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeApplications          #-}
-{-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE LambdaCase          #-}
 module ObsHelper where
 
 import qualified Data.ByteString                 as BS
@@ -175,7 +167,7 @@ accumulateUntilTimeout t f start act = do
   -- mask to make sure TimeoutException is not thrown before starting the loop
   mask $ \unmask -> do
     -- start timeout thread unmasking exceptions
-    ttid <- forkIOWithUnmask ($ (threadDelay t *> throwTo tid TimeoutException))
+    ttid <- forkIOWithUnmask (\unmask' -> unmask' (threadDelay t *> throwTo tid TimeoutException))
     -- unmask effect
     unmask (fix (\loop accum -> (act >>= loop . f accum) `onTimeout` pure accum) start)
       -- make sure we catch timeout if happens before entering the loop

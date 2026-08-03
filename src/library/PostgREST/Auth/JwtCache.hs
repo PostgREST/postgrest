@@ -4,13 +4,9 @@ Description : PostgREST JWT validation results Cache.
 
 This module provides functions to deal with the JWT cache.
 -}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE LambdaCase                #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE StrictData                #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StrictData     #-}
 
 module PostgREST.Auth.JwtCache
   ( init
