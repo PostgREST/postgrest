@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 module Feature.Auth.JwtCacheSpec where
 
 import qualified Data.Map as M

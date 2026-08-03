@@ -38,10 +38,9 @@ flag hpc
   description: Enable HPC (dev only)
 
 library
-  default-language:   Haskell2010
+  default-language:   GHC2021
   default-extensions: OverloadedStrings
                       NoImplicitPrelude
-                      NumericUnderscores
   hs-source-dirs:     src/library
   exposed-modules:    PostgREST.Admin
                       PostgREST.App
@@ -193,7 +192,7 @@ library
       unix
 
 executable postgrest
-  default-language:   Haskell2010
+  default-language:   GHC2021
   default-extensions: OverloadedStrings
                       NoImplicitPrelude
   hs-source-dirs:     src/executable
@@ -217,11 +216,10 @@ executable postgrest
 
 test-suite spec
   type:               exitcode-stdio-1.0
-  default-language:   Haskell2010
+  default-language:   GHC2021
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-                      NumericUnderscores
   hs-source-dirs:     test/spec
   main-is:            Main.hs
   other-modules:      Feature.Auth.AsymmetricJwtSpec
@@ -318,11 +316,10 @@ test-suite spec
 
 test-suite observability
   type:               exitcode-stdio-1.0
-  default-language:   Haskell2010
+  default-language:   GHC2021
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-                      NumericUnderscores
   hs-source-dirs:     test/observability
   main-is:            Main.hs
   other-modules:      ObsHelper
@@ -353,7 +350,7 @@ test-suite observability
 
 test-suite doctests
   type:               exitcode-stdio-1.0
-  default-language:   Haskell2010
+  default-language:   GHC2021
   hs-source-dirs:     test/doc
   main-is:            Main.hs
   build-depends:      base              >= 4.9 && < 4.22

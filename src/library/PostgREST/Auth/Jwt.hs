@@ -4,8 +4,6 @@ Description : PostgREST JWT support functions.
 
 This module provides functions to deal with JWT parsing and validation (http://jwt.io).
 -}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE ImpredicativeTypes    #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE NamedFieldPuns        #-}

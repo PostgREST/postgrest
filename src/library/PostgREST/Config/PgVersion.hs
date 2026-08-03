@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
 module PostgREST.Config.PgVersion
   ( PgVersion(..)
   , minimumPgVersion

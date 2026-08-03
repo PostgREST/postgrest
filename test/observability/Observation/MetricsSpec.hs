@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE TypeApplications    #-}
 
 module Observation.MetricsSpec where
 

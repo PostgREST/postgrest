@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 module SpecHelper where
 
 import qualified Data.Aeson             as JSON

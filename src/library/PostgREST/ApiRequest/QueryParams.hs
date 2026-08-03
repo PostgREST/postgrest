@@ -4,8 +4,7 @@
 --
 -- This module is in charge of parsing all the querystring values in an url, e.g.
 -- the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
 module PostgREST.ApiRequest.QueryParams
   ( parse
   , QueryParams(..)
