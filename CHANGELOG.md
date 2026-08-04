@@ -18,7 +18,6 @@ All notable changes to this project will be documented in this file. From versio
 - Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
 - Make config `log-level` reloadable by @taimoorzaeem in #5113
 - Optimize schema cache domain type resolution by using `pg_basetype` on PostgreSQL 17+ by @joelonsql in #4567
-- When `db-root-spec` is used, a `request.root.configs` GUC will be available to build a complete custom OpenAPI response by @steve-chavez in #3029
 
 ### Fixed
 

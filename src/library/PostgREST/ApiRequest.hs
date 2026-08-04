@@ -57,7 +57,6 @@ import Protolude
 -}
 data ApiRequest = ApiRequest {
     iAction              :: Action                           -- ^ Action on the resource
-  , iIsRootRoutine       :: Bool                             -- ^ If the request wants the root routine
   , iRange               :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
   , iTopLevelRange       :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
@@ -77,7 +76,7 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf prefs req reqBody = do
-  (resource, isRootRoutine) <- getResource conf $ pathInfo req
+  resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
   qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
@@ -95,7 +94,6 @@ userApiRequest conf prefs req reqBody = do
   , iCookies = iCkies
   , iPath = rawPathInfo req
   , iMethod = method
-  , iIsRootRoutine = isRootRoutine
   , iSchema = schema
   , iNegotiatedByProfile = negotiatedByProfile
   , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
@@ -118,16 +116,16 @@ userPreferences conf req timezones = Preferences.fromHeaders (configDbTxAllowOve
 userBearerAuth :: Request -> Maybe ByteString
 userBearerAuth req = extractBearerAuth =<< lookup hAuthorization (requestHeaders req)
 
-getResource :: AppConfig -> [Text] -> Either ApiRequestError (Resource, Bool)
+getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
   []             ->
       case (configOpenApiMode,configDbRootSpec) of
         (OADisabled,_) -> Left OpenAPIDisabled
-        (_, Just qi)   -> Right (ResourceRoutine (qiName qi), True)
-        (_, Nothing)   -> Right (ResourceSchema, False)
+        (_, Just qi)   -> Right $ ResourceRoutine (qiName qi)
+        (_, Nothing)   -> Right ResourceSchema
 
-  [table]        -> Right (ResourceRelation table, False)
-  ["rpc", pName] -> Right (ResourceRoutine pName , False)
+  [table]        -> Right $ ResourceRelation table
+  ["rpc", pName] -> Right $ ResourceRoutine pName
   _              -> Left InvalidResourcePath
 
 getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action

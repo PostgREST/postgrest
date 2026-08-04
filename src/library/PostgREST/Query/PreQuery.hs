@@ -29,7 +29,6 @@ import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           setConfigWithDynamicName)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine     (Routine (..))
-import PostgREST.Version                 (prettyVersion)
 
 import Protolude hiding (Handler)
 
@@ -39,7 +38,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
     "select " <> intercalateSnippet ", " (
-      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql ++ rootSpecSettingsSql
+      searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql
     )
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -53,20 +52,6 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     roleSql = [setConfigWithConstantName ("role", authRole)]
     roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup authRole configRoleSettings)
     appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings
-    rootSpecSettingsSql
-      | iIsRootRoutine =
-          [ setConfigWithConstantName
-              ( "request.root.configs"
-              , LBS.toStrict $ JSON.encode $ JSON.object
-                  [ "server_host"                JSON..= configServerHost
-                  , "server_port"                JSON..= (show configServerPort :: Text)
-                  , "openapi_server_proxy_uri"   JSON..= configOpenApiServerProxyUri
-                  , "db_schemas"                 JSON..= toList configDbSchemas
-                  , "version"                    JSON..= decodeUtf8 prettyVersion
-                  ]
-              )
-          ]
-      | otherwise = mempty
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
     funcSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> funcSettings
     searchPathSql =
