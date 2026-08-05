@@ -119,11 +119,14 @@ Releases
 PostgREST follows ``MAJOR.PATCH`` two-part versioning:
 
 - ``MAJOR``: feature release, may deprecate or remove things.
-- ``PATCH``: fix/security release only; no features, no behavior changes.
+- ``PATCH``: fix/security release only, no features and no behavior changes.
 
-Starting from ``v14.0``, only even-numbered MAJOR versions will be released, reserving odd-numbered MAJOR versions for development.
+MAJOR releases are published twice a year, with their scope and target dates tracked through `GitHub milestones <https://github.com/PostgREST/postgrest/milestones>`_.
+PATCH releases are published on an as-needed basis.
 
-All the releases are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_.
+Starting from ``v14.0``, only even-numbered MAJOR versions are released, reserving odd-numbered MAJOR versions for development.
+
+All releases are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_, along with the corresponding upgrade guides.
 
 Tutorials
 ---------
