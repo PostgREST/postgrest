@@ -8,7 +8,8 @@ import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }) $
-  describe "GET / with proxy" $
-    it "returns a valid openapi spec with proxy" $
-      validateOpenApiResponse [("Accept", "application/openapi+json")]
+spec withConfig =
+  withConfig (baseCfg{configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json"}) $
+    describe "GET / with proxy" $
+      it "returns a valid openapi spec with proxy" $
+        validateOpenApiResponse [("Accept", "application/openapi+json")]

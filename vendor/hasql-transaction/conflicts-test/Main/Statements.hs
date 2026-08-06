@@ -1,9 +1,9 @@
 module Main.Statements where
 
-import qualified Hasql.Decoders  as D
-import qualified Hasql.Encoders  as E
-import           Hasql.Statement
-import           Prelude
+import qualified Hasql.Decoders as D
+import qualified Hasql.Encoders as E
+import Hasql.Statement
+import Prelude
 
 createAccountTable :: Statement () ()
 createAccountTable =

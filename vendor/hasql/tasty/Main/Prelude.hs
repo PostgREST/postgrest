@@ -1,5 +1,5 @@
 module Main.Prelude
-  ( module Exports,
+  ( module Exports
   )
 where
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
+
 module PostgREST.Config.PgVersion
-  ( PgVersion(..)
+  ( PgVersion (..)
   , minimumPgVersion
   , pgVersion150
   , pgVersion170
@@ -8,14 +9,13 @@ module PostgREST.Config.PgVersion
   , pgVersion190
   ) where
 
-import qualified Data.Aeson as JSON
+import Data.Aeson qualified as JSON
 
 import Protolude
 
-
 data PgVersion = PgVersion
-  { pgvNum      :: Int32
-  , pgvName     :: Text
+  { pgvNum :: Int32
+  , pgvName :: Text
   , pgvFullName :: Text
   }
   deriving (Eq, Generic, JSON.ToJSON)

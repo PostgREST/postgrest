@@ -1,13 +1,12 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module PostgREST.SchemaCache.Representations
-  ( DataRepresentation(..)
+  ( DataRepresentation (..)
   , RepresentationsMap
   ) where
 
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as HM
-
+import Data.Aeson qualified as JSON
+import Data.HashMap.Strict qualified as HM
 
 import Protolude
 
@@ -21,8 +20,9 @@ import Protolude
 data DataRepresentation = DataRepresentation
   { drSourceType :: Text
   , drTargetType :: Text
-  , drFunction   :: Text
-  } deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
+  , drFunction :: Text
+  }
+  deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
 
 -- The representation map maps from (source type, target type) to a DR.
 type RepresentationsMap = HM.HashMap (Text, Text) DataRepresentation

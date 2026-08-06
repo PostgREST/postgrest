@@ -4,18 +4,18 @@
 -- Specific interpreters are encouraged to be created as extension libraries.
 module Hasql.Pool.Observation where
 
-import           Hasql.Pool.Prelude
-import qualified Hasql.Session      as Session
+import Hasql.Pool.Prelude
+import Hasql.Session qualified as Session
 
 -- | An observation of a change of the state of a pool.
 data Observation
   = -- | Status of one of the pool's connections has changed.
     ConnectionObservation
-      -- | Generated connection ID.
-      -- For grouping the observations by one connection.
       UUID
-      -- | Status that the connection has entered.
+      -- ^ Generated connection ID.
+      -- For grouping the observations by one connection.
       ConnectionStatus
+      -- ^ Status that the connection has entered.
   deriving (Show, Eq)
 
 -- | Status of a connection.

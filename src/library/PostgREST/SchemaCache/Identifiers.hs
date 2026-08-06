@@ -2,8 +2,8 @@
 
 module PostgREST.SchemaCache.Identifiers
   ( FieldName
-  , QualifiedIdentifier(..)
-  , RelIdentifier(..)
+  , QualifiedIdentifier (..)
+  , RelIdentifier (..)
   , Schema
   , TableName
   , escapeIdent
@@ -13,8 +13,8 @@ module PostgREST.SchemaCache.Identifiers
   , trimNullChars
   ) where
 
-import qualified Data.Aeson as JSON
-import qualified Data.Text  as T
+import Data.Aeson qualified as JSON
+import Data.Text qualified as T
 
 import Protolude
 
@@ -27,7 +27,7 @@ instance Hashable RelIdentifier
 -- TODO: Refactor this, we also use QI for procedure names
 data QualifiedIdentifier = QualifiedIdentifier
   { qiSchema :: Schema
-  , qiName   :: TableName
+  , qiName :: TableName
   }
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 
@@ -51,7 +51,7 @@ quoteQi (QualifiedIdentifier s i) =
 toQi :: Text -> QualifiedIdentifier
 toQi txt = case T.drop 1 <$> T.breakOn "." txt of
   (i, "") -> QualifiedIdentifier mempty i
-  (s, i)  -> QualifiedIdentifier s i
+  (s, i) -> QualifiedIdentifier s i
 
 escapeIdent :: Text -> Text
 escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""

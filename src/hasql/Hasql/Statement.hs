@@ -1,6 +1,6 @@
 module Hasql.Statement
-  ( Statement (..),
-    refineResult,
+  ( Statement (..)
+  , refineResult
 
     -- * Recipes
 
@@ -12,10 +12,10 @@ module Hasql.Statement
   )
 where
 
-import qualified Hasql.Decoders     as Decoders
-import qualified Hasql.Decoders.All as Decoders
-import qualified Hasql.Encoders     as Encoders
-import           Hasql.Prelude
+import Hasql.Decoders qualified as Decoders
+import Hasql.Decoders.All qualified as Decoders
+import Hasql.Encoders qualified as Encoders
+import Hasql.Prelude
 
 -- |
 -- Specification of a strictly single-statement query, which can be parameterized and prepared.
@@ -41,7 +41,8 @@ import           Hasql.Prelude
 -- and produces a single result of type 'Int64'.
 data Statement params result
   = Statement
-      -- | SQL template.
+      ByteString
+      -- ^ SQL template.
       --
       -- Must be formatted according to the Postgres standard,
       -- with any non-ASCII characters of the template encoded using UTF-8.
@@ -49,16 +50,15 @@ data Statement params result
       -- @$1@, @$2@, @$3@ and etc.
       -- These references must be used in accordance with the order in which
       -- the value encoders are specified in the parameters encoder.
-      ByteString
-      -- | Parameters encoder.
       (Encoders.Params params)
-      -- | Decoder of result.
+      -- ^ Parameters encoder.
       (Decoders.Result result)
-      -- | Flag, determining whether it can be prepared.
+      -- ^ Decoder of result.
+      Bool
+      -- ^ Flag, determining whether it can be prepared.
       --
       -- Set it to 'True' if your application has a limited amount of queries and doesn't generate the SQL dynamically.
       -- This will boost the performance by allowing Postgres to avoid reconstructing the execution plan each time the query gets executed.
-      Bool
 
 instance Functor (Statement params) where
   {-# INLINE fmap #-}

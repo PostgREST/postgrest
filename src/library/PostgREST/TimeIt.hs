@@ -17,4 +17,3 @@ timeItT p = do
   e <- liftIO getMonotonicTime
   let time = (e - s) * 1000
   return (time, x)
-

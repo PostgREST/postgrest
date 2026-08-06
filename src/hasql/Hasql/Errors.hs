@@ -1,23 +1,23 @@
 module Hasql.Errors where
 
-import qualified Data.ByteString.Char8 as BC
-import           Hasql.Prelude
+import Data.ByteString.Char8 qualified as BC
+import Hasql.Prelude
 
 -- | Error during execution of a session.
 data SessionError
   = -- | Error during the execution of a query.
     -- Comes packed with the query template and a textual representation of the provided params.
     QueryError
-      -- | SQL template.
       ByteString
-      -- | Parameters rendered as human-readable SQL literals.
+      -- ^ SQL template.
       [Text]
-      -- | Error details.
+      -- ^ Parameters rendered as human-readable SQL literals.
       CommandError
+      -- ^ Error details.
   | -- | Error during the execution of a pipeline.
     PipelineError
-      -- | Error details.
       CommandError
+      -- ^ Error details.
   deriving (Show, Eq)
 
 instance Exception SessionError where
@@ -45,22 +45,22 @@ instance Exception SessionError where
                     )
                     (0, 1, 0)
                     byteString
-             in (line, pos)
+            in  (line, pos)
 
           formatErrorContext :: ByteString -> ByteString -> Int -> ByteString
           formatErrorContext query message errorPos =
             let lines = BC.lines query
                 (lineNum, linePos) = findLineAndPos query errorPos
-             in BC.unlines (take lineNum lines)
+            in  BC.unlines (take lineNum lines)
                   <> BC.replicate (linePos - 1) ' '
                   <> "^ "
                   <> message
 
           prettyQuery :: ByteString
           prettyQuery = case queryContext of
-            Nothing             -> query
+            Nothing -> query
             Just (message, pos) -> formatErrorContext query message pos
-       in "QueryError!\n"
+      in  "QueryError!\n"
             <> "\n  Query:\n"
             <> BC.unpack prettyQuery
             <> "\n"
@@ -106,24 +106,24 @@ data CommandError
 data ResultError
   = -- | An error reported by the DB.
     ServerError
-      -- | __Code__. The SQLSTATE code for the error. It's recommended to use
+      ByteString
+      -- ^ __Code__. The SQLSTATE code for the error. It's recommended to use
       -- <http://hackage.haskell.org/package/postgresql-error-codes
       -- the "postgresql-error-codes" package> to work with those.
       ByteString
-      -- | __Message__. The primary human-readable error message(typically one
+      -- ^ __Message__. The primary human-readable error message(typically one
       -- line). Always present.
-      ByteString
-      -- | __Details__. An optional secondary error message carrying more
+      (Maybe ByteString)
+      -- ^ __Details__. An optional secondary error message carrying more
       -- detail about the problem. Might run to multiple lines.
       (Maybe ByteString)
-      -- | __Hint__. An optional suggestion on what to do about the problem.
+      -- ^ __Hint__. An optional suggestion on what to do about the problem.
       -- This is intended to differ from detail in that it offers advice
       -- (potentially inappropriate) rather than hard facts. Might run to
       -- multiple lines.
-      (Maybe ByteString)
-      -- | __Position__. Error cursor position as an index into the original
-      -- statement string. Positions are measured in characters not bytes.
       (Maybe Int)
+      -- ^ __Position__. Error cursor position as an index into the original
+      -- statement string. Positions are measured in characters not bytes.
   | -- |
     -- The database returned an unexpected result.
     -- Indicates an improper statement or a schema mismatch.

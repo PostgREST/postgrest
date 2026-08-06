@@ -1,8 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
-{-|
-Module      : PostgREST.Config.DeprecatedJSPath
--}
+
+-- |
+-- Module      : PostgREST.Config.DeprecatedJSPath
 module PostgREST.Config.DeprecatedJSPath
   ( DeprecatedJSPath
   , dumpDeprecatedJSPath
@@ -10,16 +10,16 @@ module PostgREST.Config.DeprecatedJSPath
   , evaluateDeprecatedJSPath
   ) where
 
-import qualified Data.Aeson                    as JSON
-import qualified Data.Aeson.Key                as K
-import qualified Data.Aeson.KeyMap             as KM
-import qualified Data.Text                     as T
-import qualified Data.Vector                   as V
-import qualified Text.ParserCombinators.Parsec as P
+import Data.Aeson qualified as JSON
+import Data.Aeson.Key qualified as K
+import Data.Aeson.KeyMap qualified as KM
+import Data.Text qualified as T
+import Data.Vector qualified as V
+import Text.ParserCombinators.Parsec qualified as P
 
-import Data.Either.Combinators       (mapLeft)
+import Data.Either.Combinators (mapLeft)
 import Text.ParserCombinators.Parsec ((<?>))
-import Text.Read                     (read)
+import Text.Read (read)
 
 import Protolude
 
@@ -32,10 +32,11 @@ import Protolude
 type DeprecatedJSPath = [JSPathExp]
 
 -- NOTE: We only accept one JSPFilter expr (at the end of input)
+
 -- | jspath expression
 data JSPathExp
-  = JSPKey Text         -- .property or ."property-dash"
-  | JSPIdx Int          -- [0]
+  = JSPKey Text -- .property or ."property-dash"
+  | JSPIdx Int -- [0]
   | JSPFilter FilterExp -- [?(@ == "match")]
 
 data FilterExp
@@ -56,28 +57,31 @@ dumpDeprecatedJSPath djsp = T.intercalate mempty (fmap dumpDepJSPathExp djsp)
       where
         expr =
           case cond of
-            EqualsCond text     -> " == " <> show text
-            NotEqualsCond text  -> " != " <> show text
+            EqualsCond text -> " == " <> show text
+            NotEqualsCond text -> " != " <> show text
             StartsWithCond text -> " ^== " <> show text
-            EndsWithCond text   -> " ==^ " <> show text
-            ContainsCond text   -> " *== " <> show text
+            EndsWithCond text -> " ==^ " <> show text
+            ContainsCond text -> " *== " <> show text
 
 -- | Evaluate JSPath on a JSON
 evaluateDeprecatedJSPath :: Maybe JSON.Value -> DeprecatedJSPath -> Maybe JSON.Value
-evaluateDeprecatedJSPath x                      []                = x
-evaluateDeprecatedJSPath (Just (JSON.Object o)) (JSPKey key:rest) = evaluateDeprecatedJSPath (KM.lookup (K.fromText key) o) rest
-evaluateDeprecatedJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = evaluateDeprecatedJSPath (ar V.!? idx) rest
+evaluateDeprecatedJSPath x [] = x
+evaluateDeprecatedJSPath (Just (JSON.Object o)) (JSPKey key : rest) = evaluateDeprecatedJSPath (KM.lookup (K.fromText key) o) rest
+evaluateDeprecatedJSPath (Just (JSON.Array ar)) (JSPIdx idx : rest) = evaluateDeprecatedJSPath (ar V.!? idx) rest
 evaluateDeprecatedJSPath (Just (JSON.Array ar)) [JSPFilter jspFilter] = case jspFilter of
-    EqualsCond txt     -> findFirstMatch (==) txt ar
-    NotEqualsCond txt  -> findFirstMatch (/=) txt ar
-    StartsWithCond txt -> findFirstMatch T.isPrefixOf txt ar
-    EndsWithCond txt   -> findFirstMatch T.isSuffixOf txt ar
-    ContainsCond txt   -> findFirstMatch T.isInfixOf txt ar
+  EqualsCond txt -> findFirstMatch (==) txt ar
+  NotEqualsCond txt -> findFirstMatch (/=) txt ar
+  StartsWithCond txt -> findFirstMatch T.isPrefixOf txt ar
+  EndsWithCond txt -> findFirstMatch T.isSuffixOf txt ar
+  ContainsCond txt -> findFirstMatch T.isInfixOf txt ar
   where
-    findFirstMatch matchWith pattern = find (\case
-      JSON.String txt -> pattern `matchWith` txt
-      _               -> False)
-evaluateDeprecatedJSPath _                      _                 = Nothing
+    findFirstMatch matchWith pattern =
+      find
+        ( \case
+            JSON.String txt -> pattern `matchWith` txt
+            _ -> False
+        )
+evaluateDeprecatedJSPath _ _ = Nothing
 
 -- Used for the config value "role-claim-key"
 pDeprecatedRoleClaimKey :: Text -> Either Text DeprecatedJSPath
@@ -119,9 +123,9 @@ pFilterConditionParser = do
   filt <- matchOperator
   P.spaces
   filt <$> pQuotedValue
-    where
-      matchOperator =
-        P.try (P.string "==^" $> EndsWithCond)
+  where
+    matchOperator =
+      P.try (P.string "==^" $> EndsWithCond)
         <|> P.try (P.string "==" $> EqualsCond)
         <|> P.try (P.string "!=" $> NotEqualsCond)
         <|> P.try (P.string "^==" $> StartsWithCond)
