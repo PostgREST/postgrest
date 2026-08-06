@@ -1,5 +1,6 @@
 personal_ws-1.1 en 0 utf-8
 api
+autoscaling
 API's
 APIs
 APISIX
@@ -34,6 +35,7 @@ DevOps
 Dramatiq
 dockerize
 enum
+ECS
 Enums
 Entra
 eq
