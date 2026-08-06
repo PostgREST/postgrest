@@ -5,51 +5,55 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude  hiding (get)
+import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig
 spec withConfig = withConfig baseCfg $ describe "authorization" $ do
-  let single = ("Accept","application/vnd.pgrst.object+json")
+  let single = ("Accept", "application/vnd.pgrst.object+json")
 
   it "denies access to tables that anonymous does not own" $
-    get "/authors_only" `shouldRespondWith`
-      [json| {
+    get "/authors_only"
+      `shouldRespondWith` [json| {
         "hint":null,
         "details":null,
         "code":"42501",
         "message":"permission denied for table authors_only"} |]
-      { matchStatus = 401
-      , matchHeaders = [ "WWW-Authenticate" <:> "Bearer"
-                       , "Content-Length" <:> "96" ]
-      }
+        { matchStatus = 401
+        , matchHeaders =
+            [ "WWW-Authenticate" <:> "Bearer"
+            , "Content-Length" <:> "96"
+            ]
+        }
 
   it "denies access to tables that postgrest_test_author does not own" $
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA" in
-    request methodGet "/private_table" [auth] ""
-      `shouldRespondWith`
-      [json| {
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"
+    in  request methodGet "/private_table" [auth] ""
+          `shouldRespondWith` [json| {
         "hint":null,
         "details":null,
         "code":"42501",
         "message":"permission denied for table private_table"} |]
-      { matchStatus = 403
-      , matchHeaders = ["Content-Length" <:> "97"]
-      }
+            { matchStatus = 403
+            , matchHeaders = ["Content-Length" <:> "97"]
+            }
 
   it "denies execution on functions that anonymous does not own" $
     post "/rpc/privileged_hello" [json|{"name": "anonymous"}|] `shouldRespondWith` 401
 
   it "allows execution on a function that postgrest_test_author owns" $
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA" in
-    request methodPost "/rpc/privileged_hello" [auth] [json|{"name": "jdoe"}|]
-      `shouldRespondWith` [json|"Privileged hello to jdoe"|]
-      { matchStatus = 200
-      , matchHeaders = [matchContentTypeJson]
-      }
+    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"
+    in  request methodPost "/rpc/privileged_hello" [auth] [json|{"name": "jdoe"}|]
+          `shouldRespondWith` [json|"Privileged hello to jdoe"|]
+            { matchStatus = 200
+            , matchHeaders = [matchContentTypeJson]
+            }
 
   it "returns jwt functions as jwt tokens" $
-    request methodPost "/rpc/login" [single]
+    request
+      methodPost
+      "/rpc/login"
+      [single]
       [json| { "id": "jdoe", "pass": "1234" } |]
       `shouldRespondWith` [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xuYW1lIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.KO-0PGp_rU-utcDBP6qwdd-Th2Fk-ICVt01I7QtTDWs"} |]
         { matchStatus = 200
@@ -57,7 +61,7 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
         }
 
   it "sql functions can encode custom and standard claims" $
-    request methodPost  "/rpc/jwt_test" [single] "{}"
+    request methodPost "/rpc/jwt_test" [single] "{}"
       `shouldRespondWith` [json| {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJqb2UiLCJzdWIiOiJmdW4iLCJhdWQiOiJldmVyeW9uZSIsImV4cCI6MTMwMDgxOTM4MCwibmJmIjoxMzAwODE5MzgwLCJpYXQiOjEzMDA4MTkzODAsImp0aSI6ImZvbyIsInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdCIsImh0dHA6Ly9wb3N0Z3Jlc3QuY29tL2ZvbyI6dHJ1ZX0.G2REtPnOQMUrVRDA9OnkPJTd8R0tf4wdYOlauh1E2Ek"} |]
         { matchStatus = 200
         , matchHeaders = [matchContentTypeSingular]
@@ -91,27 +95,28 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
-  it "fails when auth header is sent empty" $ do
-    let auth = authHeaderJWT ""
-    request methodGet "/authors_only" [auth] ""
-    `shouldRespondWith` [json| {"message":"Empty JWT is sent in Authorization header","code":"PGRST301","hint":null,"details":null} |]
-      { matchStatus = 401
-      , matchHeaders = [
-          "WWW-Authenticate" <:>
-          "Bearer error=\"invalid_token\", error_description=\"Empty JWT is sent in Authorization header\"",
-          "Content-Length" <:> "100"
-        ]
-      }
+  it "fails when auth header is sent empty" $
+    do
+      let auth = authHeaderJWT ""
+      request methodGet "/authors_only" [auth] ""
+      `shouldRespondWith` [json| {"message":"Empty JWT is sent in Authorization header","code":"PGRST301","hint":null,"details":null} |]
+        { matchStatus = 401
+        , matchHeaders =
+            [ "WWW-Authenticate"
+                <:> "Bearer error=\"invalid_token\", error_description=\"Empty JWT is sent in Authorization header\""
+            , "Content-Length" <:> "100"
+            ]
+        }
 
   it "fails with an expired token" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.f8__E6VQwYcDqwHmr9PG03uaZn8Zh1b0vbJ9DYS0AdM"
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json| {"message":"JWT expired","code":"PGRST303","hint":null,"details":null} |]
         { matchStatus = 401
-        , matchHeaders = [
-            "WWW-Authenticate" <:>
-            "Bearer error=\"invalid_token\", error_description=\"JWT expired\""
-          ]
+        , matchHeaders =
+            [ "WWW-Authenticate"
+                <:> "Bearer error=\"invalid_token\", error_description=\"JWT expired\""
+            ]
         }
 
   it "hides tables from users with invalid JWT" $ do
@@ -119,10 +124,10 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json| {"message":"Expected 3 parts in JWT; got 2","code":"PGRST301","hint":null,"details":null} |]
         { matchStatus = 401
-        , matchHeaders = [
-            "WWW-Authenticate" <:>
-            "Bearer error=\"invalid_token\", error_description=\"Expected 3 parts in JWT; got 2\""
-          ]
+        , matchHeaders =
+            [ "WWW-Authenticate"
+                <:> "Bearer error=\"invalid_token\", error_description=\"Expected 3 parts in JWT; got 2\""
+            ]
         }
 
   it "should fail when jwt contains no claims" $ do
@@ -143,93 +148,106 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
       `shouldRespondWith` 200
 
   it "fails when the exp claim is not a number" $ do
-    let jwtPayload = [json|
+    let jwtPayload =
+          [json|
           {
             "exp": "invalid",
             "role": "postgrest_test_author"
           }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'exp' claim must be a number"}|]
-        { matchStatus = 401 }
+      `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'exp' claim must be a number"}|]
+        { matchStatus = 401
+        }
 
   it "fails when the nbf claim is not a number" $ do
-    let jwtPayload = [json|
+    let jwtPayload =
+          [json|
           {
             "nbf": "invalid",
             "role": "postgrest_test_author"
           }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'nbf' claim must be a number"}|]
-        { matchStatus = 401 }
+      `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'nbf' claim must be a number"}|]
+        { matchStatus = 401
+        }
 
   it "fails when the iat claim is not a number" $ do
-    let jwtPayload = [json|
+    let jwtPayload =
+          [json|
           {
             "iat": "invalid",
             "role": "postgrest_test_author"
           }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'iat' claim must be a number"}|]
-        { matchStatus = 401 }
+      `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'iat' claim must be a number"}|]
+        { matchStatus = 401
+        }
 
   it "fails when the aud claim has a single value and it's not a string" $ do
-    let jwtPayload = [json|
+    let jwtPayload =
+          [json|
           {
             "aud": {"invalid": "value"},
             "role": "postgrest_test_author"
           }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
-        { matchStatus = 401 }
+      `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
+        { matchStatus = 401
+        }
 
   it "fails when the aud claim is an array but it has non-string elements" $ do
-    let jwtPayload = [json|
+    let jwtPayload =
+          [json|
           {
             "aud": [{"invalid": "value"}, "test"],
             "role": "postgrest_test_author"
           }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
-        { matchStatus = 401 }
+      `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
+        { matchStatus = 401
+        }
 
   describe "custom pre-request proc acting on id claim" $ do
-
     it "able to switch to postgrest_test_author role (id=1)" $
-      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MX0.gKw7qI50i9hMrSJW8BlTpdMEVmMXJYxlAqueGqpa_mE" in
-      request methodPost "/rpc/get_current_user" [auth]
-        [json| {} |]
-         `shouldRespondWith` [json|"postgrest_test_author"|]
-          { matchStatus = 200
-          , matchHeaders = []
-          }
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MX0.gKw7qI50i9hMrSJW8BlTpdMEVmMXJYxlAqueGqpa_mE"
+      in  request
+            methodPost
+            "/rpc/get_current_user"
+            [auth]
+            [json| {} |]
+            `shouldRespondWith` [json|"postgrest_test_author"|]
+              { matchStatus = 200
+              , matchHeaders = []
+              }
 
     it "able to switch to postgrest_test_default_role (id=2)" $
-      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mn0.nwzjMI0YLvVGJQTeoCPEBsK983b__gxdpLXisBNaO2A" in
-      request methodPost "/rpc/get_current_user" [auth]
-        [json| {} |]
-         `shouldRespondWith` [json|"postgrest_test_default_role"|]
-          { matchStatus = 200
-          , matchHeaders = []
-          }
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mn0.nwzjMI0YLvVGJQTeoCPEBsK983b__gxdpLXisBNaO2A"
+      in  request
+            methodPost
+            "/rpc/get_current_user"
+            [auth]
+            [json| {} |]
+            `shouldRespondWith` [json|"postgrest_test_default_role"|]
+              { matchStatus = 200
+              , matchHeaders = []
+              }
 
     it "raises error (id=3)" $
-      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6M30.OGxEJAf60NKZiTn-tIb2jy4rqKs_ZruLGWZ40TjrJsM" in
-      request methodPost "/rpc/get_current_user" [auth]
-        [json| {} |]
-         `shouldRespondWith` [json|{"hint":"Please contact administrator","details":null,"code":"P0001","message":"Disabled ID --> 3"}|]
-          { matchStatus = 400
-          , matchHeaders = []
-          }
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6M30.OGxEJAf60NKZiTn-tIb2jy4rqKs_ZruLGWZ40TjrJsM"
+      in  request
+            methodPost
+            "/rpc/get_current_user"
+            [auth]
+            [json| {} |]
+            `shouldRespondWith` [json|{"hint":"Please contact administrator","details":null,"code":"P0001","message":"Disabled ID --> 3"}|]
+              { matchStatus = 400
+              , matchHeaders = []
+              }
 
   it "allows 'Bearer' and 'bearer' as authentication schemes" $ do
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.B-lReuGNDwAlU1GOC476MlO0vAt9JNoHIlxg2vwMaO0"

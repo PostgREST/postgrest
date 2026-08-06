@@ -1,31 +1,36 @@
 module SpecHelper where
 
-import qualified Data.Aeson             as JSON
-import qualified Data.ByteString.Base64 as B64 (decodeLenient)
-import qualified Data.ByteString.Char8  as BS
-import qualified Data.ByteString.Lazy   as BL
-import qualified Data.Map.Strict        as M
-import qualified Data.Set               as S
-import qualified Jose.Jwa               as JWT
-import qualified Jose.Jws               as JWT
-import qualified Jose.Jwt               as JWT
+import Data.Aeson qualified as JSON
+import Data.ByteString.Base64 qualified as B64 (decodeLenient)
+import Data.ByteString.Char8 qualified as BS
+import Data.ByteString.Lazy qualified as BL
+import Data.Map.Strict qualified as M
+import Data.Set qualified as S
+import Jose.Jwa qualified as JWT
+import Jose.Jws qualified as JWT
+import Jose.Jwt qualified as JWT
 
-import Control.Lens          ((^?))
-import Data.Aeson            ((.=))
-import Data.CaseInsensitive  (CI (..), original)
-import Data.List             (lookup)
-import Data.List.NonEmpty    (fromList)
-import Data.Scientific       (toRealFloat)
-import Data.String           (String)
+import Control.Lens ((^?))
+import Data.Aeson ((.=))
+import Data.CaseInsensitive (CI (..), original)
+import Data.List (lookup)
+import Data.List.NonEmpty (fromList)
+import Data.Scientific (toRealFloat)
+import Data.String (String)
 import Data.Time.Clock.POSIX (getPOSIXTime)
-import Network.Wai           (Application)
-import Network.Wai.Test      (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.IO.Unsafe      (unsafePerformIO)
-import Text.Regex.TDFA       ((=~))
+import Network.Wai (Application)
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import System.IO.Unsafe (unsafePerformIO)
+import Text.Regex.TDFA ((=~))
 
-import PostgREST.Config                  (AppConfig (..), LogLevel (..),
-                                          OpenAPIMode (..), Verbosity (..),
-                                          defaultRoleJSPathKey, parseSecret)
+import PostgREST.Config
+  ( AppConfig (..)
+  , LogLevel (..)
+  , OpenAPIMode (..)
+  , Verbosity (..)
+  , defaultRoleJSPathKey
+  , parseSecret
+  )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Data.Aeson.Lens
@@ -33,16 +38,18 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
-import Protolude      hiding (get, toS)
+import Protolude hiding (get, toS)
 import Protolude.Conv (toS)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
-        case filter (\(n,_) -> n == hContentType) headers of
-          [(_,v)] -> if v == val
-                     then Nothing
-                     else Just $ "missing value:" <> toS val <> "\n"
-          _   -> Just "unexpected header: zero or multiple headers present\n"
+  case filter (\(n, _) -> n == hContentType) headers of
+    [(_, v)] ->
+      if v == val then
+        Nothing
+      else
+        Just $ "missing value:" <> toS val <> "\n"
+    _ -> Just "unexpected header: zero or multiple headers present\n"
 
 matchContentTypeJson :: MatchHeader
 matchContentTypeJson =
@@ -64,26 +71,28 @@ matchHeaderValuePresent :: HeaderName -> BS.ByteString -> MatchHeader
 matchHeaderValuePresent name val = MatchHeader $ \headers _ ->
   case lookup name headers of
     Just hdr -> if val `BS.isInfixOf` hdr then Nothing else Just $ "missing header value: " <> toS val <> "\n"
-    Nothing  -> Just $ "missing header: " <> toS (original name) <> "\n"
+    Nothing -> Just $ "missing header: " <> toS (original name) <> "\n"
 
 matchHeaderAbsent :: HeaderName -> MatchHeader
 matchHeaderAbsent name = MatchHeader $ \headers _body ->
   case lookup name headers of
-    Just _  -> Just $ "unexpected header: " <> toS (original name) <> "\n"
+    Just _ -> Just $ "unexpected header: " <> toS (original name) <> "\n"
     Nothing -> Nothing
 
 -- | Matches Server-Timing header has a well-formed metric with the given name
 matchServerTimingHasTiming :: String -> MatchHeader
 matchServerTimingHasTiming metric = MatchHeader $ \headers _body ->
   case lookup "Server-Timing" headers of
-    Just hdr -> if hdr =~ (metric <> ";dur=[[:digit:]]+.[[:digit:]]+")
-                  then Nothing
-                  else Just $ "missing metric: " <> metric <> "\n"
-    Nothing  -> Just "missing Server-Timing header\n"
+    Just hdr ->
+      if hdr =~ (metric <> ";dur=[[:digit:]]+.[[:digit:]]+") then
+        Nothing
+      else
+        Just $ "missing metric: " <> metric <> "\n"
+    Nothing -> Just "missing Server-Timing header\n"
 
 parseServerTimingHeader :: [Header] -> M.Map BS.ByteString Double
-parseServerTimingHeader []     = M.empty
-parseServerTimingHeader (h:hs) =
+parseServerTimingHeader [] = M.empty
+parseServerTimingHeader (h : hs) =
   case h of
     ("Server-Timing", timingHeader) ->
       let
@@ -98,29 +107,31 @@ parseServerTimingHeader (h:hs) =
         [name, durationText] ->
           case BS.split '=' durationText of
             [_, duration] -> (name,) <$> readMaybe (BS.unpack duration)
-            _             -> Nothing
+            _ -> Nothing
         _ -> Nothing
 
 validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do
   r <- request methodGet "/" headers ""
   liftIO $
-    let respStatus = simpleStatus r in
-    respStatus `shouldSatisfy`
-      \s -> s == Status { statusCode = 200, statusMessage="OK" }
+    let respStatus = simpleStatus r
+    in  respStatus
+          `shouldSatisfy` \s -> s == Status{statusCode = 200, statusMessage = "OK"}
   liftIO $
-    let respHeaders = simpleHeaders r in
-    respHeaders `shouldSatisfy`
-      \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
+    let respHeaders = simpleHeaders r
+    in  respHeaders
+          `shouldSatisfy` \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
   Just body <- pure $ JSON.decode (simpleBody r)
   Just schema <- liftIO $ JSON.decode <$> BL.readFile "test/spec/fixtures/openapi.json"
   let args :: M.Map Text JSON.Value
-      args = M.fromList
-        [ ( "schema", schema )
-        , ( "data", body ) ]
+      args =
+        M.fromList
+          [ ("schema", schema)
+          , ("data", body)
+          ]
       hdrs = acceptHdrs "application/json"
   request methodPost "/rpc/validate_json_schema" hdrs (JSON.encode args)
-      `shouldRespondWith` "true"
+    `shouldRespondWith` "true"
       { matchStatus = 200
       , matchHeaders = []
       }
@@ -128,62 +139,63 @@ validateOpenApiResponse headers = do
 type SpecWithConfig = (AppConfig -> SpecWith ((), Application) -> Spec) -> Spec
 
 baseCfg :: AppConfig
-baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
-  AppConfig {
-    configAppSettings               = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
-  , configClientErrorVerbosity      = Verbose
-  , configDbAggregates              = False
-  , configDbAnonRole                = Just "postgrest_test_anonymous"
-  , configDbChannel                 = mempty
-  , configDbChannelEnabled          = True
-  , configDbExtraSearchPath         = []
-  , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]
-  , configDbMaxRows                 = Nothing
-  , configDbPlanEnabled             = False
-  , configDbPoolSize                = 10
-  , configDbPoolAcquisitionTimeout  = 10
-  , configDbPoolMaxLifetime         = 1800
-  , configDbPoolMaxIdletime         = 600
-  , configDbPoolAutomaticRecovery   = True
-  , configDbPreRequest              = Just $ QualifiedIdentifier "test" "switch_role"
-  , configDbPreparedStatements      = True
-  , configDbRootSpec                = Nothing
-  , configDbSchemas                 = fromList ["test"]
-  , configDbConfig                  = False
-  , configDbPreConfig               = Nothing
-  , configDbUri                     = "postgresql://"
-  , configFilePath                  = Nothing
-  , configJWKS                      = rightToMaybe $ parseSecret secret
-  , configJwtAudience               = Nothing
-  , configJwtRoleClaimKey           = defaultRoleJSPathKey -- $.role
-  , configJwtSecret                 = Just secret
-  , configJwtSecretIsBase64         = False
-  , configJwtCacheMaxEntries        = 10
-  , configLogLevel                  = LogCrit
-  , configLogQuery                  = False
-  , configOpenApiMode               = OAFollowPriv
-  , configOpenApiSecurityActive     = False
-  , configOpenApiServerProxyUri     = Nothing
-  , configServerCorsAllowedOrigins  = []
-  , configServerHost                = "localhost"
-  , configServerPort                = 3000
-  , configServerReusePort           = False
-  , configServerTraceHeader         = Nothing
-  , configServerUnixSocket          = Nothing
-  , configServerUnixSocketMode      = 432
-  , configUrlUseLegacyTargetNames   = True
-  , configDbTxAllowOverride         = True
-  , configDbTxRollbackAll           = True
-  , configAdminServerHost           = "localhost"
-  , configAdminServerPort           = Nothing
-  , configAdminServerUnixSocket     = Nothing
-  , configAdminServerUnixSocketMode = 432
-  , configRoleSettings              = mempty
-  , configRoleIsoLvl                = mempty
-  , configInternalSCQuerySleepFst   = Nothing
-  , configInternalSCQuerySleepSnd   = Nothing
-  , configServerTimingEnabled       = True
-  }
+baseCfg =
+  let secret = encodeUtf8 "reallyreallyreallyreallyverysafe"
+  in  AppConfig
+        { configAppSettings = [("app.settings.app_host", "localhost"), ("app.settings.external_api_secret", "0123456789abcdef")]
+        , configClientErrorVerbosity = Verbose
+        , configDbAggregates = False
+        , configDbAnonRole = Just "postgrest_test_anonymous"
+        , configDbChannel = mempty
+        , configDbChannelEnabled = True
+        , configDbExtraSearchPath = []
+        , configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"]
+        , configDbMaxRows = Nothing
+        , configDbPlanEnabled = False
+        , configDbPoolSize = 10
+        , configDbPoolAcquisitionTimeout = 10
+        , configDbPoolMaxLifetime = 1800
+        , configDbPoolMaxIdletime = 600
+        , configDbPoolAutomaticRecovery = True
+        , configDbPreRequest = Just $ QualifiedIdentifier "test" "switch_role"
+        , configDbPreparedStatements = True
+        , configDbRootSpec = Nothing
+        , configDbSchemas = fromList ["test"]
+        , configDbConfig = False
+        , configDbPreConfig = Nothing
+        , configDbUri = "postgresql://"
+        , configFilePath = Nothing
+        , configJWKS = rightToMaybe $ parseSecret secret
+        , configJwtAudience = Nothing
+        , configJwtRoleClaimKey = defaultRoleJSPathKey
+        , configJwtSecret = Just secret
+        , configJwtSecretIsBase64 = False
+        , configJwtCacheMaxEntries = 10
+        , configLogLevel = LogCrit
+        , configLogQuery = False
+        , configOpenApiMode = OAFollowPriv
+        , configOpenApiSecurityActive = False
+        , configOpenApiServerProxyUri = Nothing
+        , configServerCorsAllowedOrigins = []
+        , configServerHost = "localhost"
+        , configServerPort = 3000
+        , configServerReusePort = False
+        , configServerTraceHeader = Nothing
+        , configServerUnixSocket = Nothing
+        , configServerUnixSocketMode = 432
+        , configUrlUseLegacyTargetNames = True
+        , configDbTxAllowOverride = True
+        , configDbTxRollbackAll = True
+        , configAdminServerHost = "localhost"
+        , configAdminServerPort = Nothing
+        , configAdminServerUnixSocket = Nothing
+        , configAdminServerUnixSocketMode = 432
+        , configRoleSettings = mempty
+        , configRoleIsoLvl = mempty
+        , configInternalSCQuerySleepFst = Nothing
+        , configInternalSCQuerySleepSnd = Nothing
+        , configServerTimingEnabled = True
+        }
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
@@ -236,36 +248,37 @@ generateJWTWithSecret claims secret =
 -- and no extraneous keys
 isErrorFormat :: BL.ByteString -> Bool
 isErrorFormat s =
-  "message" `S.member` keys &&
-    S.null (S.difference keys validKeys)
- where
-  obj = JSON.decode s :: Maybe (M.Map Text JSON.Value)
-  keys = maybe S.empty M.keysSet obj
-  validKeys = S.fromList ["message", "details", "hint", "code"]
+  "message" `S.member` keys
+    && S.null (S.difference keys validKeys)
+  where
+    obj = JSON.decode s :: Maybe (M.Map Text JSON.Value)
+    keys = maybe S.empty M.keysSet obj
+    validKeys = S.fromList ["message", "details", "hint", "code"]
 
 planCost :: SResponse -> Float
 planCost resp =
-  let res = simpleBody resp ^? nth 0 . key "Plan" . key "Total Cost" in
-  -- big value in case parsing fails
-  fromMaybe 1_000_000_000.0 $ unbox =<< res
+  let res = simpleBody resp ^? nth 0 . key "Plan" . key "Total Cost"
+  in  -- big value in case parsing fails
+      fromMaybe 1_000_000_000.0 $ unbox =<< res
   where
     unbox :: JSON.Value -> Maybe Float
     unbox (JSON.Number n) = Just $ toRealFloat n
-    unbox _               = Nothing
+    unbox _ = Nothing
 
-data TiobePlsRow = TiobePlsRow {
-  name' :: Text,
-  rank  :: Int
-} deriving (Show)
+data TiobePlsRow = TiobePlsRow
+  { name' :: Text
+  , rank :: Int
+  }
+  deriving (Show)
 
 instance JSON.ToJSON TiobePlsRow where
   toJSON (TiobePlsRow name'' rank') = JSON.object ["name" .= name'', "rank" .= rank']
 
 getInsertDataForTiobePlsTable :: Int -> BL.ByteString
 getInsertDataForTiobePlsTable rows =
-  JSON.encode $ fromList $ [TiobePlsRow {name' = nm, rank = rk} | (nm,rk) <- nameRankList]
-   where
-     nameRankList = [("Lang " <> show i, i) | i <- [20..(rows+20)] ] :: [(Text, Int)]
+  JSON.encode $ fromList $ [TiobePlsRow{name' = nm, rank = rk} | (nm, rk) <- nameRankList]
+  where
+    nameRankList = [("Lang " <> show i, i) | i <- [20 .. (rows + 20)]] :: [(Text, Int)]
 
 readFixtureFile :: FilePath -> BL.ByteString
 readFixtureFile file = unsafePerformIO $ BL.readFile $ "test/spec/fixtures/" <> file

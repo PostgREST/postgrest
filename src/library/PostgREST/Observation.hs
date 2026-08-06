@@ -1,24 +1,23 @@
-{-|
-Module      : PostgREST.Observation
-Description : This module holds an Observation type which is the core of Observability for PostgREST.
-              The Observation and ObservationHandler (the observer) are abstractions that allow centralizing logging and metrics concerns,
-              only observer calls with an Observation constructor are applied at different parts in the codebase.
-              The Logger and Metrics modules then decide which observations to expose. Not all observations need to be logged nor all correspond to a metric.
--}
+-- |
+-- Module      : PostgREST.Observation
+-- Description : This module holds an Observation type which is the core of Observability for PostgREST.
+--               The Observation and ObservationHandler (the observer) are abstractions that allow centralizing logging and metrics concerns,
+--               only observer calls with an Observation constructor are applied at different parts in the codebase.
+--               The Logger and Metrics modules then decide which observations to expose. Not all observations need to be logged nor all correspond to a metric.
 module PostgREST.Observation
-  ( Observation(..)
-  , ObsFatalError(..)
+  ( Observation (..)
+  , ObsFatalError (..)
   , ObservationHandler
   ) where
 
-import qualified Hasql.Connection           as SQL
-import qualified Hasql.Pool                 as SQL
-import qualified Hasql.Pool.Observation     as SQL
-import           Network.HTTP.Types.Status  (Status)
-import qualified Network.Wai                as Wai
-import           PostgREST.Config.PgVersion
-import           PostgREST.Query            (MainQuery)
-import           PostgREST.SchemaCache      (QueryTimings)
+import Hasql.Connection qualified as SQL
+import Hasql.Pool qualified as SQL
+import Hasql.Pool.Observation qualified as SQL
+import Network.HTTP.Types.Status (Status)
+import Network.Wai qualified as Wai
+import PostgREST.Config.PgVersion
+import PostgREST.Query (MainQuery)
+import PostgREST.SchemaCache (QueryTimings)
 
 import Protolude hiding (toList)
 

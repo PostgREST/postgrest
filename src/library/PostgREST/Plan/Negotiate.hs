@@ -1,29 +1,32 @@
-{-|
-Module      : PostgREST.Plan.Negotiate
-Description : PostgREST Content Negotiation
-
-This module contains logic for content negotiation.
-RFC: https://datatracker.ietf.org/doc/html/rfc7231#section-3.4
--}
-
+-- |
+-- Module      : PostgREST.Plan.Negotiate
+-- Description : PostgREST Content Negotiation
+--
+-- This module contains logic for content negotiation.
+-- RFC: https://datatracker.ietf.org/doc/html/rfc7231#section-3.4
 module PostgREST.Plan.Negotiate
   ( negotiateContent
   ) where
 
-import qualified Data.HashMap.Strict as HM
+import Data.HashMap.Strict qualified as HM
 
-import PostgREST.ApiRequest              (ApiRequest (..))
-import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Error                   (ApiRequestError (..))
-import PostgREST.MediaType               (MediaType (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          RelIdentifier (..))
-import PostgREST.SchemaCache.Routine     (MediaHandler (..), MediaHandlerMap,
-                                          ResolvedHandler)
+import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.Config (AppConfig (..))
+import PostgREST.Error (ApiRequestError (..))
+import PostgREST.MediaType (MediaType (..))
+import PostgREST.SchemaCache.Identifiers
+  ( QualifiedIdentifier (..)
+  , RelIdentifier (..)
+  )
+import PostgREST.SchemaCache.Routine
+  ( MediaHandler (..)
+  , MediaHandlerMap
+  , ResolvedHandler
+  )
 
-import           PostgREST.ApiRequest.Preferences
-import           PostgREST.ApiRequest.Types
-import qualified PostgREST.MediaType              as MediaType
+import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types
+import PostgREST.MediaType qualified as MediaType
 
 import Protolude hiding (from)
 
@@ -50,32 +53,32 @@ import Protolude hiding (from)
 -- | Do content negotiation. i.e. choose a media type based on the
 --   intersection of accepted/produced media types.
 negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] -> MediaHandlerMap -> Bool -> Either ApiRequestError ResolvedHandler
-negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces defaultSelect =
+negotiateContent conf ApiRequest{iAction = act, iPreferences = Preferences{preferRepresentation = rep}} identifier accepts produces defaultSelect =
   case (act, firstAcceptedPick) of
-    (_, Nothing)                                         -> Left . MediaTypeError $ map MediaType.toMime accepts
-    (ActDb (ActRelationMut _ _), Just (x, mt))           -> Right (if rep == Just Full then x else NoAgg, mt)
+    (_, Nothing) -> Left . MediaTypeError $ map MediaType.toMime accepts
+    (ActDb (ActRelationMut _ _), Just (x, mt)) -> Right (if rep == Just Full then x else NoAgg, mt)
     -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
     -- TODO: despite no aggregate, these are responding with a Content-Type, which is not correct.
-    (ActDb (ActRelationRead _ True), Just (_, mt))       -> Right (NoAgg, mt)
-    (ActDb (ActRoutine  _ (InvRead True)), Just (_, mt)) -> Right (NoAgg, mt)
-    (_, Just (x, mt))                                    -> Right (x, mt)
+    (ActDb (ActRelationRead _ True), Just (_, mt)) -> Right (NoAgg, mt)
+    (ActDb (ActRoutine _ (InvRead True)), Just (_, mt)) -> Right (NoAgg, mt)
+    (_, Just (x, mt)) -> Right (x, mt)
   where
     firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.
     matchMT mt = case mt of
       -- all the vendored media types have special handling as they have media type parameters, they cannot be overridden
-      m@(MTVndSingularJSON strip)                 -> Just (BuiltinAggSingleJson strip, m)
-      m@MTVndArrayJSONStrip                       -> Just (BuiltinAggArrayJsonStrip, m)
+      m@(MTVndSingularJSON strip) -> Just (BuiltinAggSingleJson strip, m)
+      m@MTVndArrayJSONStrip -> Just (BuiltinAggArrayJsonStrip, m)
       m@(MTVndPlan (MTVndSingularJSON strip) _ _) -> mtPlanToNothing $ Just (BuiltinAggSingleJson strip, m)
-      m@(MTVndPlan MTVndArrayJSONStrip _ _)       -> mtPlanToNothing $ Just (BuiltinAggArrayJsonStrip, m)
+      m@(MTVndPlan MTVndArrayJSONStrip _ _) -> mtPlanToNothing $ Just (BuiltinAggArrayJsonStrip, m)
       -- TODO the plan should have its own MediaHandler instead of relying on MediaType
-      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ ((,) . fst <$> lookupHandler mType) <*> pure m
+      m@(MTVndPlan mType _ _) -> mtPlanToNothing $ ((,) . fst <$> lookupHandler mType) <*> pure m
       -- all the other media types can be overridden
-      x                                           -> lookupHandler x
+      x -> lookupHandler x
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed
     lookupHandler mt =
-      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces)  -- lookup for identifier and `*/*`
-      <|> when' defaultSelect (HM.lookup (RelId identifier, mt) produces) -- lookup for identifier and a particular media type
-      <|> HM.lookup (RelAnyElement, mt) produces                          -- lookup for anyelement and a particular media type
+      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces) -- lookup for identifier and `*/*`
+        <|> when' defaultSelect (HM.lookup (RelId identifier, mt) produces) -- lookup for identifier and a particular media type
+        <|> HM.lookup (RelAnyElement, mt) produces -- lookup for anyelement and a particular media type
     when' :: Bool -> Maybe a -> Maybe a
     when' True (Just a) = Just a
-    when' _ _           = Nothing
+    when' _ _ = Nothing

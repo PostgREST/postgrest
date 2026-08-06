@@ -12,12 +12,15 @@ import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg { configOpenApiMode = OADisabled }) $
+spec withConfig = withConfig (baseCfg{configOpenApiMode = OADisabled}) $
   describe "Disabled OpenApi" $ do
     it "responds with 404" $
-      request methodGet "/"
-        [("Accept","application/openapi+json")] ""
-        `shouldRespondWith`
-        [json| {"code":"PGRST126","details":null,"hint":null,"message":"Root endpoint metadata is disabled"} |]
-        { matchStatus = 404
-        , matchHeaders = ["Content-Length" <:> "93"]}
+      request
+        methodGet
+        "/"
+        [("Accept", "application/openapi+json")]
+        ""
+        `shouldRespondWith` [json| {"code":"PGRST126","details":null,"hint":null,"message":"Root endpoint metadata is disabled"} |]
+          { matchStatus = 404
+          , matchHeaders = ["Content-Length" <:> "93"]
+          }

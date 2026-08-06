@@ -1,6 +1,6 @@
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo     #-}
+{-# LANGUAGE RecursiveDo #-}
 
 module PostgREST.AppState
   ( AppState
@@ -28,28 +28,34 @@ module PostgREST.AppState
   , waitForSchemaCacheLoaded
   ) where
 
-import qualified Hasql.Pool              as SQL
-import qualified Hasql.Session           as SQL
-import qualified PostgREST.Auth.JwtCache as JwtCache
-import qualified PostgREST.Logger        as Logger
-import qualified PostgREST.Metrics       as Metrics
-import           PostgREST.Observation
-import           PostgREST.Version       (prettyVersion)
+import Hasql.Pool qualified as SQL
+import Hasql.Session qualified as SQL
+import PostgREST.Auth.JwtCache qualified as JwtCache
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
+import PostgREST.Observation
+import PostgREST.Version (prettyVersion)
 
-import Control.AutoUpdate         (defaultUpdateSettings, mkAutoUpdate,
-                                   updateAction)
-import Control.Concurrent.STM     (newEmptyTMVarIO)
-import Data.IORef                 (IORef, newIORef, readIORef)
-import Data.Time.Clock            (getCurrentTime)
-import PostgREST.AppState.Pool    (destroy, initPool, usePool)
-import PostgREST.AppState.Reload  (isSchemaCacheLoaded, readInDbConfig,
-                                   retryingSchemaCacheLoad,
-                                   waitForSchemaCacheInit,
-                                   waitForSchemaCacheLoaded)
+import Control.AutoUpdate
+  ( defaultUpdateSettings
+  , mkAutoUpdate
+  , updateAction
+  )
+import Control.Concurrent.STM (newEmptyTMVarIO)
+import Data.IORef (IORef, newIORef, readIORef)
+import Data.Time.Clock (getCurrentTime)
+import PostgREST.AppState.Pool (destroy, initPool, usePool)
+import PostgREST.AppState.Reload
+  ( isSchemaCacheLoaded
+  , readInDbConfig
+  , retryingSchemaCacheLoad
+  , waitForSchemaCacheInit
+  , waitForSchemaCacheLoaded
+  )
 import PostgREST.AppState.Types
-import PostgREST.Config           (AppConfig (..))
+import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (minimumPgVersion)
-import PostgREST.Debounce         (makeDebouncer)
+import PostgREST.Debounce (makeDebouncer)
 
 import Protolude
 
@@ -58,7 +64,7 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
   -- We need to create IORef first, so we can make its read action part of
   -- loggerState. This is needed for log-level config reloading.
   confRef <- newIORef conf
-  loggerState  <- Logger.init (configLogLevel <$> readIORef confRef)
+  loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState) (Metrics.observationMetrics metricsState)
 
@@ -70,21 +76,22 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
 initWithPool :: SQL.Pool -> IORef AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
 initWithPool pool confRef loggerState metricsState observer appKiller = mdo
   conf <- readIORef confRef
-  appState <- AppState pool
-    <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
-    <*> newIORef Nothing
-    <*> newSchemaCacheStatus
-    <*> newIORef False
-    <*> newIORef Nothing
-    <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
-    <*> pure confRef
-    <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
-    <*> pure appKiller
-    <*> newIORef 0
-    <*> pure observer
-    <*> JwtCache.init conf observer
-    <*> pure loggerState
-    <*> pure metricsState
+  appState <-
+    AppState pool
+      <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
+      <*> newIORef Nothing
+      <*> newSchemaCacheStatus
+      <*> newIORef False
+      <*> newIORef Nothing
+      <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000) -- 100ms cooldown
+      <*> pure confRef
+      <*> mkAutoUpdate defaultUpdateSettings{updateAction = getCurrentTime}
+      <*> pure appKiller
+      <*> newIORef 0
+      <*> pure observer
+      <*> JwtCache.init conf observer
+      <*> pure loggerState
+      <*> pure metricsState
 
   return appState
 

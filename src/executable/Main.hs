@@ -2,7 +2,7 @@ module Main (main) where
 
 import System.IO (BufferMode (..), hSetBuffering)
 
-import qualified PostgREST.CLI as CLI
+import PostgREST.CLI qualified as CLI
 
 import Protolude
 

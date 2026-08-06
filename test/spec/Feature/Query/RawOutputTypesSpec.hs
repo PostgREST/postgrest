@@ -15,17 +15,21 @@ spec withConfig = withConfig baseCfg $ describe "When raw-media-types config var
   it "responds json to a GET request with Firefox Accept headers" $
     request methodGet "/items?id=eq.1" firefoxAcceptHdrs ""
       `shouldRespondWith` [json| [{"id":1}] |]
-        { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
   it "responds json to a GET request with Chrome Accept headers" $
     request methodGet "/items?id=eq.1" chromeAcceptHdrs ""
       `shouldRespondWith` [json| [{"id":1}] |]
-        { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
 
   it "responds json to a GET request to RPC with Firefox Accept headers" $
     request methodGet "/rpc/get_projects_below?id=3" firefoxAcceptHdrs ""
       `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
-        { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
   it "responds json to a GET request to RPC with Chrome Accept headers" $
     request methodGet "/rpc/get_projects_below?id=3" chromeAcceptHdrs ""
       `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
-        { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
+        { matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }

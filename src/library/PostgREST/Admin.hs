@@ -2,36 +2,37 @@ module PostgREST.Admin
   ( runAdmin
   ) where
 
-import qualified Data.Aeson                as JSON
-import qualified Network.HTTP.Types.Status as HTTP
-import qualified Network.Wai               as Wai
-import qualified Network.Wai.Handler.Warp  as Warp
+import Data.Aeson qualified as JSON
+import Network.HTTP.Types.Status qualified as HTTP
+import Network.Wai qualified as Wai
+import Network.Wai.Handler.Warp qualified as Warp
 
 import Control.Monad.Extra (whenJust)
 
-import PostgREST.AppState    (AppState, getConfig, killApp)
-import PostgREST.Config      (AppConfig (..))
-import PostgREST.MediaType   (MediaType (..), toContentType)
-import PostgREST.Metrics     (metricsToText)
-import PostgREST.Network     (resolveSocketToAddress)
+import PostgREST.AppState (AppState, getConfig, killApp)
+import PostgREST.Config (AppConfig (..))
+import PostgREST.MediaType (MediaType (..), toContentType)
+import PostgREST.Metrics (metricsToText)
+import PostgREST.Network (resolveSocketToAddress)
 import PostgREST.Observation (Observation (..))
 
-import qualified PostgREST.AppState as AppState
+import PostgREST.AppState qualified as AppState
 
-import qualified Network.Socket as NS
-import           Protolude
+import Network.Socket qualified as NS
+import Protolude
 
 runAdmin :: AppState -> Maybe NS.Socket -> IO Bool -> Warp.Settings -> IO ()
 runAdmin appState maybeAdminSocket checkMainAppLive settings = do
   conf <- getConfig appState
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
-    void . forkIO $ handle onError $
-      Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
+    void . forkIO $
+      handle onError $
+        Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
     adminApp = admin appState checkMainAppLive
     observer = AppState.getObserver appState
-    adminServerSettings config addr=
+    adminServerSettings config addr =
       settings
         & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
         & maybe identity Warp.setPort (configAdminServerPort config)
@@ -52,12 +53,13 @@ admin appState checkMainAppLive req respond = do
       respond $ Wai.responseLBS (if isMainAppLive then HTTP.status200 else HTTP.status500) [] mempty
     ["ready"] ->
       let
-        status | isPending              = HTTP.status503
-               | not isMainAppLive      = HTTP.status500
-               | isLoaded               = HTTP.status200
-               | otherwise              = HTTP.status500
+        status
+          | isPending = HTTP.status503
+          | not isMainAppLive = HTTP.status500
+          | isLoaded = HTTP.status200
+          | otherwise = HTTP.status500
       in
-      respond $ Wai.responseLBS status [] mempty
+        respond $ Wai.responseLBS status [] mempty
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)

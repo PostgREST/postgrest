@@ -1,6 +1,6 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.AppState.Reload
@@ -12,35 +12,47 @@ module PostgREST.AppState.Reload
   , waitForSchemaCacheLoaded
   ) where
 
-import qualified Data.ByteString.Char8      as BS
-import qualified Data.Text                  as T
-import qualified Database.PostgreSQL.LibPQ  as LibPQ
-import qualified Hasql.Connection           as SQL
-import qualified Hasql.Notifications        as SQL
-import qualified Hasql.Session              as SQL
-import qualified Hasql.Transaction.Sessions as SQL
+import Data.ByteString.Char8 qualified as BS
+import Data.Text qualified as T
+import Database.PostgreSQL.LibPQ qualified as LibPQ
+import Hasql.Connection qualified as SQL
+import Hasql.Notifications qualified as SQL
+import Hasql.Session qualified as SQL
+import Hasql.Transaction.Sessions qualified as SQL
 
-import qualified PostgREST.Config as Config
+import PostgREST.Config qualified as Config
 
-import Control.Arrow           ((&&&))
-import Control.Concurrent.STM  (putTMVar, readTMVar, tryReadTMVar, tryTakeTMVar)
-import Control.Retry           (RetryPolicy, RetryStatus (..), capDelay,
-                                exponentialBackoff, retrying, rsPreviousDelay)
-import Data.Bitraversable      (bisequence)
+import Control.Arrow ((&&&))
+import Control.Concurrent.STM (putTMVar, readTMVar, tryReadTMVar, tryTakeTMVar)
+import Control.Retry
+  ( RetryPolicy
+  , RetryStatus (..)
+  , capDelay
+  , exponentialBackoff
+  , retrying
+  , rsPreviousDelay
+  )
+import Data.Bitraversable (bisequence)
 import Data.Either.Combinators (whenRight)
-import Data.IORef              (IORef, newIORef, readIORef, writeIORef)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
-import PostgREST.AppState.Pool           (flushPool, usePool)
-import PostgREST.Auth.JwtCache           (update)
-import PostgREST.Config                  (AppConfig (..), readAppConfig)
-import PostgREST.Config.Database         (queryDbSettings, queryPgVersion,
-                                          queryRoleSettings)
-import PostgREST.Config.PgVersion        (PgVersion (..), minimumPgVersion)
-import PostgREST.Observation             (Observation (..))
-import PostgREST.SchemaCache             (SchemaCache (..), querySchemaCache,
-                                          showSummary)
+import PostgREST.AppState.Pool (flushPool, usePool)
+import PostgREST.Auth.JwtCache (update)
+import PostgREST.Config (AppConfig (..), readAppConfig)
+import PostgREST.Config.Database
+  ( queryDbSettings
+  , queryPgVersion
+  , queryRoleSettings
+  )
+import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
+import PostgREST.Observation (Observation (..))
+import PostgREST.SchemaCache
+  ( SchemaCache (..)
+  , querySchemaCache
+  , showSummary
+  )
 import PostgREST.SchemaCache.Identifiers (quoteQi)
-import PostgREST.TimeIt                  (timeItT)
+import PostgREST.TimeIt (timeItT)
 
 import PostgREST.AppState.Types
 import Protolude
@@ -53,14 +65,18 @@ import Protolude
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
 retryingSchemaCacheLoad :: AppState -> IO ()
-retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
-  void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
-    when (rsIterNumber > 0) $ do
-      let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
-      observer $ ConnectionRetryObs delay
+retryingSchemaCacheLoad appState@AppState{stateObserver = observer} =
+  void $
+    retrying
+      retryPolicy
+      shouldRetry
+      ( \RetryStatus{rsIterNumber, rsPreviousDelay} -> do
+          when (rsIterNumber > 0) $ do
+            let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
+            observer $ ConnectionRetryObs delay
 
-    (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
-  )
+          (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
+      )
   where
     qPgVersion :: IO (Maybe PgVersion)
     qPgVersion = do
@@ -100,7 +116,6 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
           markSchemaCachePending appState
           observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
           return Nothing
-
         Right (sCache, queryTimings) -> do
           -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
           -- IORef on putSchemaCache. This is why schema cache status is marked as pending here to signal the Admin server (using isPending) that we're on a recovery state.
@@ -124,8 +139,8 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
 
     retryPolicy :: RetryPolicy
     retryPolicy =
-      let delayMicroseconds = 32*oneSecondInUs {-32 seconds-} in
-      capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
+      let delayMicroseconds = 32 * oneSecondInUs {-32 seconds-}
+      in  capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 
     oneSecondInUs = 1_000_000 -- one second in microseconds
 
@@ -149,7 +164,7 @@ waitForSchemaCacheLoaded = atomically . (check <=< readTMVar) . getSCStatusTMVar
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
-readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
+readInDbConfig startingUp appState@AppState{stateObserver = observer} = do
   oldConf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -173,7 +188,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
     else
       pure mempty
   readAppConfig dbSettings (configFilePath oldConf) (Just $ configDbUri oldConf) roleSettings roleIsolationLvl >>= \case
-    Left err   ->
+    Left err ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
       else
@@ -198,7 +213,6 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       else
         observer ConfigSucceededObs
 
-
 -- | Starts the Listener in a thread
 runListener :: AppState -> IO ()
 runListener appState = do
@@ -218,7 +232,8 @@ retryingListen appState nextDelay hasDbListenerBug = do
 
     onError err = case fromException err of
       Just ListenerRestart -> traverse_ killThread =<< getListenerThreadId appState
-      Nothing -> do -- for any other exception
+      Nothing -> do
+        -- for any other exception
         putIsListenerOn appState False
         observer $ DBListenFail dbChannel (Right err)
         when (isDbListenerBug err) $
@@ -240,10 +255,12 @@ retryingListen appState nextDelay hasDbListenerBug = do
     -- Make sure we don't leak connections on errors
     bracket
       -- acquire connection
-      (SQL.acquire $
-        Config.toConnectionSettings Config.addTargetSessionAttrs cfg)
+      ( SQL.acquire $
+          Config.toConnectionSettings Config.addTargetSessionAttrs cfg
+      )
       -- release connection
-      (`whenRight` releaseConnection) $
+      (`whenRight` releaseConnection)
+      $
       -- use connection
       \case
         Right db -> do
@@ -255,7 +272,8 @@ retryingListen appState nextDelay hasDbListenerBug = do
           putIsListenerOn appState True
 
           delay <- readIORef nextDelay
-          when (delay > 1) $ do -- if we did a retry
+          when (delay > 1) $ do
+            -- if we did a retry
             -- assume we lost notifications, refresh the schema cache
             schemaCacheLoader appState
             -- reset the delay
@@ -266,7 +284,6 @@ retryingListen appState nextDelay hasDbListenerBug = do
           -- wait for notifications
           -- this will never return, in case of an error it will throw and be caught by onError
           forever $ SQL.waitForNotifications handleNotification db
-
         Left err -> do
           observer $ DBListenFail dbChannel (Left err)
           exitFailure
@@ -276,11 +293,11 @@ retryingListen appState nextDelay hasDbListenerBug = do
     maxDelay = 32
 
     handleNotification channel msg =
-      if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False appState
-         | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
-
+      if
+        | BS.null msg -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
+        | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
+        | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False appState
+        | otherwise -> pure () -- Do nothing if anything else than an empty message is sent
     cacheReloader =
       schemaCacheLoader appState
 

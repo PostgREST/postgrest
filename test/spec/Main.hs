@@ -1,89 +1,90 @@
 module Main where
 
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Pool.Config          as P
-import qualified Hasql.Transaction.Sessions as HT
+import Hasql.Pool qualified as P
+import Hasql.Pool.Config qualified as P
+import Hasql.Transaction.Sessions qualified as HT
 
 import Data.Function (id)
-import Data.IORef    (newIORef, readIORef)
+import Data.IORef (newIORef, readIORef)
 
 import Test.Hspec
 
-import PostgREST.App             (postgrest)
-import PostgREST.Config          (AppConfig (..), toConnectionSettings)
+import PostgREST.App (postgrest)
+import PostgREST.Config (AppConfig (..), toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
-import PostgREST.SchemaCache     (querySchemaCache)
-import Protolude                 hiding (toList, toS)
+import PostgREST.SchemaCache (querySchemaCache)
+import Protolude hiding (toList, toS)
 import SpecHelper
 
-import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Logger   as Logger
-import qualified PostgREST.Metrics  as Metrics
+import PostgREST.AppState qualified as AppState
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
 
-import qualified Feature.Auth.AsymmetricJwtSpec
-import qualified Feature.Auth.AudienceJwtSecretSpec
-import qualified Feature.Auth.AuthSpec
-import qualified Feature.Auth.BinaryJwtSecretSpec
-import qualified Feature.Auth.JwtCacheSpec
-import qualified Feature.Auth.NoAnonSpec
-import qualified Feature.Auth.NoJwtSecretSpec
-import qualified Feature.ConcurrentSpec
-import qualified Feature.CorsSpec
-import qualified Feature.ExtraSearchPathSpec
-import qualified Feature.HttpHeaderSpec
-import qualified Feature.NoSuperuserSpec
-import qualified Feature.ObservabilitySpec
-import qualified Feature.OpenApi.DisabledOpenApiSpec
-import qualified Feature.OpenApi.IgnorePrivOpenApiSpec
-import qualified Feature.OpenApi.OpenApiSpec
-import qualified Feature.OpenApi.ProxySpec
-import qualified Feature.OpenApi.RootSpec
-import qualified Feature.OpenApi.SecurityOpenApiSpec
-import qualified Feature.OptionsSpec
-import qualified Feature.Query.AggregateFunctionsSpec
-import qualified Feature.Query.AndOrParamsSpec
-import qualified Feature.Query.ComputedRelsSpec
-import qualified Feature.Query.CustomMediaSpec
-import qualified Feature.Query.DeleteSpec
-import qualified Feature.Query.EmbedDisambiguationSpec
-import qualified Feature.Query.EmbedInnerJoinSpec
-import qualified Feature.Query.ErrorSpec
-import qualified Feature.Query.InsertSpec
-import qualified Feature.Query.JsonOperatorSpec
-import qualified Feature.Query.MultipleSchemaSpec
-import qualified Feature.Query.NullsStripSpec
-import qualified Feature.Query.PgSafeUpdateSpec
-import qualified Feature.Query.PlanSpec
-import qualified Feature.Query.PostGISSpec
-import qualified Feature.Query.Preferences.HandlingSpec
-import qualified Feature.Query.Preferences.MaxAffectedSpec
-import qualified Feature.Query.Preferences.TimezoneSpec
-import qualified Feature.Query.PreparedStatementsSpec
-import qualified Feature.Query.QueryLimitedSpec
-import qualified Feature.Query.QuerySpec
-import qualified Feature.Query.RangeSpec
-import qualified Feature.Query.RawOutputTypesSpec
-import qualified Feature.Query.RelatedQueriesSpec
-import qualified Feature.Query.RpcSpec
-import qualified Feature.Query.ServerTimingSpec
-import qualified Feature.Query.SingularSpec
-import qualified Feature.Query.SpreadQueriesSpec
-import qualified Feature.Query.UnicodeSpec
-import qualified Feature.Query.UpdateSpec
-import qualified Feature.Query.UpsertSpec
-import qualified Feature.RollbackSpec
-import qualified Feature.RpcPreRequestGucsSpec
-
+import Feature.Auth.AsymmetricJwtSpec qualified
+import Feature.Auth.AudienceJwtSecretSpec qualified
+import Feature.Auth.AuthSpec qualified
+import Feature.Auth.BinaryJwtSecretSpec qualified
+import Feature.Auth.JwtCacheSpec qualified
+import Feature.Auth.NoAnonSpec qualified
+import Feature.Auth.NoJwtSecretSpec qualified
+import Feature.ConcurrentSpec qualified
+import Feature.CorsSpec qualified
+import Feature.ExtraSearchPathSpec qualified
+import Feature.HttpHeaderSpec qualified
+import Feature.NoSuperuserSpec qualified
+import Feature.ObservabilitySpec qualified
+import Feature.OpenApi.DisabledOpenApiSpec qualified
+import Feature.OpenApi.IgnorePrivOpenApiSpec qualified
+import Feature.OpenApi.OpenApiSpec qualified
+import Feature.OpenApi.ProxySpec qualified
+import Feature.OpenApi.RootSpec qualified
+import Feature.OpenApi.SecurityOpenApiSpec qualified
+import Feature.OptionsSpec qualified
+import Feature.Query.AggregateFunctionsSpec qualified
+import Feature.Query.AndOrParamsSpec qualified
+import Feature.Query.ComputedRelsSpec qualified
+import Feature.Query.CustomMediaSpec qualified
+import Feature.Query.DeleteSpec qualified
+import Feature.Query.EmbedDisambiguationSpec qualified
+import Feature.Query.EmbedInnerJoinSpec qualified
+import Feature.Query.ErrorSpec qualified
+import Feature.Query.InsertSpec qualified
+import Feature.Query.JsonOperatorSpec qualified
+import Feature.Query.MultipleSchemaSpec qualified
+import Feature.Query.NullsStripSpec qualified
+import Feature.Query.PgSafeUpdateSpec qualified
+import Feature.Query.PlanSpec qualified
+import Feature.Query.PostGISSpec qualified
+import Feature.Query.Preferences.HandlingSpec qualified
+import Feature.Query.Preferences.MaxAffectedSpec qualified
+import Feature.Query.Preferences.TimezoneSpec qualified
+import Feature.Query.PreparedStatementsSpec qualified
+import Feature.Query.QueryLimitedSpec qualified
+import Feature.Query.QuerySpec qualified
+import Feature.Query.RangeSpec qualified
+import Feature.Query.RawOutputTypesSpec qualified
+import Feature.Query.RelatedQueriesSpec qualified
+import Feature.Query.RpcSpec qualified
+import Feature.Query.ServerTimingSpec qualified
+import Feature.Query.SingularSpec qualified
+import Feature.Query.SpreadQueriesSpec qualified
+import Feature.Query.UnicodeSpec qualified
+import Feature.Query.UpdateSpec qualified
+import Feature.Query.UpsertSpec qualified
+import Feature.RollbackSpec qualified
+import Feature.RpcPreRequestGucsSpec qualified
 
 main :: IO ()
 main = do
-  pool <- P.acquire $ P.settings
-    [ P.size 3
-    , P.acquisitionTimeout 10
-    , P.agingTimeout 60
-    , P.idlenessTimeout 60
-    , P.staticConnectionSettings $ toConnectionSettings identity baseCfg
-    ]
+  pool <-
+    P.acquire $
+      P.settings
+        [ P.size 3
+        , P.acquisitionTimeout 10
+        , P.agingTimeout 60
+        , P.idlenessTimeout 60
+        , P.staticConnectionSettings $ toConnectionSettings identity baseCfg
+        ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
@@ -112,59 +113,60 @@ main = do
     withConfigDbs config = before (appDbs config)
     describeWithConfig label spec = describe label $ spec withConfig
 
-  let specs = uncurry describeWithConfig <$> [
-          ("Feature.Auth.AsymmetricJwtSpec"                    , Feature.Auth.AsymmetricJwtSpec.spec)
-        , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
-        , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.spec)
-        , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.spec)
-        , ("Feature.Auth.BinaryJwtSecretSpec"                  , Feature.Auth.BinaryJwtSecretSpec.spec)
-        , ("Feature.Auth.JwtCacheSpec"                         , Feature.Auth.JwtCacheSpec.spec)
-        , ("Feature.Auth.NoAnonSpec"                           , Feature.Auth.NoAnonSpec.spec)
-        , ("Feature.Auth.NoJwtSecretSpec"                      , Feature.Auth.NoJwtSecretSpec.spec)
-        , ("Feature.ConcurrentSpec"                            , Feature.ConcurrentSpec.spec)
-        , ("Feature.CorsSpec"                                  , Feature.CorsSpec.spec)
-        , ("Feature.HttpHeaderSpec"                            , Feature.HttpHeaderSpec.spec)
-        , ("Feature.NoSuperuserSpec"                           , Feature.NoSuperuserSpec.spec)
-        , ("Feature.ObservabilitySpec"                         , Feature.ObservabilitySpec.spec)
-        , ("Feature.OpenApi.DisabledOpenApiSpec"               , Feature.OpenApi.DisabledOpenApiSpec.spec)
-        , ("Feature.OpenApi.OpenApiSpec"                       , Feature.OpenApi.OpenApiSpec.spec)
-        , ("Feature.OpenApi.ProxySpec"                         , Feature.OpenApi.ProxySpec.spec)
-        , ("Feature.OpenApi.RootSpec"                          , Feature.OpenApi.RootSpec.spec)
-        , ("Feature.OpenApi.SecurityOpenApiSpec"               , Feature.OpenApi.SecurityOpenApiSpec.spec)
-        , ("Feature.OptionsSpec"                               , Feature.OptionsSpec.spec)
-        , ("Feature.Query.AggregateFunctionsSpec.allowed"      , Feature.Query.AggregateFunctionsSpec.allowed)
-        , ("Feature.Query.AggregateFunctionsSpec.disallowed"   , Feature.Query.AggregateFunctionsSpec.disallowed)
-        , ("Feature.Query.AndOrParamsSpec"                     , Feature.Query.AndOrParamsSpec.spec)
-        , ("Feature.Query.ComputedRelsSpec"                    , Feature.Query.ComputedRelsSpec.spec)
-        , ("Feature.Query.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
-        , ("Feature.Query.DeleteSpec"                          , Feature.Query.DeleteSpec.spec)
-        , ("Feature.Query.EmbedDisambiguationSpec"             , Feature.Query.EmbedDisambiguationSpec.spec)
-        , ("Feature.Query.EmbedInnerJoinSpec"                  , Feature.Query.EmbedInnerJoinSpec.spec)
-        , ("Feature.Query.ErrorSpec"                           , Feature.Query.ErrorSpec.spec)
-        , ("Feature.Query.InsertSpec"                          , Feature.Query.InsertSpec.spec)
-        , ("Feature.Query.JsonOperatorSpec"                    , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.Query.NullsStripSpec"                      , Feature.Query.NullsStripSpec.spec)
-        , ("Feature.Query.PgSafeUpdateSpec.disabledSpec"       , Feature.Query.PgSafeUpdateSpec.disabledSpec)
-        , ("Feature.Query.PlanSpec.disabledSpec"               , Feature.Query.PlanSpec.disabledSpec)
-        , ("Feature.Query.PlanSpec.spec"                       , Feature.Query.PlanSpec.spec)
-        , ("Feature.Query.Preferences.HandlingSpec"            , Feature.Query.Preferences.HandlingSpec.spec)
-        , ("Feature.Query.Preferences.MaxAffectedSpec"         , Feature.Query.Preferences.MaxAffectedSpec.spec)
-        , ("Feature.Query.Preferences.TimezoneSpec"            , Feature.Query.Preferences.TimezoneSpec.spec)
-        , ("Feature.Query.PreparedStatementsSpec.spec"         , Feature.Query.PreparedStatementsSpec.spec)
-        , ("Feature.Query.QueryLimitedSpec"                    , Feature.Query.QueryLimitedSpec.spec)
-        , ("Feature.Query.QuerySpec"                           , Feature.Query.QuerySpec.spec actualPgVersion)
-        , ("Feature.Query.QuerySpec.specLegacyTargetNames"     , Feature.Query.QuerySpec.specLegacyTargetNames)
-        , ("Feature.Query.RangeSpec"                           , Feature.Query.RangeSpec.spec)
-        , ("Feature.Query.RawOutputTypesSpec"                  , Feature.Query.RawOutputTypesSpec.spec)
-        , ("Feature.Query.RelatedQueriesSpec"                  , Feature.Query.RelatedQueriesSpec.spec)
-        , ("Feature.Query.RpcSpec"                             , Feature.Query.RpcSpec.spec actualPgVersion)
-        , ("Feature.Query.ServerTimingSpec"                    , Feature.Query.ServerTimingSpec.spec)
-        , ("Feature.Query.SingularSpec"                        , Feature.Query.SingularSpec.spec)
-        , ("Feature.Query.SpreadQueriesSpec"                   , Feature.Query.SpreadQueriesSpec.spec)
-        , ("Feature.Query.UpdateSpec"                          , Feature.Query.UpdateSpec.spec)
-        , ("Feature.Query.UpsertSpec"                          , Feature.Query.UpsertSpec.spec)
-        , ("Feature.RpcPreRequestGucsSpec"                     , Feature.RpcPreRequestGucsSpec.spec)
-        ]
+  let specs =
+        uncurry describeWithConfig
+          <$> [ ("Feature.Auth.AsymmetricJwtSpec", Feature.Auth.AsymmetricJwtSpec.spec)
+              , ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
+              , ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.spec)
+              , ("Feature.Auth.AuthSpec", Feature.Auth.AuthSpec.spec)
+              , ("Feature.Auth.BinaryJwtSecretSpec", Feature.Auth.BinaryJwtSecretSpec.spec)
+              , ("Feature.Auth.JwtCacheSpec", Feature.Auth.JwtCacheSpec.spec)
+              , ("Feature.Auth.NoAnonSpec", Feature.Auth.NoAnonSpec.spec)
+              , ("Feature.Auth.NoJwtSecretSpec", Feature.Auth.NoJwtSecretSpec.spec)
+              , ("Feature.ConcurrentSpec", Feature.ConcurrentSpec.spec)
+              , ("Feature.CorsSpec", Feature.CorsSpec.spec)
+              , ("Feature.HttpHeaderSpec", Feature.HttpHeaderSpec.spec)
+              , ("Feature.NoSuperuserSpec", Feature.NoSuperuserSpec.spec)
+              , ("Feature.ObservabilitySpec", Feature.ObservabilitySpec.spec)
+              , ("Feature.OpenApi.DisabledOpenApiSpec", Feature.OpenApi.DisabledOpenApiSpec.spec)
+              , ("Feature.OpenApi.OpenApiSpec", Feature.OpenApi.OpenApiSpec.spec)
+              , ("Feature.OpenApi.ProxySpec", Feature.OpenApi.ProxySpec.spec)
+              , ("Feature.OpenApi.RootSpec", Feature.OpenApi.RootSpec.spec)
+              , ("Feature.OpenApi.SecurityOpenApiSpec", Feature.OpenApi.SecurityOpenApiSpec.spec)
+              , ("Feature.OptionsSpec", Feature.OptionsSpec.spec)
+              , ("Feature.Query.AggregateFunctionsSpec.allowed", Feature.Query.AggregateFunctionsSpec.allowed)
+              , ("Feature.Query.AggregateFunctionsSpec.disallowed", Feature.Query.AggregateFunctionsSpec.disallowed)
+              , ("Feature.Query.AndOrParamsSpec", Feature.Query.AndOrParamsSpec.spec)
+              , ("Feature.Query.ComputedRelsSpec", Feature.Query.ComputedRelsSpec.spec)
+              , ("Feature.Query.CustomMediaSpec", Feature.Query.CustomMediaSpec.spec)
+              , ("Feature.Query.DeleteSpec", Feature.Query.DeleteSpec.spec)
+              , ("Feature.Query.EmbedDisambiguationSpec", Feature.Query.EmbedDisambiguationSpec.spec)
+              , ("Feature.Query.EmbedInnerJoinSpec", Feature.Query.EmbedInnerJoinSpec.spec)
+              , ("Feature.Query.ErrorSpec", Feature.Query.ErrorSpec.spec)
+              , ("Feature.Query.InsertSpec", Feature.Query.InsertSpec.spec)
+              , ("Feature.Query.JsonOperatorSpec", Feature.Query.JsonOperatorSpec.spec actualPgVersion)
+              , ("Feature.Query.NullsStripSpec", Feature.Query.NullsStripSpec.spec)
+              , ("Feature.Query.PgSafeUpdateSpec.disabledSpec", Feature.Query.PgSafeUpdateSpec.disabledSpec)
+              , ("Feature.Query.PlanSpec.disabledSpec", Feature.Query.PlanSpec.disabledSpec)
+              , ("Feature.Query.PlanSpec.spec", Feature.Query.PlanSpec.spec)
+              , ("Feature.Query.Preferences.HandlingSpec", Feature.Query.Preferences.HandlingSpec.spec)
+              , ("Feature.Query.Preferences.MaxAffectedSpec", Feature.Query.Preferences.MaxAffectedSpec.spec)
+              , ("Feature.Query.Preferences.TimezoneSpec", Feature.Query.Preferences.TimezoneSpec.spec)
+              , ("Feature.Query.PreparedStatementsSpec.spec", Feature.Query.PreparedStatementsSpec.spec)
+              , ("Feature.Query.QueryLimitedSpec", Feature.Query.QueryLimitedSpec.spec)
+              , ("Feature.Query.QuerySpec", Feature.Query.QuerySpec.spec actualPgVersion)
+              , ("Feature.Query.QuerySpec.specLegacyTargetNames", Feature.Query.QuerySpec.specLegacyTargetNames)
+              , ("Feature.Query.RangeSpec", Feature.Query.RangeSpec.spec)
+              , ("Feature.Query.RawOutputTypesSpec", Feature.Query.RawOutputTypesSpec.spec)
+              , ("Feature.Query.RelatedQueriesSpec", Feature.Query.RelatedQueriesSpec.spec)
+              , ("Feature.Query.RpcSpec", Feature.Query.RpcSpec.spec actualPgVersion)
+              , ("Feature.Query.ServerTimingSpec", Feature.Query.ServerTimingSpec.spec)
+              , ("Feature.Query.SingularSpec", Feature.Query.SingularSpec.spec)
+              , ("Feature.Query.SpreadQueriesSpec", Feature.Query.SpreadQueriesSpec.spec)
+              , ("Feature.Query.UpdateSpec", Feature.Query.UpdateSpec.spec)
+              , ("Feature.Query.UpsertSpec", Feature.Query.UpsertSpec.spec)
+              , ("Feature.RpcPreRequestGucsSpec", Feature.RpcPreRequestGucsSpec.spec)
+              ]
 
   hspec $ do
     mapM_ parallel specs
@@ -184,7 +186,6 @@ main = do
     -- This test runs with a pre request to enable the pg-safeupdate library per-session.
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
     describe "Feature.Query.PgSafeUpdateSpec.spec" $ Feature.Query.PgSafeUpdateSpec.spec withConfig
-
   where
     loadSCache pool pgVersion conf =
-      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
+      either (panic . show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
