@@ -20,10 +20,10 @@ All notable changes to this project will be documented in this file. From versio
 - `Prefer: timezone` is optimized so it no longer requires the schema cache by @steve-chavez in #5100
   + Previously this required caching `pg_timezone_names` which was slow in some systems
 - `Prefer: timezone` now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
+- Graceful shutdown by @mkleczek, @Vlix in #4702
 
 ### Fixed
 
-- Shutdown should wait for in flight requests by @mkleczek in #4702
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
   + You need to set `url-use-legacy-target-names = false`.
