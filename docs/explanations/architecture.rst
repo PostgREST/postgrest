@@ -84,11 +84,6 @@ Admin
 
 `Admin.hs <https://github.com/PostgREST/postgrest/blob/main/src/library/PostgREST/Admin.hs>`_ is in charge of the :ref:`admin_server`.
 
-HTTP
-----
-
-The HTTP server is provided by `Warp <https://aosabook.org/en/posa/warp.html>`_.
-
 Listener
 --------
 
