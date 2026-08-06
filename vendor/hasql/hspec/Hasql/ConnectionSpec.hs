@@ -4,9 +4,9 @@ import qualified Hasql.Connection
 import qualified Hasql.Connection.Setting
 import qualified Hasql.Connection.Setting.Connection
 import qualified Hasql.Connection.Setting.Connection.Param
-import           Prelude
-import           Test.Hspec
+import Test.Hspec
 import qualified TestcontainersPostgresql
+import Prelude
 
 spec :: Spec
 spec = do
@@ -18,9 +18,9 @@ spec = do
               it "connects" do
                 TestcontainersPostgresql.run
                   ( TestcontainersPostgresql.Config
-                      { forwardLogs = False,
-                        distro = TestcontainersPostgresql.Distro17,
-                        auth = TestcontainersPostgresql.CredentialsAuth username password
+                      { forwardLogs = False
+                      , distro = TestcontainersPostgresql.Distro17
+                      , auth = TestcontainersPostgresql.CredentialsAuth username password
                       }
                   )
                   ( \(host, port) -> do
@@ -28,10 +28,10 @@ spec = do
                         Hasql.Connection.acquire
                           [ Hasql.Connection.Setting.connection
                               ( Hasql.Connection.Setting.Connection.params
-                                  [ Hasql.Connection.Setting.Connection.Param.host host,
-                                    Hasql.Connection.Setting.Connection.Param.port (fromIntegral port),
-                                    Hasql.Connection.Setting.Connection.Param.user username,
-                                    Hasql.Connection.Setting.Connection.Param.password password
+                                  [ Hasql.Connection.Setting.Connection.Param.host host
+                                  , Hasql.Connection.Setting.Connection.Param.port (fromIntegral port)
+                                  , Hasql.Connection.Setting.Connection.Param.user username
+                                  , Hasql.Connection.Setting.Connection.Param.password password
                                   ]
                               )
                           ]

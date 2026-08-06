@@ -1,10 +1,10 @@
 module Hasql.Decoders.Row where
 
-import qualified Hasql.Decoders.Value       as Value
-import           Hasql.Errors
-import qualified Hasql.LibPq14              as LibPQ
-import           Hasql.Prelude              hiding (error)
-import qualified PostgreSQL.Binary.Decoding as A
+import Hasql.Decoders.Value qualified as Value
+import Hasql.Errors
+import Hasql.LibPq14 qualified as LibPQ
+import Hasql.Prelude hiding (error)
+import PostgreSQL.Binary.Decoding qualified as A
 
 newtype Row a
   = Row (ReaderT Env (ExceptT RowError IO) a)
@@ -46,18 +46,18 @@ value valueDec =
     $ \(Env result row columnsAmount integerDatetimes columnRef) -> ExceptT $ do
       col <- readIORef columnRef
       writeIORef columnRef (succ col)
-      if col < columnsAmount
-        then do
-          valueMaybe <- {-# SCC "getvalue'" #-} LibPQ.getvalue' result row col
-          pure
-            $ case valueMaybe of
-              Nothing ->
-                Right Nothing
-              Just value ->
-                fmap Just
-                  $ first ValueError
-                  $ {-# SCC "decode" #-} A.valueParser (Value.run valueDec integerDatetimes) value
-        else pure (Left EndOfInput)
+      if col < columnsAmount then do
+        valueMaybe <- {-# SCC "getvalue'" #-} LibPQ.getvalue' result row col
+        pure
+          $ case valueMaybe of
+            Nothing ->
+              Right Nothing
+            Just value ->
+              fmap Just
+                $ first ValueError
+                $ {-# SCC "decode" #-} A.valueParser (Value.run valueDec integerDatetimes) value
+      else
+        pure (Left EndOfInput)
 
 -- |
 -- Next value, decoded using the provided value decoder.

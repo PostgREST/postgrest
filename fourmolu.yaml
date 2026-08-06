@@ -1,0 +1,12 @@
+# https://fourmolu.github.io/config
+function-arrows: leading
+haddock-location-signature: leading
+haddock-style: single-line
+if-style: hanging
+import-export-style: leading
+import-grouping: preserve
+in-style: left-align
+indent-wheres: true
+indentation: 2
+single-constraint-parens: auto
+single-deriving-parens: auto

@@ -1,14 +1,14 @@
 module Main where
 
-import qualified Data.Vector                               as F
-import qualified Hasql.Connection                          as A
-import qualified Hasql.Connection.Setting                  as E
-import qualified Hasql.Connection.Setting.Connection       as F
+import qualified Data.Vector as F
+import qualified Hasql.Connection as A
+import qualified Hasql.Connection.Setting as E
+import qualified Hasql.Connection.Setting.Connection as F
 import qualified Hasql.Connection.Setting.Connection.Param as G
-import qualified Hasql.Decoders                            as D
-import qualified Hasql.Session                             as B
-import qualified Hasql.Statement                           as C
-import           Prelude
+import qualified Hasql.Decoders as D
+import qualified Hasql.Session as B
+import qualified Hasql.Statement as C
+import Prelude
 
 main :: IO ()
 main =
@@ -23,11 +23,11 @@ main =
       A.acquire
         [ E.connection
             ( F.params
-                [ G.host "localhost",
-                  G.port 5432,
-                  G.user "postgres",
-                  G.password "postgres",
-                  G.dbname "postgres"
+                [ G.host "localhost"
+                , G.port 5432
+                , G.user "postgres"
+                , G.password "postgres"
+                , G.dbname "postgres"
                 ]
             )
         ]

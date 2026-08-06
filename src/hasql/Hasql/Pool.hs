@@ -1,70 +1,70 @@
 module Hasql.Pool
   ( -- * Pool
-    Pool,
-    acquire,
-    use,
-    release,
+    Pool
+  , acquire
+  , use
+  , release
 
     -- * Errors
-    UsageError (..),
+  , UsageError (..)
   )
 where
 
-import qualified Data.Text.Encoding                 as Text
-import qualified Data.Text.Encoding.Error           as Text
-import qualified Data.UUID.V4                       as Uuid
-import           Hasql.Connection                   (Connection)
-import qualified Hasql.Connection                   as Connection
-import qualified Hasql.Connection.Setting           as Connection.Setting
-import qualified Hasql.Pool.Config.Config           as Config
-import           Hasql.Pool.Observation
-import           Hasql.Pool.Prelude
-import qualified Hasql.Pool.SessionErrorDestructors as ErrorsDestruction
-import qualified Hasql.Session                      as Session
+import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding.Error qualified as Text
+import Data.UUID.V4 qualified as Uuid
+import Hasql.Connection (Connection)
+import Hasql.Connection qualified as Connection
+import Hasql.Connection.Setting qualified as Connection.Setting
+import Hasql.Pool.Config.Config qualified as Config
+import Hasql.Pool.Observation
+import Hasql.Pool.Prelude
+import Hasql.Pool.SessionErrorDestructors qualified as ErrorsDestruction
+import Hasql.Session qualified as Session
 
 -- | A connection tagged with metadata.
 data Entry = Entry
-  { entryConnection       :: Connection,
-    entryCreationTimeNSec :: Word64,
-    entryUseTimeNSec      :: Word64,
-    entryId               :: UUID
+  { entryConnection :: Connection
+  , entryCreationTimeNSec :: Word64
+  , entryUseTimeNSec :: Word64
+  , entryId :: UUID
   }
 
 entryIsAged :: Word64 -> Word64 -> Entry -> Bool
-entryIsAged maxLifetime now Entry {..} =
+entryIsAged maxLifetime now Entry{..} =
   now > entryCreationTimeNSec + maxLifetime
 
 entryIsIdle :: Word64 -> Word64 -> Entry -> Bool
-entryIsIdle maxIdletime now Entry {..} =
+entryIsIdle maxIdletime now Entry{..} =
   now > entryUseTimeNSec + maxIdletime
 
 -- | Pool of connections to DB.
 data Pool = Pool
-  { -- | Pool size.
-    poolSize                    :: Int,
-    -- | Connection settings.
-    poolFetchConnectionSettings :: IO [Connection.Setting.Setting],
-    -- | Acquisition timeout, in microseconds.
-    poolAcquisitionTimeout      :: Int,
-    -- | Maximal connection lifetime, in nanoseconds.
-    poolMaxLifetime             :: Word64,
-    -- | Maximal connection idle time, in nanoseconds.
-    poolMaxIdletime             :: Word64,
-    -- | Avail connections.
-    poolConnectionQueue         :: TQueue Entry,
-    -- | Remaining capacity.
-    -- The pool size limits the sum of poolCapacity, the length
-    -- of poolConnectionQueue and the number of in-flight
-    -- connections.
-    poolCapacity                :: TVar Int,
-    -- | Whether to return a connection to the pool.
-    poolReuseVar                :: TVar (TVar Bool),
-    -- | To stop the manager thread via garbage collection.
-    poolReaperRef               :: IORef (),
-    -- | Action for reporting the observations.
-    poolObserver                :: Observation -> IO (),
-    -- | Initial session to execute upon every established connection.
-    poolInitSession             :: Session.Session ()
+  { poolSize :: Int
+  -- ^ Pool size.
+  , poolFetchConnectionSettings :: IO [Connection.Setting.Setting]
+  -- ^ Connection settings.
+  , poolAcquisitionTimeout :: Int
+  -- ^ Acquisition timeout, in microseconds.
+  , poolMaxLifetime :: Word64
+  -- ^ Maximal connection lifetime, in nanoseconds.
+  , poolMaxIdletime :: Word64
+  -- ^ Maximal connection idle time, in nanoseconds.
+  , poolConnectionQueue :: TQueue Entry
+  -- ^ Avail connections.
+  , poolCapacity :: TVar Int
+  -- ^ Remaining capacity.
+  -- The pool size limits the sum of poolCapacity, the length
+  -- of poolConnectionQueue and the number of in-flight
+  -- connections.
+  , poolReuseVar :: TVar (TVar Bool)
+  -- ^ Whether to return a connection to the pool.
+  , poolReaperRef :: IORef ()
+  -- ^ To stop the manager thread via garbage collection.
+  , poolObserver :: Observation -> IO ()
+  -- ^ Action for reporting the observations.
+  , poolInitSession :: Session.Session ()
+  -- ^ Initial session to execute upon every established connection.
   }
 
 -- | Create a connection-pool.
@@ -119,7 +119,7 @@ acquire config = do
 -- So you can use this function to reset the connections in the pool.
 -- Naturally, you can also use it to release the resources.
 release :: Pool -> IO ()
-release Pool {..} =
+release Pool{..} =
   join . atomically $ do
     prevReuse <- readTVar poolReuseVar
     writeTVar prevReuse False
@@ -141,26 +141,27 @@ release Pool {..} =
 --
 -- __Warning:__ Due to the mechanism mentioned above you should avoid intercepting this error type from within sessions.
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
-use Pool {..} sess = do
+use Pool{..} sess = do
   timeout <- do
     delay <- registerDelay poolAcquisitionTimeout
     return $ readTVar delay
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
     asum
-      [ readTQueue poolConnectionQueue <&> onConn reuseVar,
-        do
+      [ readTQueue poolConnectionQueue <&> onConn reuseVar
+      , do
           capVal <- readTVar poolCapacity
-          if capVal > 0
-            then do
-              writeTVar poolCapacity $! pred capVal
-              return $ onNewConn reuseVar
-            else retry,
-        do
+          if capVal > 0 then do
+            writeTVar poolCapacity $! pred capVal
+            return $ onNewConn reuseVar
+          else
+            retry
+      , do
           timedOut <- timeout
-          if timedOut
-            then return . return . Left $ AcquisitionTimeoutUsageError
-            else retry
+          if timedOut then
+            return . return . Left $ AcquisitionTimeoutUsageError
+          else
+            retry
       ]
   where
     onNewConn reuseVar = do
@@ -190,19 +191,17 @@ use Pool {..} sess = do
 
     onConn reuseVar entry = do
       now <- getMonotonicTimeNSec
-      if entryIsAged poolMaxLifetime now entry
-        then do
+      if entryIsAged poolMaxLifetime now entry then do
+        Connection.release (entryConnection entry)
+        poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
+        onNewConn reuseVar
+      else
+        if entryIsIdle poolMaxIdletime now entry then do
           Connection.release (entryConnection entry)
-          poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
+          poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
           onNewConn reuseVar
-        else
-          if entryIsIdle poolMaxIdletime now entry
-            then do
-              Connection.release (entryConnection entry)
-              poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
-              onNewConn reuseVar
-            else do
-              onLiveConn reuseVar entry {entryUseTimeNSec = now}
+        else do
+          onLiveConn reuseVar entry{entryUseTimeNSec = now}
 
     onLiveConn reuseVar entry = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
@@ -234,12 +233,12 @@ use Pool {..} sess = do
         returnConn =
           join . atomically $ do
             reuse <- readTVar reuseVar
-            if reuse
-              then writeTQueue poolConnectionQueue entry $> return ()
-              else return $ do
-                Connection.release (entryConnection entry)
-                atomically $ modifyTVar' poolCapacity succ
-                poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
+            if reuse then
+              writeTQueue poolConnectionQueue entry $> return ()
+            else return $ do
+              Connection.release (entryConnection entry)
+              atomically $ modifyTVar' poolCapacity succ
+              poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
 
 -- | Union over all errors that 'use' can result in.
 data UsageError

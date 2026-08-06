@@ -1,6 +1,6 @@
 module Hasql.Pipeline
-  ( Pipeline,
-    statement,
+  ( Pipeline
+  , statement
   )
 where
 

@@ -1,5 +1,6 @@
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module PostgREST.CLI
   ( main
   , CLI (..)
@@ -7,25 +8,24 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
-import qualified Data.Aeson                 as JSON
-import qualified Data.ByteString.Char8      as BS
-import qualified Data.ByteString.Lazy       as LBS
-import qualified Hasql.Transaction.Sessions as SQL
-import qualified Options.Applicative        as O
+import Data.Aeson qualified as JSON
+import Data.ByteString.Char8 qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Hasql.Transaction.Sessions qualified as SQL
+import Options.Applicative qualified as O
 
-import PostgREST.AppState    (AppState)
-import PostgREST.Config      (AppConfig (..))
+import PostgREST.AppState (AppState)
+import PostgREST.Config (AppConfig (..))
 import PostgREST.Observation (Observation (..))
 import PostgREST.SchemaCache (querySchemaCache)
-import PostgREST.Version     (prettyVersion)
+import PostgREST.Version (prettyVersion)
 
-import qualified PostgREST.App      as App
-import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Client   as Client
-import qualified PostgREST.Config   as Config
+import PostgREST.App qualified as App
+import PostgREST.AppState qualified as AppState
+import PostgREST.Client qualified as Client
+import PostgREST.Config qualified as Config
 
 import Protolude
-
 
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do
@@ -33,7 +33,7 @@ main CLI{cliCommand, cliPath} = do
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
   case cliCommand of
     Client adminCmd -> runClientCommand conf adminCmd
-    Run runCmd      -> runAppCommand conf runCmd
+    Run runCmd -> runAppCommand conf runCmd
 
 -- | Run command using http-client to communicate with an already running postgrest
 runClientCommand :: AppConfig -> ClientCommand -> IO ()
@@ -50,14 +50,15 @@ runAppCommand conf@AppConfig{..} runCmd = do
   bracket
     (AppState.init conf (killThread mainThreadId))
     AppState.destroy
-    (\appState -> case runCmd of
-      CmdDumpConfig -> do
-        when configDbConfig $ AppState.readInDbConfig True appState
-        putStr . Config.toText =<< AppState.getConfig appState
-      CmdDumpSchema -> do
-        when configDbConfig $ AppState.readInDbConfig True appState
-        putStrLn =<< dumpSchema appState
-      CmdRun -> App.run appState mainThreadIdRef)
+    ( \appState -> case runCmd of
+        CmdDumpConfig -> do
+          when configDbConfig $ AppState.readInDbConfig True appState
+          putStr . Config.toText =<< AppState.getConfig appState
+        CmdDumpSchema -> do
+          when configDbConfig $ AppState.readInDbConfig True appState
+          putStrLn =<< dumpSchema appState
+        CmdRun -> App.run appState mainThreadIdRef
+    )
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -76,7 +77,7 @@ dumpSchema appState = do
 -- | Command line interface options
 data CLI = CLI
   { cliCommand :: Command
-  , cliPath    :: Maybe FilePath
+  , cliPath :: Maybe FilePath
   }
 
 data Command
@@ -103,20 +104,20 @@ readCLIShowHelp =
     progDesc =
       O.progDesc $
         "PostgREST "
-        <> BS.unpack prettyVersion
-        <> " / create a REST API to an existing Postgres database"
+          <> BS.unpack prettyVersion
+          <> " / create a REST API to an existing Postgres database"
 
     versionFlag =
       O.infoOption ("PostgREST " <> BS.unpack prettyVersion) $
         O.long "version"
-        <> O.short 'v'
-        <> O.help "Show the version information"
+          <> O.short 'v'
+          <> O.help "Show the version information"
 
     exampleParser =
       O.infoOption Config.exampleConfigFile $
         O.long "example"
-        <> O.short 'e'
-        <> O.help "Show an example configuration file"
+          <> O.short 'e'
+          <> O.help "Show an example configuration file"
 
     cliParser :: O.Parser CLI
     cliParser =
@@ -127,19 +128,19 @@ readCLIShowHelp =
     configFileOption =
       O.strArgument $
         O.metavar "FILENAME"
-        <> O.help "Path to configuration file"
+          <> O.help "Path to configuration file"
 
     dumpConfigFlag =
       O.flag (Run CmdRun) (Run CmdDumpConfig) $
         O.long "dump-config"
-        <> O.help "Dump loaded configuration and exit"
+          <> O.help "Dump loaded configuration and exit"
 
     dumpSchemaFlag =
       O.flag (Run CmdRun) (Run CmdDumpSchema) $
         O.long "dump-schema"
-        <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+          <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
 
     readyFlag =
       O.flag (Run CmdRun) (Client CmdReady) $
         O.long "ready"
-        <> O.help "Checks the health of PostgREST by doing a request on the admin server /ready endpoint"
+          <> O.help "Checks the health of PostgREST by doing a request on the admin server /ready endpoint"

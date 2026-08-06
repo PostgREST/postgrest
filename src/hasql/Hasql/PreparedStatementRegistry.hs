@@ -1,16 +1,16 @@
 module Hasql.PreparedStatementRegistry
-  ( PreparedStatementRegistry,
-    new,
-    update,
-    reset,
-    LocalKey (..),
+  ( PreparedStatementRegistry
+  , new
+  , update
+  , reset
+  , LocalKey (..)
   )
 where
 
-import qualified ByteString.StrictBuilder as B
-import qualified Data.HashTable.IO        as A
-import qualified Hasql.LibPq14            as Pq
-import           Hasql.Prelude            hiding (lookup, reset)
+import ByteString.StrictBuilder qualified as B
+import Data.HashTable.IO qualified as A
+import Hasql.LibPq14 qualified as Pq
+import Hasql.Prelude hiding (lookup, reset)
 
 data PreparedStatementRegistry
   = PreparedStatementRegistry !(A.BasicHashTable LocalKey ByteString) !(IORef Word)

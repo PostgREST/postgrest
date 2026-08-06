@@ -11,9 +11,11 @@ spec :: SpecWithConfig
 spec withConfig = withConfig baseCfg $
   describe "No Superuser" $ do
     it "proves that the authenticator role is not a superuser" $ do
-      request methodGet "/rpc/is_superuser"
-          mempty
-          ""
-        `shouldRespondWith`
-          "false"
-          { matchStatus = 200 }
+      request
+        methodGet
+        "/rpc/is_superuser"
+        mempty
+        ""
+        `shouldRespondWith` "false"
+          { matchStatus = 200
+          }

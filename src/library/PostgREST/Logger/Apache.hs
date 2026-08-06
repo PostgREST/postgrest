@@ -2,9 +2,9 @@ module PostgREST.Logger.Apache
   ( apacheFormat
   ) where
 
-import qualified Data.ByteString.Char8 as BS
-import           Network.Wai.Logger
-import           System.Log.FastLogger
+import Data.ByteString.Char8 qualified as BS
+import Network.Wai.Logger
+import System.Log.FastLogger
 
 import Network.HTTP.Types.Status (Status, statusCode)
 import Network.Wai
@@ -19,29 +19,29 @@ apacheFormat maybeUser tmstr req status msize =
 -- https://github.com/kazu-yamamoto/logger/blob/57bc4d3b26ca094fd0c3a8a8bb4421bcdcdd7061/wai-logger/Network/Wai/Logger/Apache.hs#L44-L45
 apacheLogStr :: ToLogStr user => Maybe user -> FormattedTime -> Request -> Status -> Maybe Integer -> LogStr
 apacheLogStr maybeUser tmstr req status msize =
-      toLogStr (getSourceFromSocket req)
-  <> " - "
-  <> maybe "-" toLogStr maybeUser
-  <> " ["
-  <> toLogStr tmstr
-  <> "] \""
-  <> toLogStr (requestMethod req)
-  <> " "
-  <> toLogStr path
-  <> " "
-  <> toLogStr (show (httpVersion req)::Text)
-  <> "\" "
-  <> toLogStr (show (statusCode status)::Text)
-  <> " "
-  <> toLogStr (maybe "-" show msize::Text)
-  <> " \""
-  <> toLogStr (fromMaybe "" mr)
-  <> "\" \""
-  <> toLogStr (fromMaybe "" mua)
-  <> "\"\n"
+  toLogStr (getSourceFromSocket req)
+    <> " - "
+    <> maybe "-" toLogStr maybeUser
+    <> " ["
+    <> toLogStr tmstr
+    <> "] \""
+    <> toLogStr (requestMethod req)
+    <> " "
+    <> toLogStr path
+    <> " "
+    <> toLogStr (show (httpVersion req) :: Text)
+    <> "\" "
+    <> toLogStr (show (statusCode status) :: Text)
+    <> " "
+    <> toLogStr (maybe "-" show msize :: Text)
+    <> " \""
+    <> toLogStr (fromMaybe "" mr)
+    <> "\" \""
+    <> toLogStr (fromMaybe "" mua)
+    <> "\"\n"
   where
     path = rawPathInfo req <> rawQueryString req
-    mr  = requestHeaderReferer req
+    mr = requestHeaderReferer req
     mua = requestHeaderUserAgent req
 
 getSourceFromSocket :: Request -> ByteString
