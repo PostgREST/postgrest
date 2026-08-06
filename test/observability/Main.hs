@@ -1,29 +1,31 @@
 module Main where
 
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Pool.Config          as P
-import qualified Hasql.Transaction.Sessions as HT
+import Hasql.Pool qualified as P
+import Hasql.Pool.Config qualified as P
+import Hasql.Transaction.Sessions qualified as HT
 
 import Data.Function (id)
-import Data.IORef    (newIORef, readIORef)
+import Data.IORef (newIORef, readIORef)
 
-import           PostgREST.App             (postgrest)
-import qualified PostgREST.AppState        as AppState
-import           PostgREST.Config          (AppConfig (..),
-                                            toConnectionSettings)
-import           PostgREST.Config.Database (queryPgVersion)
-import qualified PostgREST.Logger          as Logger
-import qualified PostgREST.Metrics         as Metrics
-import           PostgREST.SchemaCache     (querySchemaCache)
+import PostgREST.App (postgrest)
+import PostgREST.AppState qualified as AppState
+import PostgREST.Config
+  ( AppConfig (..)
+  , toConnectionSettings
+  )
+import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
+import PostgREST.SchemaCache (querySchemaCache)
 
-import qualified Observation.JwtCache
-import qualified Observation.MetricsSpec
+import Observation.JwtCache qualified
+import Observation.MetricsSpec qualified
 
-import qualified Observation.SchemaCacheSpec
-import           ObsHelper
-import           PostgREST.Observation       (Observation (HasqlPoolObs))
-import           Protolude                   hiding (toList, toS)
-import           Test.Hspec
+import ObsHelper
+import Observation.SchemaCacheSpec qualified
+import PostgREST.Observation (Observation (HasqlPoolObs))
+import Protolude hiding (toList, toS)
+import Test.Hspec
 
 main :: IO ()
 main = do
@@ -35,15 +37,17 @@ main = do
   -- this means we have another thread running for the entire duration of the spec but this shouldn't be a problem since Haskell green threads are lightweight
   void $ forkIO $ forever $ readChan poolChan
   metricsState <- Metrics.init (configDbPoolSize testCfg)
-  pool <- P.acquire $ P.settings
-    [ P.size 3
-    , P.acquisitionTimeout 10
-    , P.agingTimeout 60
-    , P.idlenessTimeout 60
-    , P.staticConnectionSettings $ toConnectionSettings identity testCfg
-    -- make sure metrics are updated and pool observations published to poolChan
-    , P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
-    ]
+  pool <-
+    P.acquire $
+      P.settings
+        [ P.size 3
+        , P.acquisitionTimeout 10
+        , P.agingTimeout 60
+        , P.idlenessTimeout 60
+        , P.staticConnectionSettings $ toConnectionSettings identity testCfg
+        , -- make sure metrics are updated and pool observations published to poolChan
+          P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
+        ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
@@ -70,7 +74,6 @@ main = do
       describe "Feature.MetricsSpec" Observation.MetricsSpec.spec
     before (initApp baseSchemaCache testCfg) $
       describe "Feature.SchemaCacheSpec" Observation.SchemaCacheSpec.spec
-
   where
     loadSCache pool pgVersion conf =
-      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
+      either (panic . show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)

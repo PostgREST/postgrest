@@ -8,15 +8,15 @@ module PostgREST.Unix
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Signals as Signals
 #endif
-import System.Posix.Types       (FileMode)
+import System.Posix.Types (FileMode)
 import System.PosixCompat.Files (setFileMode)
 
-import           Data.String           (String)
-import qualified Network.Socket        as NS
-import qualified PostgREST.Observation as Observation
-import           Protolude
-import           System.Directory      (removeFile)
-import           System.IO.Error       (isDoesNotExistError)
+import Data.String (String)
+import Network.Socket qualified as NS
+import PostgREST.Observation qualified as Observation
+import Protolude
+import System.Directory (removeFile)
+import System.IO.Error (isDoesNotExistError)
 
 -- | Set signal handlers, only for systems with signals
 installSignalHandlers :: Observation.ObservationHandler -> IO () -> IO () -> IO () -> IO ()
