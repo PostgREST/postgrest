@@ -1,29 +1,28 @@
-{-|
-Module      : PostgREST.Error.Types
-Description : PostgREST Error Data Types
--}
+-- |
+-- Module      : PostgREST.Error.Types
+-- Description : PostgREST Error Data Types
 module PostgREST.Error.Types
-  ( ApiRequestError(..)
-  , QPError(..)
-  , RangeError(..)
-  , RaiseError(..)
-  , SchemaCacheError(..)
-  , PgError(..)
-  , Error(..)
+  ( ApiRequestError (..)
+  , QPError (..)
+  , RangeError (..)
+  , RaiseError (..)
+  , SchemaCacheError (..)
+  , PgError (..)
+  , Error (..)
   , JwtError (..)
-  , JwtDecodeError(..)
-  , JwtClaimsError(..)
-  , PgRaiseErrMessage(..)
-  , PgRaiseErrDetails(..)
+  , JwtDecodeError (..)
+  , JwtClaimsError (..)
+  , PgRaiseErrMessage (..)
+  , PgRaiseErrDetails (..)
   ) where
 
-import qualified Hasql.Pool as SQL
+import Hasql.Pool qualified as SQL
 
-import PostgREST.MediaType                (MediaType (..))
-import PostgREST.SchemaCache              (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
+import PostgREST.MediaType (MediaType (..))
+import PostgREST.SchemaCache (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Relationship (..), RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (Routine (..))
+import PostgREST.SchemaCache.Routine (Routine (..))
 import Protolude
 
 data Error
@@ -123,15 +122,15 @@ data PgError = PgError Authenticated SQL.UsageError
   deriving Show
 
 -- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Maybe Text,
-  getHint    :: Maybe Text
-}
+data PgRaiseErrMessage = PgRaiseErrMessage
+  { getCode :: Text
+  , getMessage :: Text
+  , getDetails :: Maybe Text
+  , getHint :: Maybe Text
+  }
 
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus     :: Int,
-  getStatusText :: Maybe Text,
-  getHeaders    :: Map Text Text
-}
+data PgRaiseErrDetails = PgRaiseErrDetails
+  { getStatus :: Int
+  , getStatusText :: Maybe Text
+  , getHeaders :: Map Text Text
+  }

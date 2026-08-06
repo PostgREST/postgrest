@@ -1,20 +1,20 @@
 module Main where
 
-import           Control.Concurrent.Async            (race)
-import qualified Data.Text                           as Text
-import qualified Hasql.Connection                    as Connection
-import qualified Hasql.Connection.Setting            as Connection.Setting
+import Control.Concurrent.Async (race)
+import qualified Data.Text as Text
+import qualified Hasql.Connection as Connection
+import qualified Hasql.Connection.Setting as Connection.Setting
 import qualified Hasql.Connection.Setting.Connection as Connection.Setting.Connection
-import qualified Hasql.Decoders                      as Decoders
-import qualified Hasql.Encoders                      as Encoders
-import           Hasql.Pool
-import qualified Hasql.Pool.Config                   as Config
-import qualified Hasql.Session                       as Session
-import qualified Hasql.Statement                     as Statement
-import           Prelude
+import qualified Hasql.Decoders as Decoders
+import qualified Hasql.Encoders as Encoders
+import Hasql.Pool
+import qualified Hasql.Pool.Config as Config
+import qualified Hasql.Session as Session
+import qualified Hasql.Statement as Statement
 import qualified System.Environment
-import qualified System.Random.Stateful              as Random
-import           Test.Hspec
+import qualified System.Random.Stateful as Random
+import Test.Hspec
+import Prelude
 
 main :: IO ()
 main = do
@@ -23,11 +23,11 @@ main = do
         bracket
           ( acquire
               ( Config.settings
-                  [ Config.size poolSize,
-                    Config.acquisitionTimeout acqTimeout,
-                    Config.agingTimeout maxLifetime,
-                    Config.idlenessTimeout maxIdletime,
-                    Config.staticConnectionSettings
+                  [ Config.size poolSize
+                  , Config.acquisitionTimeout acqTimeout
+                  , Config.agingTimeout maxLifetime
+                  , Config.idlenessTimeout maxIdletime
+                  , Config.staticConnectionSettings
                       [ Connection.Setting.connection
                           (Connection.Setting.Connection.string connectionString)
                       ]
@@ -90,44 +90,42 @@ main = do
       release pool
       res <- use pool $ getSettingSession "testing.foo"
       res `shouldBe` Right Nothing
-    it "Times out connection acquisition"
-      $
+    it "Times out connection acquisition" $
       -- 1ms timeout
       -- 1ms timeout
       -- 1ms timeout
-      withPool 1 0.001 1_800 1_800 connectionString
-      $ \pool -> do
-        sleeping <- newEmptyMVar
-        t0 <- getCurrentTime
-        res <-
-          race
-            ( use pool
-                $ liftIO
-                $ do
-                  putMVar sleeping ()
-                  threadDelay 1_000_000 -- 1s
-            )
-            ( do
-                takeMVar sleeping
-                use pool selectOneSession
-            )
-        t1 <- getCurrentTime
-        res `shouldBe` Right (Left AcquisitionTimeoutUsageError)
-        diffUTCTime t1 t0 `shouldSatisfy` (< 0.5) -- 0.5s
-    it "Passively times out old connections (maxLifetime)"
-      $
+      withPool 1 0.001 1_800 1_800 connectionString $
+        \pool -> do
+          sleeping <- newEmptyMVar
+          t0 <- getCurrentTime
+          res <-
+            race
+              ( use pool $
+                  liftIO $
+                    do
+                      putMVar sleeping ()
+                      threadDelay 1_000_000 -- 1s
+              )
+              ( do
+                  takeMVar sleeping
+                  use pool selectOneSession
+              )
+          t1 <- getCurrentTime
+          res `shouldBe` Right (Left AcquisitionTimeoutUsageError)
+          diffUTCTime t1 t0 `shouldSatisfy` (< 0.5) -- 0.5s
+    it "Passively times out old connections (maxLifetime)" $
       -- 0.5s connection lifetime
       -- 0.5s connection lifetime
       -- 0.5s connection lifetime
-      withPool 1 10 0.5 1_800 connectionString
-      $ \pool -> do
-        res <- use pool $ setSettingSession "testing.foo" "hello world"
-        res `shouldBe` Right ()
-        res2 <- use pool $ getSettingSession "testing.foo"
-        res2 `shouldBe` Right (Just "hello world")
-        threadDelay 1_000_000 -- 1s
-        res3 <- use pool $ getSettingSession "testing.foo"
-        res3 `shouldBe` Right Nothing
+      withPool 1 10 0.5 1_800 connectionString $
+        \pool -> do
+          res <- use pool $ setSettingSession "testing.foo" "hello world"
+          res `shouldBe` Right ()
+          res2 <- use pool $ getSettingSession "testing.foo"
+          res2 `shouldBe` Right (Just "hello world")
+          threadDelay 1_000_000 -- 1s
+          res3 <- use pool $ getSettingSession "testing.foo"
+          res3 `shouldBe` Right Nothing
     it "Counts active connections" $ do
       (taggedConnectionSettings, appName) <- tagConnection connectionString
       withPool 3 10 1_800 1_800 taggedConnectionSettings $ \pool -> do
@@ -169,11 +167,11 @@ getConnectionString =
   Text.unwords
     . catMaybes
     <$> sequence
-      [ setting "host" $ defaultEnv "POSTGRES_HOST" "localhost",
-        setting "port" $ defaultEnv "POSTGRES_PORT" "5432",
-        setting "user" $ defaultEnv "POSTGRES_USER" "postgres",
-        setting "password" $ defaultEnv "POSTGRES_PASSWORD" "postgres",
-        setting "dbname" $ defaultEnv "POSTGRES_DBNAME" "postgres"
+      [ setting "host" $ defaultEnv "POSTGRES_HOST" "localhost"
+      , setting "port" $ defaultEnv "POSTGRES_PORT" "5432"
+      , setting "user" $ defaultEnv "POSTGRES_USER" "postgres"
+      , setting "password" $ defaultEnv "POSTGRES_PASSWORD" "postgres"
+      , setting "dbname" $ defaultEnv "POSTGRES_DBNAME" "postgres"
       ]
   where
     maybeEnv env = fmap Text.pack <$> System.Environment.lookupEnv env

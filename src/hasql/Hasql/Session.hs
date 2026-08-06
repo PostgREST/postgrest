@@ -1,14 +1,14 @@
 module Hasql.Session
-  ( Session,
-    sql,
-    statement,
-    pipeline,
+  ( Session
+  , sql
+  , statement
+  , pipeline
 
     -- * Execution
-    run,
+  , run
 
     -- * Errors
-    module Hasql.Errors,
+  , module Hasql.Errors
   )
 where
 

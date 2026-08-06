@@ -1,5 +1,4 @@
-module PostgREST.Debounce
-  ( makeDebouncer) where
+module PostgREST.Debounce (makeDebouncer) where
 
 import Protolude
 

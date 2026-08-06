@@ -1,14 +1,14 @@
 module Hasql.Commands
-  ( Commands,
-    asBytes,
-    setEncodersToUTF8,
-    setMinClientMessagesToWarning,
+  ( Commands
+  , asBytes
+  , setEncodersToUTF8
+  , setMinClientMessagesToWarning
   )
 where
 
-import qualified Data.ByteString.Builder as BB
-import qualified Data.ByteString.Lazy    as BL
-import           Hasql.Prelude
+import Data.ByteString.Builder qualified as BB
+import Data.ByteString.Lazy qualified as BL
+import Hasql.Prelude
 
 newtype Commands
   = Commands (DList BB.Builder)
