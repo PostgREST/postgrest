@@ -24,7 +24,7 @@ You can do this with UNIX signals or with PostgreSQL notifications. It's also po
 
 .. note::
 
-  - Requests will wait until the schema cache reload is done. This to prevent client errors due to an stale schema cache.
+  - If the schema cache fails to reload (e.g. due to a ``statement_timeout`` or :ref:`pool timeout <pool_timeout>`), PostgREST will continue serving requests in a "best effort" basis.
   - If you are using the :ref:`in_db_config`, a schema cache reload will :ref:`reload the configuration<config_reloading>` as well.
 
 .. _schema_reloading_signals:

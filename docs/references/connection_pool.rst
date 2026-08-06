@@ -47,6 +47,8 @@ Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the co
 To avoid this problem and save resources, a connection max lifetime (:ref:`db-pool-max-lifetime`) is enforced.
 After the max lifetime is reached, connections from the pool will be released and new ones will be created. This doesn't affect running requests, only unused connections will be released.
 
+.. _pool_timeout:
+
 Acquisition Timeout
 -------------------
 
