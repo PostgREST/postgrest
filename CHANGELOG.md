@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. From versio
   + Previously this required caching `pg_timezone_names` which was slow in some systems
 - `Prefer: timezone` now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
 - Graceful shutdown by @mkleczek, @Vlix in #4702
+- `jwt-role-claim-key` is now more flexible, supporting the standard JSON Path defined in RFC 9535 by @taimoorzaeem in #4984
 
 ### Fixed
 
@@ -41,8 +42,8 @@ All notable changes to this project will be documented in this file. From versio
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
-- Config `jwt-role-claim-key` now uses RFC 9535 syntax for JSON Path by @taimoorzaeem in #4984
 - `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
+- `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
 
 #### Changed Syntax for JWT Role Extraction
 
