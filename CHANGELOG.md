@@ -6,65 +6,90 @@ All notable changes to this project will be documented in this file. From versio
 
 ## [16.0] - 2026-08-07
 
-### Added
+### Changes
 
-- Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
-- Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
-  + Removed unnecessary double count when building the `Content-Range`.
-- Add config `client-error-verbosity` to customize error verbosity by @taimoorzaeem in #4088, #3980, #3824
-- Add `Vary` header to responses by @develop7 in #4609
-- Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
-- Add GHC runtime metrics to the metrics endpoint by @mkleczek in #4862
-- Support running the admin server on a unix socket by @wolfgangwalther in #5003
-- Add config `server-reuseport` to allow starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
-- Make config `log-level` reloadable by @taimoorzaeem in #5113
-- Optimize schema cache domain type resolution by using `pg_basetype` on PostgreSQL 17+ by @joelonsql in #4567
-- `Prefer: timezone` is optimized so it no longer requires the schema cache by @steve-chavez in #5100
-  + Previously this required caching `pg_timezone_names` which was slow in some systems
-- `Prefer: timezone` now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
-- Graceful shutdown by @mkleczek, @Vlix in #4702
-- `jwt-role-claim-key` is now more flexible, supporting the standard JSON Path defined in RFC 9535 by @taimoorzaeem in #4984
+#### HTTP Server
 
-### Fixed
+- [Graceful shutdown](https://docs.postgrest.org/en/v16/references/http_server.html#graceful-shutdown) by @mkleczek, @Vlix in #4702
 
-- Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
+- [server-reuseport](https://docs.postgrest.org/en/v16/references/configuration.html#server-reuseport) allows starting multiple PostgREST instances using the same port on supported platforms by @mkleczek in #4703, #4694
+
+#### Performance
+
+- Optimize schema cache domain type resolution by using [pg_basetype](https://www.postgresql.org/docs/current/functions-info.html#FUNCTIONS-INFO-CATALOG) on PostgreSQL 17+ by @joelonsql in #4567
+
+- [Prefer: count=exact](https://docs.postgrest.org/en/v16/references/api/pagination_count.html#exact-count) no longer does a double count on requests that do not use ranges or `db-max-rows` by @laurenceisla in #3957
+
+- [Prefer: timezone](https://docs.postgrest.org/en/v16/references/api/preferences.html#prefer-timezone) no longer requires the schema cache by @steve-chavez in #5100
+  + Previously this required caching [pg_timezone_names](https://www.postgresql.org/docs/current/view-pg-timezone-names.html) which was slow in some systems
+
+#### JWT
+
+- [JWT Role Extraction](https://docs.postgrest.org/en/v16/references/auth.html#jwt-role-extract) is now more flexible, supporting the standard JSON Path defined in RFC 9535 by @taimoorzaeem in #4984
+
+#### API
+
+- [Prefer: timezone](https://docs.postgrest.org/en/v16/references/api/preferences.html#timezone) now supports numeric offsets like `05:00` or `-4` by @steve-chavez in #5100
+
 - Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
-  + You need to set `url-use-legacy-target-names = false`.
-- If the schema cache fails to reload, PostgREST will no longer stop serving requests and will continue doing so in a "best effort" basis by @mkleczek in #4873 #4869
-- Stop reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
-- Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
-- Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
-- Fix config `db-channel-enabled` not reloadable on config reload by @taimoorzaeem in #4894
-
-### Changed
-
-- Drop support for PostgreSQL EOL version 13 by @wolfgangwalther in #4193
-- All responses now include a `Vary` header by @develop7 in #4609
-- Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
-  + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
-- Build a static executable for aarch64-linux by @wolfgangwalther in #4193
-- Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
-- `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
-- `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
-
-#### Changed Syntax for JWT Role Extraction
-
-The `jwt-role-claim-key` config should be updated according to the following:
-
-- All config values must start with `$` character.
-  + Example: `.roles.read` -> `$.roles.read`
-- Keys with special characters, with the exception of `_` char must be quoted.
-  + Example: `.roles.write-role` -> `$.roles["write-role"]`
-- String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
-  + Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
-- Detailed reference for syntax: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
-
-### Deprecated
+  + You need to set [url-use-legacy-target-names](https://docs.postgrest.org/en/v16/references/configuration.html#url-use-legacy-target-names) to `false`.
 
 - Deprecate filters, orders and limits with the name of an embedded table when it has an alias by @steve-chavez, @laurenceisla in #4075
   + e.g. `?select=alias:table(*)&table.id=eq.1` will not be possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
-  + You will see a warning in the logs when this happens.
+  + You will see a warning in the logs and a `Warning` header on the client response when this happens.
   + You can disable this behavior now by setting `url-use-legacy-target-names = false`.
+
+- Add `Vary` header to responses by @develop7 in #4609
+
+- Fix automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
+
+#### Observability
+
+- [GHC runtime metrics](https://docs.postgrest.org/en/v16/references/observability.html#ghc-runtime-metrics) by @mkleczek in #4862
+- [client-error-verbosity](https://docs.postgrest.org/en/v16/references/configuration.html#client-error-verbosity) to customize responses error verbosity by @taimoorzaeem in #4088, #3980, #3824
+- [log-level](https://docs.postgrest.org/en/v16/references/configuration.html#log-level) config is now reloadable by @taimoorzaeem in #5113
+- Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+- Log schema cache queries timings on `log-level=debug` by @steve-chavez in #4805
+
+#### Admin Server
+
+- [admin-server-unix-socket](https://docs.postgrest.org/en/v16/references/configuration.html#admin-server-unix-socket)/[admin-server-unix-socket-mode](https://docs.postgrest.org/en/v16/references/configuration.html#admin-server-unix-socket-mode) to run the admin server on a unix socket by @wolfgangwalther in #5003
+- Fix responding with `Something went wrong` on Admin server when under EMFILE by @mkleczek in #5077
+
+#### Deployment
+
+- Make executable for aarch64-linux static instead of Ubuntu-based by @wolfgangwalther in #4193
+- Docker image for aarch64-linux is now built from scratch instead of being Ubuntu-based by @wolfgangwalther in #4193
+
+#### Schema Cache
+
+- Fix requests failing when the schema cache fails to reload, when this happens PostgREST will continue serving requests as "best effort" by @mkleczek in #4873 #4869
+- Fix reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
+- Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
+
+#### Listener
+
+- Fix config `db-channel-enabled` not reloading by @taimoorzaeem in #4894
+
+### Migration to v16
+
+- Drop support for PostgreSQL EOL version 13 by @wolfgangwalther in #4193
+  + PostgreSQL 13 end of life was on 2025 [ref](https://www.postgresql.org/support/versioning/)
+  + Upgrade your PostgreSQL version to at least 14 to use this new PostgREST version.
+
+- Fail at startup when `db-schemas` contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+  + Previously it failed at runtime with `PGRST205` on requests related to these schemas.
+  + Remove `pg_catalog` and `information_schema` from `db-schemas`.
+
+- `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
+  + Supporting this required caching `pg_timezone_names`, which was expensive.
+  + Ensure your requests always have a valid timezone.
+
+- `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
+  + Now all config values must start with `$` character. Example: `.roles.read` -> `$.roles.read`
+  + Keys with special characters, with the exception of `_` char must be quoted. Example: `.roles.write-role` -> `$.roles["write-role"]`
+  + String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search. Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
+  + Update the `jwt-role-claim-key` value accoring to the above rules. Also see the syntax reference: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
 
 ## [14.16] - 2026-07-27
 
