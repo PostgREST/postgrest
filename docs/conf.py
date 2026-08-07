@@ -300,6 +300,7 @@ linkcheck_ignore = [
     r"https://www.patreon.com/postgrest",
     r"https://blog.frankel.ch/poor-man-api",
     r"https://www.cybertec-postgresql.com/.*",
+    r"https://stackoverflow.com/.*",
     # Odd SSL error
     r"https://www.dripdepot.com",
     r"https://www.euronodes.com",
