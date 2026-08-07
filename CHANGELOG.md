@@ -23,6 +23,11 @@ All notable changes to this project will be documented in this file. From versio
 - [Prefer: timezone](https://docs.postgrest.org/en/v16/references/api/preferences.html#prefer-timezone) no longer requires the schema cache by @steve-chavez in #5100
   + Previously this required caching [pg_timezone_names](https://www.postgresql.org/docs/current/view-pg-timezone-names.html) which was slow in some systems
 
+#### Integrations
+
+- PostgREST is now tested to work with [OrioleDB](https://github.com/orioledb/orioledb/) in #4845 by @wolfgangwalther
+  + See [our guide for running OrioleDB on NixOS](https://docs.postgrest.org/en/v16/integrations/nixos.html)
+
 #### JWT
 
 - [JWT Role Extraction](https://docs.postgrest.org/en/v16/references/auth.html#jwt-role-extract) is now more flexible, supporting the standard JSON Path defined in RFC 9535 by @taimoorzaeem in #4984
@@ -63,7 +68,7 @@ All notable changes to this project will be documented in this file. From versio
 
 #### Schema Cache
 
-- Fix requests failing when the schema cache fails to reload, when this happens PostgREST will continue serving requests as "best effort" by @mkleczek in #4873 #4869
+- Fix requests failing when the schema cache fails to reload, when this happens PostgREST will continue serving requests in "best effort" by @mkleczek in #4873 #4869
 - Fix reporting 503s errors unnecessarily while the schema cache is loading at startup by @mkleczek in #4880
 - Fix schema cache dump missing RPC transaction isolation level by @taimoorzaeem in #5079
 
@@ -74,7 +79,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Migration to v16
 
 - Drop support for PostgreSQL EOL version 13 by @wolfgangwalther in #4193
-  + PostgreSQL 13 end of life was on 2025 [ref](https://www.postgresql.org/support/versioning/)
+  + PostgreSQL 13 end of life was on 2025 ([ref](https://www.postgresql.org/support/versioning/))
   + Upgrade your PostgreSQL version to at least 14 to use this new PostgREST version.
 
 - Fail at startup when `db-schemas` contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
@@ -86,9 +91,12 @@ All notable changes to this project will be documented in this file. From versio
   + Ensure your requests always have a valid timezone.
 
 - `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
-  + Now all config values must start with `$` character. Example: `.roles.read` -> `$.roles.read`
-  + Keys with special characters, with the exception of `_` char must be quoted. Example: `.roles.write-role` -> `$.roles["write-role"]`
-  + String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search. Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
+  + Now all config values must start with `$` character.
+     Example: `.roles.read` -> `$.roles.read`
+  + Keys with special characters, with the exception of `_` char must be quoted.
+      Example: `.roles.write-role` -> `$.roles["write-role"]`
+  + String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
+      Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
   + Update the `jwt-role-claim-key` value accoring to the above rules. Also see the syntax reference: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
 
 ## [14.16] - 2026-07-27
