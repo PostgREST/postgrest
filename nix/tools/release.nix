@@ -7,7 +7,6 @@ let
       {
         name = "postgrest-release";
         docs = "Patch postgrest.cabal, CHANGELOG.md, commit and push all in one go.";
-        args = [ "ARG_OPTIONAL_BOOLEAN([major], [m], [Bump to new major version (only applies on main branch).])" ];
         workingDir = "/";
       }
       ''
@@ -20,7 +19,6 @@ let
         git diff --exit-code HEAD postgrest.cabal > /dev/null
         trap "" ERR
 
-        # TODO: Support C+D bumps when implementing hackage releases
         bump () {
           current_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
           # shellcheck disable=SC2034
