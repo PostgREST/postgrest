@@ -9,6 +9,9 @@ import Test.Hspec.Wai.JSON
 
 import PostgREST.Config           (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion, pgVersion190)
+import PostgREST.Version          (prettyVersion)
+
+import qualified Data.ByteString.Char8 as BS
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -1177,10 +1180,11 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
           ]
         }
 
-    it "filters, orders and limits aliased embeded entities using the target name" $
+    it "filters, orders and limits aliased embeded entities using the target name" $ do
+      let pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
       get "/projects?id=eq.1&select=id, name, the_tasks:tasks(id, name)&tasks.name=like.Code*&tasks.order=name.asc&tasks.limit=1" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","the_tasks":[{"id":2,"name":"Code w7"}]}]|]
-        { matchHeaders = ["Warning" <:> "299 PostgRESTv15(pre-release) \"Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release. Update `tasks` to `the_tasks` in query string filters, orders or limits.\""] }
+        { matchHeaders = ["Warning" <:> ("299 " <> pgrstVer <> " \"Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release. Update `tasks` to `the_tasks` in query string filters, orders or limits.\"")] }
 
 
   describe "Accept headers" $ do
