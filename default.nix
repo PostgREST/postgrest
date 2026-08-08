@@ -184,4 +184,5 @@ rec {
 
   # NixOS VM tests
   nixpkgs-nixos-test = runTest postgrestStatic (pkgs.path + "/nixos/tests/postgrest.nix");
+  process-restart-systemd-test = runTest (lib.dontCheck postgrest) ./nix/tests/process-restart-systemd.nix;
 }

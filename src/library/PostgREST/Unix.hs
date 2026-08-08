@@ -2,6 +2,7 @@
 
 module PostgREST.Unix
   ( installSignalHandlers
+  , installSIGHUPHandler
   , createAndBindDomainSocket
   ) where
 
@@ -31,6 +32,14 @@ installSignalHandlers observer interrupt usr1 usr2 = do
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
 #else
 installSignalHandlers _ _ _ _ = pass
+#endif
+
+installSIGHUPHandler :: IO () -> IO ()
+#ifndef mingw32_HOST_OS
+installSIGHUPHandler handler =
+  void $ Signals.installHandler Signals.sigHUP (Signals.Catch handler) Nothing
+#else
+installSIGHUPHandler _ = pass
 #endif
 
 -- | Create a unix domain socket and bind it to the given path.
