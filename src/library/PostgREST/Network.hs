@@ -1,13 +1,13 @@
-module PostgREST.Network
-  ( resolveSocketToAddress
-  , escapeHostName
-  , isSpecialHostName
-  ) where
+module PostgREST.Network (
+  resolveSocketToAddress,
+  escapeHostName,
+  isSpecialHostName,
+) where
 
-import           Data.String    (IsString (..))
-import qualified Network.Socket as NS
-
+import Data.String (IsString (..))
 import Protolude
+
+import Network.Socket qualified as NS
 
 -- | Resolves the socket to an address depending on the socket type. The Show
 --   instance of the socket types automatically resolves it to the correct
@@ -28,18 +28,18 @@ resolveSocketToAddress sock = do
 --     Data-Streaming-Network.html#t:HostPreference
 -- TODO: "!6" should not be printed as "0.0.0.0" address.
 escapeHostName :: Text -> Text
-escapeHostName "*"  = "0.0.0.0"
+escapeHostName "*" = "0.0.0.0"
 escapeHostName "*4" = "0.0.0.0"
 escapeHostName "!4" = "0.0.0.0"
 escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
-escapeHostName h    = h
+escapeHostName h = h
 
 -- | Check if a hostname is special
 isSpecialHostName :: Text -> Bool
-isSpecialHostName "*"  = True
+isSpecialHostName "*" = True
 isSpecialHostName "*4" = True
 isSpecialHostName "!4" = True
 isSpecialHostName "*6" = True
 isSpecialHostName "!6" = True
-isSpecialHostName _    = False
+isSpecialHostName _ = False

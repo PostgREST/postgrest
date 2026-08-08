@@ -1,25 +1,27 @@
-{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
-module PostgREST.AppState.Pool
-  ( destroy
-  , initPool
-  , flushPool
-  , usePool
-  ) where
 
-import qualified Data.ByteString.Char8     as BS
-import           Data.Either.Combinators   (whenLeft)
-import qualified Hasql.Pool                as SQL
-import qualified Hasql.Pool.Config         as SQL
-import qualified Hasql.Session             as SQL
-import qualified Network.HTTP.Types.Status as HTTP
-import qualified PostgREST.Error           as Error
-import           PostgREST.Observation
+module PostgREST.AppState.Pool (
+  destroy,
+  initPool,
+  flushPool,
+  usePool,
+) where
 
-import PostgREST.Config (AppConfig (..), toConnectionSettings)
+import Data.Either.Combinators (whenLeft)
+import Protolude
+
+import Data.ByteString.Char8 qualified as BS
+import Hasql.Pool qualified as SQL
+import Hasql.Pool.Config qualified as SQL
+import Hasql.Session qualified as SQL
+import Network.HTTP.Types.Status qualified as HTTP
 
 import PostgREST.AppState.Types
-import Protolude
+import PostgREST.Config (AppConfig (..), toConnectionSettings)
+import PostgREST.Observation
+
+import PostgREST.Error qualified as Error
 
 -- | Destroy the pool on shutdown.
 -- | Differs from flushPool in not emiting PoolFlushed observation.
@@ -28,44 +30,47 @@ destroy AppState{..} = SQL.release statePool
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool cfg@AppConfig{..} observer = do
-  SQL.acquire $ SQL.settings
-    [ SQL.size configDbPoolSize
-    , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
-    , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
-    , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-    , SQL.staticConnectionSettings $ toConnectionSettings identity cfg
-    , SQL.observationHandler $ observer . HasqlPoolObs
-    ]
+  SQL.acquire $
+    SQL.settings
+      [ SQL.size configDbPoolSize
+      , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
+      , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
+      , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
+      , SQL.staticConnectionSettings $ toConnectionSettings identity cfg
+      , SQL.observationHandler $ observer . HasqlPoolObs
+      ]
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool appState@AppState{stateObserver=observer, ..} sess = do
-    observer PoolRequest
+usePool appState@AppState{stateObserver = observer, ..} sess = do
+  observer PoolRequest
 
-    res <- SQL.use statePool sess
+  res <- SQL.use statePool sess
 
-    observer PoolRequestFullfilled
+  observer PoolRequestFullfilled
 
-    whenLeft res (\case
-      SQL.AcquisitionTimeoutUsageError ->
-        observer PoolAcqTimeoutObs
-      err@(SQL.ConnectionUsageError e) ->
-        let failureMessage = BS.unpack $ fromMaybe mempty e in
-        when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
-          observer $ ExitDBFatalError ServerAuthError err
-          killApp appState
-      err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
-        handleResultError err tpl resultErr
-      err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr))) ->
-        -- Passing the empty template will not work for schema cache queries, see TODO further below.
-        handleResultError err mempty resultErr
-      err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
-        -- An error on the client-side, usually indicates problems with connection
-        observer $ QueryErrorCodeHighObs err
-      SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _))  -> pure ()
-      )
+  whenLeft
+    res
+    ( \case
+        SQL.AcquisitionTimeoutUsageError ->
+          observer PoolAcqTimeoutObs
+        err@(SQL.ConnectionUsageError e) ->
+          let failureMessage = BS.unpack $ fromMaybe mempty e
+          in  when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
+                observer $ ExitDBFatalError ServerAuthError err
+                killApp appState
+        err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
+          handleResultError err tpl resultErr
+        err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr))) ->
+          -- Passing the empty template will not work for schema cache queries, see TODO further below.
+          handleResultError err mempty resultErr
+        err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
+          -- An error on the client-side, usually indicates problems with connection
+          observer $ QueryErrorCodeHighObs err
+        SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _)) -> pure ()
+    )
 
-    return res
+  return res
   where
     handleResultError err tpl resultErr = do
       case resultErr of
@@ -99,7 +104,8 @@ usePool appState@AppState{stateObserver=observer, ..} sess = do
           killApp appState
         SQL.ServerError{} ->
           when (Error.status (Error.PgError False err) >= HTTP.status500) $
-            observer $ QueryErrorCodeHighObs err
+            observer $
+              QueryErrorCodeHighObs err
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.

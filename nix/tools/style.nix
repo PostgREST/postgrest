@@ -4,6 +4,7 @@
 , checkedShellScript
 , deadnix
 , fd
+, fourmolu
 , git
 , hlint
 , hsie
@@ -11,7 +12,6 @@
 , python3Packages
 , ruff
 , statix
-, stylish-haskell
 , writeText
 }:
 let
@@ -30,7 +30,7 @@ let
 
         # Format Haskell files
         ${fd}/bin/fd '\.l?hs$' \
-          | xargs ${stylish-haskell}/bin/stylish-haskell -i
+          | xargs ${fourmolu}/bin/fourmolu -i
 
         # Format Python files
         TMPDIR="$tmpdir" ${black}/bin/black .

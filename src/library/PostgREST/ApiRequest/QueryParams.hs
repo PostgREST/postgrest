@@ -1,102 +1,140 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- |
 -- Module      : PostgREST.ApiRequest.QueryParams
 -- Description : Parser for PostgREST Query parameters
 --
 -- This module is in charge of parsing all the querystring values in an url, e.g.
 -- the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
-{-# LANGUAGE LambdaCase #-}
-module PostgREST.ApiRequest.QueryParams
-  ( parse
-  , QueryParams(..)
-  , pFieldForest
-  , pFieldName
-  , pFieldSelect
-  , pJsonPath
-  , pLogicTree
-  , pOpExpr
-  , pOrder
-  , pRelationSelect
-  , pRequestFilter
-  , pRequestRange
-  , pSingleVal
-  , pSpreadRelationSelect
-  ) where
+module PostgREST.ApiRequest.QueryParams (
+  parse,
+  QueryParams (..),
+  pFieldForest,
+  pFieldName,
+  pFieldSelect,
+  pJsonPath,
+  pLogicTree,
+  pOpExpr,
+  pOrder,
+  pRelationSelect,
+  pRequestFilter,
+  pRequestRange,
+  pSingleVal,
+  pSpreadRelationSelect,
+) where
 
-import qualified Data.ByteString.Char8         as BS
-import qualified Data.HashMap.Strict           as HM
-import qualified Data.List                     as L
-import qualified Data.Set                      as S
-import qualified Data.Text                     as T
-import qualified Data.Text.Encoding            as T
-import qualified Network.HTTP.Base             as HTTP
-import qualified Network.HTTP.Types.URI        as HTTP
-import qualified Text.ParserCombinators.Parsec as P
-
-import Control.Arrow                 ((***))
-import Data.Either.Combinators       (mapLeft)
-import Data.List                     (init, last)
-import Data.Ranged.Boundaries        (Boundary (..))
-import Data.Ranged.Ranges            (Range (..))
-import Data.Tree                     (Tree (..))
-import Text.Parsec.Error             (errorMessages, showErrorMessages)
-import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser, anyChar,
-                                      between, char, choice, digit, eof,
-                                      errorPos, letter, lookAhead, many1,
-                                      noneOf, notFollowedBy, oneOf, optionMaybe,
-                                      sepBy, sepBy1, string, try, (<?>))
-
-import PostgREST.RangeQuery              (NonnegRange, allRange, rangeGeq,
-                                          rangeLimit, rangeOffset,
-                                          restrictRange)
-import PostgREST.SchemaCache.Identifiers (FieldName)
-
-import PostgREST.ApiRequest.Types (AggregateFunction (..), EmbedParam (..),
-                                   EmbedPath, Field, Filter (..),
-                                   FtsOperator (..), Hint, IsVal (..),
-                                   JoinType (..), JsonOperand (..),
-                                   JsonOperation (..), JsonPath, ListVal,
-                                   LogicOperator (..), LogicTree (..),
-                                   OpExpr (..), OpQuantifier (..),
-                                   Operation (..), OrderDirection (..),
-                                   OrderNulls (..), OrderTerm (..),
-                                   QuantOperator (..), SelectItem (..),
-                                   SimpleOperator (..), SingleVal)
-
-import PostgREST.Error (QPError (..))
-
+import Control.Arrow ((***))
+import Data.Either.Combinators (mapLeft)
+import Data.List (init, last)
+import Data.Ranged.Boundaries (Boundary (..))
+import Data.Ranged.Ranges (Range (..))
+import Data.Tree (Tree (..))
 import Protolude hiding (Sum, try)
+import Text.Parsec.Error (errorMessages, showErrorMessages)
+import Text.ParserCombinators.Parsec (
+  GenParser,
+  ParseError,
+  Parser,
+  anyChar,
+  between,
+  char,
+  choice,
+  digit,
+  eof,
+  errorPos,
+  letter,
+  lookAhead,
+  many1,
+  noneOf,
+  notFollowedBy,
+  oneOf,
+  optionMaybe,
+  sepBy,
+  sepBy1,
+  string,
+  try,
+  (<?>),
+ )
+
+import Data.ByteString.Char8 qualified as BS
+import Data.HashMap.Strict qualified as HM
+import Data.List qualified as L
+import Data.Set qualified as S
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Network.HTTP.Base qualified as HTTP
+import Network.HTTP.Types.URI qualified as HTTP
+import Text.ParserCombinators.Parsec qualified as P
+
+import PostgREST.ApiRequest.Types (
+  AggregateFunction (..),
+  EmbedParam (..),
+  EmbedPath,
+  Field,
+  Filter (..),
+  FtsOperator (..),
+  Hint,
+  IsVal (..),
+  JoinType (..),
+  JsonOperand (..),
+  JsonOperation (..),
+  JsonPath,
+  ListVal,
+  LogicOperator (..),
+  LogicTree (..),
+  OpExpr (..),
+  OpQuantifier (..),
+  Operation (..),
+  OrderDirection (..),
+  OrderNulls (..),
+  OrderTerm (..),
+  QuantOperator (..),
+  SelectItem (..),
+  SimpleOperator (..),
+  SingleVal,
+ )
+import PostgREST.Error (QPError (..))
+import PostgREST.RangeQuery (
+  NonnegRange,
+  allRange,
+  rangeGeq,
+  rangeLimit,
+  rangeOffset,
+  restrictRange,
+ )
+import PostgREST.SchemaCache.Identifiers (FieldName)
 
 -- $setup
 -- >>> import qualified Text.ParserCombinators.Parsec as P
 -- >>> import Protolude hiding (Sum, try)
 
-data QueryParams =
-  QueryParams
-    { qsCanonical      :: ByteString
-    -- ^ Canonical representation of the query params, sorted alphabetically
-    , qsParams         :: [(Text, Text)]
-    -- ^ Parameters for RPC calls
-    , qsRanges         :: HM.HashMap Text (Range Integer)
-    -- ^ Ranges derived from &limit and &offset params
-    , qsOrder          :: [(EmbedPath, [OrderTerm])]
-    -- ^ &order parameters for each level
-    , qsLogic          :: [(EmbedPath, LogicTree)]
-    -- ^ &and and &or parameters used for complex boolean logic
-    , qsColumns        :: Maybe (S.Set FieldName)
-    -- ^ &columns parameter and payload
-    , qsSelect         :: [Tree SelectItem]
-    -- ^ &select parameter used to shape the response
-    , qsFilters        :: [(EmbedPath, Filter)]
-    -- ^ Filters on the result from e.g. &id=e.10
-    , qsFiltersRoot    :: [Filter]
-    -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
-    , qsFiltersNotRoot :: [(EmbedPath, Filter)]
-    -- ^ Subset of the filters that do not apply on the root table
-    , qsFilterFields   :: S.Set FieldName
-    -- ^ Set of fields that filters apply to
-    , qsOnConflict     :: Maybe [FieldName]
-    -- ^ &on_conflict parameter used to upsert on specific unique keys
-    }
+data QueryParams
+  = QueryParams
+  { qsCanonical :: ByteString
+  -- ^ Canonical representation of the query params, sorted alphabetically
+  , qsParams :: [(Text, Text)]
+  -- ^ Parameters for RPC calls
+  , qsRanges :: HM.HashMap Text (Range Integer)
+  -- ^ Ranges derived from &limit and &offset params
+  , qsOrder :: [(EmbedPath, [OrderTerm])]
+  -- ^ &order parameters for each level
+  , qsLogic :: [(EmbedPath, LogicTree)]
+  -- ^ &and and &or parameters used for complex boolean logic
+  , qsColumns :: Maybe (S.Set FieldName)
+  -- ^ &columns parameter and payload
+  , qsSelect :: [Tree SelectItem]
+  -- ^ &select parameter used to shape the response
+  , qsFilters :: [(EmbedPath, Filter)]
+  -- ^ Filters on the result from e.g. &id=e.10
+  , qsFiltersRoot :: [Filter]
+  -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
+  , qsFiltersNotRoot :: [(EmbedPath, Filter)]
+  -- ^ Subset of the filters that do not apply on the root table
+  , qsFilterFields :: S.Set FieldName
+  -- ^ Set of fields that filters apply to
+  , qsOnConflict :: Maybe [FieldName]
+  -- ^ &on_conflict parameter used to upsert on specific unique keys
+  }
 
 -- |
 -- Parse query parameters from a query string like "id=eq.1&select=name".
@@ -122,25 +160,26 @@ data QueryParams =
 -- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 1)" "unexpected \"o\" expecting \"not\" or operator (eq, gt, ...)")
 parse :: Bool -> ByteString -> Either QPError QueryParams
 parse isRpcRead qs = do
-  rOrd                      <- pRequestOrder `traverse` order
-  rLogic                    <- pRequestLogicTree `traverse` logic
-  rCols                     <- pRequestColumns columns
-  rSel                      <- pRequestSelect select
-  (rFlts, params)           <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
+  rOrd <- pRequestOrder `traverse` order
+  rLogic <- pRequestLogicTree `traverse` logic
+  rCols <- pRequestColumns columns
+  rSel <- pRequestSelect select
+  (rFlts, params) <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
   (rFltsRoot, rFltsNotRoot) <- pure $ L.partition hasRootFilter rFlts
-  rOnConflict               <- pRequestOnConflict `traverse` onConflict
+  rOnConflict <- pRequestOnConflict `traverse` onConflict
 
-  let rFltsFields           = S.fromList (fst <$> filters)
-      params'               = mapMaybe (\case {(_, Filter (fld, _) (NoOpExpr v)) -> Just (fld,v); _ -> Nothing}) params
-      rFltsRoot'            = snd <$> rFltsRoot
+  let
+    rFltsFields = S.fromList (fst <$> filters)
+    params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
+    rFltsRoot' = snd <$> rFltsRoot
 
   return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
   where
     hasRootFilter, hasOp :: (EmbedPath, Filter) -> Bool
     hasRootFilter ([], _) = True
-    hasRootFilter _       = False
+    hasRootFilter _ = False
     hasOp (_, Filter (_, _) (NoOpExpr _)) = False
-    hasOp _                               = True
+    hasOp _ = True
 
     logic = filter (endingIn ["and", "or"] . fst) nonemptyParams
     select = fromMaybe "*" $ lookupParam "select"
@@ -156,24 +195,26 @@ parse isRpcRead qs = do
 
     qString = HTTP.parseQueryReplacePlus True qs
 
-    qParams = [(T.decodeUtf8 k, T.decodeUtf8 <$> v)|(k,v) <- qString]
+    qParams = [(T.decodeUtf8 k, T.decodeUtf8 <$> v) | (k, v) <- qString]
 
     canonical =
-      BS.pack $ HTTP.urlEncodeVars
-        . L.sortOn fst
-        . map (join (***) BS.unpack . second (fromMaybe mempty))
+      BS.pack
+        $ HTTP.urlEncodeVars
+          . L.sortOn fst
+          . map (join (***) BS.unpack . second (fromMaybe mempty))
         $ qString
 
-    endingIn:: [Text] -> Text -> Bool
+    endingIn :: [Text] -> Text -> Bool
     endingIn xx key = lastWord `elem` xx
-      where lastWord = L.last $ T.split (== '.') key
+      where
+        lastWord = L.last $ T.split (== '.') key
 
     filters = filter (isFilter . fst) nonemptyParams
     isFilter k = not (endingIn reservedEmbeddable k) && notElem k reserved
     reserved = ["select", "columns", "on_conflict"]
     reservedEmbeddable = ["order", "limit", "offset", "and", "or"]
 
-    replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) <> [x]
+    replaceLast x s = T.intercalate "." $ L.init (T.split (== '.') s) <> [x]
 
     ranges :: HM.HashMap Text (Range Integer)
     ranges = HM.unionWith f limitParams offsetParams
@@ -184,36 +225,36 @@ parse isRpcRead qs = do
             o = rangeOffset ro
 
         limitParams =
-          HM.fromList [(k, restrictRange (readMaybe v) allRange) | (k,v) <- limits]
+          HM.fromList [(k, restrictRange (readMaybe v) allRange) | (k, v) <- limits]
 
         offsetParams =
-          HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
+          HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k, v) <- offsets]
 
 simpleOperator :: Parser SimpleOperator
 simpleOperator =
-  try (string "neq" $> OpNotEqual) <|>
-  try (string "cs" $> OpContains) <|>
-  try (string "cd" $> OpContained) <|>
-  try (string "ov" $> OpOverlap) <|>
-  try (string "sl" $> OpStrictlyLeft) <|>
-  try (string "sr" $> OpStrictlyRight) <|>
-  try (string "nxr" $> OpNotExtendsRight) <|>
-  try (string "nxl" $> OpNotExtendsLeft) <|>
-  try (string "adj" $> OpAdjacent) <?>
-  "unknown single value operator"
+  try (string "neq" $> OpNotEqual)
+    <|> try (string "cs" $> OpContains)
+    <|> try (string "cd" $> OpContained)
+    <|> try (string "ov" $> OpOverlap)
+    <|> try (string "sl" $> OpStrictlyLeft)
+    <|> try (string "sr" $> OpStrictlyRight)
+    <|> try (string "nxr" $> OpNotExtendsRight)
+    <|> try (string "nxl" $> OpNotExtendsLeft)
+    <|> try (string "adj" $> OpAdjacent)
+      <?> "unknown single value operator"
 
 quantOperator :: Parser QuantOperator
 quantOperator =
-  try (string "eq" $> OpEqual) <|>
-  try (string "gte" $> OpGreaterThanEqual) <|>
-  try (string "gt" $> OpGreaterThan) <|>
-  try (string "lte" $> OpLessThanEqual) <|>
-  try (string "lt" $> OpLessThan) <|>
-  try (string "like" $> OpLike) <|>
-  try (string "ilike" $> OpILike) <|>
-  try (string "match" $> OpMatch) <|>
-  try (string "imatch" $> OpIMatch) <?>
-  "unknown single value operator"
+  try (string "eq" $> OpEqual)
+    <|> try (string "gte" $> OpGreaterThanEqual)
+    <|> try (string "gt" $> OpGreaterThan)
+    <|> try (string "lte" $> OpLessThanEqual)
+    <|> try (string "lt" $> OpLessThan)
+    <|> try (string "like" $> OpLike)
+    <|> try (string "ilike" $> OpILike)
+    <|> try (string "match" $> OpMatch)
+    <|> try (string "imatch" $> OpIMatch)
+      <?> "unknown single value operator"
 
 pRequestSelect :: Text -> Either QPError [Tree SelectItem]
 pRequestSelect selStr =
@@ -239,9 +280,10 @@ pRequestFilter isRpcRead (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*
   where
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
     oper = P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
-    parseFlt = if isRpcRead
-      then pOpExpr pSingleVal <|> pure (NoOpExpr v)
-      else pOpExpr pSingleVal
+    parseFlt =
+      if isRpcRead
+        then pOpExpr pSingleVal <|> pure (NoOpExpr v)
+        else pOpExpr pSingleVal
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -318,9 +360,10 @@ pTreePath = do
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy` lexeme (char ',')
   where
-    pFieldTree =  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
-                  Node <$> try pRelationSelect       <*> between (char '(') (char ')') pFieldForest <|>
-                  Node <$> pFieldSelect <*> pure []
+    pFieldTree =
+      Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest
+        <|> Node <$> try pRelationSelect <*> between (char '(') (char ')') pFieldForest
+        <|> Node <$> pFieldSelect <*> pure []
 
 -- |
 -- Parse field names
@@ -358,16 +401,16 @@ pFieldForest = pFieldTree `sepBy` lexeme (char ',')
 -- Right " leading and trailing spaces "
 pFieldName :: Parser Text
 pFieldName =
-  pQuotedValue <|>
-  sepByDash pIdentifier <?>
-  "field name (* or [a..z0..9_$])"
+  pQuotedValue
+    <|> sepByDash pIdentifier
+      <?> "field name (* or [a..z0..9_$])"
 
 sepByDash :: Parser Text -> Parser Text
 sepByDash fieldIdent =
   T.intercalate "-" . map toS <$> (fieldIdent `sepBy1` dash)
   where
     isDash :: GenParser Char st ()
-    isDash = try ( char '-' >> notFollowedBy (char '>') )
+    isDash = try (char '-' >> notFollowedBy (char '>'))
     dash :: Parser Char
     dash = isDash $> '-'
 
@@ -420,25 +463,28 @@ pJsonPath = many pJsonOperation
     pJsonOperation :: Parser JsonOperation
     pJsonOperation = pJsonArrow <*> pJsonOperand
 
-    pJsonArrow   =
-      try (string "->>" $> J2Arrow) <|>
-      try (string "->" $> JArrow)
+    pJsonArrow =
+      try (string "->>" $> J2Arrow)
+        <|> try (string "->" $> JArrow)
 
     pJsonOperand =
-      let pJKey = JKey . toS <$> pJsonKeyName
-          pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
-          pEnd = try (void $ lookAhead (string "->")) <|>
-                 try (void $ lookAhead (string "::")) <|>
-                 try (void $ lookAhead (string ".")) <|>
-                 try (void $ lookAhead (string ",")) <|>
-                 try eof in
-      try pJIdx <|> try pJKey
+      let
+        pJKey = JKey . toS <$> pJsonKeyName
+        pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
+        pEnd =
+          try (void $ lookAhead (string "->"))
+            <|> try (void $ lookAhead (string "::"))
+            <|> try (void $ lookAhead (string "."))
+            <|> try (void $ lookAhead (string ","))
+            <|> try eof
+      in
+        try pJIdx <|> try pJKey
 
 pJsonKeyName :: Parser Text
 pJsonKeyName =
-  pQuotedValue <|>
-  sepByDash pJsonKeyIdentifier <?>
-  "any non reserved character different from: .,>()"
+  pQuotedValue
+    <|> sepByDash pJsonKeyIdentifier
+      <?> "any non reserved character different from: .,>()"
 
 pJsonKeyIdentifier :: Parser Text
 pJsonKeyIdentifier = T.strip . toS <$> many1 (noneOf "(-:.,>)")
@@ -479,13 +525,12 @@ aliasSeparator = char ':' >> notFollowedBy (char ':')
 -- unexpected '>'
 pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ do
-    alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-    name <- pFieldName
-    guard (name /= "count")
-    (hint, jType) <- pEmbedParams
-    try (void $ lookAhead (string "("))
-    return $ SelectRelation name alias hint jType
-
+  alias <- optionMaybe (try (pFieldName <* aliasSeparator))
+  name <- pFieldName
+  guard (name /= "count")
+  (hint, jType) <- pEmbedParams
+  try (void $ lookAhead (string "("))
+  return $ SelectRelation name alias hint jType
 
 -- |
 -- Parse regular fields in select
@@ -526,40 +571,47 @@ pRelationSelect = lexeme $ do
 -- unexpected end of input
 -- expecting letter or digit
 pFieldSelect :: Parser SelectItem
-pFieldSelect = lexeme $ try (do
-    s <- pStar
-    pEnd
-    return $ SelectField (s, []) Nothing Nothing Nothing Nothing)
-  <|> try (do
-    alias    <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-    _        <- string "count()"
-    aggCast' <- optionMaybe (string "::" *> pIdentifier)
-    pEnd
-    return $ SelectField ("*", []) (Just Count) (toS <$> aggCast') Nothing alias)
-  <|> do
-    alias    <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-    fld      <- pField
-    cast'    <- optionMaybe (string "::" *> pIdentifier)
-    agg      <- optionMaybe (try (char '.' *> pAggregation <* string "()"))
-    aggCast' <- optionMaybe (string "::" *> pIdentifier)
-    pEnd
-    return $ SelectField fld agg (toS <$> aggCast') (toS <$> cast') alias
+pFieldSelect =
+  lexeme $
+    try
+      ( do
+          s <- pStar
+          pEnd
+          return $ SelectField (s, []) Nothing Nothing Nothing Nothing
+      )
+      <|> try
+        ( do
+            alias <- optionMaybe (try (pFieldName <* aliasSeparator))
+            _ <- string "count()"
+            aggCast' <- optionMaybe (string "::" *> pIdentifier)
+            pEnd
+            return $ SelectField ("*", []) (Just Count) (toS <$> aggCast') Nothing alias
+        )
+      <|> do
+        alias <- optionMaybe (try (pFieldName <* aliasSeparator))
+        fld <- pField
+        cast' <- optionMaybe (string "::" *> pIdentifier)
+        agg <- optionMaybe (try (char '.' *> pAggregation <* string "()"))
+        aggCast' <- optionMaybe (string "::" *> pIdentifier)
+        pEnd
+        return $ SelectField fld agg (toS <$> aggCast') (toS <$> cast') alias
   where
-    pEnd = try (void $ lookAhead (string ")")) <|>
-           try (void $ lookAhead (string ",")) <|>
-           try eof
+    pEnd =
+      try (void $ lookAhead (string ")"))
+        <|> try (void $ lookAhead (string ","))
+        <|> try eof
     pStar = string "*" $> "*"
-    pAggregation = choice
-      [ string "sum"   $> Sum
-      , string "avg"   $> Avg
-      , string "count" $> Count
-      -- Using 'try' for "min" and "max" to allow backtracking.
-      -- This is necessary because both start with the same character 'm',
-      -- and without 'try', a partial match on "max" would prevent "min" from being tried.
-      , try (string "max") $> Max
-      , try (string "min") $> Min
-      ]
-
+    pAggregation =
+      choice
+        [ string "sum" $> Sum
+        , string "avg" $> Avg
+        , string "count" $> Count
+        , -- Using 'try' for "min" and "max" to allow backtracking.
+          -- This is necessary because both start with the same character 'm',
+          -- and without 'try', a partial match on "max" would prevent "min" from being tried.
+          try (string "max") $> Max
+        , try (string "min") $> Min
+        ]
 
 -- |
 -- Parse spread relations in select
@@ -585,10 +637,10 @@ pFieldSelect = lexeme $ try (do
 -- unexpected '>'
 pSpreadRelationSelect :: Parser SelectItem
 pSpreadRelationSelect = lexeme $ do
-    name <- string "..." >> pFieldName
-    (hint, jType) <- pEmbedParams
-    try (void $ lookAhead (string "("))
-    return $ SpreadRelation name hint jType
+  name <- string "..." >> pFieldName
+  (hint, jType) <- pEmbedParams
+  try (void $ lookAhead (string "("))
+  return $ SpreadRelation name hint jType
 
 pEmbedParams :: Parser (Maybe Hint, Maybe JoinType)
 pEmbedParams = do
@@ -598,16 +650,17 @@ pEmbedParams = do
   where
     pEmbedParam :: Parser EmbedParam
     pEmbedParam =
-      char '!' *> (
-        try (string "left"  $> EPJoinType JTLeft)  <|>
-        try (string "inner" $> EPJoinType JTInner) <|>
-        try (EPHint <$> pFieldName))
+      char '!'
+        *> ( try (string "left" $> EPJoinType JTLeft)
+               <|> try (string "inner" $> EPJoinType JTInner)
+               <|> try (EPHint <$> pFieldName)
+           )
     embedParamHint prm = case prm of
       Just (EPHint hint) -> Just hint
-      _                  -> Nothing
+      _ -> Nothing
     embedParamJoin prm = case prm of
       Just (EPJoinType jt) -> Just jt
-      _                    -> Nothing
+      _ -> Nothing
 
 -- |
 -- Parse operator expression used in horizontal filtering
@@ -662,18 +715,20 @@ pOpExpr pSVal = do
       quant <- optionMaybe $ try (between (char '(') (char ')') (try (string "any" $> QuantAny) <|> string "all" $> QuantAll))
       pDelimiter *> (OpQuant op quant <$> pSVal)
 
-    pIsVal =  try (ciString "null"     $> IsNull)
-          <|> try (ciString "not_null" $> IsNotNull)
-          <|> try (ciString "true"     $> IsTriTrue)
-          <|> try (ciString "false"    $> IsTriFalse)
-          <|> try (ciString "unknown"  $> IsTriUnknown)
+    pIsVal =
+      try (ciString "null" $> IsNull)
+        <|> try (ciString "not_null" $> IsNotNull)
+        <|> try (ciString "true" $> IsTriTrue)
+        <|> try (ciString "false" $> IsTriFalse)
+        <|> try (ciString "unknown" $> IsTriUnknown)
           <?> "isVal: (null, not_null, true, false, unknown)"
 
     pFts = do
-      op <-  try (string "fts"   $> FilterFts)
-         <|> try (string "plfts" $> FilterFtsPlain)
-         <|> try (string "phfts" $> FilterFtsPhrase)
-         <|> try (string "wfts"  $> FilterFtsWebsearch)
+      op <-
+        try (string "fts" $> FilterFts)
+          <|> try (string "plfts" $> FilterFtsPlain)
+          <|> try (string "phfts" $> FilterFtsPhrase)
+          <|> try (string "wfts" $> FilterFtsWebsearch)
 
       lang <- optionMaybe $ try (between (char '(') (char ')') pIdentifier)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
@@ -772,8 +827,9 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
     pOrderTerm = do
       fld <- pField
       dir <- optionMaybe pOrdDir
-      nls <- optionMaybe pNulls <* pEnd <|>
-             pEnd $> Nothing
+      nls <-
+        optionMaybe pNulls <* pEnd
+          <|> pEnd $> Nothing
       return $ OrderTerm fld dir nls
 
     pOrderRelationTerm = do
@@ -784,12 +840,14 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
       return $ OrderRelationTerm nam fld dir nls
 
     pNulls :: Parser OrderNulls
-    pNulls = try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst) <|>
-             try (pDelimiter *> string "nullslast"  $> OrderNullsLast)
+    pNulls =
+      try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst)
+        <|> try (pDelimiter *> string "nullslast" $> OrderNullsLast)
 
     pOrdDir :: Parser OrderDirection
-    pOrdDir = try (pDelimiter *> string "asc" $> OrderAsc) <|>
-              try (pDelimiter *> string "desc" $> OrderDesc)
+    pOrdDir =
+      try (pDelimiter *> string "asc" $> OrderAsc)
+        <|> try (pDelimiter *> string "desc" $> OrderDesc)
 
     pEnd = try (void $ lookAhead (char ',')) <|> try eof
 
@@ -821,25 +879,29 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
 -- unexpected "x"
 -- expecting logic operator (and, or)
 pLogicTree :: Parser LogicTree
-pLogicTree = Stmnt <$> try pLogicFilter
-             <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
+pLogicTree =
+  Stmnt <$> try pLogicFilter
+    <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
     pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
     pNot :: Parser Bool
-    pNot = try (string "not" *> pDelimiter $> True)
-           <|> pure False
-           <?> "negation operator (not)"
+    pNot =
+      try (string "not" *> pDelimiter $> True)
+        <|> pure False
+          <?> "negation operator (not)"
     pLogicOp :: Parser LogicOperator
-    pLogicOp = try (string "and" $> And)
-               <|> string "or" $> Or
-               <?> "logic operator (and, or)"
+    pLogicOp =
+      try (string "and" $> And)
+        <|> string "or"
+          $> Or
+          <?> "logic operator (and, or)"
 
 pLogicSingleVal :: Parser SingleVal
 pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgArray <|> (toS <$> many (noneOf ",)"))
   where
     pPgArray :: Parser Text
-    pPgArray =  do
+    pPgArray = do
       a <- string "{"
       b <- many (noneOf "{}")
       c <- string "}"
@@ -848,8 +910,9 @@ pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgA
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
   path <- pFieldName `sepBy1` pDelimiter
-  let op = last path
-      notOp = "not." <> op
+  let
+    op = last path
+    notOp = "not." <> op
   return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
 
 pColumns :: Parser [FieldName]
@@ -868,5 +931,8 @@ mapError = mapLeft translateError
       QPError message details
       where
         message = show $ errorPos e
-        details = T.strip $ T.replace "\n" " " $ toS
-           $ showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)
+        details =
+          T.strip $
+            T.replace "\n" " " $
+              toS $
+                showErrorMessages "or" "unknown parse error" "expecting" "unexpected" "end of input" (errorMessages e)

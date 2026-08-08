@@ -1,0 +1,9 @@
+# https://fourmolu.github.io/config
+function-arrows: leading
+haddock-style-module: single-line
+haddock-style: single-line
+import-grouping: by-scope-then-qualified
+in-style: left-align
+indent-wheres: true
+indentation: 2
+let-style: mixed

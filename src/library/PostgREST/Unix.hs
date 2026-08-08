@@ -1,22 +1,23 @@
 {-# LANGUAGE CPP #-}
 
-module PostgREST.Unix
-  ( installSignalHandlers
-  , createAndBindDomainSocket
-  ) where
+module PostgREST.Unix (
+  installSignalHandlers,
+  createAndBindDomainSocket,
+) where
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Signals as Signals
 #endif
-import System.Posix.Types       (FileMode)
+import Data.String (String)
+import Protolude
+import System.Directory (removeFile)
+import System.IO.Error (isDoesNotExistError)
+import System.Posix.Types (FileMode)
 import System.PosixCompat.Files (setFileMode)
 
-import           Data.String           (String)
-import qualified Network.Socket        as NS
-import qualified PostgREST.Observation as Observation
-import           Protolude
-import           System.Directory      (removeFile)
-import           System.IO.Error       (isDoesNotExistError)
+import Network.Socket qualified as NS
+
+import PostgREST.Observation qualified as Observation
 
 -- | Set signal handlers, only for systems with signals
 installSignalHandlers :: Observation.ObservationHandler -> IO () -> IO () -> IO () -> IO ()

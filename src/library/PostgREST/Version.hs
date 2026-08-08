@@ -1,12 +1,13 @@
 {-# LANGUAGE CPP #-}
-module PostgREST.Version
-  ( docsVersion
-  , prettyVersion
-  ) where
 
-import qualified Data.Text as T
+module PostgREST.Version (
+  docsVersion,
+  prettyVersion,
+) where
 
 import Protolude
+
+import Data.Text qualified as T
 
 -- Somehow this is not defined in doctests, so when running them
 -- on a file that includes Version.hs, compilation fails.
@@ -25,15 +26,13 @@ prettyVersion =
   where
     preRelease = if isPreRelease then " (pre-release)" else mempty
 
-
 -- | Version number used in docs.
 -- Pre-release versions link to the latest docs
 -- Uses only the first component of the version. Example: 'v1'
 docsVersion :: Text
 docsVersion
   | isPreRelease = "latest"
-  | otherwise    =  "v" <> T.intercalate "." (take 1 version)
-
+  | otherwise = "v" <> T.intercalate "." (take 1 version)
 
 -- | Versions with one components (e.g., '15') are treated as pre-releases.
 isPreRelease :: Bool

@@ -1,41 +1,38 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module PostgREST.Config.Database
-  ( pgVersionStatement
-  , queryDbSettings
-  , queryPgVersion
-  , queryRoleSettings
-  , RoleSettings
-  , RoleIsolationLvl
-  , toIsolationLevel
-  ) where
+module PostgREST.Config.Database (
+  pgVersionStatement,
+  queryDbSettings,
+  queryPgVersion,
+  queryRoleSettings,
+  RoleSettings,
+  RoleIsolationLvl,
+  toIsolationLevel,
+) where
 
 import Control.Arrow ((***))
+import Hasql.Session (Session, statement)
+import NeatInterpolation (trimming)
+import Protolude
+
+import Data.HashMap.Strict qualified as HM
+import Data.Text qualified as T
+import Hasql.Decoders qualified as HD
+import Hasql.Encoders qualified as HE
+import Hasql.Statement qualified as SQL
+import Hasql.Transaction qualified as SQL
+import Hasql.Transaction.Sessions qualified as SQL
 
 import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Text           as T
-
-import qualified Hasql.Decoders             as HD
-import qualified Hasql.Encoders             as HE
-import           Hasql.Session              (Session, statement)
-import qualified Hasql.Statement            as SQL
-import qualified Hasql.Transaction          as SQL
-import qualified Hasql.Transaction.Sessions as SQL
-
-import NeatInterpolation (trimming)
-
-import Protolude
-
-type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 
 toIsolationLevel :: Text -> SQL.IsolationLevel
 toIsolationLevel a = case T.toLower a of
   "repeatable read" -> SQL.RepeatableRead
-  "serializable"    -> SQL.Serializable
-  _                 -> SQL.ReadCommitted
+  "serializable" -> SQL.Serializable
+  _ -> SQL.ReadCommitted
 
 prefix :: Text
 prefix = "pgrst."
@@ -43,33 +40,33 @@ prefix = "pgrst."
 -- | In-db settings names
 dbSettingsNames :: [Text]
 dbSettingsNames =
-  (prefix <>) <$>
-  ["db_aggregates_enabled"
-  ,"client_error_verbosity"
-  ,"db_anon_role"
-  ,"db_pre_config"
-  ,"db_extra_search_path"
-  ,"db_max_rows"
-  ,"db_plan_enabled"
-  ,"db_pre_request"
-  ,"db_prepared_statements"
-  ,"db_root_spec"
-  ,"db_schemas"
-  ,"db_tx_end"
-  ,"db_hoisted_tx_settings"
-  ,"jwt_aud"
-  ,"jwt_role_claim_key"
-  ,"jwt_secret"
-  ,"jwt_secret_is_base64"
-  ,"jwt_cache_max_lifetime"
-  ,"openapi_mode"
-  ,"openapi_security_active"
-  ,"openapi_server_proxy_uri"
-  ,"server_cors_allowed_origins"
-  ,"server_trace_header"
-  ,"server_timing_enabled"
-  ,"url_use_legacy_target_names"
-  ]
+  (prefix <>)
+    <$> [ "db_aggregates_enabled"
+        , "client_error_verbosity"
+        , "db_anon_role"
+        , "db_pre_config"
+        , "db_extra_search_path"
+        , "db_max_rows"
+        , "db_plan_enabled"
+        , "db_pre_request"
+        , "db_prepared_statements"
+        , "db_root_spec"
+        , "db_schemas"
+        , "db_tx_end"
+        , "db_hoisted_tx_settings"
+        , "jwt_aud"
+        , "jwt_role_claim_key"
+        , "jwt_secret"
+        , "jwt_secret_is_base64"
+        , "jwt_cache_max_lifetime"
+        , "openapi_mode"
+        , "openapi_security_active"
+        , "openapi_server_proxy_uri"
+        , "server_cors_allowed_origins"
+        , "server_trace_header"
+        , "server_timing_enabled"
+        , "url_use_legacy_target_names"
+        ]
 
 queryPgVersion :: Session PgVersion
 queryPgVersion = statement mempty $ pgVersionStatement False
@@ -95,7 +92,9 @@ queryDbSettings :: Maybe Text -> Session [(Text, Text)]
 queryDbSettings preConfFunc =
   SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings True
   where
-    sql = encodeUtf8 [trimming|
+    sql =
+      encodeUtf8
+        [trimming|
       WITH
       role_setting AS (
         SELECT setdatabase as database,
@@ -119,8 +118,9 @@ queryDbSettings preConfFunc =
       ORDER BY key, database DESC NULLS LAST;
     |]
     preConfigF = case preConfFunc of
-      Nothing   -> mempty
-      Just func -> [trimming|
+      Nothing -> mempty
+      Just func ->
+        [trimming|
           UNION
           SELECT
             null as database,
@@ -128,14 +128,17 @@ queryDbSettings preConfFunc =
             current_setting(x, true) as v
           FROM unnest($$1) x
           JOIN ${func}() _ ON TRUE
-      |]::Text
+      |]
+          :: Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
 queryRoleSettings :: PgVersion -> Session (RoleSettings, RoleIsolationLvl)
 queryRoleSettings pgVer =
   SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) True
   where
-    sql = encodeUtf8 [trimming|
+    sql =
+      encodeUtf8
+        [trimming|
       with
       role_setting as (
         select r.rolname, unnest(r.rolconfig) as setting
@@ -167,17 +170,17 @@ queryRoleSettings pgVer =
 
     hasParameterPrivilege
       | pgVer >= pgVersion150 = "or has_parameter_privilege(quote_ident(current_user)::regrole::oid, ps.name, 'set')"
-      | otherwise             = ""
+      | otherwise = ""
 
     processRows :: [(Text, Maybe Text, [(Text, Text)])] -> (RoleSettings, RoleIsolationLvl)
     processRows rs =
       let
-        rowsWRoleSettings = [ (x, z) | (x, _, z) <- rs ]
-        rowsWIsolation    = [ (x, y) | (x, Just y, _) <- rs ]
+        rowsWRoleSettings = [(x, z) | (x, _, z) <- rs]
+        rowsWIsolation = [(x, y) | (x, Just y, _) <- rs]
       in
-      ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
-      , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
-      )
+        ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
+        , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
+        )
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
     rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)

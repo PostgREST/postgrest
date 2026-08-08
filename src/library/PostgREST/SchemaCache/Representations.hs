@@ -1,15 +1,14 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module PostgREST.SchemaCache.Representations
-  ( DataRepresentation(..)
-  , RepresentationsMap
-  ) where
-
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as HM
-
+module PostgREST.SchemaCache.Representations (
+  DataRepresentation (..),
+  RepresentationsMap,
+) where
 
 import Protolude
+
+import Data.Aeson qualified as JSON
+import Data.HashMap.Strict qualified as HM
 
 -- | Data representations allow user customisation of how to present and receive data through APIs, per field.
 -- This structure is used for the library of available transforms. It answers questions like:
@@ -21,8 +20,9 @@ import Protolude
 data DataRepresentation = DataRepresentation
   { drSourceType :: Text
   , drTargetType :: Text
-  , drFunction   :: Text
-  } deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
+  , drFunction :: Text
+  }
+  deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
 
 -- The representation map maps from (source type, target type) to a DR.
 type RepresentationsMap = HM.HashMap (Text, Text) DataRepresentation
