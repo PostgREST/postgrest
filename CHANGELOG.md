@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Changes
+
+#### OpenAPI
+
+- When `db-root-spec` is used, a `request.root.configs` GUC will be available to build a complete custom OpenAPI response by @steve-chavez in #3029
+
 ## [16.0] - 2026-08-07
 
 ### Changes
