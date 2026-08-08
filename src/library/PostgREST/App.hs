@@ -1,90 +1,96 @@
-{-|
-Module      : PostgREST.App
-Description : PostgREST main application
-
-This module is in charge of mapping HTTP requests to PostgreSQL queries.
-Some of its functionality includes:
-
-- Mapping HTTP request methods to proper SQL statements. For example, a GET request is translated to executing a SELECT query in a read-only TRANSACTION.
-- Producing HTTP Headers according to RFCs.
-- Content Negotiation
--}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns    #-}
-module PostgREST.App
-  ( postgrest
-  , run
-  ) where
+{-# LANGUAGE ViewPatterns #-}
 
-import GHC.Conc         (ThreadStatus (..), threadStatus)
+-- |
+-- Module      : PostgREST.App
+-- Description : PostgREST main application
+--
+-- This module is in charge of mapping HTTP requests to PostgreSQL queries.
+-- Some of its functionality includes:
+--
+-- - Mapping HTTP request methods to proper SQL statements. For example, a GET request is translated to executing a SELECT query in a read-only TRANSACTION.
+-- - Producing HTTP Headers according to RFCs.
+-- - Content Negotiation
+module PostgREST.App (
+  postgrest,
+  run,
+) where
+
+import Control.Monad.Except (liftEither)
+import Control.Monad.Writer
+import Data.Either.Combinators (mapLeft, whenLeft)
+import Data.IORef (atomicWriteIORef, newIORef, readIORef)
+import Data.Streaming.Network (
+  HostPreference,
+  bindPortGenEx,
+  bindPortTCP,
+ )
+import Data.String (IsString (..), String)
+import GHC.Conc (ThreadStatus (..), threadStatus)
 import GHC.IO.Exception (IOErrorType (..))
 import GHC.Weak
-import System.IO.Error  (ioeGetErrorType)
-
-import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft, whenLeft)
-import Data.IORef               (atomicWriteIORef, newIORef, readIORef)
-import Data.String              (IsString (..), String)
-import Network.Wai.Handler.Warp (defaultSettings, setBeforeMainLoop, setHost,
-                                 setOnException, setPort, setServerName)
-
-import qualified Data.Text.Encoding       as T
-import qualified Network.Wai              as Wai
-import qualified Network.Wai.Handler.Warp as Warp
-import qualified Network.Wai.Header       as WaiHeader
-
-import qualified PostgREST.Admin      as Admin
-import qualified PostgREST.ApiRequest as ApiRequest
-import qualified PostgREST.AppState   as AppState
-import qualified PostgREST.Auth       as Auth
-import qualified PostgREST.Cors       as Cors
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.MainTx     as MainTx
-import qualified PostgREST.Plan       as Plan
-import qualified PostgREST.Query      as Query
-import qualified PostgREST.Response   as Response
-import qualified PostgREST.Unix       as Unix (installSignalHandlers)
-
-import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
-import PostgREST.AppState.Reload      (runListener)
-import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..))
-import PostgREST.Error                (Error)
-import PostgREST.Network              (resolveSocketToAddress)
-import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..), serverTimingHeader)
-import PostgREST.SchemaCache          (SchemaCache (..))
-import PostgREST.TimeIt               (timeItT)
-import PostgREST.Version              (docsVersion, prettyVersion)
-
-import           Control.Monad.Writer
-import qualified Data.ByteString.Char8     as BS
-import qualified Data.List                 as L
-import           Data.Streaming.Network    (HostPreference, bindPortGenEx,
-                                            bindPortTCP)
-import qualified Data.Text                 as T
-import qualified Network.HTTP.Types        as HTTP
-import           Network.HTTP.Types.Header (hVary, hWarning)
-import qualified Network.Socket            as NS
-import           PostgREST.Unix            (createAndBindDomainSocket)
-import           System.Posix.Types        (FileMode)
-
-import Protolude        hiding (Handler)
+import Network.HTTP.Types.Header (hVary, hWarning)
+import Network.Wai.Handler.Warp (
+  defaultSettings,
+  setBeforeMainLoop,
+  setHost,
+  setOnException,
+  setPort,
+  setServerName,
+ )
+import Protolude hiding (Handler)
 import System.Directory (doesPathExist)
+import System.IO.Error (ioeGetErrorType)
+import System.Posix.Types (FileMode)
+
+import Data.ByteString.Char8 qualified as BS
+import Data.List qualified as L
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Network.HTTP.Types qualified as HTTP
+import Network.Socket qualified as NS
+import Network.Wai qualified as Wai
+import Network.Wai.Handler.Warp qualified as Warp
+import Network.Wai.Header qualified as WaiHeader
+
+import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.AppState (AppState)
+import PostgREST.AppState.Reload (runListener)
+import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Config (AppConfig (..))
+import PostgREST.Error (Error)
+import PostgREST.Network (resolveSocketToAddress)
+import PostgREST.Observation (Observation (..))
+import PostgREST.Response.Performance (ServerTiming (..), serverTimingHeader)
+import PostgREST.SchemaCache (SchemaCache (..))
+import PostgREST.TimeIt (timeItT)
+import PostgREST.Unix (createAndBindDomainSocket)
+import PostgREST.Version (docsVersion, prettyVersion)
+
+import PostgREST.Admin qualified as Admin
+import PostgREST.ApiRequest qualified as ApiRequest
+import PostgREST.AppState qualified as AppState
+import PostgREST.Auth qualified as Auth
+import PostgREST.Cors qualified as Cors
+import PostgREST.Error qualified as Error
+import PostgREST.MainTx qualified as MainTx
+import PostgREST.Plan qualified as Plan
+import PostgREST.Query qualified as Query
+import PostgREST.Response qualified as Response
+import PostgREST.Unix qualified as Unix (installSignalHandlers)
 
 run :: AppState -> Weak ThreadId -> IO ()
 run appState mainThreadIdRef = do
   conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
-  let setMainSocketRef = atomicWriteIORef mainSocketRef . Just
-      clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
+  let
+    setMainSocketRef = atomicWriteIORef mainSocketRef . Just
+    clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
 
   bracket (initAdminServerSocket conf) ensureSocketClosed $ \adminSocket -> do
-
     let closeSockets = do
           ensureSocketClosed adminSocket
           ensureSocketClosed =<< readIORef mainSocketRef
@@ -97,22 +103,22 @@ run appState mainThreadIdRef = do
     -- Kick off and wait for the initial SchemaCache load before creating the
     -- main API socket.
     AppState.schemaCacheLoader appState
-    if configServerReusePort then
-      AppState.waitForSchemaCacheLoaded appState
-    else
-      AppState.waitForSchemaCacheInit appState
+    if configServerReusePort
+      then
+        AppState.waitForSchemaCacheLoaded appState
+      else
+        AppState.waitForSchemaCacheInit appState
 
     bracket (initServerSocket conf) NS.close $ \mainSocket -> do
-
       let app = postgrest appState (AppState.schemaCacheLoader appState)
 
       address <- resolveSocketToAddress mainSocket
 
-      let
-        appServerSettings = serverSettings conf
-          & setPort (configServerPort conf)
-          & setOnException onWarpException
-          & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
+      let appServerSettings =
+            serverSettings conf
+              & setPort (configServerPort conf)
+              & setOnException onWarpException
+              & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
 
       Warp.runSettingsSocket appServerSettings mainSocket app
         `finally` clearMainSocketRef
@@ -124,7 +130,9 @@ run appState mainThreadIdRef = do
     onWarpException :: Maybe Wai.Request -> SomeException -> IO ()
     onWarpException _ ex =
       when (shouldDisplayException ex) $
-        observer $ WarpServerObs $ show ex
+        observer $
+          WarpServerObs $
+            show ex
 
     -- Similar to wai defaultShouldDisplayException in
     -- https://github.com/yesodweb/wai//blob/8c3882c60f6abe043889fc20c7efd3fa9747fa4a/warp/Network/Wai/Handler/Warp/Settings.hs#L251-L258
@@ -132,9 +140,9 @@ run appState mainThreadIdRef = do
     -- We want to reuse this to avoid flooding the logs for some transient failure cases.
     shouldDisplayException :: SomeException -> Bool
     shouldDisplayException se
-        | Just (_ :: Warp.InvalidRequest) <- fromException se = False
-        | Just (ioeGetErrorType -> et) <- fromException se, et == ResourceVanished || et == InvalidArgument = False
-        | otherwise = True
+      | Just (_ :: Warp.InvalidRequest) <- fromException se = False
+      | Just (ioeGetErrorType -> et) <- fromException se, et == ResourceVanished || et == InvalidArgument = False
+      | otherwise = True
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
@@ -145,9 +153,9 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: AppState.AppState -> IO () -> Wai.Application
 postgrest appState connWorker =
-  traceHeaderMiddleware appState .
-  Cors.middleware appState $
-    \req respond -> do
+  traceHeaderMiddleware appState
+    . Cors.middleware appState
+    $ \req respond -> do
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
 
@@ -156,8 +164,10 @@ postgrest appState connWorker =
       -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
       -- has to be before runExceptT to make sure role is not lost on error
       (response, authRole) <- runWriterT . handleError . runExceptT $ do
-        (jwtTime, authResult@AuthResult{..}) <- withTiming appConf $
-          Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
+        (jwtTime, authResult@AuthResult{..}) <-
+          withTiming appConf $
+            Auth.getAuthResult appState $
+              ApiRequest.userBearerAuth req
 
         tell $ pure authRole
 
@@ -207,20 +217,23 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   body <- liftIO $ Wai.strictRequestBody req
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (planTime, plan) <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let warnings = Plan.legacyWarnings plan
-      legacyWarnMsg = "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
-      legacyWarnHint = let replacement (relName, alias) = "`" <> relName <> "` to `" <> alias <> "`" in T.intercalate ", " (replacement <$> warnings)
-      shouldShowWarnings = configUrlUseLegacyTargetNames && not (null warnings)
+  let
+    warnings = Plan.legacyWarnings plan
+    legacyWarnMsg = "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
+    legacyWarnHint = let replacement (relName, alias) = "`" <> relName <> "` to `" <> alias <> "`" in T.intercalate ", " (replacement <$> warnings)
+    shouldShowWarnings = configUrlUseLegacyTargetNames && not (null warnings)
 
-  liftIO $ when shouldShowWarnings $
-    observer $ LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
-
+  liftIO $
+    when shouldShowWarnings $
+      observer $
+        LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
   pgVer <- liftIO $ AppState.getPgVersion appState
-  let mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
-      tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
+  let
+    mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
+    tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
+    obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
   (txTime, txResult) <- withTiming conf $ do
     case tx of
@@ -236,8 +249,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         liftEither eitherResp
 
   (respTime, resp) <- withTiming conf $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
-        status' = either Error.status Response.pgrstStatus response
+    let
+      response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
+      status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
     liftIO $ obsQuery status'
@@ -246,7 +260,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   let warnHdrMsgs = if shouldShowWarnings then Just (legacyWarnMsg, legacyWarnHint) else Nothing
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) warnHdrMsgs resp
-
   where
     toWaiResponse :: ServerTiming -> Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
     toWaiResponse timing warnMsgs (Response.PgrstResponse st hdrs bod) =
@@ -264,13 +277,15 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     warningHeaders :: Maybe (Text, Text) -> [HTTP.Header]
     warningHeaders Nothing = []
     warningHeaders (Just (msg, hint)) =
-      let warnMsg = msg <> " Update " <> hint <> " in query string filters, orders or limits."
-          pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
+      let
+        warnMsg = msg <> " Update " <> hint <> " in query string filters, orders or limits."
+        pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
       in
-      [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
+        [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
 
 withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
-withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
+withTiming AppConfig{configServerTimingEnabled} f =
+  if configServerTimingEnabled
     then do
       (t, r) <- timeItT f
       pure (Just t, r)
@@ -285,13 +300,13 @@ traceHeaderMiddleware appState app req respond = do
   case configServerTraceHeader conf of
     Nothing -> app req respond
     Just hdr ->
-      let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
-      app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
+      let hdrVal = L.lookup hdr $ Wai.requestHeaders req
+      in  app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
 
 addRetryHint :: Int -> Wai.Response -> Wai.Response
 addRetryHint delay response = do
   let h = ("Retry-After", BS.pack $ show delay)
-  Wai.mapResponseHeaders (\hs -> if isServiceUnavailable response then h:hs else hs) response
+  Wai.mapResponseHeaders (\hs -> if isServiceUnavailable response then h : hs else hs) response
 
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
@@ -307,16 +322,21 @@ initSocket unixSocket unixSocketMode tcpHost tcpPort bindTCP =
 
 initServerSocket :: AppConfig -> IO NS.Socket
 initServerSocket AppConfig{..} =
-  runIdentity <$> initSocket
-    configServerUnixSocket configServerUnixSocketMode
-    configServerHost (pure configServerPort)
-    (if configServerReusePort then bindPortTCPWithReusePort else bindPortTCP)
+  runIdentity
+    <$> initSocket
+      configServerUnixSocket
+      configServerUnixSocketMode
+      configServerHost
+      (pure configServerPort)
+      (if configServerReusePort then bindPortTCPWithReusePort else bindPortTCP)
 
 initAdminServerSocket :: AppConfig -> IO (Maybe NS.Socket)
 initAdminServerSocket AppConfig{..} =
   initSocket
-    configAdminServerUnixSocket configAdminServerUnixSocketMode
-    configAdminServerHost configAdminServerPort
+    configAdminServerUnixSocket
+    configAdminServerUnixSocketMode
+    configAdminServerHost
+    configAdminServerPort
     bindPortTCP
 
 bindPortTCPWithReusePort :: Int -> HostPreference -> IO NS.Socket
@@ -330,15 +350,20 @@ checkMainAppLive getMainSocket mainThreadIdRef =
   handle (\(_ :: IOException) -> pure False) $
     checkMainThread <&&> checkSocket
   where
-    checkSocket = getMainSocket >>=
-      maybe (pure False)
-      (NS.getSocketName >=> \case
-        -- in case of unix socket, check if it still exists
-        NS.SockAddrUnix fp -> doesPathExist fp
-        _ -> pure True)
-    checkMainThread = deRefWeak mainThreadIdRef >>=
-      maybe (pure False)
-      (fmap isRunning . threadStatus)
+    checkSocket =
+      getMainSocket
+        >>= maybe
+          (pure False)
+          ( NS.getSocketName >=> \case
+              -- in case of unix socket, check if it still exists
+              NS.SockAddrUnix fp -> doesPathExist fp
+              _ -> pure True
+          )
+    checkMainThread =
+      deRefWeak mainThreadIdRef
+        >>= maybe
+          (pure False)
+          (fmap isRunning . threadStatus)
     isRunning = \case
       ThreadRunning -> True
       ThreadBlocked _ -> True

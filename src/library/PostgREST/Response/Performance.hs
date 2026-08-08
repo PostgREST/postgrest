@@ -1,25 +1,27 @@
-module PostgREST.Response.Performance
-  ( ServerTiming (..)
-  , serverTimingHeader
-  )
+module PostgREST.Response.Performance (
+  ServerTiming (..),
+  serverTimingHeader,
+)
 where
-import qualified Data.ByteString.Char8 as BS
-import qualified Network.HTTP.Types    as HTTP
-import           Numeric               (showFFloat)
-import           Protolude
+
+import Numeric (showFFloat)
+import Protolude
+
+import Data.ByteString.Char8 qualified as BS
+import Network.HTTP.Types qualified as HTTP
 
 -- $setup
 -- >>> import Protolude
 
 -- | ServerTiming represents the timing data for a request, in seconds.
-data ServerTiming =
-  ServerTiming
-    { jwt         :: Maybe Double
-    , parse       :: Maybe Double
-    , plan        :: Maybe Double
-    , transaction :: Maybe Double
-    , response    :: Maybe Double
-    }
+data ServerTiming
+  = ServerTiming
+  { jwt :: Maybe Double
+  , parse :: Maybe Double
+  , plan :: Maybe Double
+  , transaction :: Maybe Double
+  , response :: Maybe Double
+  }
   deriving (Show)
 
 -- | Render the Server-Timing header from a ServerTimingData
@@ -32,10 +34,12 @@ serverTimingHeader timing =
   ("Server-Timing", renderTiming)
   where
     renderMetric metric = maybe "" (\dur -> BS.concat [metric, BS.pack $ ";dur=" <> showFFloat (Just 1) dur ""])
-    renderTiming = BS.intercalate ", " $ (\(k, v) -> renderMetric k (v timing)) <$>
-      [ ("jwt", jwt)
-      , ("parse", parse)
-      , ("plan", plan)
-      , ("transaction", transaction)
-      , ("response", response)
-      ]
+    renderTiming =
+      BS.intercalate ", " $
+        (\(k, v) -> renderMetric k (v timing))
+          <$> [ ("jwt", jwt)
+              , ("parse", parse)
+              , ("plan", plan)
+              , ("transaction", transaction)
+              , ("response", response)
+              ]
