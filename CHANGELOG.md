@@ -65,6 +65,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Make executable for aarch64-linux static instead of Ubuntu-based by @wolfgangwalther in #4193
 - Docker image for aarch64-linux is now built from scratch instead of being Ubuntu-based by @wolfgangwalther in #4193
+- Besides Docker Hub, docker images are now published to Github Container Registry by @wolfgangwalther in #2836
 
 #### Schema Cache
 
