@@ -40,14 +40,14 @@ import PostgREST.Metrics qualified as Metrics
 class HasConstructor f where
   genericConstrName :: f x -> Text
 
-instance HasConstructor f => HasConstructor (D1 c f) where
+instance (HasConstructor f) => HasConstructor (D1 c f) where
   genericConstrName (M1 x) = genericConstrName x
 
 instance (HasConstructor x, HasConstructor y) => HasConstructor (x :+: y) where
   genericConstrName (L1 l) = genericConstrName l
   genericConstrName (R1 r) = genericConstrName r
 
-instance Constructor c => HasConstructor (C1 c f) where
+instance (Constructor c) => HasConstructor (C1 c f) where
   genericConstrName = T.pack . conName
 
 data SpecState = SpecState
@@ -192,7 +192,7 @@ newObsChan = fmap <$> ObsChan <*> dupChan
 -- read messages from copy chan and once condition is met drain original to the same point
 -- upon timeout report error and messages remaining in the original chan
 -- that way we report messages since last successful read
-waitForObs :: HasCallStack => ObsChan -> Int -> Text -> (Observation -> Maybe a) -> IO ()
+waitForObs :: (HasCallStack) => ObsChan -> Int -> Text -> (Observation -> Maybe a) -> IO ()
 waitForObs (ObsChan orig copy) t msg f =
   timeout t (readUntil copy *> readUntil orig) >>= maybe failTimeout mempty
   where

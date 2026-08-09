@@ -494,7 +494,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     optBool k = join <$> overrideFromDbOrEnvironment C.optional k coerceBool
 
     overrideFromDbOrEnvironment
-      :: JustIfMaybe a b
+      :: (JustIfMaybe a b)
       => (C.Key -> C.Parser C.Value a -> C.Parser C.Config b)
       -> C.Key
       -> (C.Value -> a)

@@ -44,11 +44,11 @@ import PostgREST.Error
 parseAndDecodeClaims :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
 parseAndDecodeClaims jwkSet token = parseToken jwkSet token >>= decodeClaims
 
-decodeClaims :: MonadError Error m => JWT.JwtContent -> m JSON.Object
+decodeClaims :: (MonadError Error m) => JWT.JwtContent -> m JSON.Object
 decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 
-validateClaims :: MonadError Error m => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
+validateClaims :: (MonadError Error m) => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
 validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
 
 data ValidAud = VAString Text | VAArray [Text] deriving Generic

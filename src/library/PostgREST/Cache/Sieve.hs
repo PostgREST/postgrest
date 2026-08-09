@@ -43,7 +43,7 @@ data NodeElem :: Type -> Type -> Bool -> Type where
        }
     -> NodeElem k v False
   Entry
-    :: Hashable k
+    :: (Hashable k)
     => { visited :: TVar Bool
        , ekey :: k
        , entryValue :: v
@@ -67,7 +67,7 @@ data CacheConfig m k v = CacheConfig
   , validator :: m (k -> v -> Maybe (Discard m v))
   }
 
-alwaysValid :: Applicative m => m (k -> v -> Maybe (Discard m v))
+alwaysValid :: (Applicative m) => m (k -> v -> Maybe (Discard m v))
 alwaysValid = pure (const . const Nothing)
 
 cacheIO :: (MonadIO m, Hashable k) => CacheConfig m k v -> IO (Cache m k v)
