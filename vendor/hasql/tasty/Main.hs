@@ -35,107 +35,121 @@ tree =
                       x <- Connection.with (Session.run session)
                       return (Right (Right input) === x)
           in  [ testProperty "Array" $
-                  let encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
-                      decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8))))))
-                  in  roundtrip encoder decoder
+                  let
+                    encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
+                    decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8))))))
+                  in
+                    roundtrip encoder decoder
               , testProperty "2D Array" $
-                  let encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
-                      decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8)))))))
-                  in  \list -> list /= [] ==> roundtrip encoder decoder (replicate 3 list)
+                  let
+                    encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
+                    decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8)))))))
+                  in
+                    \list -> list /= [] ==> roundtrip encoder decoder (replicate 3 list)
               ]
       , testCase "Failed query" $
-          let statement =
-                Statement.Statement "select true where 1 = any ($1) and $2" encoder decoder True
-                where
-                  encoder =
-                    contrazip2
-                      (Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
-                      (Encoders.param (Encoders.nonNullable Encoders.text))
-                  decoder =
-                    fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
-              session =
-                Session.statement ([3, 7], "a") statement
-          in  do
-                x <- Connection.with (Session.run session)
-                assertBool (show x) $ case x of
-                  Right (Left (Session.QueryError "select true where 1 = any ($1) and $2" ["[3, 7]", "\"a\""] _)) -> True
-                  _ -> False
+          let
+            statement =
+              Statement.Statement "select true where 1 = any ($1) and $2" encoder decoder True
+              where
+                encoder =
+                  contrazip2
+                    (Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
+                    (Encoders.param (Encoders.nonNullable Encoders.text))
+                decoder =
+                  fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+            session =
+              Session.statement ([3, 7], "a") statement
+          in
+            do
+              x <- Connection.with (Session.run session)
+              assertBool (show x) $ case x of
+                Right (Left (Session.QueryError "select true where 1 = any ($1) and $2" ["[3, 7]", "\"a\""] _)) -> True
+                _ -> False
       , testCase "IN simulation" $
-          let statement =
-                Statement.Statement "select true where 1 = any ($1)" encoder decoder True
-                where
-                  encoder =
-                    Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
-                  decoder =
-                    fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
-              session =
-                do
-                  result1 <- Session.statement [1, 2] statement
-                  result2 <- Session.statement [2, 3] statement
-                  return (result1, result2)
-          in  do
-                x <- Connection.with (Session.run session)
-                assertEqual (show x) (Right (Right (True, False))) x
+          let
+            statement =
+              Statement.Statement "select true where 1 = any ($1)" encoder decoder True
+              where
+                encoder =
+                  Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
+                decoder =
+                  fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+            session =
+              do
+                result1 <- Session.statement [1, 2] statement
+                result2 <- Session.statement [2, 3] statement
+                return (result1, result2)
+          in
+            do
+              x <- Connection.with (Session.run session)
+              assertEqual (show x) (Right (Right (True, False))) x
       , testCase "NOT IN simulation" $
-          let statement =
-                Statement.Statement "select true where 3 <> all ($1)" encoder decoder True
-                where
-                  encoder =
-                    Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
-                  decoder =
-                    fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
-              session =
-                do
-                  result1 <- Session.statement [1, 2] statement
-                  result2 <- Session.statement [2, 3] statement
-                  return (result1, result2)
-          in  do
-                x <- Connection.with (Session.run session)
-                assertEqual (show x) (Right (Right (True, False))) x
+          let
+            statement =
+              Statement.Statement "select true where 3 <> all ($1)" encoder decoder True
+              where
+                encoder =
+                  Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
+                decoder =
+                  fmap Data.Maybe.isJust (Decoders.rowMaybe ((Decoders.column . Decoders.nonNullable) Decoders.bool))
+            session =
+              do
+                result1 <- Session.statement [1, 2] statement
+                result2 <- Session.statement [2, 3] statement
+                return (result1, result2)
+          in
+            do
+              x <- Connection.with (Session.run session)
+              assertEqual (show x) (Right (Right (True, False))) x
       , testCase "Composite decoding" $
-          let statement =
-                Statement.Statement sql encoder decoder True
-                where
-                  sql =
-                    "select (1, true)"
-                  encoder =
-                    mempty
-                  decoder =
-                    Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.composite ((,) <$> (Decoders.field . Decoders.nonNullable) Decoders.int8 <*> (Decoders.field . Decoders.nonNullable) Decoders.bool)))
-              session =
-                Session.statement () statement
-          in  do
-                x <- Connection.with (Session.run session)
-                assertEqual (show x) (Right (Right (1, True))) x
+          let
+            statement =
+              Statement.Statement sql encoder decoder True
+              where
+                sql =
+                  "select (1, true)"
+                encoder =
+                  mempty
+                decoder =
+                  Decoders.singleRow ((Decoders.column . Decoders.nonNullable) (Decoders.composite ((,) <$> (Decoders.field . Decoders.nonNullable) Decoders.int8 <*> (Decoders.field . Decoders.nonNullable) Decoders.bool)))
+            session =
+              Session.statement () statement
+          in
+            do
+              x <- Connection.with (Session.run session)
+              assertEqual (show x) (Right (Right (1, True))) x
       , testCase "Complex composite decoding" $
-          let statement =
-                Statement.Statement sql encoder decoder True
-                where
-                  sql =
-                    "select (1, true) as entity1, ('hello', 3) as entity2"
-                  encoder =
-                    mempty
-                  decoder =
-                    Decoders.singleRow $
-                      (,)
-                        <$> (Decoders.column . Decoders.nonNullable) entity1
-                        <*> (Decoders.column . Decoders.nonNullable) entity2
-                    where
-                      entity1 =
-                        Decoders.composite $
-                          (,)
-                            <$> (Decoders.field . Decoders.nonNullable) Decoders.int8
-                            <*> (Decoders.field . Decoders.nonNullable) Decoders.bool
-                      entity2 =
-                        Decoders.composite $
-                          (,)
-                            <$> (Decoders.field . Decoders.nonNullable) Decoders.text
-                            <*> (Decoders.field . Decoders.nonNullable) Decoders.int8
-              session =
-                Session.statement () statement
-          in  do
-                x <- Connection.with (Session.run session)
-                assertEqual (show x) (Right (Right ((1, True), ("hello", 3)))) x
+          let
+            statement =
+              Statement.Statement sql encoder decoder True
+              where
+                sql =
+                  "select (1, true) as entity1, ('hello', 3) as entity2"
+                encoder =
+                  mempty
+                decoder =
+                  Decoders.singleRow $
+                    (,)
+                      <$> (Decoders.column . Decoders.nonNullable) entity1
+                      <*> (Decoders.column . Decoders.nonNullable) entity2
+                  where
+                    entity1 =
+                      Decoders.composite $
+                        (,)
+                          <$> (Decoders.field . Decoders.nonNullable) Decoders.int8
+                          <*> (Decoders.field . Decoders.nonNullable) Decoders.bool
+                    entity2 =
+                      Decoders.composite $
+                        (,)
+                          <$> (Decoders.field . Decoders.nonNullable) Decoders.text
+                          <*> (Decoders.field . Decoders.nonNullable) Decoders.int8
+            session =
+              Session.statement () statement
+          in
+            do
+              x <- Connection.with (Session.run session)
+              assertEqual (show x) (Right (Right ((1, True), ("hello", 3)))) x
       , testGroup
           "unknownEnum"
           [ testCase "" $ do
@@ -263,48 +277,52 @@ tree =
                         catchError (Session.sql "absurd") (const (pure ()))
           in  io
       , testCase "\"in progress after error\" bugfix" $
-          let sumStatement :: Statement.Statement (Int64, Int64) Int64
-              sumStatement =
-                Statement.Statement sql encoder decoder True
-                where
-                  sql =
-                    "select ($1 + $2)"
-                  encoder =
-                    contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
-                      <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
-                  decoder =
-                    Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
-              sumSession :: Session.Session Int64
-              sumSession =
-                Session.sql "begin" *> Session.statement (1, 1) sumStatement <* Session.sql "end"
-              errorSession :: Session.Session ()
-              errorSession =
-                Session.sql "asldfjsldk"
-              io =
-                Connection.with $ \c -> do
-                  _ <- Session.run errorSession c
-                  Session.run sumSession c
-          in  io >>= \x -> assertBool (show x) (either (const False) isRight x)
+          let
+            sumStatement :: Statement.Statement (Int64, Int64) Int64
+            sumStatement =
+              Statement.Statement sql encoder decoder True
+              where
+                sql =
+                  "select ($1 + $2)"
+                encoder =
+                  contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
+                    <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
+                decoder =
+                  Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
+            sumSession :: Session.Session Int64
+            sumSession =
+              Session.sql "begin" *> Session.statement (1, 1) sumStatement <* Session.sql "end"
+            errorSession :: Session.Session ()
+            errorSession =
+              Session.sql "asldfjsldk"
+            io =
+              Connection.with $ \c -> do
+                _ <- Session.run errorSession c
+                Session.run sumSession c
+          in
+            io >>= \x -> assertBool (show x) (either (const False) isRight x)
       , testCase "\"another command is already in progress\" bugfix" $
-          let sumStatement :: Statement.Statement (Int64, Int64) Int64
-              sumStatement =
-                Statement.Statement sql encoder decoder True
-                where
-                  sql =
-                    "select ($1 + $2)"
-                  encoder =
-                    contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
-                      <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
-                  decoder =
-                    Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
-              session :: Session.Session Int64
-              session =
-                do
-                  Session.sql "begin;"
-                  s <- Session.statement (1, 1) sumStatement
-                  Session.sql "end;"
-                  return s
-          in  Session.runSessionOnLocalDb session >>= \x -> assertEqual (show x) (Right 2) x
+          let
+            sumStatement :: Statement.Statement (Int64, Int64) Int64
+            sumStatement =
+              Statement.Statement sql encoder decoder True
+              where
+                sql =
+                  "select ($1 + $2)"
+                encoder =
+                  contramap fst (Encoders.param (Encoders.nonNullable Encoders.int8))
+                    <> contramap snd (Encoders.param (Encoders.nonNullable Encoders.int8))
+                decoder =
+                  Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
+            session :: Session.Session Int64
+            session =
+              do
+                Session.sql "begin;"
+                s <- Session.statement (1, 1) sumStatement
+                Session.sql "end;"
+                return s
+          in
+            Session.runSessionOnLocalDb session >>= \x -> assertEqual (show x) (Right 2) x
       , testCase "Executing the same query twice" $
           pure ()
       , testCase "Interval Encoding" $
@@ -404,31 +422,33 @@ tree =
       , testCase "The same prepared statement used on different types" $
           let actualIO =
                 Session.runSessionOnLocalDb $ do
-                  let effect1 =
-                        Session.statement "ok" statement
-                        where
-                          statement =
-                            Statement.Statement sql encoder decoder True
-                            where
-                              sql =
-                                "select $1"
-                              encoder =
-                                Encoders.param (Encoders.nonNullable Encoders.text)
-                              decoder =
-                                Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.text)
-                      effect2 =
-                        Session.statement 1 statement
-                        where
-                          statement =
-                            Statement.Statement sql encoder decoder True
-                            where
-                              sql =
-                                "select $1"
-                              encoder =
-                                Encoders.param (Encoders.nonNullable Encoders.int8)
-                              decoder =
-                                Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
-                   in (,) <$> effect1 <*> effect2
+                  let
+                    effect1 =
+                      Session.statement "ok" statement
+                      where
+                        statement =
+                          Statement.Statement sql encoder decoder True
+                          where
+                            sql =
+                              "select $1"
+                            encoder =
+                              Encoders.param (Encoders.nonNullable Encoders.text)
+                            decoder =
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.text)
+                    effect2 =
+                      Session.statement 1 statement
+                      where
+                        statement =
+                          Statement.Statement sql encoder decoder True
+                          where
+                            sql =
+                              "select $1"
+                            encoder =
+                              Encoders.param (Encoders.nonNullable Encoders.int8)
+                            decoder =
+                              Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
+                   in
+                    (,) <$> effect1 <*> effect2
           in  actualIO >>= assertEqual "" (Right ("ok", 1))
       , testCase "Affected rows counting" $
           replicateM_ 13 $

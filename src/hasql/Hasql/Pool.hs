@@ -87,8 +87,9 @@ acquire config = do
     now <- getMonotonicTimeNSec
     join . atomically $ do
       entries <- flushTQueue connectionQueue
-      let (agedEntries, unagedEntries) = partition (entryIsAged agingTimeoutNanos now) entries
-          (idleEntries, liveEntries) = partition (entryIsIdle agingTimeoutNanos now) unagedEntries
+      let
+        (agedEntries, unagedEntries) = partition (entryIsAged agingTimeoutNanos now) entries
+        (idleEntries, liveEntries) = partition (entryIsIdle agingTimeoutNanos now) unagedEntries
       traverse_ (writeTQueue connectionQueue) liveEntries
       return $ do
         forM_ agedEntries $ \entry -> do

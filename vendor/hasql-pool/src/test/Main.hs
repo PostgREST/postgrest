@@ -22,24 +22,25 @@ import qualified Hasql.Statement as Statement
 main :: IO ()
 main = do
   connectionString <- getConnectionString
-  let withPool poolSize acqTimeout maxLifetime maxIdletime connectionString =
-        bracket
-          ( acquire
-              ( Config.settings
-                  [ Config.size poolSize
-                  , Config.acquisitionTimeout acqTimeout
-                  , Config.agingTimeout maxLifetime
-                  , Config.idlenessTimeout maxIdletime
-                  , Config.staticConnectionSettings
-                      [ Connection.Setting.connection
-                          (Connection.Setting.Connection.string connectionString)
-                      ]
-                  ]
-              )
-          )
-          release
-      withDefaultPool =
-        withPool 3 10 1_800 1_800 connectionString
+  let
+    withPool poolSize acqTimeout maxLifetime maxIdletime connectionString =
+      bracket
+        ( acquire
+            ( Config.settings
+                [ Config.size poolSize
+                , Config.acquisitionTimeout acqTimeout
+                , Config.agingTimeout maxLifetime
+                , Config.idlenessTimeout maxIdletime
+                , Config.staticConnectionSettings
+                    [ Connection.Setting.connection
+                        (Connection.Setting.Connection.string connectionString)
+                    ]
+                ]
+            )
+        )
+        release
+    withDefaultPool =
+      withPool 3 10 1_800 1_800 connectionString
 
   hspec . describe "" $ do
     it "Releases a spot in the pool when there is a query error" $ withDefaultPool $ \pool -> do

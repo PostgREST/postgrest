@@ -7,5 +7,6 @@ import-grouping: by-scope-then-qualified
 in-style: left-align
 indent-wheres: true
 indentation: 2
+let-style: mixed
 single-constraint-parens: auto
 single-deriving-parens: auto

@@ -17,8 +17,9 @@ spec withConfig = withConfig (baseCfg{configOpenApiSecurityActive = True}) $
     it "includes security and security definitions" $ do
       r <- simpleBody <$> get "/"
 
-      let sec = r ^? key "security"
-          secDef = r ^? key "securityDefinitions"
+      let
+        sec = r ^? key "security"
+        secDef = r ^? key "securityDefinitions"
 
       liftIO $ do
         sec

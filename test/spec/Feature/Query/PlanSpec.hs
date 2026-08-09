@@ -29,9 +29,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           ""
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -47,9 +48,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           ""
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -59,8 +61,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs blocks info when using the buffers option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=buffers") ""
 
-      let resBody = simpleBody r
-          resHeaders = simpleHeaders r
+      let
+        resBody = simpleBody r
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=buffers; charset=utf-8")
@@ -69,8 +72,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs the search path when using the settings option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=settings") ""
 
-      let searchPath = simpleBody r ^? nth 0 . key "Settings"
-          resHeaders = simpleHeaders r
+      let
+        searchPath = simpleBody r ^? nth 0 . key "Settings"
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=settings; charset=utf-8")
@@ -85,8 +89,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs WAL info when using the wal option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|wal") ""
 
-      let walRecords = simpleBody r ^? nth 0 . key "Plan" . key "WAL Records"
-          resHeaders = simpleHeaders r
+      let
+        walRecords = simpleBody r ^? nth 0 . key "Plan" . key "WAL Records"
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|wal; charset=utf-8")
@@ -95,8 +100,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs columns info when using the verbose option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=verbose") ""
 
-      let cols = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Output"
-          resHeaders = simpleHeaders r
+      let
+        cols = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Output"
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
@@ -105,8 +111,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "includes the Query Identifier field when using the verbose option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=verbose") ""
 
-      let queryIdentifier = simpleBody r ^? nth 0 . key "Query Identifier"
-          resHeaders = simpleHeaders r
+      let
+        queryIdentifier = simpleBody r ^? nth 0 . key "Query Identifier"
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
@@ -115,8 +122,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs the plan for application/json " $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose") ""
 
-      let aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
+      let
+        aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
@@ -126,8 +134,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
     it "outputs the plan for application/vnd.pgrst.object " $ do
       r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose") ""
 
-      let aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
+      let
+        aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
@@ -143,9 +152,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           [json|{"id":100, "name": "Project 100"}|]
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -161,9 +171,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           [json|{"name": "Patched Project"}|]
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -179,9 +190,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           ""
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -197,9 +209,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           [json| [ { "name": "Go", "rank": 19 } ]|]
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -215,9 +228,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           [("Prefer", "resolution=merge-duplicates"), ("Accept", "application/vnd.pgrst.plan+json")]
           [json| [ { "name": "Python", "rank": 19 }, { "name": "Go", "rank": 20} ]|]
 
-      let totalCost = planCost r
-          resStatus = simpleStatus r
-          resHeaders = simpleHeaders r
+      let
+        totalCost = planCost r
+        resStatus = simpleStatus r
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -233,9 +247,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           [("Prefer", "resolution=merge-duplicates"), ("Accept", "application/vnd.pgrst.plan+json")]
           (getInsertDataForTiobePlsTable 10)
 
-      let totalCost = planCost r
-          resStatus = simpleStatus r
-          resHeaders = simpleHeaders r
+      let
+        totalCost = planCost r
+        resStatus = simpleStatus r
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -250,9 +265,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           [("Prefer", "resolution=merge-duplicates"), ("Accept", "application/vnd.pgrst.plan+json")]
           (getInsertDataForTiobePlsTable 100)
 
-      let totalCost = planCost r
-          resStatus = simpleStatus r
-          resHeaders = simpleHeaders r
+      let
+        totalCost = planCost r
+        resStatus = simpleStatus r
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -267,9 +283,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           [("Prefer", "resolution=merge-duplicates"), ("Accept", "application/vnd.pgrst.plan+json")]
           (getInsertDataForTiobePlsTable 1000)
 
-      let totalCost = planCost r
-          resStatus = simpleStatus r
-          resHeaders = simpleHeaders r
+      let
+        totalCost = planCost r
+        resStatus = simpleStatus r
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -284,8 +301,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose")]
           ""
 
-      let aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 3
-          resHeaders = simpleHeaders r
+      let
+        aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 3
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
@@ -301,9 +319,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json")
           ""
 
-      let totalCost = planCost r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        totalCost = planCost r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
@@ -320,9 +339,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+text")
           ""
 
-      let resBody = simpleBody r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        resBody = simpleBody r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
@@ -338,9 +358,10 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan")
           ""
 
-      let resBody = simpleBody r
-          resHeaders = simpleHeaders r
-          resStatus = simpleStatus r
+      let
+        resBody = simpleBody r
+        resHeaders = simpleHeaders r
+        resStatus = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
@@ -557,8 +578,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose")
           ""
 
-      let aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
+      let
+        aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
@@ -572,8 +594,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose")
           ""
 
-      let aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
+      let
+        aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose; charset=utf-8")
@@ -592,8 +615,9 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
             { "name": "new value" }
         ]|]
 
-      let nextValSnip = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Output"
-          resHeaders = simpleHeaders r
+      let
+        nextValSnip = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Output"
+        resHeaders = simpleHeaders r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
@@ -617,10 +641,11 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
             (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
             ""
 
-        let resBody = simpleBody r
-            resHeaders = simpleHeaders r
-            totalCost = planCost r
-            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+        let
+          resBody = simpleBody r
+          resHeaders = simpleHeaders r
+          totalCost = planCost r
+          aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
 
         liftIO $ do
           resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
@@ -642,10 +667,11 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
             (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
             ""
 
-        let resBody = simpleBody r
-            resHeaders = simpleHeaders r
-            totalCost = planCost r
-            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+        let
+          resBody = simpleBody r
+          resHeaders = simpleHeaders r
+          totalCost = planCost r
+          aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
 
         liftIO $ do
           resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
@@ -668,10 +694,11 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
             (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
             ""
 
-        let resBody = simpleBody r
-            resHeaders = simpleHeaders r
-            totalCost = planCost r
-            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+        let
+          resBody = simpleBody r
+          resHeaders = simpleHeaders r
+          totalCost = planCost r
+          aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
 
         liftIO $ do
           resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
@@ -693,10 +720,11 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
             (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
             ""
 
-        let resBody = simpleBody r
-            resHeaders = simpleHeaders r
-            totalCost = planCost r
-            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+        let
+          resBody = simpleBody r
+          resHeaders = simpleHeaders r
+          totalCost = planCost r
+          aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
 
         liftIO $ do
           resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
