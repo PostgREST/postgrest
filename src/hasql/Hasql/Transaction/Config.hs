@@ -9,7 +9,7 @@ data Mode
   | -- |
     -- Write and commit.
     Write
-  deriving (Show, Eq, Ord, Enum, Bounded)
+  deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- |
 -- For reference see
@@ -18,4 +18,4 @@ data IsolationLevel
   = ReadCommitted
   | RepeatableRead
   | Serializable
-  deriving (Show, Eq, Ord, Enum, Bounded)
+  deriving (Bounded, Enum, Eq, Ord, Show)

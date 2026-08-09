@@ -35,7 +35,7 @@ data Table = Table
   , tablePKCols :: [FieldName]
   , tableColumns :: ColumnMap
   }
-  deriving (Show, Generic, JSON.ToJSON)
+  deriving (Generic, JSON.ToJSON, Show)
 
 tableColumnsList :: Table -> [Column]
 tableColumnsList = HMI.elems . tableColumns
@@ -53,7 +53,7 @@ data Column = Column
   , colDefault :: Maybe Text
   , colEnum :: [Text]
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
 type TablesMap = HM.HashMap QualifiedIdentifier Table
 

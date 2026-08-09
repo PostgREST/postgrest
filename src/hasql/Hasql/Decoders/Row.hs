@@ -10,7 +10,7 @@ import Hasql.LibPq14 qualified as LibPQ
 
 newtype Row a
   = Row (ReaderT Env (ExceptT RowError IO) a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 instance MonadFail Row where
   fail = error . ValueError . fromString

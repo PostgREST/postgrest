@@ -19,7 +19,7 @@ import Hasql.Prelude qualified as Prelude
 
 newtype Results a
   = Results (ReaderT (Bool, LibPQ.Connection) (ExceptT CommandError IO) a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 instance Filterable Results where
   {-# INLINE mapMaybe #-}
