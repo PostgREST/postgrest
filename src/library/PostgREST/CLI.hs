@@ -6,7 +6,8 @@ module PostgREST.CLI
   , CLI (..)
   , Command (..)
   , readCLIShowHelp
-  ) where
+  )
+where
 
 import Protolude
 

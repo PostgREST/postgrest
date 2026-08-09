@@ -7,7 +7,8 @@
 module PostgREST.Response
   ( actionResponse
   , PgrstResponse (..)
-  ) where
+  )
+where
 
 import Data.Maybe (fromJust)
 import Data.Text.Read (decimal)

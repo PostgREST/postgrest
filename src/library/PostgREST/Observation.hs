@@ -8,7 +8,8 @@ module PostgREST.Observation
   ( Observation (..)
   , ObsFatalError (..)
   , ObservationHandler
-  ) where
+  )
+where
 
 import Network.HTTP.Types.Status (Status)
 import Protolude hiding (toList)

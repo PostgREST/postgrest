@@ -3,7 +3,8 @@
 module PostgREST.Unix
   ( installSignalHandlers
   , createAndBindDomainSocket
-  ) where
+  )
+where
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Signals as Signals

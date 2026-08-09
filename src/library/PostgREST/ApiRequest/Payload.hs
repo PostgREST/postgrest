@@ -8,7 +8,8 @@
 -- This module is in charge of parsing the request body (payload)
 module PostgREST.ApiRequest.Payload
   ( getPayload
-  ) where
+  )
+where
 
 import Control.Arrow ((***))
 import Data.Aeson.Types (emptyArray, emptyObject)

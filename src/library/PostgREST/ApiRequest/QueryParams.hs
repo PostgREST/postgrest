@@ -21,7 +21,8 @@ module PostgREST.ApiRequest.QueryParams
   , pRequestRange
   , pSingleVal
   , pSpreadRelationSelect
-  ) where
+  )
+where
 
 import Control.Arrow ((***))
 import Data.Either.Combinators (mapLeft)

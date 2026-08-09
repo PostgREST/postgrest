@@ -9,7 +9,8 @@ module PostgREST.ApiRequest
   , userApiRequest
   , userPreferences
   , userBearerAuth
-  ) where
+  )
+where
 
 import Data.List (lookup)
 import Data.Ranged.Ranges
