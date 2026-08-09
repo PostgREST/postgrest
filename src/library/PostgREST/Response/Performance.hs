@@ -4,10 +4,11 @@ module PostgREST.Response.Performance
   )
 where
 
-import Data.ByteString.Char8 qualified as BS
-import Network.HTTP.Types qualified as HTTP
 import Numeric (showFFloat)
 import Protolude
+
+import Data.ByteString.Char8 qualified as BS
+import Network.HTTP.Types qualified as HTTP
 
 -- $setup
 -- >>> import Protolude

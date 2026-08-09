@@ -1,12 +1,11 @@
 module Feature.Query.UpdateSpec where
 
-import Test.Hspec hiding (pendingWith)
-
 import Network.HTTP.Types
+import Protolude hiding (get)
+import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

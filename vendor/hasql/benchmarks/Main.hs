@@ -2,12 +2,13 @@ module Main where
 
 import Criterion
 import Criterion.Main
+import Prelude
+
 import qualified Hasql.Connection as A
 import qualified Hasql.Decoders as D
 import qualified Hasql.Pipeline as E
 import qualified Hasql.Session as B
 import qualified Hasql.Statement as C
-import Prelude
 
 main :: IO ()
 main =

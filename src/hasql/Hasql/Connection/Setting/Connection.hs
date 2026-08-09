@@ -5,10 +5,11 @@ module Hasql.Connection.Setting.Connection
   )
 where
 
+import Hasql.Prelude
+
 import Hasql.Connection.Config.ConnectionString qualified as Config.ConnectionString
 import Hasql.Connection.Config.ConnectionString.Params qualified as Config.ConnectionString.Params
 import Hasql.Connection.Setting.Connection.Param qualified as Param
-import Hasql.Prelude
 
 -- | Instructions on how to connect to the database.
 newtype Connection = Connection ByteString

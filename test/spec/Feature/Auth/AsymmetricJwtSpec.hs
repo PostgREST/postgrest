@@ -1,13 +1,12 @@
 module Feature.Auth.AsymmetricJwtSpec where
 
 import Network.HTTP.Types
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..), parseSecret)
-
-import Protolude
 import SpecHelper
 
 -- these tests will stop working 9999999999s after the UNIX EPOCH

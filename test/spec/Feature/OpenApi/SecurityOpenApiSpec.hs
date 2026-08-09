@@ -1,18 +1,14 @@
 module Feature.OpenApi.SecurityOpenApiSpec where
 
 import Control.Lens ((^?))
-
 import Data.Aeson.Lens
 import Data.Aeson.QQ
-
 import Network.Wai.Test (SResponse (..))
-
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

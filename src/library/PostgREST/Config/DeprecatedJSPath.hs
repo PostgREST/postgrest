@@ -10,18 +10,17 @@ module PostgREST.Config.DeprecatedJSPath
   , evaluateDeprecatedJSPath
   ) where
 
+import Data.Either.Combinators (mapLeft)
+import Protolude
+import Text.ParserCombinators.Parsec ((<?>))
+import Text.Read (read)
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.Key qualified as K
 import Data.Aeson.KeyMap qualified as KM
 import Data.Text qualified as T
 import Data.Vector qualified as V
 import Text.ParserCombinators.Parsec qualified as P
-
-import Data.Either.Combinators (mapLeft)
-import Text.ParserCombinators.Parsec ((<?>))
-import Text.Read (read)
-
-import Protolude
 
 -- Deprecated JSPath
 -- =================

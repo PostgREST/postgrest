@@ -1,13 +1,12 @@
 module Feature.RollbackSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 -- two helpers functions to make sure that each test can setup and cleanup properly

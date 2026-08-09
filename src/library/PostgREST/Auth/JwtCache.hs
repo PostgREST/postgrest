@@ -14,11 +14,6 @@ module PostgREST.Auth.JwtCache
   , lookupJwtCache
   ) where
 
-import Data.Aeson qualified as JSON
-import Data.Aeson.KeyMap qualified as KM
-
-import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
-
 import Control.Concurrent.STM (newTVarIO, readTVar, writeTVar)
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.Error.Class (liftEither)
@@ -30,15 +25,21 @@ import Data.IORef
   , writeIORef
   )
 import Jose.Jwk (JwkSet)
+import Protolude
+
+import Data.Aeson qualified as JSON
+import Data.Aeson.KeyMap qualified as KM
+
 import PostgREST.Auth.Jwt (parseAndDecodeClaims)
 import PostgREST.Cache.Sieve (alwaysValid)
-import PostgREST.Cache.Sieve qualified as SC
 import PostgREST.Config (AppConfig (..))
+import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
 import PostgREST.Observation
   ( Observation (JwtCacheEviction, JwtCacheLookup)
   , ObservationHandler
   )
-import Protolude
+
+import PostgREST.Cache.Sieve qualified as SC
 
 data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
 

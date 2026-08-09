@@ -5,9 +5,9 @@ module PostgREST.Network
   ) where
 
 import Data.String (IsString (..))
-import Network.Socket qualified as NS
-
 import Protolude
+
+import Network.Socket qualified as NS
 
 -- | Resolves the socket to an address depending on the socket type. The Show
 --   instance of the socket types automatically resolves it to the correct

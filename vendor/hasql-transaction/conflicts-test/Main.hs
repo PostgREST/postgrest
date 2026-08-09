@@ -1,6 +1,11 @@
 module Main where
 
+import Prelude
+
 import qualified Control.Concurrent.Async as F
+import qualified Main.Statements as D
+import qualified Main.Transactions as E
+
 import qualified Hasql.Connection as A
 import qualified Hasql.Connection.Setting as H
 import qualified Hasql.Connection.Setting.Connection as I
@@ -8,9 +13,6 @@ import qualified Hasql.Connection.Setting.Connection.Param as J
 import qualified Hasql.Session as B
 import qualified Hasql.Transaction as C
 import qualified Hasql.Transaction.Sessions as G
-import qualified Main.Statements as D
-import qualified Main.Transactions as E
-import Prelude
 
 main :: IO ()
 main =

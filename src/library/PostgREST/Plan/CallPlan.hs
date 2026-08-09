@@ -9,9 +9,12 @@ module PostgREST.Plan.CallPlan
   )
 where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Lazy qualified as LBS
 import Data.HashMap.Strict qualified as HM
+
 import PostgREST.SchemaCache.Identifiers
   ( FieldName
   , QualifiedIdentifier
@@ -20,8 +23,6 @@ import PostgREST.SchemaCache.Routine
   ( Routine (..)
   , RoutineParam (..)
   )
-
-import Protolude
 
 data CallPlan = FunctionCall
   { funCQi :: QualifiedIdentifier

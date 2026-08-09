@@ -1,19 +1,21 @@
 module Main where
 
 import Contravariant.Extras
-import qualified Hasql.Decoders as Decoders
-import qualified Hasql.Encoders as Encoders
-import qualified Hasql.Session as Session
-import qualified Hasql.Statement as Statement
-import qualified Hasql.TestingKit.TestingDsl as Session
-import qualified Main.Connection as Connection
 import Main.Prelude hiding (assert)
-import qualified Main.Statements as Statements
 import Test.QuickCheck.Instances ()
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.Tasty.Runners
+
+import qualified Hasql.TestingKit.TestingDsl as Session
+import qualified Main.Connection as Connection
+import qualified Main.Statements as Statements
+
+import qualified Hasql.Decoders as Decoders
+import qualified Hasql.Encoders as Encoders
+import qualified Hasql.Session as Session
+import qualified Hasql.Statement as Statement
 
 main :: IO ()
 main =

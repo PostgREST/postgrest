@@ -5,10 +5,11 @@ module Hasql.Connection.Setting
   )
 where
 
+import Hasql.Prelude
+
 import Hasql.Connection.Config qualified as Config
 import Hasql.Connection.Config.ConnectionString qualified as Config.ConnectionString
 import Hasql.Connection.Setting.Connection qualified as Connection
-import Hasql.Prelude
 
 -- | Setting of a client handle.
 newtype Setting = Setting (Config.Config -> Config.Config)

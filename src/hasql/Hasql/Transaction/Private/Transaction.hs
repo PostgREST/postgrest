@@ -1,9 +1,10 @@
 module Hasql.Transaction.Private.Transaction where
 
-import Hasql.Session qualified as B
-import Hasql.Statement qualified as A
 import Hasql.Transaction.Config
 import Hasql.Transaction.Private.Prelude
+
+import Hasql.Session qualified as B
+import Hasql.Statement qualified as A
 import Hasql.Transaction.Private.Sessions qualified as D
 
 -- |

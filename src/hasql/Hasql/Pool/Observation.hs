@@ -5,6 +5,7 @@
 module Hasql.Pool.Observation where
 
 import Hasql.Pool.Prelude
+
 import Hasql.Session qualified as Session
 
 -- | An observation of a change of the state of a pool.

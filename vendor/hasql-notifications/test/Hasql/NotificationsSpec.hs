@@ -4,13 +4,14 @@ import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar
 import Control.Monad (void)
 import Data.ByteString
+import System.Exit (die)
+import Test.Hspec
+import Test.QuickCheck
+
 import Hasql.Connection
 import Hasql.Connection.Setting
 import Hasql.Connection.Setting.Connection
 import Hasql.Notifications
-import System.Exit (die)
-import Test.Hspec
-import Test.QuickCheck
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.

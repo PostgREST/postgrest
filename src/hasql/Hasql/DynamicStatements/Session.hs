@@ -1,10 +1,11 @@
 module Hasql.DynamicStatements.Session where
 
-import Hasql.Decoders qualified as Decoders
 import Hasql.DynamicStatements.Prelude
+import Hasql.Session
+
+import Hasql.Decoders qualified as Decoders
 import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
 import Hasql.DynamicStatements.Statement qualified as Statement
-import Hasql.Session
 import Hasql.Session qualified as Session
 
 -- |

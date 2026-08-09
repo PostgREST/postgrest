@@ -8,6 +8,7 @@ where
 
 import Data.ByteString.Builder qualified as BB
 import Data.ByteString.Lazy qualified as BL
+
 import Hasql.Prelude
 
 newtype Commands

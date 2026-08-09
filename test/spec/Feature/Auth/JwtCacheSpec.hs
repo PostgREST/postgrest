@@ -1,16 +1,15 @@
 module Feature.Auth.JwtCacheSpec where
 
-import Data.Map qualified as M
-
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config (AppConfig (..))
+import Data.Map qualified as M
 
-import Protolude hiding (get)
+import PostgREST.Config (AppConfig (..))
 import SpecHelper
 
 spec :: SpecWithConfig

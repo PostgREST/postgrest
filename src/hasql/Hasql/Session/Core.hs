@@ -1,16 +1,17 @@
 module Hasql.Session.Core where
 
+import Hasql.Errors
+import Hasql.Prelude
+
 import Hasql.Connection.Core qualified as Connection
 import Hasql.Decoders.All qualified as Decoders
 import Hasql.Decoders.Result qualified as Decoders.Result
 import Hasql.Decoders.Results qualified as Decoders.Results
 import Hasql.Encoders.All qualified as Encoders
 import Hasql.Encoders.Params qualified as Encoders.Params
-import Hasql.Errors
 import Hasql.IO qualified as IO
 import Hasql.LibPq14 qualified as Pq
 import Hasql.Pipeline.Core qualified as Pipeline
-import Hasql.Prelude
 import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
 import Hasql.Statement qualified as Statement
 

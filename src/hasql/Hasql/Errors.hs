@@ -1,6 +1,7 @@
 module Hasql.Errors where
 
 import Data.ByteString.Char8 qualified as BC
+
 import Hasql.Prelude
 
 -- | Error during execution of a session.

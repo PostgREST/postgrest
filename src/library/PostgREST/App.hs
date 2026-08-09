@@ -18,15 +18,20 @@ module PostgREST.App
   , run
   ) where
 
+import Control.Monad.Except (liftEither)
+import Control.Monad.Writer
+import Data.Either.Combinators (mapLeft, whenLeft)
+import Data.IORef (atomicWriteIORef, newIORef, readIORef)
+import Data.Streaming.Network
+  ( HostPreference
+  , bindPortGenEx
+  , bindPortTCP
+  )
+import Data.String (IsString (..), String)
 import GHC.Conc (ThreadStatus (..), threadStatus)
 import GHC.IO.Exception (IOErrorType (..))
 import GHC.Weak
-import System.IO.Error (ioeGetErrorType)
-
-import Control.Monad.Except (liftEither)
-import Data.Either.Combinators (mapLeft, whenLeft)
-import Data.IORef (atomicWriteIORef, newIORef, readIORef)
-import Data.String (IsString (..), String)
+import Network.HTTP.Types.Header (hVary, hWarning)
 import Network.Wai.Handler.Warp
   ( defaultSettings
   , setBeforeMainLoop
@@ -35,23 +40,20 @@ import Network.Wai.Handler.Warp
   , setPort
   , setServerName
   )
+import Protolude hiding (Handler)
+import System.Directory (doesPathExist)
+import System.IO.Error (ioeGetErrorType)
+import System.Posix.Types (FileMode)
 
+import Data.ByteString.Char8 qualified as BS
+import Data.List qualified as L
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
+import Network.HTTP.Types qualified as HTTP
+import Network.Socket qualified as NS
 import Network.Wai qualified as Wai
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Header qualified as WaiHeader
-
-import PostgREST.Admin qualified as Admin
-import PostgREST.ApiRequest qualified as ApiRequest
-import PostgREST.AppState qualified as AppState
-import PostgREST.Auth qualified as Auth
-import PostgREST.Cors qualified as Cors
-import PostgREST.Error qualified as Error
-import PostgREST.MainTx qualified as MainTx
-import PostgREST.Plan qualified as Plan
-import PostgREST.Query qualified as Query
-import PostgREST.Response qualified as Response
-import PostgREST.Unix qualified as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.AppState (AppState)
@@ -64,25 +66,20 @@ import PostgREST.Observation (Observation (..))
 import PostgREST.Response.Performance (ServerTiming (..), serverTimingHeader)
 import PostgREST.SchemaCache (SchemaCache (..))
 import PostgREST.TimeIt (timeItT)
+import PostgREST.Unix (createAndBindDomainSocket)
 import PostgREST.Version (docsVersion, prettyVersion)
 
-import Control.Monad.Writer
-import Data.ByteString.Char8 qualified as BS
-import Data.List qualified as L
-import Data.Streaming.Network
-  ( HostPreference
-  , bindPortGenEx
-  , bindPortTCP
-  )
-import Data.Text qualified as T
-import Network.HTTP.Types qualified as HTTP
-import Network.HTTP.Types.Header (hVary, hWarning)
-import Network.Socket qualified as NS
-import PostgREST.Unix (createAndBindDomainSocket)
-import System.Posix.Types (FileMode)
-
-import Protolude hiding (Handler)
-import System.Directory (doesPathExist)
+import PostgREST.Admin qualified as Admin
+import PostgREST.ApiRequest qualified as ApiRequest
+import PostgREST.AppState qualified as AppState
+import PostgREST.Auth qualified as Auth
+import PostgREST.Cors qualified as Cors
+import PostgREST.Error qualified as Error
+import PostgREST.MainTx qualified as MainTx
+import PostgREST.Plan qualified as Plan
+import PostgREST.Query qualified as Query
+import PostgREST.Response qualified as Response
+import PostgREST.Unix qualified as Unix (installSignalHandlers)
 
 run :: AppState -> Weak ThreadId -> IO ()
 run appState mainThreadIdRef = do

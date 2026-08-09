@@ -93,8 +93,6 @@ import Data.Bifunctor as Exports
 import Data.Bits as Exports
 import Data.Bool as Exports
 import Data.ByteString as Exports (ByteString)
-import Data.ByteString.Builder qualified
-import Data.ByteString.Lazy qualified
 import Data.Char as Exports
 import Data.Coerce as Exports
 import Data.Complex as Exports
@@ -166,8 +164,6 @@ import Data.Semigroup as Exports hiding
   )
 import Data.String as Exports
 import Data.Text as Exports (Text)
-import Data.Text.Lazy qualified
-import Data.Text.Lazy.Builder qualified
 import Data.Time as Exports
 import Data.Traversable as Exports
 import Data.Tuple as Exports
@@ -257,6 +253,11 @@ import Prelude as Exports hiding
   , sum
   , (.)
   )
+
+import Data.ByteString.Builder qualified
+import Data.ByteString.Lazy qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
 
 type LazyByteString =
   Data.ByteString.Lazy.ByteString

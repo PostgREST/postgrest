@@ -46,19 +46,17 @@ module PostgREST.Query.SqlFragment
   , unknownEncoder
   ) where
 
+import Control.Arrow ((***))
+import Data.Foldable (foldr1)
+import NeatInterpolation (trimming)
+import Protolude hiding (Sum, cast)
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.HashMap.Strict qualified as HM
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
-import Hasql.DynamicStatements.Snippet qualified as SQL
-import Hasql.Encoders qualified as HE
-
-import Control.Arrow ((***))
-
-import Data.Foldable (foldr1)
-import NeatInterpolation (trimming)
 
 import PostgREST.ApiRequest.Types
   ( AggregateFunction (..)
@@ -117,7 +115,8 @@ import PostgREST.SchemaCache.Routine
   , funcReturnsSingleComposite
   )
 
-import Protolude hiding (Sum, cast)
+import Hasql.DynamicStatements.Snippet qualified as SQL
+import Hasql.Encoders qualified as HE
 
 sourceCTEName :: Text
 sourceCTEName = "pgrst_source"
