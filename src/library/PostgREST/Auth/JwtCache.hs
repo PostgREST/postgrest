@@ -58,7 +58,7 @@ class CacheVariant m v where
 data JwtCache
   = JwtNoJwks
   | JwtNoCache JwkSet
-  | forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
+  | forall m v. (CacheVariant m v) => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
 
 instance CacheVariant IO (Either Error JSON.Object) where
   cached c = liftIO . SC.cached c >=> liftEither
