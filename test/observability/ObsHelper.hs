@@ -62,7 +62,7 @@ data TimeoutException = TimeoutException deriving (Show, Exception)
 
 data ObsChan = ObsChan (Chan Observation) (Chan Observation)
 
-constrName :: (HasConstructor (Rep a), Generic a) => a -> Text
+constrName :: (Generic a, HasConstructor (Rep a)) => a -> Text
 constrName = genericConstrName . from
 
 baseCfg :: AppConfig
@@ -150,13 +150,13 @@ generateJWT claims =
   either mempty JWT.unJwt $ JWT.hmacEncode JWT.HS256 generateSecret (BL.toStrict claims)
 
 -- state check helpers
-stateCheck :: (Show a, Eq a) => (c -> m a) -> (st -> (String, c)) -> (a -> a) -> StateCheck st m
+stateCheck :: (Eq a, Show a) => (c -> m a) -> (st -> (String, c)) -> (a -> a) -> StateCheck st m
 stateCheck extractValue extractComponent expect = StateCheck (second extractValue . extractComponent) (flip shouldBe . expect)
 
-expectField :: forall s st a c m. (KnownSymbol s, Show a, Eq a, HasField s st c) => (c -> m a) -> (a -> a) -> StateCheck st m
+expectField :: forall s st a c m. (Eq a, HasField s st c, KnownSymbol s, Show a) => (c -> m a) -> (a -> a) -> StateCheck st m
 expectField extractValue = stateCheck extractValue ((symbolVal (Proxy @s),) . getField @s)
 
-checkState' :: (Traversable t, MonadIO m) => st -> t (StateCheck st m) -> m b -> m ()
+checkState' :: (MonadIO m, Traversable t) => st -> t (StateCheck st m) -> m b -> m ()
 checkState' initialState checks act = do
   expectations <- traverse (\(StateCheck g expect) -> let (msg, m) = g initialState in m >>= createExpectation msg m . expect) checks
   void act
@@ -164,7 +164,7 @@ checkState' initialState checks act = do
   where
     createExpectation msg metrics expect = pure $ metrics >>= liftIO . annotate msg . expect
 
-expectCounter :: forall s st m. (KnownSymbol s, HasField s st Counter, MonadIO m) => (Int -> Int) -> StateCheck st m
+expectCounter :: forall s st m. (HasField s st Counter, KnownSymbol s, MonadIO m) => (Int -> Int) -> StateCheck st m
 expectCounter = expectField @s intCounter
   where
     intCounter = ((round @Double @Int) <$>) . getCounter
