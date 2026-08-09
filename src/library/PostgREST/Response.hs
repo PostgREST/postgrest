@@ -9,20 +9,18 @@ module PostgREST.Response
   , PgrstResponse (..)
   ) where
 
+import Data.Maybe (fromJust)
+import Data.Text.Read (decimal)
+import Protolude hiding (Handler, toS)
+import Protolude.Conv (toS)
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.HashMap.Strict qualified as HM
-import Data.Maybe (fromJust)
-import Data.Text.Read (decimal)
 import Network.HTTP.Types.Header qualified as HTTP
 import Network.HTTP.Types.Status qualified as HTTP
 import Network.HTTP.Types.URI qualified as HTTP
-
-import PostgREST.Error qualified as Error
-import PostgREST.MediaType qualified as MediaType
-import PostgREST.RangeQuery qualified as RangeQuery
-import PostgREST.Response.OpenAPI qualified as OpenAPI
 
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences
@@ -49,10 +47,11 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
 import PostgREST.SchemaCache.Routine (FuncVolatility (..), Routine (..))
 import PostgREST.SchemaCache.Table (Table (..))
 
+import PostgREST.Error qualified as Error
+import PostgREST.MediaType qualified as MediaType
+import PostgREST.RangeQuery qualified as RangeQuery
+import PostgREST.Response.OpenAPI qualified as OpenAPI
 import PostgREST.SchemaCache.Routine qualified as Routine
-
-import Protolude hiding (Handler, toS)
-import Protolude.Conv (toS)
 
 data PgrstResponse = PgrstResponse
   { pgrstStatus :: HTTP.Status

@@ -1,20 +1,18 @@
 module Feature.Query.RpcSpec where
 
-import Data.ByteString.Lazy qualified as BL (empty)
-
-import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
-
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
+import Data.ByteString.Lazy qualified as BL (empty)
+
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion, pgVersion180)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWithConfig

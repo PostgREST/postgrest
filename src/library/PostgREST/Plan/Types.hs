@@ -13,6 +13,8 @@ module PostgREST.Plan.Types
   , SpreadType (..)
   ) where
 
+import Protolude
+
 import PostgREST.ApiRequest.Types
   ( AggregateFunction
   , Alias
@@ -25,10 +27,7 @@ import PostgREST.ApiRequest.Types
   , OrderDirection
   , OrderNulls
   )
-
 import PostgREST.SchemaCache.Identifiers (FieldName)
-
-import Protolude
 
 type TransformerProc = Text
 

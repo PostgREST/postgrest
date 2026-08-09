@@ -8,6 +8,8 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
@@ -24,8 +26,6 @@ import PostgREST.App qualified as App
 import PostgREST.AppState qualified as AppState
 import PostgREST.Client qualified as Client
 import PostgREST.Config qualified as Config
-
-import Protolude
 
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do

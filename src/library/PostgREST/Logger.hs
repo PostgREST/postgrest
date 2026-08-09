@@ -18,33 +18,32 @@ import Control.AutoUpdate
   , mkAutoUpdate
   , updateAction
   )
+import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
+import Network.HTTP.Types.Status (Status, status400, status500)
+import Numeric (showFFloat)
+import Protolude
+
 import Data.ByteString.Char8 qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
+import Hasql.Connection qualified as SQL
 import Hasql.Decoders qualified as HD
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 import Hasql.DynamicStatements.Statement qualified as SQL
+import Hasql.Pool qualified as SQL
+import Hasql.Pool.Observation qualified as SQL
 import Hasql.Statement qualified as SQL
 
-import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
-
-import Network.HTTP.Types.Status (Status, status400, status500)
-
 import PostgREST.Config (LogLevel (..), Verbosity (..))
+import PostgREST.Config.PgVersion (pgvName)
 import PostgREST.Debounce (makeDebouncer)
 import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
 import PostgREST.Query (MainQuery (..))
 import PostgREST.SchemaCache (queryTimingsWLabels)
 
-import Data.ByteString.Lazy qualified as LBS
-import Data.Text qualified as T
-import Hasql.Connection qualified as SQL
-import Hasql.Pool qualified as SQL
-import Hasql.Pool.Observation qualified as SQL
-import Numeric (showFFloat)
-import PostgREST.Config.PgVersion (pgvName)
 import PostgREST.Error qualified as Error
-import Protolude
 
 data LoggerState = LoggerState
   { stateGetZTime :: IO ZonedTime

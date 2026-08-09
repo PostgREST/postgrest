@@ -28,6 +28,23 @@ module PostgREST.Config
   , Verbosity (..)
   ) where
 
+import Control.Monad (fail)
+import Data.Either.Combinators (mapLeft)
+import Data.List (lookup)
+import Data.List.NonEmpty (fromList, toList)
+import Data.Maybe (fromJust)
+import Data.Scientific (floatingOrInteger)
+import Jose.Jwk (Jwk, JwkSet)
+import Network.URI
+  ( escapeURIString
+  , isURI
+  , isUnescapedInURIComponent
+  )
+import Numeric (readOct, showOct)
+import Protolude hiding (Proxy, toList)
+import System.Environment (getEnvironment)
+import System.Posix.Types (FileMode)
+
 import Data.Aeson qualified as JSON
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64 qualified as B64
@@ -42,22 +59,6 @@ import Hasql.Connection.Setting.Connection qualified as SQL
 import Jose.Jwa qualified as JWT
 import Jose.Jwk qualified as JWT
 
-import Control.Monad (fail)
-import Data.Either.Combinators (mapLeft)
-import Data.List (lookup)
-import Data.List.NonEmpty (fromList, toList)
-import Data.Maybe (fromJust)
-import Data.Scientific (floatingOrInteger)
-import Jose.Jwk (Jwk, JwkSet)
-import Network.URI
-  ( escapeURIString
-  , isURI
-  , isUnescapedInURIComponent
-  )
-import Numeric (readOct, showOct)
-import System.Environment (getEnvironment)
-import System.Posix.Types (FileMode)
-
 import PostgREST.Config.Database (RoleIsolationLvl, RoleSettings)
 import PostgREST.Config.JSPath
   ( JSPath (..)
@@ -71,9 +72,7 @@ import PostgREST.Config.Proxy
   , toURI
   )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), toQi)
-
 import PostgREST.Version (prettyVersion)
-import Protolude hiding (Proxy, toList)
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg = maybe (const True) (==) . configJwtAudience

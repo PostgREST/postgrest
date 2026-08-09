@@ -22,6 +22,11 @@ module PostgREST.Error
   , noRpcHint
   ) where
 
+import Data.Aeson ((.:), (.:?), (.=))
+import Network.HTTP.Types.Header (Header)
+import Network.Wai (Response, responseLBS)
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
@@ -35,15 +40,9 @@ import Hasql.Pool qualified as SQL
 import Hasql.Session qualified as SQL
 import Network.HTTP.Types.Status qualified as HTTP
 
-import Data.Aeson ((.:), (.:?), (.=))
-import Network.Wai (Response, responseLBS)
-
-import Network.HTTP.Types.Header (Header)
-
-import PostgREST.MediaType (MediaType (..))
-import PostgREST.MediaType qualified as MediaType
-
 import PostgREST.Config (Verbosity (..))
+import PostgREST.Error.Types
+import PostgREST.MediaType (MediaType (..))
 import PostgREST.SchemaCache (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
 import PostgREST.SchemaCache.Relationship
@@ -54,9 +53,7 @@ import PostgREST.SchemaCache.Relationship
   )
 import PostgREST.SchemaCache.Routine (Routine (..), RoutineParam (..))
 
-import PostgREST.Error.Types
-
-import Protolude
+import PostgREST.MediaType qualified as MediaType
 
 -- $setup
 -- >>> import qualified Data.HashMap.Strict as HM

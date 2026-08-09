@@ -25,8 +25,9 @@ where
 import Control.Concurrent.STM
 import Control.Monad.Extra (whileM)
 import Data.Some
-import Focus qualified as F
 import Protolude hiding (elem, head)
+
+import Focus qualified as F
 import StmHamt.SizedHamt qualified as SH
 
 data ListNode k v (b :: Bool) = ListNode

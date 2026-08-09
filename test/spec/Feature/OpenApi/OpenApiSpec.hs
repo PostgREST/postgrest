@@ -1,17 +1,16 @@
 module Feature.OpenApi.OpenApiSpec where
 
 import Control.Lens ((^?))
-import Data.Aeson.Types (Value (..))
-import Network.Wai.Test (SResponse (..))
-
 import Data.Aeson.Lens
 import Data.Aeson.QQ
+import Data.Aeson.Types (Value (..))
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (..))
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 
 import PostgREST.Version (docsVersion)
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

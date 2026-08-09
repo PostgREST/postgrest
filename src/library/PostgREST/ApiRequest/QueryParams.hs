@@ -23,22 +23,13 @@ module PostgREST.ApiRequest.QueryParams
   , pSpreadRelationSelect
   ) where
 
-import Data.ByteString.Char8 qualified as BS
-import Data.HashMap.Strict qualified as HM
-import Data.List qualified as L
-import Data.Set qualified as S
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Network.HTTP.Base qualified as HTTP
-import Network.HTTP.Types.URI qualified as HTTP
-import Text.ParserCombinators.Parsec qualified as P
-
 import Control.Arrow ((***))
 import Data.Either.Combinators (mapLeft)
 import Data.List (init, last)
 import Data.Ranged.Boundaries (Boundary (..))
 import Data.Ranged.Ranges (Range (..))
 import Data.Tree (Tree (..))
+import Protolude hiding (Sum, try)
 import Text.Parsec.Error (errorMessages, showErrorMessages)
 import Text.ParserCombinators.Parsec
   ( GenParser
@@ -65,15 +56,15 @@ import Text.ParserCombinators.Parsec
   , (<?>)
   )
 
-import PostgREST.RangeQuery
-  ( NonnegRange
-  , allRange
-  , rangeGeq
-  , rangeLimit
-  , rangeOffset
-  , restrictRange
-  )
-import PostgREST.SchemaCache.Identifiers (FieldName)
+import Data.ByteString.Char8 qualified as BS
+import Data.HashMap.Strict qualified as HM
+import Data.List qualified as L
+import Data.Set qualified as S
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Network.HTTP.Base qualified as HTTP
+import Network.HTTP.Types.URI qualified as HTTP
+import Text.ParserCombinators.Parsec qualified as P
 
 import PostgREST.ApiRequest.Types
   ( AggregateFunction (..)
@@ -102,10 +93,16 @@ import PostgREST.ApiRequest.Types
   , SimpleOperator (..)
   , SingleVal
   )
-
 import PostgREST.Error (QPError (..))
-
-import Protolude hiding (Sum, try)
+import PostgREST.RangeQuery
+  ( NonnegRange
+  , allRange
+  , rangeGeq
+  , rangeLimit
+  , rangeOffset
+  , restrictRange
+  )
+import PostgREST.SchemaCache.Identifiers (FieldName)
 
 -- $setup
 -- >>> import qualified Text.ParserCombinators.Parsec as P

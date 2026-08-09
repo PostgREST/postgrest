@@ -12,13 +12,13 @@
 module PostgREST.Auth (getAuthResult)
 where
 
+import Protolude
+
 import PostgREST.AppState (AppState, getConfig, getJwtCacheState, getTime)
 import PostgREST.Auth.Jwt (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types (AuthResult)
 import PostgREST.Error (Error)
-
-import Protolude
 
 -- | Perform authentication and authorization
 --   Parse JWT and return AuthResult

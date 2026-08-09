@@ -1,31 +1,30 @@
 module Main where
 
+import Data.Function (id)
+import Data.IORef (newIORef, readIORef)
+import Protolude hiding (toList, toS)
+import Test.Hspec
+
 import Hasql.Pool qualified as P
 import Hasql.Pool.Config qualified as P
 import Hasql.Transaction.Sessions qualified as HT
 
-import Data.Function (id)
-import Data.IORef (newIORef, readIORef)
-
+import ObsHelper
 import PostgREST.App (postgrest)
-import PostgREST.AppState qualified as AppState
 import PostgREST.Config
   ( AppConfig (..)
   , toConnectionSettings
   )
 import PostgREST.Config.Database (queryPgVersion)
-import PostgREST.Logger qualified as Logger
-import PostgREST.Metrics qualified as Metrics
+import PostgREST.Observation (Observation (HasqlPoolObs))
 import PostgREST.SchemaCache (querySchemaCache)
 
 import Observation.JwtCache qualified
 import Observation.MetricsSpec qualified
-
-import ObsHelper
 import Observation.SchemaCacheSpec qualified
-import PostgREST.Observation (Observation (HasqlPoolObs))
-import Protolude hiding (toList, toS)
-import Test.Hspec
+import PostgREST.AppState qualified as AppState
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
 
 main :: IO ()
 main = do

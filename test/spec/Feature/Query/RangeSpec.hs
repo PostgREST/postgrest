@@ -1,13 +1,12 @@
 module Feature.Query.RangeSpec where
 
-import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
-
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

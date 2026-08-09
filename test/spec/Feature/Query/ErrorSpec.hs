@@ -1,13 +1,12 @@
 module Feature.Query.ErrorSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..), Verbosity (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

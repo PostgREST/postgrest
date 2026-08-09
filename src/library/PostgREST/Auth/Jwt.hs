@@ -13,6 +13,16 @@ module PostgREST.Auth.Jwt
   , parseClaims
   ) where
 
+import Control.Monad.Except (liftEither)
+import Data.Aeson ((.:?))
+import Data.Aeson.Types (parseMaybe)
+import Data.Either.Combinators (mapLeft)
+import Data.Text ()
+import Data.Time.Clock (UTCTime, nominalDiffTimeToSeconds)
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
+import Jose.Jwk (JwkSet)
+import Protolude hiding (first)
+
 import Data.Aeson qualified as JSON
 import Data.ByteString qualified as BS
 import Data.ByteString.Internal qualified as BS
@@ -20,12 +30,6 @@ import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Scientific qualified as Sci
 import Jose.Jwk qualified as JWT
 import Jose.Jwt qualified as JWT
-
-import Control.Monad.Except (liftEither)
-import Data.Either.Combinators (mapLeft)
-import Data.Text ()
-import Data.Time.Clock (UTCTime, nominalDiffTimeToSeconds)
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Config (AppConfig (..), audMatchesCfg)
@@ -36,11 +40,6 @@ import PostgREST.Error
   , JwtDecodeError (..)
   , JwtError (..)
   )
-
-import Data.Aeson ((.:?))
-import Data.Aeson.Types (parseMaybe)
-import Jose.Jwk (JwkSet)
-import Protolude hiding (first)
 
 parseAndDecodeClaims :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
 parseAndDecodeClaims jwkSet token = parseToken jwkSet token >>= decodeClaims

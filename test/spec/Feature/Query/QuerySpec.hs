@@ -1,19 +1,17 @@
 module Feature.Query.QuerySpec where
 
-import Network.Wai.Test (SResponse (simpleHeaders))
-
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (simpleHeaders))
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import Data.ByteString.Char8 qualified as BS
+
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion, pgVersion190)
 import PostgREST.Version (prettyVersion)
-
-import Data.ByteString.Char8 qualified as BS
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWithConfig

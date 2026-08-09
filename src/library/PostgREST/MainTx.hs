@@ -15,6 +15,8 @@ module PostgREST.MainTx
 
 import Control.Lens ((^?))
 import Control.Monad.Extra (whenJust)
+import Protolude hiding (Handler)
+
 import Data.Aeson.Lens qualified as L
 import Data.ByteString qualified as BS hiding (break)
 import Data.ByteString.Char8 qualified as BS
@@ -25,9 +27,6 @@ import Hasql.DynamicStatements.Statement qualified as SQL
 import Hasql.Session qualified as SQL (Session)
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
-
-import PostgREST.Error qualified as Error
-import PostgREST.SchemaCache qualified as SchemaCache
 
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences
@@ -55,7 +54,8 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine (Routine (..), RoutineMap)
 import PostgREST.SchemaCache.Table (TablesMap)
 
-import Protolude hiding (Handler)
+import PostgREST.Error qualified as Error
+import PostgREST.SchemaCache qualified as SchemaCache
 
 type DbHandler = ExceptT Error SQL.Transaction
 

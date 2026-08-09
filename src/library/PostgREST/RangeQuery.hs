@@ -17,18 +17,16 @@ module PostgREST.RangeQuery
   , contentRangeH
   ) where
 
-import Data.ByteString.Char8 qualified as BS
-
-import Data.List (lookup)
-import Text.Regex.TDFA ((=~))
-
 import Control.Applicative
+import Data.List (lookup)
 import Data.Ranged.Boundaries
 import Data.Ranged.Ranges
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
-
 import Protolude
+import Text.Regex.TDFA ((=~))
+
+import Data.ByteString.Char8 qualified as BS
 
 type NonnegRange = Range Integer
 

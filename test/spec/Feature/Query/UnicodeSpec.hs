@@ -2,13 +2,12 @@ module Feature.Query.UnicodeSpec where
 
 import Data.List.NonEmpty (fromList)
 import Network.HTTP.Types
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

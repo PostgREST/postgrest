@@ -10,6 +10,8 @@ module PostgREST.Query.Statements
   , postExplain
   ) where
 
+import Protolude
+
 import Hasql.DynamicStatements.Snippet qualified as SQL
 
 import PostgREST.ApiRequest.Preferences
@@ -21,8 +23,6 @@ import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
 import PostgREST.RangeQuery (NonnegRange)
 import PostgREST.SchemaCache.Routine (MediaHandler (..), Routine)
-
-import Protolude
 
 mainWrite
   :: ReadPlanTree

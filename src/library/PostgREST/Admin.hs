@@ -2,12 +2,14 @@ module PostgREST.Admin
   ( runAdmin
   ) where
 
+import Control.Monad.Extra (whenJust)
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Network.HTTP.Types.Status qualified as HTTP
+import Network.Socket qualified as NS
 import Network.Wai qualified as Wai
 import Network.Wai.Handler.Warp qualified as Warp
-
-import Control.Monad.Extra (whenJust)
 
 import PostgREST.AppState (AppState, getConfig, killApp)
 import PostgREST.Config (AppConfig (..))
@@ -17,9 +19,6 @@ import PostgREST.Network (resolveSocketToAddress)
 import PostgREST.Observation (Observation (..))
 
 import PostgREST.AppState qualified as AppState
-
-import Network.Socket qualified as NS
-import Protolude
 
 runAdmin :: AppState -> Maybe NS.Socket -> IO Bool -> Warp.Settings -> IO ()
 runAdmin appState maybeAdminSocket checkMainAppLive settings = do

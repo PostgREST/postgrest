@@ -11,12 +11,6 @@ module PostgREST.ApiRequest
   , userBearerAuth
   ) where
 
-import Data.CaseInsensitive qualified as CI
-import Data.HashMap.Strict qualified as HM
-import Data.List.NonEmpty qualified as NonEmptyList
-import Data.Set qualified as S
-import Data.Text.Encoding qualified as T
-
 import Data.List (lookup)
 import Data.Ranged.Ranges
   ( emptyRange
@@ -27,7 +21,14 @@ import Network.HTTP.Types.Header (RequestHeaders, hAuthorization, hCookie)
 import Network.Wai (Request (..))
 import Network.Wai.Middleware.HttpAuth (extractBearerAuth)
 import Network.Wai.Parse (parseHttpAccept)
+import Protolude
 import Web.Cookie (parseCookies)
+
+import Data.CaseInsensitive qualified as CI
+import Data.HashMap.Strict qualified as HM
+import Data.List.NonEmpty qualified as NonEmptyList
+import Data.Set qualified as S
+import Data.Text.Encoding qualified as T
 
 import PostgREST.ApiRequest.Payload (getPayload)
 import PostgREST.ApiRequest.QueryParams (QueryParams (..))
@@ -59,8 +60,6 @@ import PostgREST.SchemaCache.Identifiers
 import PostgREST.ApiRequest.Preferences qualified as Preferences
 import PostgREST.ApiRequest.QueryParams qualified as QueryParams
 import PostgREST.MediaType qualified as MediaType
-
-import Protolude
 
 -- |
 --   Describes what the user wants to do. This data type is a

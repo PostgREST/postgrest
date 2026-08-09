@@ -2,12 +2,12 @@ module Feature.Query.CustomMediaSpec where
 
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc (str)
 
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

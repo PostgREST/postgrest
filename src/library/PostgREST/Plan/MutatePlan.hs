@@ -3,13 +3,13 @@ module PostgREST.Plan.MutatePlan
   )
 where
 
+import Protolude
+
 import Data.ByteString.Lazy qualified as LBS
 
 import PostgREST.ApiRequest.Preferences (PreferResolution)
 import PostgREST.Plan.Types (CoercibleField, CoercibleLogicTree)
 import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier)
-
-import Protolude
 
 data MutatePlan
   = Insert

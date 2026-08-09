@@ -10,16 +10,17 @@ module PostgREST.Observation
   , ObservationHandler
   ) where
 
+import Network.HTTP.Types.Status (Status)
+import Protolude hiding (toList)
+
 import Hasql.Connection qualified as SQL
 import Hasql.Pool qualified as SQL
 import Hasql.Pool.Observation qualified as SQL
-import Network.HTTP.Types.Status (Status)
 import Network.Wai qualified as Wai
+
 import PostgREST.Config.PgVersion
 import PostgREST.Query (MainQuery)
 import PostgREST.SchemaCache (QueryTimings)
-
-import Protolude hiding (toList)
 
 data Observation
   = AdminStartObs Text

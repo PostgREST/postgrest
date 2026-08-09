@@ -5,17 +5,15 @@
 module Feature.ConcurrentSpec where
 
 import Control.Concurrent.Async (mapConcurrently)
-
 import Control.Monad.Base
 import Control.Monad.Trans.Control
-
 import Network.Wai.Test (Session)
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.Internal
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

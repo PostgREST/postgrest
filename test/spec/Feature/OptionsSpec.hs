@@ -1,12 +1,11 @@
 module Feature.OptionsSpec where
 
-import Network.Wai.Test (SResponse (..))
-
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (..))
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

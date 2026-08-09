@@ -1,10 +1,9 @@
 module Main (main) where
 
+import Protolude
 import System.IO (BufferMode (..), hSetBuffering)
 
 import PostgREST.CLI qualified as CLI
-
-import Protolude
 
 main :: IO ()
 main = do

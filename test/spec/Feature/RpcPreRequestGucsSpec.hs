@@ -1,14 +1,13 @@
 module Feature.RpcPreRequestGucsSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get, put)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-
-import Protolude hiding (get, put)
 import SpecHelper
 
 spec :: SpecWithConfig

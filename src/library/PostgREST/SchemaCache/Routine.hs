@@ -20,10 +20,11 @@ module PostgREST.SchemaCache.Routine
   , MediaHandler (..)
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 import Hasql.Transaction.Sessions qualified as SQL
-import PostgREST.MediaType qualified as MediaType
 
 import PostgREST.SchemaCache.Identifiers
   ( QualifiedIdentifier (..)
@@ -32,7 +33,7 @@ import PostgREST.SchemaCache.Identifiers
   , TableName
   )
 
-import Protolude
+import PostgREST.MediaType qualified as MediaType
 
 data PgType
   = Scalar QualifiedIdentifier

@@ -1,10 +1,9 @@
 module Feature.OpenApi.ProxySpec where
 
+import Protolude
 import Test.Hspec hiding (pendingWith)
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

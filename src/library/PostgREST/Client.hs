@@ -7,17 +7,16 @@ module PostgREST.Client
   ( ready
   ) where
 
+import Network.HTTP.Client (HttpException (..))
+import Protolude
+import System.IO (hFlush)
+
 import Data.Text qualified as T
 import Network.HTTP.Client qualified as HC
 import Network.HTTP.Types.Status qualified as HTTP
 
-import Network.HTTP.Client (HttpException (..))
-import System.IO (hFlush)
-
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Network (isSpecialHostName)
-
-import Protolude
 
 data PgrstClientError
   = NoAdminServer

@@ -26,19 +26,22 @@ module PostgREST.Plan
   , addNullEmbedFilters
   ) where
 
+import Data.Either.Combinators (mapLeft, mapRight)
+import Data.List (delete, lookup)
+import Data.Maybe (fromJust)
+import Data.Tree (Tree (..))
+import Protolude hiding (from)
+
 import Data.HashMap.Strict qualified as HM
 import Data.HashMap.Strict.InsOrd qualified as HMI
 import Data.List qualified as L
 import Data.Set qualified as S
 import Data.Text qualified as T
-import PostgREST.SchemaCache.Routine qualified as Routine
-
-import Data.Either.Combinators (mapLeft, mapRight)
-import Data.List (delete, lookup)
-import Data.Maybe (fromJust)
-import Data.Tree (Tree (..))
+import Hasql.Transaction.Sessions qualified as SQL
 
 import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error
   ( ApiRequestError (..)
@@ -46,7 +49,11 @@ import PostgREST.Error
   , SchemaCacheError (..)
   )
 import PostgREST.MediaType (MediaType (..))
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.Negotiate (negotiateContent)
+import PostgREST.Plan.ReadPlan as ReadPlan
+import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment (sourceCTEName)
 import PostgREST.RangeQuery
   ( NonnegRange
@@ -88,18 +95,9 @@ import PostgREST.SchemaCache.Table
   , tablePKCols
   )
 
-import PostgREST.ApiRequest.Preferences
-import PostgREST.ApiRequest.Types
-import PostgREST.Plan.CallPlan
-import PostgREST.Plan.MutatePlan
-import PostgREST.Plan.ReadPlan as ReadPlan
-import PostgREST.Plan.Types
-
-import Hasql.Transaction.Sessions qualified as SQL
 import PostgREST.ApiRequest.QueryParams qualified as QueryParams
 import PostgREST.MediaType qualified as MediaType
-
-import Protolude hiding (from)
+import PostgREST.SchemaCache.Routine qualified as Routine
 
 -- $setup
 -- Setup for doctests

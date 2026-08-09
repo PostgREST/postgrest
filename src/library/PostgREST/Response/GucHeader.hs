@@ -3,14 +3,13 @@ module PostgREST.Response.GucHeader
   , unwrapGucHeader
   ) where
 
+import Network.HTTP.Types.Header (Header)
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.Key qualified as K
 import Data.Aeson.KeyMap qualified as KM
 import Data.CaseInsensitive qualified as CI
-
-import Network.HTTP.Types.Header (Header)
-
-import Protolude
 
 -- |
 --   Custom guc header, it's obtained by parsing the json in a:
