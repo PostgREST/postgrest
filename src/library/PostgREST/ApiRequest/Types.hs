@@ -52,14 +52,14 @@ import PostgREST.SchemaCache.Identifiers
   )
 
 data InvokeMethod = Inv | InvRead Bool
-  deriving Eq
+  deriving (Eq)
 
 data Mutation
   = MutationCreate
   | MutationDelete
   | MutationSingleUpsert
   | MutationUpdate
-  deriving Eq
+  deriving (Eq)
 
 data Resource
   = ResourceRelation Text

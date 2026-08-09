@@ -154,7 +154,7 @@ dumpClientErrorVerbosity = \case
   Verbose -> "verbose"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
-  deriving Eq
+  deriving (Eq)
 
 dumpOpenApiMode :: OpenAPIMode -> Text
 dumpOpenApiMode = \case

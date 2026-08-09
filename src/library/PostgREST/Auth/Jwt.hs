@@ -51,7 +51,7 @@ decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 validateClaims :: (MonadError Error m) => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
 validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
 
-data ValidAud = VAString Text | VAArray [Text] deriving Generic
+data ValidAud = VAString Text | VAArray [Text] deriving (Generic)
 instance JSON.FromJSON ValidAud where
   parseJSON = JSON.genericParseJSON JSON.defaultOptions{JSON.sumEncoding = JSON.UntaggedValue}
 

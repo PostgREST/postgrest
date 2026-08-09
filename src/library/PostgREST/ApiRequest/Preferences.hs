@@ -202,7 +202,7 @@ class ToHeaderValue a where
 data PreferResolution
   = MergeDuplicates
   | IgnoreDuplicates
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferResolution where
   toHeaderValue MergeDuplicates = "resolution=merge-duplicates"
@@ -219,7 +219,7 @@ data PreferRepresentation
     HeadersOnly
   | -- | Return nothing from the mutated data.
     None
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferRepresentation where
   toHeaderValue Full = "return=representation"
@@ -234,7 +234,7 @@ data PreferCount
     PlannedCount
   | -- | Use the query planner rows if the count is superior to max-rows, otherwise get the exact count.
     EstimatedCount
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferCount where
   toHeaderValue ExactCount = "count=exact"
@@ -255,7 +255,7 @@ data PreferTransaction
     Commit
   | -- | Rollback transaction after sending the response - does not persist changes, e.g. for running tests.
     Rollback
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferTransaction where
   toHeaderValue Commit = "tx=commit"
@@ -269,7 +269,7 @@ data PreferMissing
     ApplyDefaults
   | -- | Use the null value for missing values.
     ApplyNulls
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferMissing where
   toHeaderValue ApplyDefaults = "missing=default"
@@ -282,7 +282,7 @@ data PreferHandling
     Strict
   | -- | Ignore unrecognised preferences
     Lenient
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferHandling where
   toHeaderValue Strict = "handling=strict"

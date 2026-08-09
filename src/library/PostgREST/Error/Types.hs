@@ -32,7 +32,7 @@ data Error
   | JwtErr JwtError
   | NoSchemaCacheError
   | PgErr PgError
-  deriving Show
+  deriving (Show)
 
 -- API REQUEST ERRORS: PGRST1XX
 data ApiRequestError
@@ -60,22 +60,22 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
-  deriving Show
+  deriving (Show)
 
 data QPError = QPError Text Text
-  deriving Show
+  deriving (Show)
 
 data RaiseError
   = MsgParseError ByteString
   | DetParseError ByteString
   | NoDetail
-  deriving Show
+  deriving (Show)
 
 data RangeError
   = NegativeLimit
   | LowerGTUpper
   | OutOfBounds Text Text
-  deriving Show
+  deriving (Show)
 
 -- SCHEMA CACHE ERRORS: PGRST2XX
 data SchemaCacheError
@@ -85,7 +85,7 @@ data SchemaCacheError
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | ColumnNotFound Text Text
   | TableNotFound Text Text SchemaCache
-  deriving Show
+  deriving (Show)
 
 -- JWT ERRORS: PGRST3XX
 data JwtError
@@ -93,7 +93,7 @@ data JwtError
   | JwtSecretMissing
   | JwtTokenRequired
   | JwtClaimsErr JwtClaimsError
-  deriving Show
+  deriving (Show)
 
 data JwtDecodeError
   = EmptyAuthHeader
@@ -103,7 +103,7 @@ data JwtDecodeError
   | BadCrypto
   | UnsupportedTokenType
   | UnreachableDecodeError
-  deriving Show
+  deriving (Show)
 
 data JwtClaimsError
   = JWTExpired
@@ -115,12 +115,12 @@ data JwtClaimsError
   | NbfClaimNotNumber
   | IatClaimNotNumber
   | AudClaimNotStringOrArray
-  deriving Show
+  deriving (Show)
 
 -- PG ERRORS
 type Authenticated = Bool
 data PgError = PgError Authenticated SQL.UsageError
-  deriving Show
+  deriving (Show)
 
 -- For parsing byteString to JSON Object, used for allowing full response control
 data PgRaiseErrMessage = PgRaiseErrMessage
