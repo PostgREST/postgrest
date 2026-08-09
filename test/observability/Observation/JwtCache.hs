@@ -65,9 +65,10 @@ spec = describe "Server started with JWT and metrics enabled" $ do
   it "Should evict entries from the JWT cache (jwt cache max is 2)" $ do
     expectCounters <- checkState' . specMetrics <$> getState
 
-    let jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe3"}|]
-        jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe4"}|]
-        jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe5"}|]
+    let
+      jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe3"}|]
+      jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe4"}|]
+      jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe5"}|]
 
     expectCounters
       [ requests (+ 6)
@@ -84,9 +85,10 @@ spec = describe "Server started with JWT and metrics enabled" $ do
   it "Should not evict entries from the JWT cache in FIFO order" $ do
     expectCounters <- checkState' . specMetrics <$> getState
 
-    let jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe6"}|]
-        jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe7"}|]
-        jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe8"}|]
+    let
+      jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe6"}|]
+      jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe7"}|]
+      jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe8"}|]
 
     expectCounters
       [ requests (+ 6)
@@ -110,9 +112,10 @@ spec = describe "Server started with JWT and metrics enabled" $ do
   it "Should evict entries even though all were hit" $ do
     expectCounters <- checkState' . specMetrics <$> getState
 
-    let jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe9"}|]
-        jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe10"}|]
-        jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe11"}|]
+    let
+      jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe9"}|]
+      jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe10"}|]
+      jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe11"}|]
 
     expectCounters
       [ requests (+ 7)

@@ -168,9 +168,10 @@ parse isRpcRead qs = do
   (rFltsRoot, rFltsNotRoot) <- pure $ L.partition hasRootFilter rFlts
   rOnConflict <- pRequestOnConflict `traverse` onConflict
 
-  let rFltsFields = S.fromList (fst <$> filters)
-      params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
-      rFltsRoot' = snd <$> rFltsRoot
+  let
+    rFltsFields = S.fromList (fst <$> filters)
+    params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
+    rFltsRoot' = snd <$> rFltsRoot
 
   return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
   where
@@ -468,15 +469,17 @@ pJsonPath = many pJsonOperation
         <|> try (string "->" $> JArrow)
 
     pJsonOperand =
-      let pJKey = JKey . toS <$> pJsonKeyName
-          pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
-          pEnd =
-            try (void $ lookAhead (string "->"))
-              <|> try (void $ lookAhead (string "::"))
-              <|> try (void $ lookAhead (string "."))
-              <|> try (void $ lookAhead (string ","))
-              <|> try eof
-      in  try pJIdx <|> try pJKey
+      let
+        pJKey = JKey . toS <$> pJsonKeyName
+        pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
+        pEnd =
+          try (void $ lookAhead (string "->"))
+            <|> try (void $ lookAhead (string "::"))
+            <|> try (void $ lookAhead (string "."))
+            <|> try (void $ lookAhead (string ","))
+            <|> try eof
+      in
+        try pJIdx <|> try pJKey
 
 pJsonKeyName :: Parser Text
 pJsonKeyName =
@@ -908,8 +911,9 @@ pLogicSingleVal = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> try pPgA
 pLogicPath :: Parser (EmbedPath, Text)
 pLogicPath = do
   path <- pFieldName `sepBy1` pDelimiter
-  let op = last path
-      notOp = "not." <> op
+  let
+    op = last path
+    notOp = "not." <> op
   return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
 
 pColumns :: Parser [FieldName]

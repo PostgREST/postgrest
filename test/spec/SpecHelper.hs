@@ -93,10 +93,8 @@ parseServerTimingHeader [] = M.empty
 parseServerTimingHeader (h : hs) =
   case h of
     ("Server-Timing", timingHeader) ->
-      let
-        timings = BS.split ',' timingHeader
-      in
-        M.fromList $ mapMaybe splitEachTiming timings
+      let timings = BS.split ',' timingHeader
+      in  M.fromList $ mapMaybe splitEachTiming timings
     _ -> parseServerTimingHeader hs
   where
     splitEachTiming :: ByteString -> Maybe (BS.ByteString, Double)
@@ -121,13 +119,14 @@ validateOpenApiResponse headers = do
           `shouldSatisfy` \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
   Just body <- pure $ JSON.decode (simpleBody r)
   Just schema <- liftIO $ JSON.decode <$> BL.readFile "test/spec/fixtures/openapi.json"
-  let args :: M.Map Text JSON.Value
-      args =
-        M.fromList
-          [ ("schema", schema)
-          , ("data", body)
-          ]
-      hdrs = acceptHdrs "application/json"
+  let
+    args :: M.Map Text JSON.Value
+    args =
+      M.fromList
+        [ ("schema", schema)
+        , ("data", body)
+        ]
+    hdrs = acceptHdrs "application/json"
   request methodPost "/rpc/validate_json_schema" hdrs (JSON.encode args)
     `shouldRespondWith` "true"
       { matchStatus = 200

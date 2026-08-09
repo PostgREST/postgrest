@@ -49,8 +49,9 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
   it "includes postgrest.org current version api docs" $ do
     r <- get "/"
 
-    let headers = simpleHeaders r
-        docsUrl = simpleBody r ^? key "externalDocs" . key "url"
+    let
+      headers = simpleHeaders r
+      docsUrl = simpleBody r ^? key "externalDocs" . key "url"
 
     liftIO $ do
       headers `shouldSatisfy` notZeroContentLength
@@ -72,18 +73,20 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes paths to tables" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/child_entities" . key s
-          childGetSummary = r ^? method "get" . key "summary"
-          childGetDescription = r ^? method "get" . key "description"
-          getParameters = r ^? method "get" . key "parameters"
-          postParameters = r ^? method "post" . key "parameters"
-          postResponse = r ^? method "post" . key "responses" . key "201" . key "description"
-          patchResponse = r ^? method "patch" . key "responses" . key "204" . key "description"
-          deleteResponse = r ^? method "delete" . key "responses" . key "204" . key "description"
+      let
+        method s = key "paths" . key "/child_entities" . key s
+        childGetSummary = r ^? method "get" . key "summary"
+        childGetDescription = r ^? method "get" . key "description"
+        getParameters = r ^? method "get" . key "parameters"
+        postParameters = r ^? method "post" . key "parameters"
+        postResponse = r ^? method "post" . key "responses" . key "201" . key "description"
+        patchResponse = r ^? method "patch" . key "responses" . key "204" . key "description"
+        deleteResponse = r ^? method "delete" . key "responses" . key "204" . key "description"
 
-      let grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
-          grandChildGetSummary = r ^? grandChildGet "summary"
-          grandChildGetDescription = r ^? grandChildGet "description"
+      let
+        grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
+        grandChildGetSummary = r ^? grandChildGet "summary"
+        grandChildGetDescription = r ^? grandChildGet "description"
 
       liftIO $ do
         childGetSummary `shouldBe` Just "child_entities comment"
@@ -256,10 +259,11 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes foreign table properties" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/projects_dump" . key s
-          getSummary = r ^? method "get" . key "summary"
-          getDescription = r ^? method "get" . key "description"
-          getParameters = r ^? method "get" . key "parameters"
+      let
+        method s = key "paths" . key "/projects_dump" . key s
+        getSummary = r ^? method "get" . key "summary"
+        getDescription = r ^? method "get" . key "description"
+        getParameters = r ^? method "get" . key "parameters"
 
       liftIO $ do
         getSummary `shouldBe` Just "A temporary projects dump"
@@ -287,12 +291,13 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes partitioned table properties" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/car_models" . key s
-          getSummary = r ^? method "get" . key "summary"
-          getDescription = r ^? method "get" . key "description"
-          getParameterName = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
-          getParameterYear = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
-          getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
+      let
+        method s = key "paths" . key "/car_models" . key s
+        getSummary = r ^? method "get" . key "summary"
+        getDescription = r ^? method "get" . key "description"
+        getParameterName = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
+        getParameterYear = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
+        getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
 
       liftIO $ do
         getSummary `shouldBe` Just "A partitioned table"
@@ -309,10 +314,11 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes materialized view properties" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/materialized_projects" . key s
-          summary = r ^? method "get" . key "summary"
-          description = r ^? method "get" . key "description"
-          parameters = r ^? method "get" . key "parameters"
+      let
+        method s = key "paths" . key "/materialized_projects" . key s
+        summary = r ^? method "get" . key "summary"
+        description = r ^? method "get" . key "description"
+        parameters = r ^? method "get" . key "parameters"
 
       liftIO $ do
         summary `shouldBe` Just "A materialized view for projects"
@@ -739,10 +745,11 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes function summary/description and query parameters for arguments in the get path item" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
-          args = r ^? method "get" . key "parameters"
-          summary = r ^? method "get" . key "summary"
-          description = r ^? method "get" . key "description"
+      let
+        method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
+        args = r ^? method "get" . key "parameters"
+        summary = r ^? method "get" . key "summary"
+        description = r ^? method "get" . key "description"
 
       liftIO $ do
         summary `shouldBe` Just "An RPC function"
@@ -885,10 +892,11 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "includes function summary/description and body schema for arguments in the post path item" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
-          args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
-          summary = r ^? method "post" . key "summary"
-          description = r ^? method "post" . key "description"
+      let
+        method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
+        args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
+        summary = r ^? method "post" . key "summary"
+        description = r ^? method "post" . key "description"
 
       liftIO $ do
         summary `shouldBe` Just "An RPC function"
@@ -1092,8 +1100,9 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
 
     it "only includes POST method for volatile functions" $ do
       r <- simpleBody <$> get "/"
-      let volatileGet = r ^? key "paths" . key "/rpc/reset_table" . key "get"
-          volatilePost = r ^? key "paths" . key "/rpc/reset_table" . key "post"
+      let
+        volatileGet = r ^? key "paths" . key "/rpc/reset_table" . key "get"
+        volatilePost = r ^? key "paths" . key "/rpc/reset_table" . key "post"
 
       liftIO $ do
         volatileGet `shouldBe` Nothing
@@ -1101,8 +1110,9 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
 
     it "includes GET and POST methods for stable functions" $ do
       r <- simpleBody <$> get "/"
-      let stableGet = r ^? key "paths" . key "/rpc/getallusers" . key "get"
-          stablePost = r ^? key "paths" . key "/rpc/getallusers" . key "post"
+      let
+        stableGet = r ^? key "paths" . key "/rpc/getallusers" . key "get"
+        stablePost = r ^? key "paths" . key "/rpc/getallusers" . key "post"
 
       liftIO $ do
         stableGet `shouldNotBe` Nothing
@@ -1110,8 +1120,9 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
 
     it "includes GET and POST methods for immutable functions" $ do
       r <- simpleBody <$> get "/"
-      let immutableGet = r ^? key "paths" . key "/rpc/jwt_test" . key "get"
-          immutablePost = r ^? key "paths" . key "/rpc/jwt_test" . key "post"
+      let
+        immutableGet = r ^? key "paths" . key "/rpc/jwt_test" . key "get"
+        immutablePost = r ^? key "paths" . key "/rpc/jwt_test" . key "post"
 
       liftIO $ do
         immutableGet `shouldNotBe` Nothing
@@ -1128,8 +1139,9 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
     it "does not include security or security definitions by default" $ do
       r <- simpleBody <$> get "/"
 
-      let sec = r ^? key "security"
-          secDef = r ^? key "securityDefinitions"
+      let
+        sec = r ^? key "security"
+        secDef = r ^? key "securityDefinitions"
 
       liftIO $ do
         sec `shouldBe` Nothing

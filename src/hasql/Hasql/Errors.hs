@@ -24,51 +24,55 @@ data SessionError
 instance Exception SessionError where
   displayException = \case
     QueryError query params commandError ->
-      let queryContext :: Maybe (ByteString, Int)
-          queryContext = case commandError of
-            ClientError _ -> Nothing
-            ResultError resultError -> case resultError of
-              ServerError _ message _ _ (Just position) -> Just (message, position)
-              _ -> Nothing
+      let
+        queryContext :: Maybe (ByteString, Int)
+        queryContext = case commandError of
+          ClientError _ -> Nothing
+          ResultError resultError -> case resultError of
+            ServerError _ message _ _ (Just position) -> Just (message, position)
+            _ -> Nothing
 
-          -- find the line number and position of the error
-          findLineAndPos :: ByteString -> Int -> (Int, Int)
-          findLineAndPos byteString errorPos =
-            let (_, line, pos) =
-                  BC.foldl'
-                    ( \(total, line, pos) c ->
-                        case total + 1 of
-                          0 -> (total, line, pos)
-                          cursor
-                            | cursor == errorPos -> (-1, line, pos + 1)
-                            | c == '\n' -> (total + 1, line + 1, 0)
-                            | otherwise -> (total + 1, line, pos + 1)
-                    )
-                    (0, 1, 0)
-                    byteString
-            in  (line, pos)
+        -- find the line number and position of the error
+        findLineAndPos :: ByteString -> Int -> (Int, Int)
+        findLineAndPos byteString errorPos =
+          let (_, line, pos) =
+                BC.foldl'
+                  ( \(total, line, pos) c ->
+                      case total + 1 of
+                        0 -> (total, line, pos)
+                        cursor
+                          | cursor == errorPos -> (-1, line, pos + 1)
+                          | c == '\n' -> (total + 1, line + 1, 0)
+                          | otherwise -> (total + 1, line, pos + 1)
+                  )
+                  (0, 1, 0)
+                  byteString
+          in  (line, pos)
 
-          formatErrorContext :: ByteString -> ByteString -> Int -> ByteString
-          formatErrorContext query message errorPos =
-            let lines = BC.lines query
-                (lineNum, linePos) = findLineAndPos query errorPos
-            in  BC.unlines (take lineNum lines)
-                  <> BC.replicate (linePos - 1) ' '
-                  <> "^ "
-                  <> message
+        formatErrorContext :: ByteString -> ByteString -> Int -> ByteString
+        formatErrorContext query message errorPos =
+          let
+            lines = BC.lines query
+            (lineNum, linePos) = findLineAndPos query errorPos
+          in
+            BC.unlines (take lineNum lines)
+              <> BC.replicate (linePos - 1) ' '
+              <> "^ "
+              <> message
 
-          prettyQuery :: ByteString
-          prettyQuery = case queryContext of
-            Nothing -> query
-            Just (message, pos) -> formatErrorContext query message pos
-      in  "QueryError!\n"
-            <> "\n  Query:\n"
-            <> BC.unpack prettyQuery
-            <> "\n"
-            <> "\n  Params: "
-            <> show params
-            <> "\n  Error: "
-            <> renderCommandErrorAsReason commandError
+        prettyQuery :: ByteString
+        prettyQuery = case queryContext of
+          Nothing -> query
+          Just (message, pos) -> formatErrorContext query message pos
+      in
+        "QueryError!\n"
+          <> "\n  Query:\n"
+          <> BC.unpack prettyQuery
+          <> "\n"
+          <> "\n  Params: "
+          <> show params
+          <> "\n  Error: "
+          <> renderCommandErrorAsReason commandError
     PipelineError commandError ->
       "PipelineError!\n  Reason: " <> renderCommandErrorAsReason commandError
     where

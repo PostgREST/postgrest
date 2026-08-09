@@ -1551,9 +1551,10 @@ spec actualPgVersion withConfig = do
             []
             ""
 
-        let resStatus = simpleStatus r
-            resHeaders = simpleHeaders r
-            resBody = simpleBody r
+        let
+          resStatus = simpleStatus r
+          resHeaders = simpleHeaders r
+          resBody = simpleBody r
 
         liftIO $ do
           resStatus `shouldBe` Status{statusCode = 332, statusMessage = "My Custom Status"}
@@ -1574,9 +1575,10 @@ spec actualPgVersion withConfig = do
             []
             ""
 
-        let resStatus = simpleStatus r
-            resHeaders = simpleHeaders r
-            resBody = simpleBody r
+        let
+          resStatus = simpleStatus r
+          resHeaders = simpleHeaders r
+          resBody = simpleBody r
 
         liftIO $ do
           resStatus `shouldBe` Status{statusCode = 404, statusMessage = "Not Found"}
@@ -1591,9 +1593,10 @@ spec actualPgVersion withConfig = do
             []
             ""
 
-        let resStatus = simpleStatus r
-            resHeaders = simpleHeaders r
-            resBody = simpleBody r
+        let
+          resStatus = simpleStatus r
+          resHeaders = simpleHeaders r
+          resBody = simpleBody r
 
         liftIO $ do
           resStatus `shouldBe` Status{statusCode = 404, statusMessage = "My Not Found"}

@@ -126,18 +126,20 @@ payloadAttributes raw json =
     JSON.Array arr ->
       case arr V.!? 0 of
         Just (JSON.Object o) ->
-          let canonicalKeys = S.fromList $ K.toText <$> KM.keys o
-              areKeysUniform =
-                all
-                  ( \case
-                      JSON.Object x -> S.fromList (K.toText <$> KM.keys x) == canonicalKeys
-                      _ -> False
-                  )
-                  arr
-          in  if areKeysUniform then
-                Just $ ProcessedJSON raw canonicalKeys
-              else
-                Nothing
+          let
+            canonicalKeys = S.fromList $ K.toText <$> KM.keys o
+            areKeysUniform =
+              all
+                ( \case
+                    JSON.Object x -> S.fromList (K.toText <$> KM.keys x) == canonicalKeys
+                    _ -> False
+                )
+                arr
+          in
+            if areKeysUniform then
+              Just $ ProcessedJSON raw canonicalKeys
+            else
+              Nothing
         Just _ -> Nothing
         Nothing -> Just emptyPJArray
     JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ K.toText <$> KM.keys o)

@@ -182,8 +182,9 @@ querySchemaCache pgVer conf@AppConfig{..} = do
     else
       pure Nothing
 
-  let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
+  let
+    tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+    rels = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
   return
     ( removeInternal schemas $

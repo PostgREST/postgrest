@@ -238,16 +238,17 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Prefere
       findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
-  let args = case (invMethod, iContentMediaType) of
-        (InvRead _, _) -> DirectArgs $ toRpcParams proc qsParams'
-        (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams proc . payArray) iPayload
-        (Inv, _) -> JsonArgs $ payRaw <$> iPayload
-      txMode = case (invMethod, pdVolatility) of
-        (InvRead _, _) -> SQL.Read
-        (Inv, Routine.Stable) -> SQL.Read
-        (Inv, Routine.Immutable) -> SQL.Read
-        (Inv, Routine.Volatile) -> SQL.Write
-      cPlan = callPlan proc apiRequest paramKeys args rPlan
+  let
+    args = case (invMethod, iContentMediaType) of
+      (InvRead _, _) -> DirectArgs $ toRpcParams proc qsParams'
+      (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams proc . payArray) iPayload
+      (Inv, _) -> JsonArgs $ payRaw <$> iPayload
+    txMode = case (invMethod, pdVolatility) of
+      (InvRead _, _) -> SQL.Read
+      (Inv, Routine.Stable) -> SQL.Read
+      (Inv, Routine.Immutable) -> SQL.Read
+      (Inv, Routine.Volatile) -> SQL.Write
+    cPlan = callPlan proc apiRequest paramKeys args rPlan
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   failMaxAffectedRpcReturnsSingle (preferMaxAffected, preferHandling) proc
@@ -265,8 +266,9 @@ hasDefaultSelect _ = False
 
 inspectPlan :: ApiRequest -> Bool -> Schema -> Either Error InspectPlan
 inspectPlan apiRequest headersOnly schema = do
-  let producedMTs = [MTOpenAPI, MTApplicationJSON, MTAny]
-      accepts = iAcceptMediaType apiRequest
+  let
+    producedMTs = [MTOpenAPI, MTApplicationJSON, MTAny]
+    accepts = iAcceptMediaType apiRequest
   mediaType <-
     if not . null $ L.intersect accepts producedMTs then
       Right MTOpenAPI
@@ -311,22 +313,20 @@ findProc qi argumentsKeys allProcs contentMediaType isInvPost =
         _ -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
-      let
-        params = pdParams proc
-      in
-        -- If the function has no parameters, the arguments keys must be empty as well
-        if null params then
-          null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
-        -- A function has optional and required parameters. Optional parameters have a default value and
-        -- don't require arguments for the function to be executed, required parameters must have an argument present.
-        else case L.partition ppReq params of
-          -- If the function only has required parameters, the arguments keys must match those parameters
-          (reqParams, []) -> argumentsKeys == S.fromList (ppName <$> reqParams)
-          -- If the function only has optional parameters, the arguments keys can match none or any of them(a subset)
-          ([], optParams) -> argumentsKeys `S.isSubsetOf` S.fromList (ppName <$> optParams)
-          -- If the function has required and optional parameters, the arguments keys have to match the required parameters
-          -- and can match any or none of the default parameters.
-          (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)
+      let params = pdParams proc
+      in  -- If the function has no parameters, the arguments keys must be empty as well
+          if null params then
+            null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
+          -- A function has optional and required parameters. Optional parameters have a default value and
+          -- don't require arguments for the function to be executed, required parameters must have an argument present.
+          else case L.partition ppReq params of
+            -- If the function only has required parameters, the arguments keys must match those parameters
+            (reqParams, []) -> argumentsKeys == S.fromList (ppName <$> reqParams)
+            -- If the function only has optional parameters, the arguments keys can match none or any of them(a subset)
+            ([], optParams) -> argumentsKeys `S.isSubsetOf` S.fromList (ppName <$> optParams)
+            -- If the function has required and optional parameters, the arguments keys have to match the required parameters
+            -- and can match any or none of the default parameters.
+            (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)
 
 -- | During planning we need to resolve Field -> CoercibleField (finding the context specific target type and map function).
 -- | ResolverContext facilitates this without the need to pass around a laundry list of parameters.
@@ -408,24 +408,22 @@ resolveQueryInputField ctx field opExpr = withTextParse ctx $ resolveTypeOrUnkno
 -- | Adds joins conditions obtained from resource embedding.
 readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates, configUrlUseLegacyTargetNames} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest =
-  let
-    -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
-    ctx = ResolverContext dbTables dbRepresentations qi "json"
-  in
-    treeRestrictRange configDbMaxRows (iAction apiRequest)
-      =<< addToManyOrderSelects
-      =<< hoistSpreadAggFunctions
-      =<< validateAggFunctions configDbAggregates
-      =<< addRelSelects
-      =<< addNullEmbedFilters
-      =<< addRelatedOrders
-      =<< addAliases
-      =<< expandStars ctx
-      =<< addRels qiSchema (iAction apiRequest) dbRelationships Nothing
-      =<< addLogicTrees ctx apiRequest configUrlUseLegacyTargetNames
-      =<< addRanges apiRequest configUrlUseLegacyTargetNames
-      =<< addOrders ctx apiRequest configUrlUseLegacyTargetNames
-      =<< addFilters ctx apiRequest configUrlUseLegacyTargetNames (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
+  let -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
+      ctx = ResolverContext dbTables dbRepresentations qi "json"
+  in  treeRestrictRange configDbMaxRows (iAction apiRequest)
+        =<< addToManyOrderSelects
+        =<< hoistSpreadAggFunctions
+        =<< validateAggFunctions configDbAggregates
+        =<< addRelSelects
+        =<< addNullEmbedFilters
+        =<< addRelatedOrders
+        =<< addAliases
+        =<< expandStars ctx
+        =<< addRels qiSchema (iAction apiRequest) dbRelationships Nothing
+        =<< addLogicTrees ctx apiRequest configUrlUseLegacyTargetNames
+        =<< addRanges apiRequest configUrlUseLegacyTargetNames
+        =<< addOrders ctx apiRequest configUrlUseLegacyTargetNames
+        =<< addFilters ctx apiRequest configUrlUseLegacyTargetNames (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
 -- Build the initial read plan tree
 initReadRequest :: ResolverContext -> [Tree SelectItem] -> ReadPlanTree
@@ -579,17 +577,19 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName, relHint, 
       let
         newReadPlan =
           ( \r ->
-              let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
-                  aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth
-                  updSpread = if isJust relSpread && not (relIsToOne r) then Just $ ToManySpread [] [] else relSpread
-              in  case r of
-                    Relationship{relCardinality = M2M _} ->
-                      -- m2m does internal implicit joins that don't need aliasing
-                      rPlan{from = relForeignTable r, relToParent = Just r, relAggAlias = aggAlias, relJoinConds = getJoinConditions Nothing parentAlias r, relSpread = updSpread}
-                    ComputedRelationship{} ->
-                      rPlan{from = relForeignTable r, relToParent = Just r{relTableAlias = maybe (relTable r) (QualifiedIdentifier mempty) parentAlias}, relAggAlias = aggAlias, fromAlias = newAlias, relSpread = updSpread}
-                    _ ->
-                      rPlan{from = relForeignTable r, relToParent = Just r, relAggAlias = aggAlias, fromAlias = newAlias, relJoinConds = getJoinConditions newAlias parentAlias r, relSpread = updSpread}
+              let
+                newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
+                aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth
+                updSpread = if isJust relSpread && not (relIsToOne r) then Just $ ToManySpread [] [] else relSpread
+              in
+                case r of
+                  Relationship{relCardinality = M2M _} ->
+                    -- m2m does internal implicit joins that don't need aliasing
+                    rPlan{from = relForeignTable r, relToParent = Just r, relAggAlias = aggAlias, relJoinConds = getJoinConditions Nothing parentAlias r, relSpread = updSpread}
+                  ComputedRelationship{} ->
+                    rPlan{from = relForeignTable r, relToParent = Just r{relTableAlias = maybe (relTable r) (QualifiedIdentifier mempty) parentAlias}, relAggAlias = aggAlias, fromAlias = newAlias, relSpread = updSpread}
+                  _ ->
+                    rPlan{from = relForeignTable r, relToParent = Just r, relAggAlias = aggAlias, fromAlias = newAlias, relJoinConds = getJoinConditions newAlias parentAlias r, relSpread = updSpread}
           )
             <$> rel
         origin =
@@ -634,11 +634,13 @@ getJoinConditions tblAlias parentAlias Relationship{relTable = qi, relForeignTab
     QualifiedIdentifier{qiName = ftN} = fQi
     toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
     toJoinCondition prAl newAl tb ftb (c, fc) =
-      let qi1 = QualifiedIdentifier tSchema ftb
-          qi2 = QualifiedIdentifier tSchema tb
-      in  JoinCondition
-            (maybe qi1 (QualifiedIdentifier mempty) newAl, fc)
-            (maybe qi2 (QualifiedIdentifier mempty) prAl, c)
+      let
+        qi1 = QualifiedIdentifier tSchema ftb
+        qi2 = QualifiedIdentifier tSchema tb
+      in
+        JoinCondition
+          (maybe qi1 (QualifiedIdentifier mempty) newAl, fc)
+          (maybe qi2 (QualifiedIdentifier mempty) prAl, c)
 
 -- Finds a relationship between an origin and a target in the request:
 -- /origin?select=target(*) If more than one relationship is found then the
@@ -729,9 +731,11 @@ addRelSelects :: ReadPlanTree -> Either Error ReadPlanTree
 addRelSelects node@(Node rp forest)
   | null forest = Right node
   | otherwise =
-      let newForest = rights $ addRelSelects <$> forest
-          newRelSelects = mapMaybe generateRelSelectField newForest
-      in  Right $ Node rp{relSelect = newRelSelects} newForest
+      let
+        newForest = rights $ addRelSelects <$> forest
+        newRelSelects = mapMaybe generateRelSelectField newForest
+      in
+        Right $ Node rp{relSelect = newRelSelects} newForest
 
 generateRelSelectField :: ReadPlanTree -> Maybe RelSelectField
 generateRelSelectField (Node rp@ReadPlan{relToParent = Just _, relAggAlias, relSpread = Just _} _) =
@@ -795,31 +799,33 @@ hoistSpreadAggFunctions tree = Right $ fst $ applySpreadAggHoistingToNode tree
 
 applySpreadAggHoistingToNode :: ReadPlanTree -> (ReadPlanTree, [HoistedAgg])
 applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relSpread} children) =
-  let (newChildren, childAggLists) = unzip $ map applySpreadAggHoistingToNode children
-      allChildAggLists = concat childAggLists
-      isToOneSpread = relSpread == Just ToOneSpread
-      (newSelects, aggList) =
-        if depth rp == 0 || (isJust relToParent && not isToOneSpread) then
-          (select rp, [])
-        else
-          hoistFromSelectFields relAggAlias (select rp)
+  let
+    (newChildren, childAggLists) = unzip $ map applySpreadAggHoistingToNode children
+    allChildAggLists = concat childAggLists
+    isToOneSpread = relSpread == Just ToOneSpread
+    (newSelects, aggList) =
+      if depth rp == 0 || (isJust relToParent && not isToOneSpread) then
+        (select rp, [])
+      else
+        hoistFromSelectFields relAggAlias (select rp)
 
-      -- If the current `ReadPlan` is a to-one spread rel and it has aggregates hoisted from
-      -- child relationships, then it must hoist those aggregates to its parent rel.
-      -- So we update them with the current `relAggAlias`.
-      hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
-      hoistedAggList =
-        if isToOneSpread then
-          aggList ++ map hoistAgg allChildAggLists
-        else
-          aggList
+    -- If the current `ReadPlan` is a to-one spread rel and it has aggregates hoisted from
+    -- child relationships, then it must hoist those aggregates to its parent rel.
+    -- So we update them with the current `relAggAlias`.
+    hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
+    hoistedAggList =
+      if isToOneSpread then
+        aggList ++ map hoistAgg allChildAggLists
+      else
+        aggList
 
-      newRelSelects =
-        if null children || isToOneSpread then
-          relSelect rp
-        else
-          map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
-  in  (Node rp{select = newSelects, relSelect = newRelSelects} newChildren, hoistedAggList)
+    newRelSelects =
+      if null children || isToOneSpread then
+        relSelect rp
+      else
+        map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
+  in
+    (Node rp{select = newSelects, relSelect = newRelSelects} newChildren, hoistedAggList)
 
 -- Hoist aggregate functions from the select list of a ReadPlan, and return the
 -- updated select list and the list of hoisted aggregates.
@@ -833,10 +839,12 @@ hoistFromSelectFields relAggAlias fields =
       in  (modifiedField : newFields, maybeAgg : aggList)
 
     modifyField field@CoercibleSelectField{csAggFunction = Just aggFunc, csField, csAggCast, csAlias} =
-      let determineFieldName = fromMaybe (cfName csField) csAlias
-          updatedField = field{csAggFunction = Nothing, csAggCast = Nothing}
-          hoistedField = Just ((relAggAlias, determineFieldName), (aggFunc, csAggCast, csAlias))
-      in  (updatedField, hoistedField)
+      let
+        determineFieldName = fromMaybe (cfName csField) csAlias
+        updatedField = field{csAggFunction = Nothing, csAggCast = Nothing}
+        hoistedField = Just ((relAggAlias, determineFieldName), (aggFunc, csAggCast, csAlias))
+      in
+        (updatedField, hoistedField)
     modifyField field = (field, Nothing)
 
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
@@ -934,12 +942,14 @@ addRelatedOrders (Node rp@ReadPlan{order, from} forest) = do
       let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> coRelation == fromMaybe relName relAlias) forest
       in  case foundRP of
             Just ReadPlan{relName, relAlias, relAggAlias, relToParent} ->
-              let isToOne = relIsToOne <$> relToParent
-                  name = fromMaybe relName relAlias
-              in  if isToOne == Just True then
-                    Right $ cot{coRelation = relAggAlias}
-                  else
-                    Left $ ApiRequestErr $ RelatedOrderNotToOne (qiName from) name
+              let
+                isToOne = relIsToOne <$> relToParent
+                name = fromMaybe relName relAlias
+              in
+                if isToOne == Just True then
+                  Right $ cot{coRelation = relAggAlias}
+                else
+                  Left $ ApiRequestErr $ RelatedOrderNotToOne (qiName from) name
             Nothing ->
               Left $ ApiRequestErr $ NotEmbedded coRelation Nothing
 

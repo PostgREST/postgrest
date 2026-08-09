@@ -152,13 +152,14 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation = MutationSingleUpse
     cLHeader = [contentLengthHeader lbsBody]
     cTHeader = contentTypeHeaders pMedia ctxApiRequest
 
-  let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
-      upsertStatus = isInsertIfGTZero $ fromJust rsInserted
-      (status, headers, body) =
-        case preferRepresentation iPreferences of
-          Just Full -> (upsertStatus, cLHeader ++ cTHeader ++ prefHeader, lbsBody)
-          Just None -> (HTTP.status204, prefHeader, mempty)
-          _ -> (HTTP.status204, prefHeader, mempty)
+  let
+    isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
+    upsertStatus = isInsertIfGTZero $ fromJust rsInserted
+    (status, headers, body) =
+      case preferRepresentation iPreferences of
+        Just Full -> (upsertStatus, cLHeader ++ cTHeader ++ prefHeader, lbsBody)
+        Just None -> (HTTP.status204, prefHeader, mempty)
+        _ -> (HTTP.status204, prefHeader, mempty)
   (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
 
   Right $ PgrstResponse ovStatus ovHeaders body
