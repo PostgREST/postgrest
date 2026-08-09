@@ -39,24 +39,12 @@ flag hpc
 
 library hasql
   default-language:   GHC2021
-  default-extensions: ApplicativeDo
-                      BlockArguments
-                      DataKinds
-                      DefaultSignatures
-                      DerivingVia
-                      FunctionalDependencies
-                      GADTs
+  default-extensions: BlockArguments
                       LambdaCase
-                      LiberalTypeSynonyms
-                      MultiWayIf
                       NoImplicitPrelude
-                      NoMonomorphismRestriction
                       OverloadedStrings
                       QuasiQuotes
                       RecordWildCards
-                      RoleAnnotations
-                      StrictData
-                      TypeFamilies
   hs-source-dirs:     src/hasql
   exposed-modules:    Hasql.Connection
                       Hasql.Connection.Setting

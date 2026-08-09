@@ -1,3 +1,6 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RoleAnnotations #-}
+
 -- |
 -- A DSL for declaration of result decoders.
 module Hasql.Decoders.All where
