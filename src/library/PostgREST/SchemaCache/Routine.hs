@@ -39,18 +39,18 @@ import PostgREST.MediaType qualified as MediaType
 data PgType
   = Scalar QualifiedIdentifier
   | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
 data RetType
   = Single PgType
   | SetOf PgType
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
 data FuncVolatility
   = Volatile
   | Stable
   | Immutable
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
 type FuncSettings = [(Text, Text)]
 
@@ -65,7 +65,7 @@ data Routine = Function
   , pdIsoLvl :: Maybe SQL.IsolationLevel
   , pdFuncSettings :: FuncSettings
   }
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Show)
 
 -- SQL.IsolationLevel doesn't have a default ToJSON instance, so we derive it.
 deriving instance Generic SQL.IsolationLevel
@@ -79,7 +79,7 @@ data RoutineParam = RoutineParam
   , ppReq :: Bool
   , ppVar :: Bool
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where
@@ -104,7 +104,7 @@ data MediaHandler
   | -- custom
     CustomFunc QualifiedIdentifier RelIdentifier
   | NoAgg
-  deriving (Eq, Show, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Show)
 
 funcReturnsSingle :: Routine -> Bool
 funcReturnsSingle proc = case proc of

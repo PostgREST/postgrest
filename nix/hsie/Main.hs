@@ -74,7 +74,7 @@ data ImportedSymbol
   , impSource :: FilePath
   , impFile :: FilePath
   }
-  deriving (Generic, Csv.ToNamedRecord, Csv.DefaultOrdered, JSON.ToJSON)
+  deriving (Csv.DefaultOrdered, Csv.ToNamedRecord, Generic, JSON.ToJSON)
 
 data ImportQualified
   = Qualified

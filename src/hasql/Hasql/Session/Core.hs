@@ -19,7 +19,7 @@ import Hasql.Statement qualified as Statement
 -- A batch of actions to be executed in the context of a database connection.
 newtype Session a
   = Session (ReaderT Connection.Connection (ExceptT SessionError IO) a)
-  deriving (Functor, Applicative, Monad, MonadError SessionError, MonadIO, MonadReader Connection.Connection)
+  deriving (Applicative, Functor, Monad, MonadError SessionError, MonadIO, MonadReader Connection.Connection)
 
 -- |
 -- Executes a bunch of commands on the provided connection.
