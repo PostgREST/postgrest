@@ -65,7 +65,7 @@ newtype SchemaCacheStatus = SchemaCacheStatus
 -- We define a custom exception and throw this on listener reload. The
 -- KillThread exception can occur in an unexpected scenario, so we should
 -- avoid using that.
-data ListenerException = ListenerRestart deriving (Show, Exception)
+data ListenerException = ListenerRestart deriving (Exception, Show)
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
