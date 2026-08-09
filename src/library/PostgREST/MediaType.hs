@@ -12,16 +12,15 @@ module PostgREST.MediaType
   , tokenizeMediaType
   ) where
 
+import Data.Map (fromList, (!?))
+import Data.Text.Encoding (decodeLatin1)
+import Network.HTTP.Types.Header (Header, hContentType)
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.ByteString qualified as BS
 import Data.Text qualified as T
 import Text.ParserCombinators.Parsec qualified as P
-
-import Data.Map (fromList, (!?))
-import Data.Text.Encoding (decodeLatin1)
-import Network.HTTP.Types.Header (Header, hContentType)
-
-import Protolude
 
 -- $setup
 -- >>> import qualified Text.ParserCombinators.Parsec as P

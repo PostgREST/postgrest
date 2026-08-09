@@ -1,10 +1,10 @@
 module Feature.NoSuperuserSpec where
 
 import Network.HTTP.Types
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

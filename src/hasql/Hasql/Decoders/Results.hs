@@ -10,10 +10,11 @@
 -- * Row-by-row fetching.
 module Hasql.Decoders.Results where
 
-import Hasql.Decoders.Result qualified as Result
 import Hasql.Errors
-import Hasql.LibPq14 qualified as LibPQ
 import Hasql.Prelude hiding (many, maybe)
+
+import Hasql.Decoders.Result qualified as Result
+import Hasql.LibPq14 qualified as LibPQ
 import Hasql.Prelude qualified as Prelude
 
 newtype Results a

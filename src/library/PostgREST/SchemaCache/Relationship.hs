@@ -8,6 +8,8 @@ module PostgREST.SchemaCache.Relationship
   , relIsToOne
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 
@@ -16,8 +18,6 @@ import PostgREST.SchemaCache.Identifiers
   , QualifiedIdentifier
   , Schema
   )
-
-import Protolude
 
 -- | Relationship between two tables.
 data Relationship

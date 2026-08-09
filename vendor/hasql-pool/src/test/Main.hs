@@ -1,20 +1,23 @@
 module Main where
 
 import Control.Concurrent.Async (race)
+import Test.Hspec
+import Prelude
+
 import qualified Data.Text as Text
+import qualified System.Environment
+import qualified System.Random.Stateful as Random
+
+import Hasql.Pool
+
 import qualified Hasql.Connection as Connection
 import qualified Hasql.Connection.Setting as Connection.Setting
 import qualified Hasql.Connection.Setting.Connection as Connection.Setting.Connection
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
-import Hasql.Pool
 import qualified Hasql.Pool.Config as Config
 import qualified Hasql.Session as Session
 import qualified Hasql.Statement as Statement
-import qualified System.Environment
-import qualified System.Random.Stateful as Random
-import Test.Hspec
-import Prelude
 
 main :: IO ()
 main = do

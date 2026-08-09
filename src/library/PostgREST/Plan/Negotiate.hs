@@ -8,9 +8,13 @@ module PostgREST.Plan.Negotiate
   ( negotiateContent
   ) where
 
+import Protolude hiding (from)
+
 import Data.HashMap.Strict qualified as HM
 
 import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error (ApiRequestError (..))
 import PostgREST.MediaType (MediaType (..))
@@ -24,11 +28,7 @@ import PostgREST.SchemaCache.Routine
   , ResolvedHandler
   )
 
-import PostgREST.ApiRequest.Preferences
-import PostgREST.ApiRequest.Types
 import PostgREST.MediaType qualified as MediaType
-
-import Protolude hiding (from)
 
 -- We have two general cases of return values from database objects
 -- (tables/views/functions):

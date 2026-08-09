@@ -28,17 +28,11 @@ module PostgREST.AppState
   , waitForSchemaCacheLoaded
   ) where
 
-import Hasql.Pool qualified as SQL
-import Hasql.Session qualified as SQL
-import PostgREST.Auth.JwtCache qualified as JwtCache
-import PostgREST.Logger qualified as Logger
-import PostgREST.Metrics qualified as Metrics
-import PostgREST.Observation
-import PostgREST.Version (prettyVersion)
-
 import Control.Concurrent.STM (newEmptyTMVarIO)
 import Data.IORef (IORef, newIORef, readIORef)
 import Data.Time.Clock (getCurrentTime)
+import Protolude
+
 import PostgREST.AppState.Pool (destroy, initPool, usePool)
 import PostgREST.AppState.Reload
   ( isSchemaCacheLoaded
@@ -51,8 +45,14 @@ import PostgREST.AppState.Types
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (minimumPgVersion)
 import PostgREST.Debounce (makeDebouncer)
+import PostgREST.Observation
+import PostgREST.Version (prettyVersion)
 
-import Protolude
+import Hasql.Pool qualified as SQL
+import Hasql.Session qualified as SQL
+import PostgREST.Auth.JwtCache qualified as JwtCache
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
 
 init :: AppConfig -> IO () -> IO AppState
 init conf@AppConfig{configDbPoolSize} appKiller = do

@@ -14,9 +14,10 @@ module Hasql.Pool.Config
   )
 where
 
+import Hasql.Pool.Prelude
+
 import Hasql.Pool.Config.Config qualified as Config
 import Hasql.Pool.Config.Setting qualified as Setting
-import Hasql.Pool.Prelude
 
 -- | Compile config from a list of settings.
 -- Latter settings override the preceding in cases of conflicts.

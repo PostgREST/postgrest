@@ -4,6 +4,7 @@ module Hasql.LibPq14.Ffi where
 
 import Database.PostgreSQL.LibPQ.Internal
 import Foreign.C.Types (CInt (..))
+
 import Hasql.Prelude
 
 foreign import capi "libpq-fe.h PQresultStatus"

@@ -3,18 +3,17 @@
 -- Description : Wai Middleware to set cors policy.
 module PostgREST.Cors (middleware) where
 
+import Data.List (lookup)
+import Protolude
+
 import Data.ByteString.Char8 qualified as BS
 import Data.CaseInsensitive qualified as CI
 import Data.Text.Encoding qualified as T
 import Network.Wai qualified as Wai
 import Network.Wai.Middleware.Cors qualified as Wai
 
-import Data.List (lookup)
-
 import PostgREST.AppState (AppState, getConfig)
 import PostgREST.Config (AppConfig (..))
-
-import Protolude
 
 middleware :: AppState -> Wai.Middleware
 middleware appState app req res = do

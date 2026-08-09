@@ -1,8 +1,9 @@
 module Main.Statements where
 
+import Main.Prelude
+
 import qualified Hasql.Decoders as HD
 import qualified Hasql.Statement as HQ
-import Main.Prelude
 
 plain :: ByteString -> HQ.Statement () ()
 plain sql =

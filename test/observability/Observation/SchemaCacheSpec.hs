@@ -5,13 +5,15 @@
 module Observation.SchemaCacheSpec where
 
 import Network.Wai (Application)
-import ObsHelper
-import PostgREST.AppState qualified as AppState
-import PostgREST.Config (configDbSchemas)
-import PostgREST.Observation
 import Protolude
 import Test.Hspec (SpecWith, describe, it)
 import Test.Hspec.Wai (getState)
+
+import ObsHelper
+import PostgREST.Config (configDbSchemas)
+import PostgREST.Observation
+
+import PostgREST.AppState qualified as AppState
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do

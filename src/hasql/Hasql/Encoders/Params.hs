@@ -1,11 +1,13 @@
 module Hasql.Encoders.Params where
 
+import PostgreSQL.Binary.Encoding qualified as B
+import TextBuilder qualified as E
+
+import Hasql.Prelude
+
 import Hasql.Encoders.Value qualified as C
 import Hasql.LibPq14 qualified as A
 import Hasql.PostgresTypeInfo qualified as D
-import Hasql.Prelude
-import PostgreSQL.Binary.Encoding qualified as B
-import TextBuilder qualified as E
 
 renderReadable :: Params a -> a -> [Text]
 renderReadable (Params _ _ _ printer) params =

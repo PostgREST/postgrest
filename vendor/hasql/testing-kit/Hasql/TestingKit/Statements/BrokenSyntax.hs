@@ -1,11 +1,12 @@
 module Hasql.TestingKit.Statements.BrokenSyntax where
 
+import Hasql.TestingKit.Preludes.Base
+
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Pipeline as Pipeline
 import qualified Hasql.Session as Session
 import qualified Hasql.Statement as Statement
-import Hasql.TestingKit.Preludes.Base
 
 data Params = Params
   { start :: Int64

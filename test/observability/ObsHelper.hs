@@ -4,18 +4,24 @@
 
 module ObsHelper where
 
+import Data.List.NonEmpty (fromList)
+import Data.String (String)
+import Network.HTTP.Types
+import Prometheus (Counter, getCounter)
+import Protolude hiding (get, toS)
+import System.Timeout (timeout)
+import Test.Hspec
+import Test.Hspec.Expectations.Contrib (annotate)
+
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64 qualified as B64
 import Data.ByteString.Lazy qualified as BL
 import Data.List qualified as DL
-import Data.List.NonEmpty (fromList)
-import Data.String (String)
 import Data.Text qualified as T
 import Jose.Jwa qualified as JWT
 import Jose.Jws qualified as JWT
 import Jose.Jwt qualified as JWT
-import Network.HTTP.Types
-import PostgREST.AppState qualified as AppState
+
 import PostgREST.Config
   ( AppConfig (..)
   , LogLevel (..)
@@ -24,13 +30,10 @@ import PostgREST.Config
   , defaultRoleJSPathKey
   , parseSecret
   )
-import PostgREST.Metrics qualified as Metrics
 import PostgREST.Observation (Observation (..))
-import Prometheus (Counter, getCounter)
-import Protolude hiding (get, toS)
-import System.Timeout (timeout)
-import Test.Hspec
-import Test.Hspec.Expectations.Contrib (annotate)
+
+import PostgREST.AppState qualified as AppState
+import PostgREST.Metrics qualified as Metrics
 
 -- helpers used to produce observation diagnostics in waitForObs
 -- Implementing the Show instance for Observation is hard due to having many different parameters so instead we use generic programming (`conName`) to obtain the constructor name as `Text`

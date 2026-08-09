@@ -1,12 +1,14 @@
 module Hasql.ConnectionSpec (spec) where
 
+import Test.Hspec
+import Prelude
+
+import qualified TestcontainersPostgresql
+
 import qualified Hasql.Connection
 import qualified Hasql.Connection.Setting
 import qualified Hasql.Connection.Setting.Connection
 import qualified Hasql.Connection.Setting.Connection.Param
-import Test.Hspec
-import qualified TestcontainersPostgresql
-import Prelude
 
 spec :: Spec
 spec = do

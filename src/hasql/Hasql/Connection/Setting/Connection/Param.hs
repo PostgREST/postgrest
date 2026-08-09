@@ -12,8 +12,10 @@ where
 import Data.ByteString.Builder qualified as BB
 import Data.ByteString.Lazy qualified as BL
 import Data.Text.Encoding qualified as Text
-import Hasql.Connection.Config.ConnectionString.Params qualified as Config
+
 import Hasql.Prelude
+
+import Hasql.Connection.Config.ConnectionString.Params qualified as Config
 
 -- | Parameter of the connection instructions.
 newtype Param = Param (Config.Params -> Config.Params)

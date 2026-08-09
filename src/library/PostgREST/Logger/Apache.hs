@@ -2,14 +2,13 @@ module PostgREST.Logger.Apache
   ( apacheFormat
   ) where
 
-import Data.ByteString.Char8 qualified as BS
-import Network.Wai.Logger
-import System.Log.FastLogger
-
 import Network.HTTP.Types.Status (Status, statusCode)
 import Network.Wai
-
+import Network.Wai.Logger
 import Protolude
+import System.Log.FastLogger
+
+import Data.ByteString.Char8 qualified as BS
 
 apacheFormat :: ToLogStr user => Maybe user -> FormattedTime -> Request -> Status -> Maybe Integer -> ByteString
 apacheFormat maybeUser tmstr req status msize =

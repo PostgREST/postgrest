@@ -9,9 +9,9 @@ module PostgREST.Config.PgVersion
   , pgVersion190
   ) where
 
-import Data.Aeson qualified as JSON
-
 import Protolude
+
+import Data.Aeson qualified as JSON
 
 data PgVersion = PgVersion
   { pgvNum :: Int32

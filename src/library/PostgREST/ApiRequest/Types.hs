@@ -40,6 +40,8 @@ module PostgREST.ApiRequest.Types
   , RequestBody
   ) where
 
+import Protolude
+
 import Data.ByteString.Lazy qualified as LBS
 import Data.Set qualified as S
 
@@ -48,8 +50,6 @@ import PostgREST.SchemaCache.Identifiers
   , QualifiedIdentifier (..)
   , Schema
   )
-
-import Protolude
 
 data InvokeMethod = Inv | InvRead Bool
   deriving Eq

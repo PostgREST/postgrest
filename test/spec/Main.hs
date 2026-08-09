@@ -1,24 +1,15 @@
 module Main where
 
-import Hasql.Pool qualified as P
-import Hasql.Pool.Config qualified as P
-import Hasql.Transaction.Sessions qualified as HT
-
 import Data.Function (id)
 import Data.IORef (newIORef, readIORef)
-
+import Protolude hiding (toList, toS)
 import Test.Hspec
 
 import PostgREST.App (postgrest)
 import PostgREST.Config (AppConfig (..), toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache (querySchemaCache)
-import Protolude hiding (toList, toS)
 import SpecHelper
-
-import PostgREST.AppState qualified as AppState
-import PostgREST.Logger qualified as Logger
-import PostgREST.Metrics qualified as Metrics
 
 import Feature.Auth.AsymmetricJwtSpec qualified
 import Feature.Auth.AudienceJwtSecretSpec qualified
@@ -73,6 +64,12 @@ import Feature.Query.UpdateSpec qualified
 import Feature.Query.UpsertSpec qualified
 import Feature.RollbackSpec qualified
 import Feature.RpcPreRequestGucsSpec qualified
+import Hasql.Pool qualified as P
+import Hasql.Pool.Config qualified as P
+import Hasql.Transaction.Sessions qualified as HT
+import PostgREST.AppState qualified as AppState
+import PostgREST.Logger qualified as Logger
+import PostgREST.Metrics qualified as Metrics
 
 main :: IO ()
 main = do

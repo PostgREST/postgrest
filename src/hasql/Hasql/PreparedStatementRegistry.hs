@@ -9,8 +9,10 @@ where
 
 import ByteString.StrictBuilder qualified as B
 import Data.HashTable.IO qualified as A
-import Hasql.LibPq14 qualified as Pq
+
 import Hasql.Prelude hiding (lookup, reset)
+
+import Hasql.LibPq14 qualified as Pq
 
 data PreparedStatementRegistry
   = PreparedStatementRegistry !(A.BasicHashTable LocalKey ByteString) !(IORef Word)

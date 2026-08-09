@@ -1,13 +1,12 @@
 module Feature.Query.JsonOperatorSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion190)
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWithConfig

@@ -4,10 +4,12 @@ import Data.Attoparsec.ByteString.Char8 qualified as Attoparsec
 import Data.ByteString qualified as ByteString
 import Data.Vector qualified as Vector
 import Data.Vector.Mutable qualified as MutableVector
-import Hasql.Decoders.Row qualified as Row
+
 import Hasql.Errors
-import Hasql.LibPq14 qualified as LibPQ
 import Hasql.Prelude hiding (many, maybe)
+
+import Hasql.Decoders.Row qualified as Row
+import Hasql.LibPq14 qualified as LibPQ
 import Hasql.Prelude qualified as Prelude
 
 newtype Result a

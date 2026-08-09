@@ -6,22 +6,21 @@
 -- Description : Generates the OpenAPI output
 module PostgREST.Response.OpenAPI (encode) where
 
+import Control.Arrow ((&&&))
+import Control.Lens (at, (.~), (?~))
+import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
+import Data.Maybe (fromJust)
+import Data.String (IsString (..))
+import Data.Swagger
+import Network.URI (URI (..), URIAuth (..))
+import Protolude hiding (Proxy, get)
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.HashMap.Strict qualified as HM
 import Data.HashSet.InsOrd qualified as Set
 import Data.Text qualified as T
-
-import Control.Arrow ((&&&))
-import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
-import Data.Maybe (fromJust)
-import Data.String (IsString (..))
-import Network.URI (URI (..), URIAuth (..))
-
-import Control.Lens (at, (.~), (?~))
-
-import Data.Swagger
 
 import PostgREST.Config
   ( AppConfig (..)
@@ -49,8 +48,6 @@ import PostgREST.SchemaCache.Table
   , TablesMap
   , tableColumnsList
   )
-
-import Protolude hiding (Proxy, get)
 
 encode :: (Text, Text) -> AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
 encode versions conf sCache tables procs schemaDescription =

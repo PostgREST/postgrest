@@ -1,11 +1,13 @@
 module Hasql.DynamicStatements.Statement where
 
-import Hasql.Decoders qualified as Decoders
-import Hasql.DynamicStatements.Prelude
-import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
-import Hasql.Statement
 import Ptr.ByteString qualified as ByteString
 import Ptr.Poking qualified as Poking
+
+import Hasql.DynamicStatements.Prelude
+import Hasql.Statement
+
+import Hasql.Decoders qualified as Decoders
+import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
 
 -- |
 -- Construct a statement dynamically, specifying the parameters in-place

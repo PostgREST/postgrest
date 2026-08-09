@@ -10,6 +10,12 @@ module PostgREST.ApiRequest.Payload
   ( getPayload
   ) where
 
+import Control.Arrow ((***))
+import Data.Aeson.Types (emptyArray, emptyObject)
+import Data.Either.Combinators (mapBoth)
+import Network.HTTP.Types.URI (parseSimpleQuery)
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.Key qualified as K
 import Data.Aeson.KeyMap qualified as KM
@@ -22,11 +28,6 @@ import Data.Set qualified as S
 import Data.Text.Encoding qualified as T
 import Data.Vector qualified as V
 
-import Control.Arrow ((***))
-import Data.Aeson.Types (emptyArray, emptyObject)
-import Data.Either.Combinators (mapBoth)
-import Network.HTTP.Types.URI (parseSimpleQuery)
-
 import PostgREST.ApiRequest.QueryParams (QueryParams (..))
 import PostgREST.ApiRequest.Types
 import PostgREST.Error (ApiRequestError (..))
@@ -34,8 +35,6 @@ import PostgREST.MediaType (MediaType (..))
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import PostgREST.MediaType qualified as MediaType
-
-import Protolude
 
 getPayload :: RequestBody -> MediaType -> QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
 getPayload reqBody contentMediaType QueryParams{qsColumns} action = do

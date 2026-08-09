@@ -10,7 +10,7 @@ module PostgREST.Query.Statements
   , postExplain
   ) where
 
-import Hasql.DynamicStatements.Snippet qualified as SQL
+import Protolude
 
 import PostgREST.ApiRequest.Preferences
 import PostgREST.MediaType (MTVndPlanFormat (..), MediaType (..))
@@ -22,7 +22,7 @@ import PostgREST.Query.SqlFragment
 import PostgREST.RangeQuery (NonnegRange)
 import PostgREST.SchemaCache.Routine (MediaHandler (..), Routine)
 
-import Protolude
+import Hasql.DynamicStatements.Snippet qualified as SQL
 
 mainWrite
   :: ReadPlanTree

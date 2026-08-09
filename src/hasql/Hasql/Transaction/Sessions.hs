@@ -8,9 +8,10 @@ module Hasql.Transaction.Sessions
   )
 where
 
+import Hasql.Transaction.Private.Prelude
+
 import Hasql.Session qualified as B
 import Hasql.Transaction.Config qualified as C
-import Hasql.Transaction.Private.Prelude
 import Hasql.Transaction.Private.Transaction qualified as A
 
 -- |
