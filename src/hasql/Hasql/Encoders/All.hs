@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+
 -- |
 -- A DSL for declaration of query parameter encoders.
 module Hasql.Encoders.All where
