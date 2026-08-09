@@ -14,7 +14,7 @@ import Hasql.Prelude qualified as Prelude
 
 newtype Result a
   = Result (ReaderT (Bool, LibPQ.Result) (ExceptT ResultError IO) a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 {-# INLINE run #-}
 run :: Result a -> Bool -> LibPQ.Result -> IO (Either ResultError a)

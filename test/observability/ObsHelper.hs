@@ -58,7 +58,7 @@ data SpecState = SpecState
 
 data StateCheck st m = forall a. StateCheck (st -> (String, m a)) (a -> a -> Expectation)
 
-data TimeoutException = TimeoutException deriving (Show, Exception)
+data TimeoutException = TimeoutException deriving (Exception, Show)
 
 data ObsChan = ObsChan (Chan Observation) (Chan Observation)
 

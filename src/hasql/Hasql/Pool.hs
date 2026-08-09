@@ -251,6 +251,6 @@ data UsageError
     SessionUsageError Session.SessionError
   | -- | Timeout acquiring a connection.
     AcquisitionTimeoutUsageError
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 instance Exception UsageError

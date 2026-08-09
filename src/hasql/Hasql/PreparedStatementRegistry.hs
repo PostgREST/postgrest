@@ -58,7 +58,7 @@ reset (PreparedStatementRegistry table counter) = do
 -- Local statement key.
 data LocalKey
   = LocalKey !ByteString ![Pq.Oid]
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 instance Hashable LocalKey where
   {-# INLINE hashWithSalt #-}

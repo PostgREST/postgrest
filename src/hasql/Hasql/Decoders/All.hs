@@ -22,7 +22,7 @@ import Hasql.Prelude qualified as Prelude
 
 -- |
 -- Decoder of a query result.
-newtype Result a = Result (Results.Results a) deriving (Functor, Filterable)
+newtype Result a = Result (Results.Results a) deriving (Filterable, Functor)
 
 -- |
 -- Decode no value from the result.
@@ -99,7 +99,7 @@ rowList = foldrRows strictCons []
 -- x = (,,) '<$>' ('column' . 'nullable') 'int8' '<*>' ('column' . 'nonNullable') 'text' '<*>' ('column' . 'nonNullable') 'time'
 -- @
 newtype Row a = Row (Row.Row a)
-  deriving (Functor, Applicative, Monad, MonadFail)
+  deriving (Applicative, Functor, Monad, MonadFail)
 
 -- |
 -- Lift an individual value decoder to a composable row decoder.
@@ -132,7 +132,7 @@ nullable = Nullable
 -- |
 -- Decoder of a value.
 newtype Value a = Value (Value.Value a)
-  deriving (Functor, Filterable)
+  deriving (Filterable, Functor)
 
 type role Value representational
 
@@ -483,7 +483,7 @@ element = \case
 -- |
 -- Composable decoder of composite values (rows, records).
 newtype Composite a = Composite (Composite.Composite a)
-  deriving (Functor, Applicative, Monad, MonadFail)
+  deriving (Applicative, Functor, Monad, MonadFail)
 
 -- |
 -- Lift a 'Value' decoder into a 'Composite' decoder for parsing of component values.

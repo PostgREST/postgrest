@@ -158,7 +158,7 @@ type Alias = Text
 type Hint = Text
 
 data AggregateFunction = Sum | Avg | Max | Min | Count
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 data EmbedParam
   = -- | Disambiguates an embedding operation when there's multiple relationships
@@ -184,7 +184,7 @@ type JsonPath = [JsonOperation]
 data JsonOperation
   = JArrow {jOp :: JsonOperand}
   | J2Arrow {jOp :: JsonOperand}
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text
 -- because we reuse our escaping functions and let pg do the casting with
@@ -192,7 +192,7 @@ data JsonOperation
 data JsonOperand
   = JKey {jVal :: Text}
   | JIdx {jVal :: Text}
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
 --

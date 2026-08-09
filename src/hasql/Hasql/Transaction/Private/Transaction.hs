@@ -15,7 +15,7 @@ import Hasql.Transaction.Private.Sessions qualified as D
 -- Thus this abstraction closely reproduces the behaviour of 'STM'.
 newtype Transaction a
   = Transaction (StateT Bool B.Session a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 instance (Semigroup a) => Semigroup (Transaction a) where
   (<>) = liftA2 (<>)

@@ -17,7 +17,7 @@ data Observation
       -- For grouping the observations by one connection.
       ConnectionStatus
       -- ^ Status that the connection has entered.
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 -- | Status of a connection.
 --
@@ -35,7 +35,7 @@ data ConnectionStatus
     InUseConnectionStatus
   | -- | Connection terminated.
     TerminatedConnectionStatus ConnectionTerminationReason
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 data ConnectionReadyForUseReason
   = -- | Connection just got established.
@@ -44,7 +44,7 @@ data ConnectionReadyForUseReason
     SessionFailedConnectionReadyForUseReason Session.SessionError
   | -- | Session execution ended with success.
     SessionSucceededConnectionReadyForUseReason
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 -- | Explanation of why a connection was terminated.
 data ConnectionTerminationReason
@@ -58,4 +58,4 @@ data ConnectionTerminationReason
     ReleaseConnectionTerminationReason
   | -- | Initialization session failure.
     InitializationErrorTerminationReason Session.SessionError
-  deriving (Show, Eq)
+  deriving (Eq, Show)

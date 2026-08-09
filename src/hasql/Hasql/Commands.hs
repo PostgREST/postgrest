@@ -13,7 +13,7 @@ import Hasql.Prelude
 
 newtype Commands
   = Commands (DList BB.Builder)
-  deriving (Semigroup, Monoid)
+  deriving (Monoid, Semigroup)
 
 asBytes :: Commands -> ByteString
 asBytes (Commands list) =

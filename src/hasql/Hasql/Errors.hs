@@ -19,7 +19,7 @@ data SessionError
     PipelineError
       CommandError
       -- ^ Error details.
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 instance Exception SessionError where
   displayException = \case
@@ -104,7 +104,7 @@ data CommandError
   | -- |
     -- Some error with a command result.
     ResultError ResultError
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 -- |
 -- An error with a command result.
@@ -139,7 +139,7 @@ data ResultError
   | -- |
     -- An unexpected amount of rows.
     UnexpectedAmountOfRows Int
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 -- |
 -- An error during the decoding of a specific row.
@@ -154,4 +154,4 @@ data RowError
     -- Appears when a wrong value parser is used.
     -- Comes with the error details.
     ValueError Text
-  deriving (Show, Eq)
+  deriving (Eq, Show)

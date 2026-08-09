@@ -31,7 +31,7 @@ import qualified Hasql.Statement as Statement
 data Error
   = ConnectionError Connection.ConnectionError
   | SessionError Session.SessionError
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 runSessionOnLocalDb :: Session.Session a -> IO (Either Error a)
 runSessionOnLocalDb session =
