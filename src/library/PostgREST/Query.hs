@@ -8,7 +8,8 @@
 module PostgREST.Query
   ( mainQuery
   , MainQuery (..)
-  ) where
+  )
+where
 
 import Protolude hiding (Handler)
 

@@ -38,7 +38,8 @@ module PostgREST.ApiRequest.Types
   , DbAction (..)
   , Action (..)
   , RequestBody
-  ) where
+  )
+where
 
 import Protolude
 
@@ -121,6 +122,7 @@ data SelectItem
   deriving (Eq, Show)
 
 type NodeName = Text
+
 type Depth = Integer
 
 data OrderTerm
@@ -148,8 +150,11 @@ data OrderNulls
   deriving (Eq, Show)
 
 type Field = (FieldName, JsonPath)
+
 type Cast = Text
+
 type Alias = Text
+
 type Hint = Text
 
 data AggregateFunction = Sum | Avg | Max | Min | Count

@@ -10,7 +10,8 @@ module PostgREST.MediaType
   , toMime
   , decodeMediaType
   , tokenizeMediaType
-  ) where
+  )
+where
 
 import Data.Map (fromList, (!?))
 import Data.Text.Encoding (decodeLatin1)
@@ -53,12 +54,14 @@ data MTVndPlanOption
   | PlanBuffers
   | PlanWAL
   deriving (Eq, Show, Generic, JSON.ToJSON)
+
 instance Hashable MTVndPlanOption
 
 data MTVndPlanFormat
   = PlanJSON
   | PlanText
   deriving (Eq, Show, Generic, JSON.ToJSON)
+
 instance Hashable MTVndPlanFormat
 
 -- | Convert MediaType to a Content-Type HTTP Header

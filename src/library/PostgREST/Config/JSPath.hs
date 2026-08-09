@@ -7,7 +7,8 @@ module PostgREST.Config.JSPath
   , dumpJSPath
   , pRoleClaimKey
   , evaluateJSPath
-  ) where
+  )
+where
 
 import Data.Either.Combinators (mapLeft)
 import Data.Either.Extra (fromRight')

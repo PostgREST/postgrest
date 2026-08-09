@@ -8,7 +8,8 @@ module PostgREST.Config.Database
   , RoleSettings
   , RoleIsolationLvl
   , toIsolationLevel
-  ) where
+  )
+where
 
 import Control.Arrow ((***))
 import Hasql.Session (Session, statement)
@@ -26,6 +27,7 @@ import Hasql.Transaction.Sessions qualified as SQL
 import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
 type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
 
 toIsolationLevel :: Text -> SQL.IsolationLevel

@@ -11,7 +11,8 @@ module PostgREST.Logger
   ( observationLogger
   , init
   , LoggerState
-  ) where
+  )
+where
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
 import Network.HTTP.Types.Status (Status, status400, status500)

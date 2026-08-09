@@ -26,7 +26,8 @@ module PostgREST.AppState
   , isPending
   , waitForSchemaCacheInit
   , waitForSchemaCacheLoaded
-  ) where
+  )
+where
 
 import Control.Concurrent.STM (newEmptyTMVarIO)
 import Data.IORef (IORef, newIORef, readIORef)

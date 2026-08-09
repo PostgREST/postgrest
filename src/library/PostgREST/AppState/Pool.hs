@@ -6,7 +6,8 @@ module PostgREST.AppState.Pool
   , initPool
   , flushPool
   , usePool
-  ) where
+  )
+where
 
 import Data.Either.Combinators (whenLeft)
 import Protolude
