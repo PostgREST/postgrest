@@ -488,7 +488,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           else
             fail "jwt-aud should be a string or a valid URI"
 
-    optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
+    optInt :: (Integral i, Read i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
 
     optBool :: C.Key -> C.Parser C.Config (Maybe Bool)
@@ -514,7 +514,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     coerceText (C.String s) = s
     coerceText v = show v
 
-    coerceInt :: (Read i, Integral i) => C.Value -> Maybe i
+    coerceInt :: (Integral i, Read i) => C.Value -> Maybe i
     coerceInt (C.Number x) = rightToMaybe $ floatingOrInteger x
     coerceInt (C.String x) = readMaybe x
     coerceInt _ = Nothing

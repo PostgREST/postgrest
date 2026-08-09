@@ -9,3 +9,4 @@ indent-wheres: true
 indentation: 2
 let-style: mixed
 respectful: false
+sort-constraints: true
