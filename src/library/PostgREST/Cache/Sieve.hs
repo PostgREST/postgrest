@@ -51,8 +51,11 @@ data NodeElem :: Type -> Type -> Bool -> Type where
     -> NodeElem k v True
 
 type HamtEntry k v = ListNode k v True
+
 type AnyNode k v = Some (ListNode k v)
+
 type NodePtr k v = TVar (AnyNode k v)
+
 type NodePtrPtr k v = TVar (NodePtr k v)
 
 data Discard m v = Refresh (m ()) | Invalid (m v)

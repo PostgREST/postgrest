@@ -8,3 +8,4 @@ in-style: left-align
 indent-wheres: true
 indentation: 2
 let-style: mixed
+respectful: false

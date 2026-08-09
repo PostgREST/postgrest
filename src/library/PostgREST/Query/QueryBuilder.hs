@@ -15,7 +15,8 @@ module PostgREST.Query.QueryBuilder
   , readPlanToCountQuery
   , callPlanToQuery
   , limitedQuery
-  ) where
+  )
+where
 
 import Data.Maybe (fromJust)
 import Data.Tree (Tree (..))

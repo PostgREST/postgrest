@@ -6,7 +6,8 @@ module PostgREST.SchemaCache.Table
   , tableColumnsList
   , TablesMap
   , ColumnMap
-  ) where
+  )
+where
 
 import Protolude
 
@@ -55,4 +56,5 @@ data Column = Column
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 type TablesMap = HM.HashMap QualifiedIdentifier Table
+
 type ColumnMap = HMI.InsOrdHashMap FieldName Column
