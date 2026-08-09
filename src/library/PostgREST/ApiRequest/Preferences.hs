@@ -139,7 +139,7 @@ fromHeaders allowTxDbOverride headers =
     , invalidPrefs = filter isUnacceptable prefs
     }
   where
-    mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
+    mapToHeadVal :: (ToHeaderValue a) => [a] -> [ByteString]
     mapToHeadVal = map toHeaderValue
     acceptedPrefs =
       mapToHeadVal [MergeDuplicates, IgnoreDuplicates]
@@ -163,11 +163,11 @@ fromHeaders allowTxDbOverride headers =
         && isNothing (BS.stripPrefix "timezone=" p)
         && isNothing (BS.stripPrefix "max-affected=" p)
 
-    parsePrefs :: ToHeaderValue a => [a] -> Maybe a
+    parsePrefs :: (ToHeaderValue a) => [a] -> Maybe a
     parsePrefs vals =
       head $ mapMaybe (flip Map.lookup $ prefMap vals) prefs
 
-    prefMap :: ToHeaderValue a => [a] -> Map.Map ByteString a
+    prefMap :: (ToHeaderValue a) => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
