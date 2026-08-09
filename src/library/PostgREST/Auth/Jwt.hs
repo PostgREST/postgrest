@@ -11,7 +11,8 @@
 module PostgREST.Auth.Jwt
   ( parseAndDecodeClaims
   , parseClaims
-  ) where
+  )
+where
 
 import Control.Monad.Except (liftEither)
 import Data.Aeson ((.:?))
@@ -52,6 +53,7 @@ validateClaims :: (MonadError Error m) => UTCTime -> (Text -> Bool) -> JSON.Obje
 validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
 
 data ValidAud = VAString Text | VAArray [Text] deriving (Generic)
+
 instance JSON.FromJSON ValidAud where
   parseJSON = JSON.genericParseJSON JSON.defaultOptions{JSON.sumEncoding = JSON.UntaggedValue}
 

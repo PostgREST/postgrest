@@ -5,7 +5,8 @@
 -- Description : PostgREST HTTP client
 module PostgREST.Client
   ( ready
-  ) where
+  )
+where
 
 import Network.HTTP.Client (HttpException (..))
 import Protolude

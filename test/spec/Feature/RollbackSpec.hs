@@ -42,11 +42,15 @@ deleteItems =
       }
 
 preferDefault = [("Prefer", "return=representation")]
+
 preferCommit = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
+
 preferRollback = [("Prefer", "return=representation"), ("Prefer", "tx=rollback")]
 
 withoutPreferenceApplied = []
+
 withPreferenceCommitApplied = [matchHeaderValuePresent "Preference-Applied" "tx=commit"]
+
 withPreferenceRollbackApplied = [matchHeaderValuePresent "Preference-Applied" "tx=rollback"]
 
 shouldRespondToReads reqHeaders respHeaders = do

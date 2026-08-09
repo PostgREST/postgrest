@@ -15,7 +15,8 @@ module PostgREST.RangeQuery
   , NonnegRange
   , rangeStatusHeader
   , contentRangeH
-  ) where
+  )
+where
 
 import Control.Applicative
 import Data.List (lookup)

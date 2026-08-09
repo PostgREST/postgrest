@@ -2,7 +2,8 @@ module PostgREST.Network
   ( resolveSocketToAddress
   , escapeHostName
   , isSpecialHostName
-  ) where
+  )
+where
 
 import Data.String (IsString (..))
 import Protolude

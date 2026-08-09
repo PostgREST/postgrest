@@ -11,7 +11,8 @@ module PostgREST.Plan.Types
   , RelJsonEmbedMode (..)
   , SpreadSelectField (..)
   , SpreadType (..)
-  ) where
+  )
+where
 
 import Protolude
 

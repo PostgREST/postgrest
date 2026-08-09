@@ -16,7 +16,8 @@
 module PostgREST.App
   ( postgrest
   , run
-  ) where
+  )
+where
 
 import Control.Monad.Except (liftEither)
 import Control.Monad.Writer

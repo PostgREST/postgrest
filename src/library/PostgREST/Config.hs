@@ -26,7 +26,8 @@ module PostgREST.Config
   , exampleConfigFile
   , audMatchesCfg
   , Verbosity (..)
-  ) where
+  )
+where
 
 import Control.Monad (fail)
 import Data.Either.Combinators (mapLeft)

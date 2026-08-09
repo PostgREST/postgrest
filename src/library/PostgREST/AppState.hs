@@ -26,7 +26,8 @@ module PostgREST.AppState
   , isPending
   , waitForSchemaCacheInit
   , waitForSchemaCacheLoaded
-  ) where
+  )
+where
 
 import Control.AutoUpdate
   ( defaultUpdateSettings

@@ -1,7 +1,8 @@
 module PostgREST.Response.GucHeader
   ( GucHeader
   , unwrapGucHeader
-  ) where
+  )
+where
 
 import Network.HTTP.Types.Header (Header)
 import Protolude

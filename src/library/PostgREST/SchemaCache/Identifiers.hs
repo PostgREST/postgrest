@@ -11,7 +11,8 @@ module PostgREST.SchemaCache.Identifiers
   , quoteQi
   , toQi
   , trimNullChars
-  ) where
+  )
+where
 
 import Protolude
 
@@ -20,6 +21,7 @@ import Data.Text qualified as T
 
 data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
   deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey, Show)
+
 instance Hashable RelIdentifier
 
 -- | Represents a pg identifier with a prepended schema name "schema.table".
@@ -60,5 +62,7 @@ trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
 type Schema = Text
+
 type TableName = Text
+
 type FieldName = Text

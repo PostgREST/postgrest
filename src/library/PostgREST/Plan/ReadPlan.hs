@@ -3,7 +3,8 @@ module PostgREST.Plan.ReadPlan
   , ReadPlan (..)
   , JoinCondition (..)
   , SpreadType (..)
-  ) where
+  )
+where
 
 import Data.Tree (Tree (..))
 import Protolude

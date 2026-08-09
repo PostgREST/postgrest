@@ -3,7 +3,8 @@
 module PostgREST.Version
   ( docsVersion
   , prettyVersion
-  ) where
+  )
+where
 
 import Protolude
 

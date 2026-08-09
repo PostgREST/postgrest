@@ -5,7 +5,8 @@ module PostgREST.Config.Proxy
   ( Proxy (..)
   , isMalformedProxyUri
   , toURI
-  ) where
+  )
+where
 
 import Data.Maybe (fromJust)
 import Network.URI (URI (..), URIAuth (..), isAbsoluteURI, parseURI)

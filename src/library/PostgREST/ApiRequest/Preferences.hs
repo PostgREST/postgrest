@@ -22,7 +22,8 @@ module PostgREST.ApiRequest.Preferences
   , shouldExplainCount
   , prefAppliedHeader
   , toHeaderValue
-  ) where
+  )
+where
 
 import Protolude
 

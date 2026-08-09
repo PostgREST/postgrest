@@ -11,7 +11,8 @@ module PostgREST.MainTx
   , DbResult (..)
   , ResultSet (..)
   , mainTx
-  ) where
+  )
+where
 
 import Control.Lens ((^?))
 import Control.Monad.Extra (whenJust)

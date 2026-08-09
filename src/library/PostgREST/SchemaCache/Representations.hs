@@ -3,7 +3,8 @@
 module PostgREST.SchemaCache.Representations
   ( DataRepresentation (..)
   , RepresentationsMap
-  ) where
+  )
+where
 
 import Protolude
 

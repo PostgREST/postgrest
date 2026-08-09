@@ -1,6 +1,7 @@
 module PostgREST.Logger.Apache
   ( apacheFormat
-  ) where
+  )
+where
 
 import Network.HTTP.Types.Status (Status, statusCode)
 import Network.Wai

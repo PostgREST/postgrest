@@ -10,7 +10,8 @@ module PostgREST.AppState.Reload
   , runListener
   , waitForSchemaCacheInit
   , waitForSchemaCacheLoaded
-  ) where
+  )
+where
 
 import Control.Arrow ((&&&))
 import Control.Concurrent.STM (putTMVar, readTMVar, tryReadTMVar, tryTakeTMVar)

@@ -20,7 +20,8 @@ module PostgREST.Error
   , status
   , noRelBetweenHint
   , noRpcHint
-  ) where
+  )
+where
 
 import Data.Aeson ((.:), (.:?), (.=))
 import Network.HTTP.Types.Header (Header)

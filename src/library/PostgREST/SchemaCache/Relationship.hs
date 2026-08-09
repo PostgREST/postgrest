@@ -6,7 +6,8 @@ module PostgREST.SchemaCache.Relationship
   , Junction (..)
   , RelationshipsMap
   , relIsToOne
-  ) where
+  )
+where
 
 import Protolude
 

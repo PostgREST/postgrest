@@ -7,7 +7,8 @@ module PostgREST.Config.PgVersion
   , pgVersion170
   , pgVersion180
   , pgVersion190
-  ) where
+  )
+where
 
 import Protolude
 

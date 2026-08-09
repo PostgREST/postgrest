@@ -11,7 +11,8 @@ module PostgREST.Metrics
   , connectionCounts
   , observationMetrics
   , metricsToText
-  ) where
+  )
+where
 
 import Control.Arrow ((&&&))
 import Data.Bitraversable (bisequenceA)

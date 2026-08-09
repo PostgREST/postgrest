@@ -7,7 +7,8 @@
 module PostgREST.Query.PreQuery
   ( txVarQuery
   , preReqQuery
-  ) where
+  )
+where
 
 import Protolude hiding (Handler)
 

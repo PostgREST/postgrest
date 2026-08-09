@@ -8,7 +8,8 @@ module PostgREST.Query.Statements
   , mainRead
   , mainCall
   , postExplain
-  ) where
+  )
+where
 
 import Protolude
 

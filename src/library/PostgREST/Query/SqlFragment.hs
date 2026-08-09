@@ -44,7 +44,8 @@ module PostgREST.Query.SqlFragment
   , sourceCTE
   , sourceCTEName
   , unknownEncoder
-  ) where
+  )
+where
 
 import Control.Arrow ((***))
 import Data.Foldable (foldr1)
