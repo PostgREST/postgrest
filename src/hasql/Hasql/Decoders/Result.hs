@@ -6,7 +6,12 @@ import Data.Vector qualified as Vector
 import Data.Vector.Mutable qualified as MutableVector
 
 import Hasql.Errors
-import Hasql.Prelude hiding (many, maybe)
+import Hasql.Prelude hiding
+  ( init
+  , many
+  , maybe
+  , reader
+  )
 
 import Hasql.Decoders.Row qualified as Row
 import Hasql.LibPq14 qualified as LibPQ
@@ -97,7 +102,7 @@ serverError =
       Nothing -> Nothing
       Just pos ->
         case Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) pos of
-          Right pos -> Just pos
+          Right pos' -> Just pos'
           _ -> Nothing
 
 {-# INLINE maybe #-}

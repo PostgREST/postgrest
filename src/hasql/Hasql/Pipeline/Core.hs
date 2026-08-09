@@ -43,7 +43,7 @@ run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integer
       runResultsDecoder
         $ Decoders.Results.single Decoders.Result.pipelineSync
 
-    runResultsDecoder :: forall a. Decoders.Results.Results a -> ExceptT SessionError IO a
+    runResultsDecoder :: forall b. Decoders.Results.Results b -> ExceptT SessionError IO b
     runResultsDecoder decoder =
       ExceptT (first PipelineError <$> Decoders.Results.run decoder connection integerDatetimes)
 
@@ -143,9 +143,9 @@ instance Applicative Pipeline where
 -- Execute a statement in pipelining mode.
 statement :: params -> Statement.Statement params result -> Pipeline result
 statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Result decoder) preparable) =
-  Pipeline run
+  Pipeline run'
   where
-    run usePreparedStatements connection registry integerDatetimes =
+    run' usePreparedStatements connection registry integerDatetimes =
       if usePreparedStatements && preparable then
         runPrepared
       else

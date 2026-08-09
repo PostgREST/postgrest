@@ -3,7 +3,7 @@ module Hasql.Encoders.Array where
 import PostgreSQL.Binary.Encoding qualified as A
 import TextBuilder qualified as C
 
-import Hasql.Prelude
+import Hasql.Prelude hiding (fold)
 
 import Hasql.PostgresTypeInfo qualified as B
 

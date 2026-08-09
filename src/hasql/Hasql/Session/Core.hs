@@ -44,15 +44,15 @@ run (Session impl) connection =
 -- which however cannot be parameterized or prepared,
 -- nor can any results of it be collected.
 sql :: ByteString -> Session ()
-sql sql =
+sql sql' =
   Session
     $ ReaderT
     $ \(Connection.Connection _ pqConnectionRef integerDatetimes _) ->
       ExceptT
-        $ fmap (first (QueryError sql []))
+        $ fmap (first (QueryError sql' []))
         $ withMVar pqConnectionRef
         $ \pqConnection -> do
-          r1 <- IO.sendNonparametricStatement pqConnection sql
+          r1 <- IO.sendNonparametricStatement pqConnection sql'
           r2 <- IO.getResults pqConnection integerDatetimes decoder
           return $ r1 *> r2
   where
@@ -77,7 +77,7 @@ statement input (Statement.Statement template (Encoders.Params paramsEncoder) (D
 -- |
 -- Execute a pipeline.
 pipeline :: Pipeline.Pipeline result -> Session result
-pipeline pipeline =
+pipeline pipeline' =
   Session $ ReaderT \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry) ->
     ExceptT $ withMVar pqConnectionRef \pqConnection ->
-      Pipeline.run pipeline usePreparedStatements pqConnection registry integerDatetimes
+      Pipeline.run pipeline' usePreparedStatements pqConnection registry integerDatetimes
