@@ -1,6 +1,5 @@
 # https://fourmolu.github.io/config
 function-arrows: leading
-haddock-location-signature: leading
 haddock-style: single-line
 if-style: hanging
 import-export-style: leading

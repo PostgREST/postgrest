@@ -65,12 +65,12 @@ toPgIdentifier x =
 
 -- | Given a Hasql Pool, a channel and a message sends a notify command to the database
 notifyPool
-  -- | Pool from which the connection will be used to issue a NOTIFY command.
   :: Pool
-  -- | Channel where to send the notification
+  -- ^ Pool from which the connection will be used to issue a NOTIFY command.
   -> Text
-  -- | Payload to be sent with the notification
+  -- ^ Channel where to send the notification
   -> Text
+  -- ^ Payload to be sent with the notification
   -> IO (Either UsageError ())
 notifyPool pool channel mesg =
   use pool (statement (channel, mesg) callStatement)
@@ -80,12 +80,12 @@ notifyPool pool channel mesg =
 
 -- | Given a Hasql Connection, a channel and a message sends a notify command to the database
 notify
-  -- | Connection to be used to send the NOTIFY command
   :: Connection
-  -- | Channel where to send the notification
+  -- ^ Connection to be used to send the NOTIFY command
   -> PgIdentifier
-  -- | Payload to be sent with the notification
+  -- ^ Channel where to send the notification
   -> Text
+  -- ^ Payload to be sent with the notification
   -> IO (Either S.SessionError ())
 notify con channel mesg =
   run (sql $ T.encodeUtf8 ("NOTIFY " <> fromPgIdentifier channel <> ", '" <> mesg <> "'")) con
@@ -116,10 +116,10 @@ notify con channel mesg =
 --        _ -> die "Could not open database connection"
 --  @
 listen
-  -- | Connection to be used to send the LISTEN command
   :: Connection
-  -- | Channel this connection will be registered to listen to
+  -- ^ Connection to be used to send the LISTEN command
   -> PgIdentifier
+  -- ^ Channel this connection will be registered to listen to
   -> IO ()
 listen con channel =
   void $ withLibPQConnection con execListen
@@ -128,10 +128,10 @@ listen con channel =
 
 -- | Given a Hasql Connection and a channel sends a unlisten command to the database
 unlisten
-  -- | Connection currently registerd by a previous 'listen' call
   :: Connection
-  -- | Channel this connection will be deregistered from
+  -- ^ Connection currently registerd by a previous 'listen' call
   -> PgIdentifier
+  -- ^ Channel this connection will be deregistered from
   -> IO ()
 unlisten con channel =
   void $ withLibPQConnection con execUnlisten
@@ -184,10 +184,10 @@ executeOrPanic cmd pqCon = do
 --        _ -> die "Could not open database connection"
 --  @
 waitForNotifications
-  -- | Callback function to handle incoming notifications
   :: (ByteString -> ByteString -> IO ())
-  -- | Connection where we will listen to
+  -- ^ Callback function to handle incoming notifications
   -> Connection
+  -- ^ Connection where we will listen to
   -> IO ()
 waitForNotifications sendNotification con =
   withLibPQConnection con $ void . forever . pqFetch
