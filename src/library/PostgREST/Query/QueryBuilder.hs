@@ -94,9 +94,11 @@ getJoins (Node _ []) = []
 getJoins (Node ReadPlan{relSelect} forest) =
   map
     ( \fld ->
-        let alias = rsAggAlias fld
-            matchingNode = fromJust $ find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
-        in  getJoin fld matchingNode
+        let
+          alias = rsAggAlias fld
+          matchingNode = fromJust $ find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
+        in
+          getJoin fld matchingNode
     )
     relSelect
 

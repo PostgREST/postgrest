@@ -51,14 +51,12 @@ admin appState checkMainAppLive req respond = do
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppLive then HTTP.status200 else HTTP.status500) [] mempty
     ["ready"] ->
-      let
-        status
-          | isPending = HTTP.status503
-          | not isMainAppLive = HTTP.status500
-          | isLoaded = HTTP.status200
-          | otherwise = HTTP.status500
-      in
-        respond $ Wai.responseLBS status [] mempty
+      let status
+            | isPending = HTTP.status503
+            | not isMainAppLive = HTTP.status500
+            | isLoaded = HTTP.status200
+            | otherwise = HTTP.status500
+      in  respond $ Wai.responseLBS status [] mempty
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)

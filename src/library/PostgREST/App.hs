@@ -86,8 +86,9 @@ run appState mainThreadIdRef = do
   conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
-  let setMainSocketRef = atomicWriteIORef mainSocketRef . Just
-      clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
+  let
+    setMainSocketRef = atomicWriteIORef mainSocketRef . Just
+    clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
 
   bracket (initAdminServerSocket conf) ensureSocketClosed $ \adminSocket -> do
     let closeSockets = do
@@ -112,12 +113,11 @@ run appState mainThreadIdRef = do
 
       address <- resolveSocketToAddress mainSocket
 
-      let
-        appServerSettings =
-          serverSettings conf
-            & setPort (configServerPort conf)
-            & setOnException onWarpException
-            & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
+      let appServerSettings =
+            serverSettings conf
+              & setPort (configServerPort conf)
+              & setOnException onWarpException
+              & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
 
       Warp.runSettingsSocket appServerSettings mainSocket app
         `finally` clearMainSocketRef
@@ -218,19 +218,21 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan) <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let warnings = Plan.legacyWarnings plan
-      legacyWarnMsg = "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
-      legacyWarnHint = let replacement (relName, alias) = "`" <> relName <> "` to `" <> alias <> "`" in T.intercalate ", " (replacement <$> warnings)
-      shouldShowWarnings = configUrlUseLegacyTargetNames && not (null warnings)
+  let
+    warnings = Plan.legacyWarnings plan
+    legacyWarnMsg = "Embedded resource was referenced by relation name even though it has an alias. This is deprecated and will stop working in a future release."
+    legacyWarnHint = let replacement (relName, alias) = "`" <> relName <> "` to `" <> alias <> "`" in T.intercalate ", " (replacement <$> warnings)
+    shouldShowWarnings = configUrlUseLegacyTargetNames && not (null warnings)
 
   liftIO $
     when shouldShowWarnings $
       observer $
         LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
   pgVer <- liftIO $ AppState.getPgVersion appState
-  let mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
-      tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
+  let
+    mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
+    tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
+    obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
   (txTime, txResult) <- withTiming conf $ do
     case tx of
@@ -246,8 +248,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         liftEither eitherResp
 
   (respTime, resp) <- withTiming conf $ do
-    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
-        status' = either Error.status Response.pgrstStatus response
+    let
+      response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
+      status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
     liftIO $ obsQuery status'
@@ -273,9 +276,11 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     warningHeaders :: Maybe (Text, Text) -> [HTTP.Header]
     warningHeaders Nothing = []
     warningHeaders (Just (msg, hint)) =
-      let warnMsg = msg <> " Update " <> hint <> " in query string filters, orders or limits."
-          pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
-      in  [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
+      let
+        warnMsg = msg <> " Update " <> hint <> " in query string filters, orders or limits."
+        pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
+      in
+        [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
 
 withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f =

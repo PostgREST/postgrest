@@ -53,17 +53,16 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool actualPgVersion testCfg
 
-  let
-    initApp sCache config = do
-      -- duplicate poolChan as a starting point
-      confRef <- newIORef config
-      loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
-      obsChan <- dupChan poolChan
-      stateObsChan <- newObsChan obsChan
-      appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan) mempty
-      AppState.putPgVersion appState actualPgVersion
-      AppState.putSchemaCache appState (Just sCache)
-      return (SpecState appState metricsState stateObsChan, postgrest appState (pure ()))
+  let initApp sCache config = do
+        -- duplicate poolChan as a starting point
+        confRef <- newIORef config
+        loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
+        obsChan <- dupChan poolChan
+        stateObsChan <- newObsChan obsChan
+        appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan) mempty
+        AppState.putPgVersion appState actualPgVersion
+        AppState.putSchemaCache appState (Just sCache)
+        return (SpecState appState metricsState stateObsChan, postgrest appState (pure ()))
 
   -- Run all test modules
   hspec $ do

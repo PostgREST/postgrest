@@ -36,9 +36,11 @@ rangeParse range = do
 
   case range =~ rangeRegex :: [[BS.ByteString]] of
     [[_, l, u]] ->
-      let lower = maybe emptyRange rangeGeq (readInteger l)
-          upper = maybe allRange rangeLeq (readInteger u)
-      in  rangeIntersection lower upper
+      let
+        lower = maybe emptyRange rangeGeq (readInteger l)
+        upper = maybe allRange rangeLeq (readInteger u)
+      in
+        rangeIntersection lower upper
     _ -> allRange
   where
     readInteger = readMaybe . BS.unpack
@@ -92,11 +94,13 @@ convertToLimitZeroRange range fallbackRange =
 
 rangeStatusHeader :: NonnegRange -> Int64 -> Maybe Int64 -> (Status, Header)
 rangeStatusHeader topLevelRange queryTotal tableTotal =
-  let lower = rangeOffset topLevelRange
-      upper = lower + toInteger queryTotal - 1
-      contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
-      status = rangeStatus lower upper (toInteger <$> tableTotal)
-  in  (status, contentRange)
+  let
+    lower = rangeOffset topLevelRange
+    upper = lower + toInteger queryTotal - 1
+    contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
+    status = rangeStatus lower upper (toInteger <$> tableTotal)
+  in
+    (status, contentRange)
   where
     rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
     rangeStatus _ _ Nothing = status200

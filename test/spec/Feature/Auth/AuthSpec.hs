@@ -90,8 +90,9 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
 
   it "succeeds with a valid iat claim in jwt" $ do
     currentTime <- liftIO $ relativeSeconds 0
-    let jwtPayload = [json|{ "role": "postgrest_test_author", "iat": #{currentTime} }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+    let
+      jwtPayload = [json|{ "role": "postgrest_test_author", "iat": #{currentTime} }|]
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
@@ -148,65 +149,70 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
       `shouldRespondWith` 200
 
   it "fails when the exp claim is not a number" $ do
-    let jwtPayload =
-          [json|
+    let
+      jwtPayload =
+        [json|
           {
             "exp": "invalid",
             "role": "postgrest_test_author"
           }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'exp' claim must be a number"}|]
         { matchStatus = 401
         }
 
   it "fails when the nbf claim is not a number" $ do
-    let jwtPayload =
-          [json|
+    let
+      jwtPayload =
+        [json|
           {
             "nbf": "invalid",
             "role": "postgrest_test_author"
           }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'nbf' claim must be a number"}|]
         { matchStatus = 401
         }
 
   it "fails when the iat claim is not a number" $ do
-    let jwtPayload =
-          [json|
+    let
+      jwtPayload =
+        [json|
           {
             "iat": "invalid",
             "role": "postgrest_test_author"
           }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'iat' claim must be a number"}|]
         { matchStatus = 401
         }
 
   it "fails when the aud claim has a single value and it's not a string" $ do
-    let jwtPayload =
-          [json|
+    let
+      jwtPayload =
+        [json|
           {
             "aud": {"invalid": "value"},
             "role": "postgrest_test_author"
           }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
         { matchStatus = 401
         }
 
   it "fails when the aud claim is an array but it has non-string elements" $ do
-    let jwtPayload =
-          [json|
+    let
+      jwtPayload =
+        [json|
           {
             "aud": [{"invalid": "value"}, "test"],
             "role": "postgrest_test_author"
           }|]
-        auth = authHeaderJWT $ generateJWT jwtPayload
+      auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
         { matchStatus = 401

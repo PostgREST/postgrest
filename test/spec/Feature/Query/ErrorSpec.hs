@@ -114,8 +114,9 @@ spec withConfig = do
 
     context "JWT Errors" $ do
       it "error on jwt encoded with wrong secret" $ do
-        let jwtPayload = [json|{}|]
-            auth = authHeaderJWT $ generateJWTWithSecret jwtPayload "wrong secret"
+        let
+          jwtPayload = [json|{}|]
+          auth = authHeaderJWT $ generateJWTWithSecret jwtPayload "wrong secret"
         request methodGet "/authors_only" [auth] ""
           `shouldRespondWith` [json|{
             "code":"PGRST301",
@@ -127,8 +128,9 @@ spec withConfig = do
             }
 
       it "when role does not exist" $ do
-        let jwtPayload = [json|{ "role": "not existing" }|]
-            auth = authHeaderJWT $ generateJWT jwtPayload
+        let
+          jwtPayload = [json|{ "role": "not existing" }|]
+          auth = authHeaderJWT $ generateJWT jwtPayload
         request methodGet "/authors_only" [auth] ""
           `shouldRespondWith` [json|{
             "code":"22023",
@@ -142,8 +144,9 @@ spec withConfig = do
       context "we allow 30 seconds clock skew" $ do
         it "it should return error if expired" $ do
           currentTime <- liftIO $ relativeSeconds (-35)
-          let jwtPayload = [json|{ "exp": #{currentTime} }|]
-              auth = authHeaderJWT $ generateJWT jwtPayload
+          let
+            jwtPayload = [json|{ "exp": #{currentTime} }|]
+            auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
             `shouldRespondWith` [json|{
               "code":"PGRST303",
@@ -156,8 +159,9 @@ spec withConfig = do
 
         it "it should return error if used before it is valid" $ do
           currentTime <- liftIO $ relativeSeconds 35
-          let jwtPayload = [json|{ "nbf": #{currentTime} }|]
-              auth = authHeaderJWT $ generateJWT jwtPayload
+          let
+            jwtPayload = [json|{ "nbf": #{currentTime} }|]
+            auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
             `shouldRespondWith` [json|{
               "code":"PGRST303",
@@ -170,8 +174,9 @@ spec withConfig = do
 
         it "it should return error if issued at future" $ do
           currentTime <- liftIO $ relativeSeconds 35
-          let jwtPayload = [json|{ "iat": #{currentTime} }|]
-              auth = authHeaderJWT $ generateJWT jwtPayload
+          let
+            jwtPayload = [json|{ "iat": #{currentTime} }|]
+            auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
             `shouldRespondWith` [json|{
               "code":"PGRST303",
@@ -184,8 +189,9 @@ spec withConfig = do
 
   withConfig baseCfg{configJwtAudience = Just "spec tests"} $ describe "Test JWT Audience error" $ do
     it "it should return error if JWT not in audience" $ do
-      let jwtPayload = [json|{ "aud": "not set" }|]
-          auth = authHeaderJWT $ generateJWT jwtPayload
+      let
+        jwtPayload = [json|{ "aud": "not set" }|]
+        auth = authHeaderJWT $ generateJWT jwtPayload
       request methodGet "/authors_only" [auth] ""
         `shouldRespondWith` [json|{
           "code":"PGRST303",

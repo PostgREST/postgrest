@@ -174,10 +174,12 @@ singleParameter body typ =
 -- https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS-ESCAPE
 pgBuildArrayLiteral :: [Text] -> Text
 pgBuildArrayLiteral vals =
-  let trimmed = trimNullChars
-      slashed = T.replace "\\" "\\\\" . trimmed
-      escaped x = "\"" <> T.replace "\"" "\\\"" (slashed x) <> "\""
-  in  "{" <> T.intercalate "," (escaped <$> vals) <> "}"
+  let
+    trimmed = trimNullChars
+    slashed = T.replace "\\" "\\\\" . trimmed
+    escaped x = "\"" <> T.replace "\"" "\\\"" (slashed x) <> "\""
+  in
+    "{" <> T.intercalate "," (escaped <$> vals) <> "}"
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SQL.Snippet
@@ -186,13 +188,15 @@ pgFmtIdent x = SQL.sql . encodeUtf8 $ escapeIdent x
 -- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
 pgFmtLit :: Text -> Text
 pgFmtLit x =
-  let trimmed = trimNullChars x
-      escaped = "'" <> T.replace "'" "''" trimmed <> "'"
-      slashed = T.replace "\\" "\\\\" escaped
-  in  if "\\" `T.isInfixOf` escaped then
-        "E" <> slashed
-      else
-        slashed
+  let
+    trimmed = trimNullChars x
+    escaped = "'" <> T.replace "'" "''" trimmed <> "'"
+    slashed = T.replace "\\" "\\\\" escaped
+  in
+    if "\\" `T.isInfixOf` escaped then
+      "E" <> slashed
+    else
+      slashed
 
 -- |
 -- Format a list of identifiers and separate them by commas.

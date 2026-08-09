@@ -132,9 +132,11 @@ formatZonedTime = formatTime defaultTimeLocale "%d/%b/%Y:%T %z"
 -- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
 renderSnippet :: SQL.Snippet -> ByteString
 renderSnippet snippet =
-  let SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder False
-      decoder = HD.noResult -- unused
-  in  sql
+  let
+    SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder False
+    decoder = HD.noResult -- unused
+  in
+    sql
 
 observationMessages :: Observation -> [Text]
 observationMessages = \case
