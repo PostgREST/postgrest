@@ -54,7 +54,7 @@ import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
 -- matching encoder generation, thus also protecting you from all sorts of related bugs.
 dynamicallyParameterized :: SnippetDefs.Snippet -> Decoders.Result result -> Bool -> Statement () result
 dynamicallyParameterized (SnippetDefs.Snippet chunks) decoder prepared =
-  let step (!paramId, !poking, !encoder) = \case
+  let step (!paramId :: Integer, !poking, !encoder) = \case
         SnippetDefs.StringSnippetChunk sql -> (paramId, poking <> Poking.bytes sql, encoder)
         SnippetDefs.ParamSnippetChunk paramEncoder ->
           let
