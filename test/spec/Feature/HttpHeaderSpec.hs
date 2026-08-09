@@ -1,13 +1,12 @@
 module Feature.HttpHeaderSpec where
 
 import Network.HTTP.Types
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 
 import PostgREST.Config (AppConfig (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

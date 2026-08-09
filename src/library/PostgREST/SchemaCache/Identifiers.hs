@@ -13,10 +13,10 @@ module PostgREST.SchemaCache.Identifiers
   , trimNullChars
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.Text qualified as T
-
-import Protolude
 
 data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
   deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey, Show)

@@ -13,22 +13,21 @@ module PostgREST.Metrics
   , metricsToText
   ) where
 
-import Data.ByteString.Lazy qualified as LBS
-import Hasql.Pool.Observation qualified as SQL
-
-import GHC.Stats (getRTSStatsEnabled)
-import Prometheus
-import Prometheus.Metric.GHC qualified as PMG
-
-import PostgREST.Observation
-
 import Control.Arrow ((&&&))
 import Data.Bitraversable (bisequenceA)
 import Data.Tuple.Extra (both)
 import Data.UUID (UUID)
-import Focus qualified
+import GHC.Stats (getRTSStatsEnabled)
+import Prometheus
 import Protolude
+
+import Data.ByteString.Lazy qualified as LBS
+import Focus qualified
+import Hasql.Pool.Observation qualified as SQL
+import Prometheus.Metric.GHC qualified as PMG
 import StmHamt.SizedHamt qualified as SH
+
+import PostgREST.Observation
 
 data MetricsState
   = MetricsState

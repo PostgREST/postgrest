@@ -11,22 +11,19 @@ module PostgREST.Config.Database
   ) where
 
 import Control.Arrow ((***))
-
-import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
+import Hasql.Session (Session, statement)
+import NeatInterpolation (trimming)
+import Protolude
 
 import Data.HashMap.Strict qualified as HM
 import Data.Text qualified as T
-
 import Hasql.Decoders qualified as HD
 import Hasql.Encoders qualified as HE
-import Hasql.Session (Session, statement)
 import Hasql.Statement qualified as SQL
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
 
-import NeatInterpolation (trimming)
-
-import Protolude
+import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
 type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel

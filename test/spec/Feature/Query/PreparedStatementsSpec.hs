@@ -1,13 +1,12 @@
 module Feature.Query.PreparedStatementsSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Text.Heredoc
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

@@ -17,6 +17,10 @@ module PostgREST.Query.QueryBuilder
   , limitedQuery
   ) where
 
+import Data.Maybe (fromJust)
+import Data.Tree (Tree (..))
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
 import Data.HashMap.Strict qualified as HM
@@ -24,10 +28,13 @@ import Data.Set qualified as S
 import Hasql.DynamicStatements.Snippet qualified as SQL
 import Hasql.Encoders qualified as HE
 
-import Data.Maybe (fromJust)
-import Data.Tree (Tree (..))
-
 import PostgREST.ApiRequest.Preferences (PreferResolution (..))
+import PostgREST.ApiRequest.Types
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan
+import PostgREST.Plan.ReadPlan
+import PostgREST.Plan.Types
+import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship
   ( Cardinality (..)
@@ -35,15 +42,6 @@ import PostgREST.SchemaCache.Relationship
   , Relationship (..)
   )
 import PostgREST.SchemaCache.Routine (RoutineParam (..))
-
-import PostgREST.ApiRequest.Types
-import PostgREST.Plan.CallPlan
-import PostgREST.Plan.MutatePlan
-import PostgREST.Plan.ReadPlan
-import PostgREST.Plan.Types
-import PostgREST.Query.SqlFragment
-
-import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
 readPlanToQuery node@(Node ReadPlan{select, from = mainQi, fromAlias, where_ = logicForest, order, range_ = readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =

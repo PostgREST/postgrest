@@ -10,12 +10,9 @@ module PostgREST.Query
   , MainQuery (..)
   ) where
 
-import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
+import Protolude hiding (Handler)
 
-import PostgREST.Query.PreQuery qualified as PreQuery
-import PostgREST.Query.QueryBuilder qualified as QueryBuilder
-import PostgREST.Query.SqlFragment qualified as SqlFragment
-import PostgREST.Query.Statements qualified as Statements
+import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences (Preferences (..), shouldExplainCount)
@@ -30,7 +27,10 @@ import PostgREST.Plan
   )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
-import Protolude hiding (Handler)
+import PostgREST.Query.PreQuery qualified as PreQuery
+import PostgREST.Query.QueryBuilder qualified as QueryBuilder
+import PostgREST.Query.SqlFragment qualified as SqlFragment
+import PostgREST.Query.Statements qualified as Statements
 
 -- The Queries that run on every request
 data MainQuery = MainQuery

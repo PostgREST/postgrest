@@ -14,20 +14,6 @@
 -- import aliases are used across your codebase.
 module Main (main) where
 
-import qualified Data.Aeson as JSON
-import qualified Data.ByteString.Lazy.Char8 as LBS8
-import qualified Data.Csv as Csv
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Dot
-import qualified GHC
-import qualified GHC.Paths
-import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
-import qualified Options.Applicative as O
-import qualified System.FilePath as FP
-
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Function ((&))
 import Data.List (intercalate)
@@ -44,6 +30,20 @@ import GHC.Utils.Error (pprMsgEnvelopeBagWithLoc)
 import GHC.Utils.Outputable (showSDocUnsafe)
 import System.Directory.Recursive (getFilesRecursive)
 import System.Exit (exitFailure)
+
+import qualified Data.Aeson as JSON
+import qualified Data.ByteString.Lazy.Char8 as LBS8
+import qualified Data.Csv as Csv
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified Dot
+import qualified GHC
+import qualified GHC.Paths
+import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
+import qualified Options.Applicative as O
+import qualified System.FilePath as FP
 
 -- TYPES
 

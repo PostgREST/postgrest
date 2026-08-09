@@ -9,6 +9,8 @@ module PostgREST.Query.PreQuery
   , preReqQuery
   ) where
 
+import Protolude hiding (Handler)
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Lazy.Char8 qualified as LBS
@@ -30,8 +32,6 @@ import PostgREST.Query.SqlFragment
   )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine (Routine (..))
-
-import Protolude hiding (Handler)
 
 -- sets transaction variables
 txVarQuery :: DbActionPlan -> AppConfig -> AuthResult -> ApiRequest -> SQL.Snippet

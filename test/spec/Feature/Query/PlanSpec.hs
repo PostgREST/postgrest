@@ -3,20 +3,19 @@
 module Feature.Query.PlanSpec where
 
 import Control.Lens ((^?))
-import Network.Wai.Test (SResponse (..))
-
 import Data.Aeson.Lens
 import Data.Aeson.QQ
-import Data.ByteString.Lazy qualified as LBS
-import Data.Text qualified as T
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (..))
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config (AppConfig (..))
+import Data.ByteString.Lazy qualified as LBS
+import Data.Text qualified as T
 
-import Protolude hiding (get)
+import PostgREST.Config (AppConfig (..))
 import SpecHelper
 
 spec :: SpecWithConfig

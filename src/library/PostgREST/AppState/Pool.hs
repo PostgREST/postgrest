@@ -8,19 +8,20 @@ module PostgREST.AppState.Pool
   , usePool
   ) where
 
-import Data.ByteString.Char8 qualified as BS
 import Data.Either.Combinators (whenLeft)
+import Protolude
+
+import Data.ByteString.Char8 qualified as BS
 import Hasql.Pool qualified as SQL
 import Hasql.Pool.Config qualified as SQL
 import Hasql.Session qualified as SQL
 import Network.HTTP.Types.Status qualified as HTTP
-import PostgREST.Error qualified as Error
-import PostgREST.Observation
-
-import PostgREST.Config (AppConfig (..), toConnectionSettings)
 
 import PostgREST.AppState.Types
-import Protolude
+import PostgREST.Config (AppConfig (..), toConnectionSettings)
+import PostgREST.Observation
+
+import PostgREST.Error qualified as Error
 
 -- | Destroy the pool on shutdown.
 -- | Differs from flushPool in not emiting PoolFlushed observation.

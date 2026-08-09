@@ -1,16 +1,15 @@
 module Feature.Query.InsertSpec where
 
 import Data.List (lookup)
-import Network.Wai.Test (SResponse (simpleHeaders))
-import Test.Hspec hiding (pendingWith)
-import Test.Hspec.Wai.Matcher (bodyEquals)
-
 import Network.HTTP.Types
+import Network.Wai.Test (SResponse (simpleHeaders))
+import Protolude hiding (get)
+import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
+import Test.Hspec.Wai.Matcher (bodyEquals)
 import Text.Heredoc
 
-import Protolude hiding (get)
 import SpecHelper
 
 spec :: SpecWithConfig

@@ -1,12 +1,11 @@
 module Feature.Query.AggregateFunctionsSpec where
 
+import Protolude hiding (get)
 import Test.Hspec hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude hiding (get)
 import SpecHelper
 
 allowed :: SpecWithConfig

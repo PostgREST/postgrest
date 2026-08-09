@@ -5,9 +5,9 @@ module PostgREST.Version
   , prettyVersion
   ) where
 
-import Data.Text qualified as T
-
 import Protolude
+
+import Data.Text qualified as T
 
 -- Somehow this is not defined in doctests, so when running them
 -- on a file that includes Version.hs, compilation fails.

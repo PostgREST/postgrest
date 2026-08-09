@@ -5,10 +5,15 @@
 module Observation.MetricsSpec where
 
 import Data.List (lookup)
-import Hasql.Pool.Observation qualified as SQL
 import Network.Wai (Application)
+import Prometheus (getCounter, getVectorWith)
+import Protolude
+import Test.Hspec (SpecWith, describe, it)
+import Test.Hspec.Wai (getState)
+
+import Hasql.Pool.Observation qualified as SQL
+
 import ObsHelper
-import PostgREST.AppState qualified as AppState
 import PostgREST.Config (AppConfig (configDbSchemas))
 import PostgREST.Metrics
   ( ConnStats (..)
@@ -16,11 +21,8 @@ import PostgREST.Metrics
   , connectionCounts
   )
 import PostgREST.Observation
-import Prometheus (getCounter, getVectorWith)
-import Test.Hspec (SpecWith, describe, it)
-import Test.Hspec.Wai (getState)
 
-import Protolude
+import PostgREST.AppState qualified as AppState
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do

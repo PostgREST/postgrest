@@ -12,16 +12,6 @@ module PostgREST.AppState.Reload
   , waitForSchemaCacheLoaded
   ) where
 
-import Data.ByteString.Char8 qualified as BS
-import Data.Text qualified as T
-import Database.PostgreSQL.LibPQ qualified as LibPQ
-import Hasql.Connection qualified as SQL
-import Hasql.Notifications qualified as SQL
-import Hasql.Session qualified as SQL
-import Hasql.Transaction.Sessions qualified as SQL
-
-import PostgREST.Config qualified as Config
-
 import Control.Arrow ((&&&))
 import Control.Concurrent.STM (putTMVar, readTMVar, tryReadTMVar, tryTakeTMVar)
 import Control.Retry
@@ -35,8 +25,18 @@ import Control.Retry
 import Data.Bitraversable (bisequence)
 import Data.Either.Combinators (whenRight)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Protolude
+
+import Data.ByteString.Char8 qualified as BS
+import Data.Text qualified as T
+import Database.PostgreSQL.LibPQ qualified as LibPQ
+import Hasql.Connection qualified as SQL
+import Hasql.Notifications qualified as SQL
+import Hasql.Session qualified as SQL
+import Hasql.Transaction.Sessions qualified as SQL
 
 import PostgREST.AppState.Pool (flushPool, usePool)
+import PostgREST.AppState.Types
 import PostgREST.Auth.JwtCache (update)
 import PostgREST.Config (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database
@@ -54,8 +54,7 @@ import PostgREST.SchemaCache
 import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.TimeIt (timeItT)
 
-import PostgREST.AppState.Types
-import Protolude
+import PostgREST.Config qualified as Config
 
 -- | Try to load the schema cache and retry if it fails.
 --
