@@ -14,7 +14,8 @@ module PostgREST.Error.Types
   , JwtClaimsError (..)
   , PgRaiseErrMessage (..)
   , PgRaiseErrDetails (..)
-  ) where
+  )
+where
 
 import Protolude
 
@@ -119,6 +120,7 @@ data JwtClaimsError
 
 -- PG ERRORS
 type Authenticated = Bool
+
 data PgError = PgError Authenticated SQL.UsageError
   deriving (Show)
 

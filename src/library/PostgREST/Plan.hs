@@ -24,7 +24,8 @@ module PostgREST.Plan
   , CrudPlan (..)
   , legacyWarnings
   , addNullEmbedFilters
-  ) where
+  )
+where
 
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List (delete, lookup)
@@ -461,6 +462,7 @@ initReadRequest ctx@ResolverContext{qi = QualifiedIdentifier{..}} =
 -- * Domain representations
 
 -- * Aggregates in spread relationships
+
 addAliases :: ReadPlanTree -> Either Error ReadPlanTree
 addAliases = Right . fmap addAliasToPlan
   where

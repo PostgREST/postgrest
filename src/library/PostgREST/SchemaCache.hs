@@ -20,7 +20,8 @@ module PostgREST.SchemaCache
   , decodeFuncs
   , QueryTimings (..)
   , queryTimingsWLabels
-  ) where
+  )
+where
 
 import Control.Arrow ((&&&))
 import Data.Aeson ((.=))

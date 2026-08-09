@@ -8,7 +8,8 @@ module PostgREST.Config.DeprecatedJSPath
   , dumpDeprecatedJSPath
   , pDeprecatedRoleClaimKey
   , evaluateDeprecatedJSPath
-  ) where
+  )
+where
 
 import Data.Either.Combinators (mapLeft)
 import Protolude

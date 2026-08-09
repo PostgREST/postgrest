@@ -18,7 +18,8 @@ module PostgREST.SchemaCache.Routine
   , MediaHandlerMap
   , ResolvedHandler
   , MediaHandler (..)
-  ) where
+  )
+where
 
 import Protolude
 
@@ -68,6 +69,7 @@ data Routine = Function
 
 -- SQL.IsolationLevel doesn't have a default ToJSON instance, so we derive it.
 deriving instance Generic SQL.IsolationLevel
+
 deriving instance JSON.ToJSON SQL.IsolationLevel
 
 data RoutineParam = RoutineParam
@@ -137,4 +139,5 @@ funcTableName proc = case pdReturnType proc of
 
 -- the resolved handler also carries the media type because MTAny (*/*) is resolved to a different media type
 type ResolvedHandler = (MediaHandler, MediaType.MediaType)
+
 type MediaHandlerMap = HM.HashMap (RelIdentifier, MediaType.MediaType) ResolvedHandler

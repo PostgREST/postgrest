@@ -1,6 +1,7 @@
 module PostgREST.TimeIt
   ( timeItT
-  ) where
+  )
+where
 
 import GHC.Clock
 import Protolude

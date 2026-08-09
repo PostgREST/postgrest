@@ -11,7 +11,8 @@ module PostgREST.Logger
   ( observationLogger
   , init
   , LoggerState
-  ) where
+  )
+where
 
 import Control.AutoUpdate
   ( defaultUpdateSettings

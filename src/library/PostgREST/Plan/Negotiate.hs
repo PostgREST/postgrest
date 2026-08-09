@@ -6,7 +6,8 @@
 -- RFC: https://datatracker.ietf.org/doc/html/rfc7231#section-3.4
 module PostgREST.Plan.Negotiate
   ( negotiateContent
-  ) where
+  )
+where
 
 import Protolude hiding (from)
 

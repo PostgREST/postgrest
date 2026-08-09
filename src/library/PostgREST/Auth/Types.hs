@@ -1,5 +1,4 @@
-module PostgREST.Auth.Types (AuthResult (..))
-where
+module PostgREST.Auth.Types (AuthResult (..)) where
 
 import Data.Aeson qualified as JSON
 import Data.Aeson.KeyMap qualified as KM

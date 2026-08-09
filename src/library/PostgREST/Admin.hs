@@ -1,6 +1,7 @@
 module PostgREST.Admin
   ( runAdmin
-  ) where
+  )
+where
 
 import Control.Monad.Extra (whenJust)
 import Protolude

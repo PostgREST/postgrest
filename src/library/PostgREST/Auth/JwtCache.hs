@@ -12,7 +12,8 @@ module PostgREST.Auth.JwtCache
   , update
   , JwtCacheState
   , lookupJwtCache
-  ) where
+  )
+where
 
 import Control.Concurrent.STM (newTVarIO, readTVar, writeTVar)
 import Control.Concurrent.STM.TVar (TVar)
