@@ -409,28 +409,26 @@ compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
 compressedRel ComputedRelationship{} = JSON.object mempty
 compressedRel Relationship{..} =
-  let
-    fmtEls els = "(" <> T.intercalate ", " els <> ")"
-  in
-    JSON.object $
-      ("embedding" .= (qiName relTable <> " with " <> qiName relForeignTable :: Text))
-        : case relCardinality of
-          M2M Junction{..} ->
-            [ "cardinality" .= ("many-to-many" :: Text)
-            , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColsSource) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColsTarget))
-            ]
-          M2O cons relColumns ->
-            [ "cardinality" .= ("many-to-one" :: Text)
-            , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
-            ]
-          O2O cons relColumns _ ->
-            [ "cardinality" .= ("one-to-one" :: Text)
-            , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
-            ]
-          O2M cons relColumns ->
-            [ "cardinality" .= ("one-to-many" :: Text)
-            , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
-            ]
+  let fmtEls els = "(" <> T.intercalate ", " els <> ")"
+  in  JSON.object $
+        ("embedding" .= (qiName relTable <> " with " <> qiName relForeignTable :: Text))
+          : case relCardinality of
+            M2M Junction{..} ->
+              [ "cardinality" .= ("many-to-many" :: Text)
+              , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColsSource) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColsTarget))
+              ]
+            M2O cons relColumns ->
+              [ "cardinality" .= ("many-to-one" :: Text)
+              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              ]
+            O2O cons relColumns _ ->
+              [ "cardinality" .= ("one-to-one" :: Text)
+              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              ]
+            O2M cons relColumns ->
+              [ "cardinality" .= ("one-to-many" :: Text)
+              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              ]
 
 relHint :: [Relationship] -> Text
 relHint rels = T.intercalate ", " (hintList <$> rels)

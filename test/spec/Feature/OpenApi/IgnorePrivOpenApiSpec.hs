@@ -64,9 +64,10 @@ spec withConfig = withConfig
       it "includes comments on tables" $ do
         r <- simpleBody <$> get "/"
 
-        let grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
-            grandChildGetSummary = r ^? grandChildGet "summary"
-            grandChildGetDescription = r ^? grandChildGet "description"
+        let
+          grandChildGet s = key "paths" . key "/grandchild_entities" . key "get" . key s
+          grandChildGetSummary = r ^? grandChildGet "summary"
+          grandChildGetDescription = r ^? grandChildGet "description"
 
         liftIO $ do
           grandChildGetSummary `shouldBe` Just "grandchild_entities summary"
