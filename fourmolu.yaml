@@ -10,3 +10,4 @@ indentation: 2
 let-style: mixed
 respectful: false
 sort-constraints: true
+sort-derived-classes: true

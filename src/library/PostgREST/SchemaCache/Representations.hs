@@ -23,7 +23,7 @@ data DataRepresentation = DataRepresentation
   , drTargetType :: Text
   , drFunction :: Text
   }
-  deriving (Eq, Show, Generic, JSON.ToJSON, JSON.FromJSON)
+  deriving (Eq, Generic, JSON.FromJSON, JSON.ToJSON, Show)
 
 -- The representation map maps from (source type, target type) to a DR.
 type RepresentationsMap = HM.HashMap (Text, Text) DataRepresentation

@@ -105,7 +105,7 @@ data CoercibleSelectField = CoercibleSelectField
   deriving (Eq, Show)
 
 data RelJsonEmbedMode = JsonObject | JsonArray
-  deriving (Show, Eq)
+  deriving (Eq, Show)
 
 data RelSelectField
   = JsonEmbed

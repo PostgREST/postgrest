@@ -20,7 +20,7 @@ import Data.Aeson qualified as JSON
 import Data.Text qualified as T
 
 data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
-  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey, Show)
+  deriving (Eq, Generic, JSON.ToJSON, JSON.ToJSONKey, Ord, Show)
 
 instance Hashable RelIdentifier
 
@@ -31,7 +31,7 @@ data QualifiedIdentifier = QualifiedIdentifier
   { qiSchema :: Schema
   , qiName :: TableName
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+  deriving (Eq, Generic, JSON.ToJSON, JSON.ToJSONKey, Ord, Show)
 
 instance Hashable QualifiedIdentifier
 
