@@ -22,21 +22,19 @@ module PostgREST.SchemaCache
   , queryTimingsWLabels
   ) where
 
+import Control.Arrow ((&&&))
 import Data.Aeson ((.=))
-import Data.Aeson qualified as JSON
+import Data.Functor.Contravariant ((>$<))
+import NeatInterpolation (trimming)
+import Protolude
 
+import Data.Aeson qualified as JSON
 import Data.ByteString.Char8 qualified as BS
+import Data.FuzzySet qualified as Fuzzy
 import Data.HashMap.Strict qualified as HM
 import Data.HashMap.Strict.InsOrd qualified as HMI
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Hasql.Decoders qualified as HD
-import Hasql.Encoders qualified as HE
-import Hasql.Statement qualified as SQL
-import Hasql.Transaction qualified as SQL
-
-import Data.Functor.Contravariant ((>$<))
-import NeatInterpolation (trimming)
 
 import PostgREST.Config (AppConfig (..), LogLevel (..))
 import PostgREST.Config.Database (toIsolationLevel)
@@ -76,11 +74,11 @@ import PostgREST.SchemaCache.Table
   , TablesMap
   )
 
+import Hasql.Decoders qualified as HD
+import Hasql.Encoders qualified as HE
+import Hasql.Statement qualified as SQL
+import Hasql.Transaction qualified as SQL
 import PostgREST.MediaType qualified as MediaType
-
-import Control.Arrow ((&&&))
-import Data.FuzzySet qualified as Fuzzy
-import Protolude
 
 type TablesFuzzyIndex = HM.HashMap Schema Fuzzy.FuzzySet
 

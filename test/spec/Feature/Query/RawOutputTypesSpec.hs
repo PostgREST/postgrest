@@ -1,11 +1,11 @@
 module Feature.Query.RawOutputTypesSpec where
 
 import Network.HTTP.Types
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

@@ -25,10 +25,13 @@ import Database.PostgreSQL.LibPQ as Base hiding
   , resultStatus
   , sendFlushRequest
   )
+
 import Database.PostgreSQL.LibPQ.Internal qualified as BaseInternal
+
+import Hasql.Prelude
+
 import Hasql.LibPq14.Ffi qualified as Ffi
 import Hasql.LibPq14.Mappings qualified as Mappings
-import Hasql.Prelude
 
 resultStatus :: Result -> IO Mappings.ExecStatus
 resultStatus result = do

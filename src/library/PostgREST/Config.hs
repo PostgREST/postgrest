@@ -28,20 +28,6 @@ module PostgREST.Config
   , Verbosity (..)
   ) where
 
-import Data.Aeson qualified as JSON
-import Data.ByteString qualified as BS
-import Data.ByteString.Base64 qualified as B64
-import Data.CaseInsensitive qualified as CI
-import Data.Configurator qualified as C
-import Data.Map.Strict qualified as M
-import Data.String qualified as S
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Hasql.Connection.Setting qualified as SQL
-import Hasql.Connection.Setting.Connection qualified as SQL
-import Jose.Jwa qualified as JWT
-import Jose.Jwk qualified as JWT
-
 import Control.Monad (fail)
 import Data.Either.Combinators (mapLeft)
 import Data.List (lookup)
@@ -55,8 +41,21 @@ import Network.URI
   , isUnescapedInURIComponent
   )
 import Numeric (readOct, showOct)
+import Protolude hiding (Proxy, toList)
 import System.Environment (getEnvironment)
 import System.Posix.Types (FileMode)
+
+import Data.Aeson qualified as JSON
+import Data.ByteString qualified as BS
+import Data.ByteString.Base64 qualified as B64
+import Data.CaseInsensitive qualified as CI
+import Data.Configurator qualified as C
+import Data.Map.Strict qualified as M
+import Data.String qualified as S
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Jose.Jwa qualified as JWT
+import Jose.Jwk qualified as JWT
 
 import PostgREST.Config.Database (RoleIsolationLvl, RoleSettings)
 import PostgREST.Config.DeprecatedJSPath
@@ -76,9 +75,10 @@ import PostgREST.Config.Proxy
   , toURI
   )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), toQi)
-
 import PostgREST.Version (prettyVersion)
-import Protolude hiding (Proxy, toList)
+
+import Hasql.Connection.Setting qualified as SQL
+import Hasql.Connection.Setting.Connection qualified as SQL
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg = maybe (const True) (==) . configJwtAudience

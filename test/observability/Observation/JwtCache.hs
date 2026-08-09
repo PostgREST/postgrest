@@ -3,16 +3,15 @@
 
 module Observation.JwtCache where
 
-import Network.Wai (Application)
-
 import Network.HTTP.Types
+import Network.Wai (Application)
+import Protolude
 import Test.Hspec (SpecWith, describe, it)
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON (json)
 
 import ObsHelper
 import PostgREST.Metrics (MetricsState (..))
-import Protolude
-import Test.Hspec.Wai.JSON (json)
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do

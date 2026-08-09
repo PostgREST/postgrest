@@ -1,14 +1,12 @@
 module Feature.OpenApi.DisabledOpenApiSpec where
 
 import Network.HTTP.Types
-
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
-
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

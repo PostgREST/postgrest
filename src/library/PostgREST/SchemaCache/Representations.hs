@@ -5,10 +5,10 @@ module PostgREST.SchemaCache.Representations
   , RepresentationsMap
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
-
-import Protolude
 
 -- | Data representations allow user customisation of how to present and receive data through APIs, per field.
 -- This structure is used for the library of available transforms. It answers questions like:

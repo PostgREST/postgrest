@@ -2,13 +2,14 @@
 -- An API of low-level IO operations.
 module Hasql.IO where
 
+import Hasql.Errors
+import Hasql.Prelude
+
 import Hasql.Commands qualified as Commands
 import Hasql.Decoders.Result qualified as ResultDecoders
 import Hasql.Decoders.Results qualified as ResultsDecoders
 import Hasql.Encoders.Params qualified as ParamsEncoders
-import Hasql.Errors
 import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude
 import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
 
 {-# INLINE acquireConnection #-}

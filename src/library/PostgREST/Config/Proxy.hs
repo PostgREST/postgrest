@@ -7,12 +7,11 @@ module PostgREST.Config.Proxy
   , toURI
   ) where
 
-import Data.Text qualified as T
-
 import Data.Maybe (fromJust)
 import Network.URI (URI (..), URIAuth (..), isAbsoluteURI, parseURI)
-
 import Protolude hiding (Proxy)
+
+import Data.Text qualified as T
 
 data Proxy = Proxy
   { proxyScheme :: Text

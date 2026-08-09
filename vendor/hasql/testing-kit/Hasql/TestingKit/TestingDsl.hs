@@ -19,12 +19,14 @@ module Hasql.TestingKit.TestingDsl
   )
 where
 
+import Hasql.TestingKit.Preludes.Base
+
+import qualified Hasql.TestingKit.Constants as Constants
+
 import qualified Hasql.Connection as Connection
 import qualified Hasql.Pipeline as Pipeline
 import qualified Hasql.Session as Session
 import qualified Hasql.Statement as Statement
-import qualified Hasql.TestingKit.Constants as Constants
-import Hasql.TestingKit.Preludes.Base
 
 data Error
   = ConnectionError Connection.ConnectionError

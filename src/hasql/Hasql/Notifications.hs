@@ -27,18 +27,20 @@ import Control.Monad (forever, unless, void, when)
 import Data.ByteString.Char8 (ByteString)
 import Data.Functor.Contravariant (contramap)
 import Data.Text (Text)
+import Prelude
+
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Database.PostgreSQL.LibPQ qualified as PQ
+
 import Hasql.Connection (Connection, withLibPQConnection)
-import Hasql.Decoders qualified as HD
-import Hasql.Encoders qualified as HE
 import Hasql.Pool (Pool, UsageError, use)
 import Hasql.Session (run, sql, statement)
+
+import Hasql.Decoders qualified as HD
+import Hasql.Encoders qualified as HE
 import Hasql.Session qualified as S
 import Hasql.Statement qualified as HST
-
-import Prelude
 
 -- | A wrapped text that represents a properly escaped and quoted PostgreSQL identifier
 newtype PgIdentifier = PgIdentifier Text deriving (Show)

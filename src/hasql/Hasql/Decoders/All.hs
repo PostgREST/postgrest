@@ -5,16 +5,18 @@ module Hasql.Decoders.All where
 import Data.Aeson qualified as Aeson
 import Data.IP qualified as Iproute
 import Data.Vector.Generic qualified as GenericVector
+import PostgreSQL.Binary.Decoding qualified as A
+import PostgreSQL.Binary.Range qualified as R
+
+import Hasql.Prelude hiding (bool, maybe)
+
 import Hasql.Decoders.Array qualified as Array
 import Hasql.Decoders.Composite qualified as Composite
 import Hasql.Decoders.Result qualified as Result
 import Hasql.Decoders.Results qualified as Results
 import Hasql.Decoders.Row qualified as Row
 import Hasql.Decoders.Value qualified as Value
-import Hasql.Prelude hiding (bool, maybe)
 import Hasql.Prelude qualified as Prelude
-import PostgreSQL.Binary.Decoding qualified as A
-import PostgreSQL.Binary.Range qualified as R
 
 -- * Result
 

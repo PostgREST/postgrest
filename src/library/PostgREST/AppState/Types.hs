@@ -5,22 +5,21 @@
 -- Description : AppState data type and stateful functions
 module PostgREST.AppState.Types where
 
+import Control.Concurrent.STM (TMVar)
+import Data.IORef (IORef, atomicWriteIORef, readIORef)
+import Data.Time.Clock (UTCTime)
+import Protolude
+
+import PostgREST.Auth.JwtCache (JwtCacheState)
+import PostgREST.Config (AppConfig (..))
+import PostgREST.Config.PgVersion (PgVersion (..))
+import PostgREST.Observation
+import PostgREST.SchemaCache (SchemaCache (..))
+
 import Hasql.Pool qualified as SQL
 import PostgREST.Auth.JwtCache qualified as JwtCache
 import PostgREST.Logger qualified as Logger
 import PostgREST.Metrics qualified as Metrics
-import PostgREST.Observation
-
-import Data.IORef (IORef, atomicWriteIORef, readIORef)
-import Data.Time.Clock (UTCTime)
-
-import Control.Concurrent.STM (TMVar)
-import PostgREST.Auth.JwtCache (JwtCacheState)
-import PostgREST.Config (AppConfig (..))
-import PostgREST.Config.PgVersion (PgVersion (..))
-import PostgREST.SchemaCache (SchemaCache (..))
-
-import Protolude
 
 data AppState = AppState
   { statePool :: SQL.Pool

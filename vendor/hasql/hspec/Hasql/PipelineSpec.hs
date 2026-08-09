@@ -1,11 +1,12 @@
 module Hasql.PipelineSpec (spec) where
 
+import Test.Hspec
+import Prelude
+
 import qualified Hasql.TestingKit.Statements.BrokenSyntax as BrokenSyntax
 import qualified Hasql.TestingKit.Statements.GenerateSeries as GenerateSeries
 import qualified Hasql.TestingKit.Statements.WrongDecoder as WrongDecoder
 import qualified Hasql.TestingKit.TestingDsl as Dsl
-import Test.Hspec
-import Prelude
 
 spec :: Spec
 spec = do

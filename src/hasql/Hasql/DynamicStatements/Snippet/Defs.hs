@@ -1,6 +1,7 @@
 module Hasql.DynamicStatements.Snippet.Defs where
 
 import Hasql.DynamicStatements.Prelude
+
 import Hasql.Encoders qualified as Encoders
 import Hasql.Implicits.Encoders qualified as Encoders
 

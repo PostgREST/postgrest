@@ -2,12 +2,12 @@ module Feature.Auth.AudienceJwtSecretSpec where
 
 import Network.HTTP.Types
 import Protolude hiding (get)
-import SpecHelper
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..), parseSecret)
+import SpecHelper
 
 spec :: SpecWithConfig
 spec withConfig = withConfig

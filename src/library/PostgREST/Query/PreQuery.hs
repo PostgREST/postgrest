@@ -9,11 +9,12 @@ module PostgREST.Query.PreQuery
   , preReqQuery
   ) where
 
+import Protolude hiding (Handler)
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.HashMap.Strict qualified as HM
-import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences (PreferTimezone (..), Preferences (..))
@@ -31,7 +32,7 @@ import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine (Routine (..))
 
-import Protolude hiding (Handler)
+import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 
 -- sets transaction variables
 txVarQuery :: DbActionPlan -> AppConfig -> AuthResult -> ApiRequest -> SQL.Snippet

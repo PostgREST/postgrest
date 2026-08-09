@@ -1,5 +1,24 @@
 module SpecHelper where
 
+import Control.Lens ((^?))
+import Data.Aeson ((.=))
+import Data.Aeson.Lens
+import Data.CaseInsensitive (CI (..), original)
+import Data.List (lookup)
+import Data.List.NonEmpty (fromList)
+import Data.Scientific (toRealFloat)
+import Data.String (String)
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Network.HTTP.Types
+import Network.Wai (Application)
+import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import Protolude hiding (get, toS)
+import Protolude.Conv (toS)
+import System.IO.Unsafe (unsafePerformIO)
+import Test.Hspec
+import Test.Hspec.Wai
+import Text.Regex.TDFA ((=~))
+
 import Data.Aeson qualified as JSON
 import Data.ByteString.Base64 qualified as B64 (decodeLenient)
 import Data.ByteString.Char8 qualified as BS
@@ -10,19 +29,6 @@ import Jose.Jwa qualified as JWT
 import Jose.Jws qualified as JWT
 import Jose.Jwt qualified as JWT
 
-import Control.Lens ((^?))
-import Data.Aeson ((.=))
-import Data.CaseInsensitive (CI (..), original)
-import Data.List (lookup)
-import Data.List.NonEmpty (fromList)
-import Data.Scientific (toRealFloat)
-import Data.String (String)
-import Data.Time.Clock.POSIX (getPOSIXTime)
-import Network.Wai (Application)
-import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.IO.Unsafe (unsafePerformIO)
-import Text.Regex.TDFA ((=~))
-
 import PostgREST.Config
   ( AppConfig (..)
   , LogLevel (..)
@@ -32,14 +38,6 @@ import PostgREST.Config
   , parseSecret
   )
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-
-import Data.Aeson.Lens
-import Network.HTTP.Types
-import Test.Hspec
-import Test.Hspec.Wai
-
-import Protolude hiding (get, toS)
-import Protolude.Conv (toS)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->

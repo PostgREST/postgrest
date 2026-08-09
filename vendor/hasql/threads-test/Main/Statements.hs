@@ -1,9 +1,11 @@
 module Main.Statements where
 
+import Prelude
+
+import Hasql.Statement
+
 import qualified Hasql.Decoders as D
 import qualified Hasql.Encoders as E
-import Hasql.Statement
-import Prelude
 
 selectSleep :: Statement Double ()
 selectSleep =

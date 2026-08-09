@@ -1,10 +1,11 @@
 module Hasql.Pool.Config.Setting where
 
-import Hasql.Connection.Setting qualified as Connection.Setting
 import Hasql.Pool.Config.Config (Config)
-import Hasql.Pool.Config.Config qualified as Config
 import Hasql.Pool.Observation (Observation)
 import Hasql.Pool.Prelude
+
+import Hasql.Connection.Setting qualified as Connection.Setting
+import Hasql.Pool.Config.Config qualified as Config
 import Hasql.Session qualified as Session
 
 apply :: Setting -> Config -> Config

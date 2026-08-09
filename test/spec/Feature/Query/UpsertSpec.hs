@@ -4,11 +4,11 @@
 module Feature.Query.UpsertSpec where
 
 import Network.HTTP.Types
+import Protolude hiding (get, put)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get, put)
 import SpecHelper
 
 spec :: SpecWithConfig

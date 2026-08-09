@@ -3,7 +3,7 @@ function-arrows: leading
 haddock-style: single-line
 if-style: hanging
 import-export-style: leading
-import-grouping: preserve
+import-grouping: by-scope-then-qualified
 in-style: left-align
 indent-wheres: true
 indentation: 2

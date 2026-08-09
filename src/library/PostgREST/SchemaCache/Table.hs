@@ -8,6 +8,8 @@ module PostgREST.SchemaCache.Table
   , ColumnMap
   ) where
 
+import Protolude
+
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 import Data.HashMap.Strict.InsOrd qualified as HMI
@@ -18,8 +20,6 @@ import PostgREST.SchemaCache.Identifiers
   , Schema
   , TableName
   )
-
-import Protolude
 
 data Table = Table
   { tableSchema :: Schema

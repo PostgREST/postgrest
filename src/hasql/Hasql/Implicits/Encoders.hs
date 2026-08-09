@@ -3,6 +3,7 @@
 module Hasql.Implicits.Encoders where
 
 import Data.Aeson qualified as Aeson
+
 import Hasql.Encoders
 import Hasql.Implicits.Prelude hiding (bool)
 

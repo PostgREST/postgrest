@@ -16,14 +16,15 @@ module PostgREST.Error.Types
   , PgRaiseErrDetails (..)
   ) where
 
-import Hasql.Pool qualified as SQL
+import Protolude
 
 import PostgREST.MediaType (MediaType (..))
 import PostgREST.SchemaCache (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Relationship (..), RelationshipsMap)
 import PostgREST.SchemaCache.Routine (Routine (..))
-import Protolude
+
+import Hasql.Pool qualified as SQL
 
 data Error
   = ApiRequestErr ApiRequestError

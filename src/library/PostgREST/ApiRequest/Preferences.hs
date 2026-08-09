@@ -24,11 +24,11 @@ module PostgREST.ApiRequest.Preferences
   , toHeaderValue
   ) where
 
+import Protolude
+
 import Data.ByteString.Char8 qualified as BS
 import Data.Map qualified as Map
 import Network.HTTP.Types.Header qualified as HTTP
-
-import Protolude
 
 -- $setup
 -- Setup for doctests

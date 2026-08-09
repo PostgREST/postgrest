@@ -4,17 +4,14 @@ import Control.Lens ((^?))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 import Data.List.NonEmpty (fromList)
-
 import Network.HTTP.Types
 import Network.Wai.Test (SResponse (simpleHeaders), simpleBody)
-
+import Protolude
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config (AppConfig (..))
-
-import Protolude
 import SpecHelper
 
 spec :: SpecWithConfig

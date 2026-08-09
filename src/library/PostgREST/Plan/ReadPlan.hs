@@ -6,6 +6,7 @@ module PostgREST.Plan.ReadPlan
   ) where
 
 import Data.Tree (Tree (..))
+import Protolude
 
 import PostgREST.ApiRequest.Types
   ( Alias
@@ -24,8 +25,6 @@ import PostgREST.Plan.Types
 import PostgREST.RangeQuery (NonnegRange)
 import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier)
 import PostgREST.SchemaCache.Relationship (Relationship)
-
-import Protolude
 
 type ReadPlanTree = Tree ReadPlan
 

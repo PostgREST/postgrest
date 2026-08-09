@@ -9,6 +9,11 @@ module PostgREST.Config.JSPath
   , evaluateJSPath
   ) where
 
+import Data.Either.Combinators (mapLeft)
+import Data.Either.Extra (fromRight')
+import Protolude
+import Text.ParserCombinators.Parsec ((<?>))
+
 import Data.Aeson qualified as JSON
 import Data.Aeson.JSONPath qualified as JSP
 import Data.Aeson.JSONPath.Parser qualified as JSP
@@ -16,12 +21,6 @@ import Data.Aeson.JSONPath.Types qualified as JSP
 import Data.Text qualified as T
 import Data.Vector qualified as V
 import Text.ParserCombinators.Parsec qualified as P
-
-import Data.Either.Combinators (mapLeft)
-import Data.Either.Extra (fromRight')
-import Text.ParserCombinators.Parsec ((<?>))
-
-import Protolude
 
 -- | full jspath, e.g. "$.property[0].attr.detail[?(@ == "role1")]"
 newtype JSPath = JSPath JSP.Query

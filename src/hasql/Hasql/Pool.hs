@@ -13,12 +13,14 @@ where
 import Data.Text.Encoding qualified as Text
 import Data.Text.Encoding.Error qualified as Text
 import Data.UUID.V4 qualified as Uuid
+
 import Hasql.Connection (Connection)
+import Hasql.Pool.Observation
+import Hasql.Pool.Prelude
+
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
 import Hasql.Pool.Config.Config qualified as Config
-import Hasql.Pool.Observation
-import Hasql.Pool.Prelude
 import Hasql.Pool.SessionErrorDestructors qualified as ErrorsDestruction
 import Hasql.Session qualified as Session
 

@@ -1,9 +1,10 @@
 module Hasql.Pool.Config.Config where
 
-import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Pool.Config.Defaults qualified as Defaults
 import Hasql.Pool.Observation (Observation)
 import Hasql.Pool.Prelude
+
+import Hasql.Connection.Setting qualified as Connection.Setting
+import Hasql.Pool.Config.Defaults qualified as Defaults
 import Hasql.Session qualified as Session
 
 -- | Configuration for Hasql connection pool.

@@ -1,7 +1,12 @@
 module Main where
 
+import Test.Tasty
+import Test.Tasty.HUnit
+import Prelude hiding (assert)
+
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteStringChar8
+
 import qualified Hasql.Connection as Connection
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.DynamicStatements.Session as Session
@@ -9,9 +14,6 @@ import qualified Hasql.DynamicStatements.Snippet as Snippet
 import qualified Hasql.DynamicStatements.Statement as Statement
 import qualified Hasql.Session as Session
 import qualified Hasql.Statement as Statement
-import Test.Tasty
-import Test.Tasty.HUnit
-import Prelude hiding (assert)
 
 main :: IO ()
 main =
