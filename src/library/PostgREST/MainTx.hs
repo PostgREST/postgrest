@@ -202,8 +202,9 @@ actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@Inspect
         OAIgnorePriv -> do
           schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements)
 
-          let tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbTables sCache)
-              routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbRoutines sCache)
+          let
+            tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbTables sCache)
+            routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbRoutines sCache)
 
           pure $ MaybeDbResult plan (Just (tbls, routs, schDesc))
         OADisabled ->
@@ -214,13 +215,11 @@ actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@Inspect
 
     decodeAccessibleIdentifiers :: HD.Result (S.Set QualifiedIdentifier)
     decodeAccessibleIdentifiers =
-      let
-        row =
-          QualifiedIdentifier
-            <$> column HD.text
-            <*> column HD.text
-      in
-        S.fromList <$> HD.rowList row
+      let row =
+            QualifiedIdentifier
+              <$> column HD.text
+              <*> column HD.text
+      in  S.fromList <$> HD.rowList row
 
 -- Makes sure the querystring pk matches the payload pk
 -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
