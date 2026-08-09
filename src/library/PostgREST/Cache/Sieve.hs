@@ -60,7 +60,7 @@ type NodePtrPtr k v = TVar (NodePtr k v)
 
 data Discard m v = Refresh (m ()) | Invalid (m v)
 
-data Cache m k v = (MonadIO m, Hashable k) => Cache (ListNode k v False) (CacheConfig m k v)
+data Cache m k v = (Hashable k, MonadIO m) => Cache (ListNode k v False) (CacheConfig m k v)
 
 data CacheConfig m k v = CacheConfig
   { maxSize :: STM Int
@@ -73,10 +73,10 @@ data CacheConfig m k v = CacheConfig
 alwaysValid :: (Applicative m) => m (k -> v -> Maybe (Discard m v))
 alwaysValid = pure (const . const Nothing)
 
-cacheIO :: (MonadIO m, Hashable k) => CacheConfig m k v -> IO (Cache m k v)
+cacheIO :: (Hashable k, MonadIO m) => CacheConfig m k v -> IO (Cache m k v)
 cacheIO = atomically . cache
 
-cache :: (MonadIO m, Hashable k) => CacheConfig m k v -> STM (Cache m k v)
+cache :: (Hashable k, MonadIO m) => CacheConfig m k v -> STM (Cache m k v)
 cache cacheConfig = mdo
   tail <- newTVar (Some head)
   entries <- SH.new
