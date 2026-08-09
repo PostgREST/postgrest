@@ -2,7 +2,7 @@ module Hasql.Decoders.Array where
 
 import PostgreSQL.Binary.Decoding qualified as A
 
-import Hasql.Prelude
+import Hasql.Prelude hiding (replicateM)
 
 newtype Array a
   = Array (ReaderT Bool A.Array a)

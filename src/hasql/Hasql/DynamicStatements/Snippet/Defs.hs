@@ -53,4 +53,4 @@ param = encoderAndParam Encoders.defaultParam
 -- |
 -- Parameter with an explicitly defined encoder.
 encoderAndParam :: Encoders.NullableOrNot Encoders.Value param -> param -> Snippet
-encoderAndParam encoder param = Snippet (pure (ParamSnippetChunk (param >$ Encoders.param encoder)))
+encoderAndParam encoder param' = Snippet (pure (ParamSnippetChunk (param' >$ Encoders.param encoder)))

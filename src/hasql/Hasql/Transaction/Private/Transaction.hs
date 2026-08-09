@@ -43,8 +43,8 @@ sql =
 -- Parameters and a specification of the parametric query to apply them to.
 {-# INLINE statement #-}
 statement :: a -> A.Statement a b -> Transaction b
-statement params statement =
-  Transaction . lift $ B.statement params statement
+statement params statement' =
+  Transaction . lift $ B.statement params statement'
 
 -- |
 -- Cause transaction to eventually roll back.

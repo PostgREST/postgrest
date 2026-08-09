@@ -54,10 +54,10 @@ value valueDec =
           $ case valueMaybe of
             Nothing ->
               Right Nothing
-            Just value ->
+            Just value' ->
               fmap Just
                 $ first ValueError
-                $ {-# SCC "decode" #-} A.valueParser (Value.run valueDec integerDatetimes) value
+                $ {-# SCC "decode" #-} A.valueParser (Value.run valueDec integerDatetimes) value'
       else
         pure (Left EndOfInput)
 

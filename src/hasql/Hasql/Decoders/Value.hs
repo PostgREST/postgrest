@@ -32,4 +32,4 @@ decoderFn fn =
 -- Refine a value decoder, lifting the possible error to the session level.
 {-# INLINE refine #-}
 refine :: (a -> Either Text b) -> Value a -> Value b
-refine fn (Value run) = Value (A.refine fn . run)
+refine fn (Value run') = Value (A.refine fn . run')

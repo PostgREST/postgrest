@@ -3,7 +3,7 @@ module Hasql.Encoders.Params where
 import PostgreSQL.Binary.Encoding qualified as B
 import TextBuilder qualified as E
 
-import Hasql.Prelude
+import Hasql.Prelude hiding (print)
 
 import Hasql.Encoders.Value qualified as C
 import Hasql.LibPq14 qualified as A

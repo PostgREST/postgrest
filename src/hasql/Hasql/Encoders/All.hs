@@ -11,7 +11,7 @@ import PostgreSQL.Binary.Encoding qualified as A
 import PostgreSQL.Binary.Range qualified as R
 import TextBuilder qualified as C
 
-import Hasql.Prelude hiding (bool)
+import Hasql.Prelude hiding (bool, foldl, print)
 
 import Hasql.Encoders.Array qualified as Array
 import Hasql.Encoders.Params qualified as Params
@@ -502,7 +502,7 @@ field = \case
     Composite
       ( \val idt -> case val of
           Nothing -> A.nullField (PTI.oidWord32 elementOID)
-          Just val -> A.field (PTI.oidWord32 elementOID) (encode idt val)
+          Just val' -> A.field (PTI.oidWord32 elementOID) (encode idt val')
       )
       ( \case
           Nothing -> ["NULL"]

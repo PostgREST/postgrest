@@ -15,8 +15,8 @@ mkOID format x =
   OID x ((LibPQ.Oid . fromIntegral) x) format
 
 mkPTI :: LibPQ.Format -> Word32 -> Maybe Word32 -> PTI
-mkPTI format oid arrayOID =
-  PTI (mkOID format oid) (fmap (mkOID format) arrayOID)
+mkPTI format oid' arrayOID =
+  PTI (mkOID format oid') (fmap (mkOID format) arrayOID)
 
 -- * Constants
 

@@ -11,7 +11,12 @@ import Data.Vector.Generic qualified as GenericVector
 import PostgreSQL.Binary.Decoding qualified as A
 import PostgreSQL.Binary.Range qualified as R
 
-import Hasql.Prelude hiding (bool, maybe)
+import Hasql.Prelude hiding
+  ( bool
+  , init
+  , maybe
+  , replicateM
+  )
 
 import Hasql.Decoders.Array qualified as Array
 import Hasql.Decoders.Composite qualified as Composite
@@ -421,7 +426,7 @@ array (Array imp) = Value (Value.decoder (Array.run imp))
 -- won't work. You have to explicitly construct the array decoder using 'array'.
 {-# INLINE listArray #-}
 listArray :: NullableOrNot Value element -> Value [element]
-listArray = array . dimension replicateM . element
+listArray = array . dimension Prelude.replicateM . element
 
 -- |
 -- Lift a value decoder of element into a unidimensional array decoder producing a generic vector.

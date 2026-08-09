@@ -274,12 +274,12 @@ type TextBuilder =
 {-# INLINE forMToZero_ #-}
 forMToZero_ :: (Applicative m) => Int -> (Int -> m a) -> m ()
 forMToZero_ !startN f =
-  ($ pred startN) $ fix $ \loop !n -> when (n >= 0) $ f n *> loop (pred n)
+  ($ pred startN) $ fix $ \loop' !n -> when (n >= 0) $ f n *> loop' (pred n)
 
 {-# INLINE forMFromZero_ #-}
 forMFromZero_ :: (Applicative m) => Int -> (Int -> m a) -> m ()
 forMFromZero_ !endN f =
-  ($ 0) $ fix $ \loop !n -> when (n < endN) $ f n *> loop (succ n)
+  ($ 0) $ fix $ \loop' !n -> when (n < endN) $ f n *> loop' (succ n)
 
 {-# INLINE strictCons #-}
 strictCons :: a -> [a] -> [a]

@@ -2,7 +2,7 @@ module Hasql.Errors where
 
 import Data.ByteString.Char8 qualified as BC
 
-import Hasql.Prelude
+import Hasql.Prelude hiding (lines)
 
 -- | Error during execution of a session.
 data SessionError
@@ -37,20 +37,20 @@ instance Exception SessionError where
         findLineAndPos byteString errorPos =
           let (_, line, pos) =
                 BC.foldl'
-                  ( \(total, line, pos) c ->
+                  ( \(total, line', pos') c ->
                       case total + 1 of
-                        0 -> (total, line, pos)
+                        0 -> (total, line', pos')
                         cursor
-                          | cursor == errorPos -> (-1, line, pos + 1)
-                          | c == '\n' -> (total + 1, line + 1, 0)
-                          | otherwise -> (total + 1, line, pos + 1)
+                          | cursor == errorPos -> (-1, line', pos' + 1)
+                          | c == '\n' -> (total + 1, line' + 1, 0)
+                          | otherwise -> (total + 1, line', pos' + 1)
                   )
                   (0, 1, 0)
                   byteString
           in  (line, pos)
 
-        formatErrorContext :: ByteString -> ByteString -> Int -> ByteString
-        formatErrorContext query message errorPos =
+        formatErrorContext :: ByteString -> Int -> ByteString
+        formatErrorContext message errorPos =
           let
             lines = BC.lines query
             (lineNum, linePos) = findLineAndPos query errorPos
@@ -63,7 +63,7 @@ instance Exception SessionError where
         prettyQuery :: ByteString
         prettyQuery = case queryContext of
           Nothing -> query
-          Just (message, pos) -> formatErrorContext query message pos
+          Just (message, pos) -> formatErrorContext message pos
       in
         "QueryError!\n"
           <> "\n  Query:\n"

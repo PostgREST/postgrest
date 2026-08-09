@@ -16,7 +16,7 @@ import Data.UUID.V4 qualified as Uuid
 
 import Hasql.Connection (Connection)
 import Hasql.Pool.Observation
-import Hasql.Pool.Prelude
+import Hasql.Pool.Prelude hiding (timeout)
 
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
@@ -170,11 +170,11 @@ use Pool{..} sess = do
     onNewConn reuseVar = do
       settings <- poolFetchConnectionSettings
       now <- getMonotonicTimeNSec
-      id <- Uuid.nextRandom
-      poolObserver (ConnectionObservation id ConnectingConnectionStatus)
+      uuid <- Uuid.nextRandom
+      poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
       Connection.acquire settings >>= \case
         Left connErr -> do
-          poolObserver (ConnectionObservation id (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) connErr))))
+          poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) connErr))))
           atomically $ modifyTVar' poolCapacity succ
           return $ Left $ ConnectionUsageError connErr
         Right connection -> do
@@ -183,14 +183,14 @@ use Pool{..} sess = do
               Connection.release connection
               ErrorsDestruction.reset
                 ( \details -> do
-                    poolObserver (ConnectionObservation id (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
+                    poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
                 )
-                (poolObserver (ConnectionObservation id (TerminatedConnectionStatus (InitializationErrorTerminationReason err))))
+                (poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (InitializationErrorTerminationReason err))))
                 err
               return $ Left $ SessionUsageError err
             Right () -> do
-              poolObserver (ConnectionObservation id (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-              onLiveConn reuseVar (Entry connection now now id)
+              poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
+              onLiveConn reuseVar (Entry connection now now uuid)
 
     onConn reuseVar entry = do
       now <- getMonotonicTimeNSec

@@ -11,7 +11,7 @@
 module Hasql.Decoders.Results where
 
 import Hasql.Errors
-import Hasql.Prelude hiding (many, maybe)
+import Hasql.Prelude hiding (loop, many, maybe)
 
 import Hasql.Decoders.Result qualified as Result
 import Hasql.LibPq14 qualified as LibPQ

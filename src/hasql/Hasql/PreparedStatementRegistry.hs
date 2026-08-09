@@ -25,11 +25,11 @@ new =
 {-# INLINEABLE update #-}
 update :: LocalKey -> (ByteString -> IO (Bool, a)) -> (ByteString -> IO a) -> PreparedStatementRegistry -> IO a
 update localKey onNewRemoteKey onOldRemoteKey (PreparedStatementRegistry table counter) =
-  lookup >>= maybe new old
+  lookup >>= maybe new' old
   where
     lookup =
       A.lookup table localKey
-    new =
+    new' =
       readIORef counter >>= onN
       where
         onN n =
