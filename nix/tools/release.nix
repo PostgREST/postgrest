@@ -45,7 +45,10 @@ let
           echo "Updating docs/conf.py ..."
           sed -i -E "s/^(version = ).*$/\1\"$new_docs_version\"/" docs/conf.py > /dev/null
 
-          git add postgrest.cabal docs/conf.py > /dev/null
+          echo "Updating Haskell source file links ..."
+          sed -i -E "s#(github\.com/PostgREST/postgrest/blob)/main/#\1/$new_version/#g" docs/explanations/architecture.rst
+
+          git add postgrest.cabal docs/conf.py docs/explanations/architecture.rst > /dev/null
         }
 
         today_date_for_changelog="$(date '+%Y-%m-%d')"
