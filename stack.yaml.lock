@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: auto-update-0.2.6@sha256:4adf0d523c8b8fbd53f32b79f115d5f304da7e1a2b35b66625497add8e9abbb5,1670
+    hackage: auto-update-0.2.7@sha256:32ca6ce351604a17ee79e4086939f798f958f8407478288e9adb7adeb194c6ea,1670
     pantry-tree:
-      sha256: ce58248c2d6d83cf0dfcfe0aec20c238b279e70926f49108a38fe6917dc0c532
+      sha256: 641faa7d5ee516195ecd4b538f170722d56f84e3bc5714c6bbe8123849b49983
       size: 1105
   original:
-    hackage: auto-update-0.2.6
+    hackage: auto-update-0.2.7
 - completed:
     hackage: configurator-pg-0.2.11@sha256:de0c56386591e85159436b0af04a8f15a4f4e156354e99709676c2c2ee959505,2850
     pantry-tree:

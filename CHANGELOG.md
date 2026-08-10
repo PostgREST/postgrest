@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- JWT validation uses wrong current time due to a bug in auto-update by @mkleczek in #5159
+
 ## [14.16] - 2026-07-27
 
 ### Fixed

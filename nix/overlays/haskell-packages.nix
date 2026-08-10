@@ -50,6 +50,16 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
+      # TODO: Remove once available in nixpkgs
+      auto-update =
+        prev.callHackageDirect
+          {
+            pkg = "auto-update";
+            ver = "0.2.7";
+            sha256 = "sha256-fHX/OqF/cB9rbpGpLUtA29bcEJS43HUWHcK55yUxKoo=";
+          }
+          { };
+
       # TODO: Remove once available in nixpkgs haskellPackages
       configurator-pg =
         prev.callHackageDirect
