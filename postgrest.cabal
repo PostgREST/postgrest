@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               postgrest
-version:            16.0
+version:            16.1
 synopsis:           REST API for any Postgres database
 description:        Reads the schema of a PostgreSQL database and creates RESTful routes
                     for tables, views, and functions, supporting all HTTP methods that security
