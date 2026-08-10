@@ -12,6 +12,13 @@ packages:
   original:
     hackage: aeson-jsonpath-0.4.2.0
 - completed:
+    hackage: auto-update-0.2.7@sha256:32ca6ce351604a17ee79e4086939f798f958f8407478288e9adb7adeb194c6ea,1670
+    pantry-tree:
+      sha256: 641faa7d5ee516195ecd4b538f170722d56f84e3bc5714c6bbe8123849b49983
+      size: 1105
+  original:
+    hackage: auto-update-0.2.7
+- completed:
     hackage: configurator-pg-0.2.11@sha256:de0c56386591e85159436b0af04a8f15a4f4e156354e99709676c2c2ee959505,2850
     pantry-tree:
       sha256: 7b4daa4ea970335414f26b313a168cd12182b7b34ea8af2616c83d38699c4301
