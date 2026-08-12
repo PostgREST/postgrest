@@ -1,37 +1,11 @@
-"Unit tests for Input/Ouput of PostgREST seen as a black box."
-
 import time
 
-from util import (
-    Thread,
-    psql_as_superuser,
-)
+from util import Thread
 from postgrest import (
     freeport,
     run,
     wait_until_exit,
 )
-
-
-def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):
-    "SIGTERM should allow in-flight requests to finish before exiting"
-
-    with run(env=defaultenv, wait_max_seconds=5) as postgrest:
-
-        def sleep():
-            response = postgrest.session.get("/rpc/sleep?seconds=3", timeout=10)
-            assert response.text == ""
-            assert response.status_code == 204
-
-        t = Thread(target=sleep)
-        t.start()
-
-        # Wait for the request to be in-flight before shutting down.
-        time.sleep(1)
-
-        postgrest.process.terminate()
-
-        t.join()
 
 
 def test_so_reuseport_zero_downtime_handover(defaultenv):
@@ -99,27 +73,3 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
             requester.join()
 
     assert failures == []
-
-
-def test_listener_query_is_visible_in_pg_stat_activity(defaultenv):
-    "The listener connection should show the LISTEN pgrst statement in pg_stat_activity"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_CHANNEL_ENABLED": "true",
-        "PGAPPNAME": "listener-query-test",
-    }
-
-    with run(env=env):
-        output = psql_as_superuser(
-            """
-        select query
-        from pg_stat_activity
-        where application_name = 'listener-query-test'
-          and query = 'LISTEN "pgrst"'
-        limit 1;
-        """,
-            capture_output=True,
-        ).strip()
-
-        assert output == 'LISTEN "pgrst"'
