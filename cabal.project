@@ -1,4 +1,6 @@
-packages: postgrest.cabal
+packages:
+  postgrest.cabal
+  restart/restart.cabal
 tests: true
 allow-newer:
   hasql:postgresql-libpq

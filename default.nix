@@ -32,7 +32,10 @@ let
   # build of new Nix derivations when changed.
   src =
     pkgs.lib.sourceFilesBySuffices
-      (pkgs.gitignoreSource ./.)
+      (pkgs.lib.cleanSourceWith {
+        src = pkgs.gitignoreSource ./.;
+        filter = path: _: !(pkgs.lib.hasPrefix "${toString ./restart}/" (toString path));
+      })
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
 
   allOverlays =
@@ -70,6 +73,12 @@ let
 
   haskellPackages = pkgs.haskell.packages."${compiler}";
 
+  restartPackages =
+    import ./restart {
+      inherit system pkgs haskellPackages;
+      lib = pkgs.haskell.lib;
+    };
+
   # Dynamic derivation for PostgREST
   postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix name src { }) [
     # To allow ghc-datasize to be used.
@@ -88,10 +97,10 @@ let
   inherit (pkgs.haskell) lib;
 
   nixos-lib = import (pkgs.path + "/nixos/lib") { };
-  runTest = postgrest: test: (nixos-lib.runTest {
+  runTest = overlayAttrs: test: (nixos-lib.runTest {
     hostPkgs = pkgs;
-    # Replace the top-level `pkgs.postgrest` attribute with our current version on this branch.
-    defaults.nixpkgs.overlays = [ (_: _: { inherit postgrest; }) ];
+    # Replace selected package attributes with the current version on this branch.
+    defaults.nixpkgs.overlays = [ (_: _: overlayAttrs) ];
     # Speeds up evaluation a little bit; documentation is really not required for tests.
     defaults.documentation.enable = pkgs.lib.mkDefault false;
     imports = [ test ];
@@ -119,6 +128,8 @@ rec {
   ];
 
   inherit (postgrest) env;
+
+  inherit (restartPackages) restart;
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
@@ -183,5 +194,7 @@ rec {
     pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 
   # NixOS VM tests
-  nixpkgs-nixos-test = runTest postgrestStatic (pkgs.path + "/nixos/tests/postgrest.nix");
+  nixpkgs-nixos-test = runTest { postgrest = postgrestStatic; } (pkgs.path + "/nixos/tests/postgrest.nix");
+
+  inherit (restartPackages) processRestartTestApp process-restart-systemd-test;
 }
