@@ -158,7 +158,7 @@ library
                     , wai-extra                 >= 3.1.8 && < 3.2
                     -- We already depend on wai-logger >= 2.3.7 indirectly via wai-extra,
                     -- but we want to depend on 2.4.0 which fixes 'unknownSocket' log output
-                    -- for unix sockets; this is tested in test/io/test_io.py. See
+                    -- for unix sockets; this is tested in test/io/test_log.py. See
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
                     , warp                      >= 3.4.14 && < 3.5
