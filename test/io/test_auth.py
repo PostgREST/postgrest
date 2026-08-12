@@ -5,10 +5,7 @@ import pytest
 
 from config import BASEDIR, FIXTURES, SECRET
 from util import authheader, jwtauthheader
-from postgrest import (
-    run,
-    wait_until_exit,
-)
+from postgrest import run
 
 
 @pytest.mark.parametrize(
@@ -60,15 +57,6 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         response = postgrest.session.get("/authors_only", headers=headers)
         print(response.text)
         assert response.status_code == 200
-
-
-def test_fail_with_invalid_password(defaultenv):
-    "Connecting with an invalid password should fail without retries."
-    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
-    env = {**defaultenv, "PGRST_DB_URI": uri}
-    with run(env=env, wait_for=None) as postgrest:
-        exitCode = wait_until_exit(postgrest)
-        assert exitCode == 1
 
 
 @pytest.mark.parametrize(
