@@ -158,6 +158,13 @@ Note that on the database side we have our regular ``uuid`` format.
 
   If there's no CAST from ``json`` to ``app_uuid`` defined, the request body will still work with the native uuid format (``cc7ec76c-5254-4dfc-bf19-9a70ba2ae9b9``).
 
+Domain NULL filtering
+=====================
+
+Domains inherit the base type's NULL semantics.
+
+PostgREST does not support changing ``is.null`` operator semantics on domain types. It translates directly to SQL ``IS NULL`` at query level and so the meaning of NULL cannot be changed. For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/4612>`_.
+
 Advantages over Views
 =====================
 
