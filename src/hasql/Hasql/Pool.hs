@@ -56,9 +56,9 @@ data Pool = Pool
   -- ^ Avail connections.
   , poolCapacity :: TVar Int
   -- ^ Remaining capacity.
-  -- The pool size limits the sum of poolCapacity, the length
-  -- of poolConnectionQueue and the number of in-flight
-  -- connections.
+  --     The pool size limits the sum of poolCapacity, the length
+  --     of poolConnectionQueue and the number of in-flight
+  --     connections.
   , poolReuseVar :: TVar (TVar Bool)
   -- ^ Whether to return a connection to the pool.
   , poolReaperRef :: IORef ()
@@ -250,6 +250,6 @@ data UsageError
     SessionUsageError Session.SessionError
   | -- | Timeout acquiring a connection.
     AcquisitionTimeoutUsageError
-  deriving (Eq, Show)
+  deriving (Show)
 
 instance Exception UsageError

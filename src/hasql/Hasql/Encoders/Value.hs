@@ -10,11 +10,6 @@ import Hasql.PostgresTypeInfo qualified as PTI
 data Value a
   = Value PTI.OID PTI.OID (Bool -> a -> B.Encoding) (a -> C.TextBuilder)
 
-instance Contravariant Value where
-  {-# INLINE contramap #-}
-  contramap f (Value valueOID arrayOID encode render) =
-    Value valueOID arrayOID (\integerDatetimes input -> encode integerDatetimes (f input)) (render . f)
-
 {-# INLINE unsafePTI #-}
 unsafePTI :: PTI.PTI -> (Bool -> a -> B.Encoding) -> (a -> C.TextBuilder) -> Value a
 unsafePTI pti =
