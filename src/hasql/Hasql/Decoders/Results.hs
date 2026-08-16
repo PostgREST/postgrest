@@ -19,12 +19,7 @@ import Hasql.Prelude qualified as Prelude
 
 newtype Results a
   = Results (ReaderT (Bool, LibPQ.Connection) (ExceptT CommandError IO) a)
-  deriving (Applicative, Functor, Monad)
-
-instance Filterable Results where
-  {-# INLINE mapMaybe #-}
-  mapMaybe fn =
-    refine (Prelude.maybe (Left "Invalid result") Right . fn)
+  deriving (Applicative, Functor)
 
 {-# INLINE run #-}
 run :: Results a -> LibPQ.Connection -> Bool -> IO (Either CommandError a)
@@ -71,10 +66,3 @@ dropRemainders =
           where
             checkErrors =
               ExceptT (first ResultError <$> Result.run Result.noResult integerDatetimes result)
-
-refine :: (a -> Either Text b) -> Results a -> Results b
-refine refiner (Results stack) = Results
-  $ ReaderT
-  $ \env -> ExceptT $ do
-    resultEither <- runExceptT $ runReaderT stack env
-    return $ resultEither >>= first (ResultError . UnexpectedResult) . refiner

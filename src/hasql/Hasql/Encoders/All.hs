@@ -62,7 +62,7 @@ import Hasql.PostgresTypeInfo qualified as PTI
 --     Female -> "female"
 -- @
 newtype Params a = Params (Params.Params a)
-  deriving (Contravariant, Divisible, Monoid, Semigroup)
+  deriving (Contravariant, Monoid, Semigroup)
 
 -- |
 -- No parameters. Same as `mempty` and `conquered`.
@@ -100,7 +100,6 @@ nullable = Nullable
 -- |
 -- Value encoder.
 newtype Value a = Value (Value.Value a)
-  deriving (Contravariant)
 
 -- |
 -- Encoder of @INT4@ values.
@@ -191,7 +190,6 @@ foldableArray = array . dimension foldl' . element
 -- Please note that the PostgreSQL @IN@ keyword does not accept an array, but rather a syntactical list of
 -- values, thus this encoder is not suited for that. Use a @value = ANY($1)@ condition instead.
 newtype Array a = Array (Array.Array a)
-  deriving (Contravariant)
 
 -- |
 -- Lifts a 'Value' encoder into an 'Array' encoder.
@@ -225,23 +223,3 @@ data Composite a
   = Composite
       (a -> Bool -> A.Composite)
       (a -> [C.TextBuilder])
-
-instance Contravariant Composite where
-  contramap f (Composite encode print) =
-    Composite (encode . f) (print . f)
-
-instance Divisible Composite where
-  divide f (Composite encodeL printL) (Composite encodeR printR) =
-    Composite
-      (\val idt -> case f val of (lVal, rVal) -> encodeL lVal idt <> encodeR rVal idt)
-      (\val -> case f val of (lVal, rVal) -> printL lVal <> printR rVal)
-  conquer = mempty
-
-instance Semigroup (Composite a) where
-  Composite encodeL printL <> Composite encodeR printR =
-    Composite
-      (\val idt -> encodeL val idt <> encodeR val idt)
-      (\val -> printL val <> printR val)
-
-instance Monoid (Composite a) where
-  mempty = Composite mempty mempty

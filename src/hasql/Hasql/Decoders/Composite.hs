@@ -6,7 +6,7 @@ import Hasql.Prelude
 
 newtype Composite a
   = Composite (ReaderT Bool A.Composite a)
-  deriving (Applicative, Functor, Monad, MonadFail)
+  deriving (Applicative, Functor)
 
 {-# INLINE run #-}
 run :: Composite a -> Bool -> A.Value a
