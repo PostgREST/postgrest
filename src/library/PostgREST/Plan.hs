@@ -653,27 +653,23 @@ findRel schema allRels origin target hint =
           Nothing ->
               -- /projects?select=clients(*)
               target == qiName relForeignTable -- clients
-              ||
               -- /projects?select=projects_client_id_fkey(*)
-              matchConstraint target relCardinality -- projects_client_id_fkey
+              || matchConstraint target relCardinality -- projects_client_id_fkey
               && not relFTableIsView
-              ||
               -- /projects?select=client_id(*)
-              matchFKSingleCol target relCardinality -- client_id
+              || matchFKSingleCol target relCardinality -- client_id
               && not relFTableIsView
           Just hnt ->
             -- /projects?select=clients(*)
             target == qiName relForeignTable -- clients
             && (
               -- /projects?select=clients!projects_client_id_fkey(*)
-              matchConstraint hnt relCardinality || -- projects_client_id_fkey
-
+              matchConstraint hnt relCardinality -- projects_client_id_fkey
               -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
-              matchFKSingleCol hnt relCardinality      || -- client_id
-              matchFKRefSingleCol hnt relCardinality   || -- id
-
+              || matchFKSingleCol hnt relCardinality -- client_id
+              || matchFKRefSingleCol hnt relCardinality -- id
               -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
-              matchJunction hnt relCardinality -- users_tasks
+              || matchJunction hnt relCardinality -- users_tasks
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
