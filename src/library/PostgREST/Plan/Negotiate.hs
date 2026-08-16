@@ -73,9 +73,9 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
       x                                           -> lookupHandler x
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed
     lookupHandler mt =
-      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces) <|> -- lookup for identifier and `*/*`
-      when' defaultSelect (HM.lookup (RelId identifier, mt) produces) <|>    -- lookup for identifier and a particular media type
-      HM.lookup (RelAnyElement, mt) produces                                    -- lookup for anyelement and a particular media type
+      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces)  -- lookup for identifier and `*/*`
+      <|> when' defaultSelect (HM.lookup (RelId identifier, mt) produces) -- lookup for identifier and a particular media type
+      <|> HM.lookup (RelAnyElement, mt) produces                          -- lookup for anyelement and a particular media type
     when' :: Bool -> Maybe a -> Maybe a
     when' True (Just a) = Just a
     when' _ _           = Nothing
