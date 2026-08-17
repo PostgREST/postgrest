@@ -106,6 +106,12 @@ All notable changes to this project will be documented in this file. From versio
       Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
   + Update the `jwt-role-claim-key` value accoring to the above rules. Also see the syntax reference: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
 
+## [14.17] - 2026-08-13
+
+### Fixed
+
+- JWT validation uses wrong current time due to a bug in auto-update by @mkleczek in #5159
+
 ## [14.16] - 2026-07-27
 
 ### Fixed
