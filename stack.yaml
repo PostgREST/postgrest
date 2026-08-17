@@ -1,6 +1,10 @@
 # When updating, update GHC version in .github/workflows/build.yaml as well.
 resolver: lts-24.48 # 2026-06-30, GHC 9.10.3
 
+packages:
+  - .
+  - restart
+
 nix:
   packages:
     - libpq
