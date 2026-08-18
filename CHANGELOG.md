@@ -98,6 +98,7 @@ All notable changes to this project will be documented in this file. From versio
   + Ensure your requests always have a valid timezone.
 
 - `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
+  + If you don't explicitly set this config, you don't need to change anything as the default value will do the same thing on this version. If you do set this config, read on.
   + Now all config values must start with `$` character.
      Example: `.roles.read` -> `$.roles.read`
   + Keys with special characters, with the exception of `_` char must be quoted.
