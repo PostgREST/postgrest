@@ -118,7 +118,7 @@ Releases
 
 PostgREST follows ``MAJOR.PATCH`` two-part versioning:
 
-- ``MAJOR``: feature release, may deprecate or remove things.
+- ``MAJOR``: feature release, may introduce new features, deprecate existing features, or remove previously deprecated features.
 - ``PATCH``: fix/security release only, no features and no behavior changes.
 
 MAJOR releases are published twice a year, with their scope and target dates tracked through `GitHub milestones <https://github.com/PostgREST/postgrest/milestones>`_.
@@ -127,6 +127,16 @@ PATCH releases are published on an as-needed basis.
 Starting from ``v14.0``, only even-numbered MAJOR versions are released, reserving odd-numbered MAJOR versions for development.
 
 All releases are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_, along with the corresponding upgrade guides.
+
+.. _depol:
+
+Deprecation policy
+~~~~~~~~~~~~~~~~~~
+
+- A supported feature will be deprecated for at least one MAJOR release before it is removed.
+- Deprecations only apply to the API and configuration options.
+- Use of deprecated features will raise a deprecation warning to provide users with notice and a migration path before removal.
+- Exceptions may be made for security vulnerabilities, cases where maintaining compatibility would impose significant maintenance burden or experimental/undocumented functionality.
 
 Tutorials
 ---------
