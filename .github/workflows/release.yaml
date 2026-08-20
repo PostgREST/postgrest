@@ -60,6 +60,9 @@ jobs:
 
           mkdir -p release-bundle
 
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-aarch64.tar.xz" \
+            -C artifacts/postgrest-linux-static-aarch64 postgrest
+
           tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-x86-64.tar.xz" \
             -C artifacts/postgrest-linux-static-x86-64 postgrest
 

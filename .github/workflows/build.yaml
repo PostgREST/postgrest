@@ -59,6 +59,26 @@ jobs:
           if-no-files-found: error
 
 
+  static-aarch64:
+    name: Nix - Linux aarch64 static
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build static executable
+        run: nix-build -A postgrestStatic -A postgrestStatic.tests
+      - name: Save built executable as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: postgrest-linux-static-aarch64
+          path: result/bin/postgrest
+          if-no-files-found: error
+
+
   macos:
     name: Nix - MacOS
     runs-on: macos-26
