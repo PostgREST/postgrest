@@ -25,12 +25,13 @@ import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
 
 import Network.HTTP.Types.Status (Status, status400, status500)
 
-import PostgREST.Config        (LogLevel (..), Verbosity (..))
-import PostgREST.Debounce      (makeDebouncer)
-import PostgREST.Logger.Apache (apacheFormat)
+import PostgREST.Config                  (LogLevel (..), Verbosity (..))
+import PostgREST.Config.DeprecatedJSPath (dumpDeprecatedJSPath)
+import PostgREST.Debounce                (makeDebouncer)
+import PostgREST.Logger.Apache           (apacheFormat)
 import PostgREST.Observation
-import PostgREST.Query         (MainQuery (..))
-import PostgREST.SchemaCache   (queryTimingsWLabels)
+import PostgREST.Query                   (MainQuery (..))
+import PostgREST.SchemaCache             (queryTimingsWLabels)
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
@@ -196,6 +197,10 @@ observationMessages = \case
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
     [ "WARNING: " <> warningMsg
     , "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
+    ]
+  DeprecatedJSPathSyntaxObs djsp ->
+    ["WARNING: The config `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` is using the deprecated JSPath syntax."
+    , "Update `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` to the new JSONPath syntax as support for JSPath will be removed in a future release. See the migration guide on how to update: https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16"
     ]
   ConfigReadErrorObs usageErr ->
     pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr

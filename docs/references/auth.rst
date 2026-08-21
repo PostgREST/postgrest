@@ -224,6 +224,11 @@ It's recommended to leave the JWT cache enabled as our load tests indicate ~20% 
 JWT Role Extraction
 -------------------
 
+.. warning::
+
+  - The ``jwt-role-claim-key`` config remains backwards compatible with the `JSPath DSL from v14 <https://docs.postgrest.org/en/v14/references/auth.html#jwt-role-extraction>`_ and previous versions, however this compatibility is **deprecated** and will be removed in a future release.
+  - A warning will be logged on startup and config reloads when the deprecated syntax is used.
+
 A JSON Path (`RFC 9535 <https://www.rfc-editor.org/rfc/rfc9535.html>`_) can be specified for the location of the :code:`role` key in the JWT claims. It's configured by :ref:`jwt-role-claim-key`. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
 
 You can quickly try out JSON Path by visiting https://serdejsonpath.live.

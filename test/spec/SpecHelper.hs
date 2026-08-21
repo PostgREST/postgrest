@@ -155,7 +155,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
   , configJwtAudience               = Nothing
-  , configJwtRoleClaimKey           = defaultRoleJSPathKey -- $.role
+  , configJwtRoleClaimKey           = Right defaultRoleJSPathKey -- $.role
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10

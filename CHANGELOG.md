@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Added
+
+- Make `jwt-role-claim-key` config backwards compatible by @taimoorzaeem in #5171
+
+### Deprecated
+
+- The old (pre-v16) syntax for JSPath in `jwt-role-claim-key` is deprecated by @taimoorzaeem in #5171
+  + You will see a warning in the logs when old syntax is used for the config.
+  + See [migration to v16](https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16) section for migration guide.
+
 ## [16.1] - 2026-08-10
 
 ### Fixed

@@ -11,14 +11,15 @@ module PostgREST.Observation
   , ObservationHandler
   ) where
 
-import qualified Hasql.Connection           as SQL
-import qualified Hasql.Pool                 as SQL
-import qualified Hasql.Pool.Observation     as SQL
-import           Network.HTTP.Types.Status  (Status)
-import qualified Network.Wai                as Wai
+import qualified Hasql.Connection                  as SQL
+import qualified Hasql.Pool                        as SQL
+import qualified Hasql.Pool.Observation            as SQL
+import           Network.HTTP.Types.Status         (Status)
+import qualified Network.Wai                       as Wai
+import           PostgREST.Config.DeprecatedJSPath (DeprecatedJSPath)
 import           PostgREST.Config.PgVersion
-import           PostgREST.Query            (MainQuery)
-import           PostgREST.SchemaCache      (QueryTimings)
+import           PostgREST.Query                   (MainQuery)
+import           PostgREST.SchemaCache             (QueryTimings)
 
 import Protolude hiding (toList)
 
@@ -62,6 +63,7 @@ data Observation
   | JwtCacheEviction
   | TerminationUnixSignalObs Text
   | WarpServerObs Text
+  | DeprecatedJSPathSyntaxObs DeprecatedJSPath
   deriving (Generic)
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01

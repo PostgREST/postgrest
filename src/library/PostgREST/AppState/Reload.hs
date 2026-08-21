@@ -180,6 +180,13 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         observer $ ConfigInvalidObs err
     Right newConf -> do
       putConfig appState newConf
+
+      -- Emit deprecation warning
+      -- TODO: Remove before next major
+      case configJwtRoleClaimKey newConf of
+        Left djsp ->  observer $ DeprecatedJSPathSyntaxObs djsp
+        Right _   -> pure ()
+
       -- After the config has reloaded, jwt-secret might have changed, so
       -- if it has changed, it is important to invalidate the jwt cache
       -- entries, because they were cached using the old secret
