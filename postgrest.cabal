@@ -59,6 +59,7 @@ library
                       PostgREST.Config.Database
                       PostgREST.Debounce
                       PostgREST.Config.JSPath
+                      PostgREST.Config.DeprecatedJSPath
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.Cors
