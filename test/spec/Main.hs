@@ -98,7 +98,7 @@ main = do
       appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState) mempty
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return ((), postgrest appState (pure ()))
+      return ((), postgrest appState)
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache
