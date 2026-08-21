@@ -1,8 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
-{-|
-Module      : PostgREST.Logger
-Description : Metrics based on the Observation module. See Observation.hs.
--}
+
+-- |
+-- Module      : PostgREST.Logger
+-- Description : Metrics based on the Observation module. See Observation.hs.
 module PostgREST.Metrics
   ( init
   , ConnTrack
@@ -11,51 +11,52 @@ module PostgREST.Metrics
   , connectionCounts
   , observationMetrics
   , metricsToText
-  ) where
+  )
+where
 
-import qualified Data.ByteString.Lazy   as LBS
-import qualified Hasql.Pool.Observation as SQL
+import Control.Arrow ((&&&))
+import Data.Bitraversable (bisequenceA)
+import Data.Tuple.Extra (both)
+import Data.UUID (UUID)
+import GHC.Stats (getRTSStatsEnabled)
+import Prometheus
+import Protolude
 
-import           GHC.Stats             (getRTSStatsEnabled)
-import           Prometheus
-import qualified Prometheus.Metric.GHC as PMG
+import Data.ByteString.Lazy qualified as LBS
+import Focus qualified
+import Hasql.Pool.Observation qualified as SQL
+import Prometheus.Metric.GHC qualified as PMG
+import StmHamt.SizedHamt qualified as SH
 
 import PostgREST.Observation
 
-import           Control.Arrow      ((&&&))
-import           Data.Bitraversable (bisequenceA)
-import           Data.Tuple.Extra   (both)
-import           Data.UUID          (UUID)
-import qualified Focus
-import           Protolude
-import qualified StmHamt.SizedHamt  as SH
-
-data MetricsState =
-  MetricsState {
-    poolTimeouts         :: Counter,
-    connTrack            :: ConnTrack,
-    poolWaiting          :: Gauge,
-    poolMaxSize          :: Gauge,
-    schemaCacheLoads     :: Vector Label1 Counter,
-    schemaCacheQueryTime :: Gauge,
-    jwtCacheRequests     :: Counter,
-    jwtCacheHits         :: Counter,
-    jwtCacheEvictions    :: Counter
+data MetricsState
+  = MetricsState
+  { poolTimeouts :: Counter
+  , connTrack :: ConnTrack
+  , poolWaiting :: Gauge
+  , poolMaxSize :: Gauge
+  , schemaCacheLoads :: Vector Label1 Counter
+  , schemaCacheQueryTime :: Gauge
+  , jwtCacheRequests :: Counter
+  , jwtCacheHits :: Counter
+  , jwtCacheEvictions :: Counter
   }
 
 init :: Int -> IO MetricsState
 init configDbPoolSize = do
   whenM getRTSStatsEnabled $ void $ register PMG.ghcMetrics
-  metricState <- MetricsState <$>
-    register (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts")) <*>
-    register (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker)) <*>
-    register (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection")) <*>
-    register (gauge (Info "pgrst_db_pool_max" "Max pool connections")) <*>
-    register (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded")) <*>
-    register (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load")) <*>
-    register (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups")) <*>
-    register (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits")) <*>
-    register (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
+  metricState <-
+    MetricsState
+      <$> register (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
+      <*> register (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
+      <*> register (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
+      <*> register (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
+      <*> register (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
+      <*> register (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
+      <*> register (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups"))
+      <*> register (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits"))
+      <*> register (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
   setGauge (poolMaxSize metricState) (fromIntegral configDbPoolSize)
   pure metricState
   where
@@ -98,26 +99,30 @@ observationMetrics MetricsState{..} obs = case obs of
 metricsToText :: IO LBS.ByteString
 metricsToText = exportMetricsAsText
 
-data ConnStats = ConnStats {
-    connected :: Int,
-    inUse     :: Int
-} deriving (Eq, Show)
+data ConnStats = ConnStats
+  { connected :: Int
+  , inUse :: Int
+  }
+  deriving (Eq, Show)
 
-data ConnTrack = ConnTrack { connTrackConnected :: SH.SizedHamt UUID, connTrackInUse :: SH.SizedHamt UUID }
+data ConnTrack = ConnTrack {connTrackConnected :: SH.SizedHamt UUID, connTrackInUse :: SH.SizedHamt UUID}
 
 connectionTracker :: IO ConnTrack
-connectionTracker =  ConnTrack <$> SH.newIO <*> SH.newIO
+connectionTracker = ConnTrack <$> SH.newIO <*> SH.newIO
 
 trackConnections :: ConnTrack -> SQL.Observation -> IO ()
 trackConnections ConnTrack{..} (SQL.ConnectionObservation uuid status) = case status of
-  SQL.ReadyForUseConnectionStatus _ -> atomically $
-    SH.insert identity uuid connTrackConnected *>
-    SH.focus Focus.delete identity uuid connTrackInUse
-  SQL.TerminatedConnectionStatus _ -> atomically $
-    SH.focus Focus.delete identity uuid connTrackConnected *>
-    SH.focus Focus.delete identity uuid connTrackInUse
-  SQL.InUseConnectionStatus -> atomically $
-    SH.insert identity uuid connTrackInUse
+  SQL.ReadyForUseConnectionStatus _ ->
+    atomically $
+      SH.insert identity uuid connTrackConnected
+        *> SH.focus Focus.delete identity uuid connTrackInUse
+  SQL.TerminatedConnectionStatus _ ->
+    atomically $
+      SH.focus Focus.delete identity uuid connTrackConnected
+        *> SH.focus Focus.delete identity uuid connTrackInUse
+  SQL.InUseConnectionStatus ->
+    atomically $
+      SH.insert identity uuid connTrackInUse
   _ -> mempty
 
 connectionCounts :: ConnTrack -> IO ConnStats

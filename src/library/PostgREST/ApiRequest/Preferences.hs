@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 -- |
 -- Module: PostgREST.ApiRequest.Preferences
 -- Description: Track client preferences to be employed when processing requests
@@ -5,30 +7,29 @@
 -- Track client preferences set in HTTP 'Prefer' headers according to RFC7240[1].
 --
 -- [1] https://datatracker.ietf.org/doc/html/rfc7240
---
-{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.ApiRequest.Preferences
-  ( Preferences(..)
-  , PreferCount(..)
-  , PreferHandling(..)
-  , PreferMissing(..)
-  , PreferRepresentation(..)
-  , PreferResolution(..)
-  , PreferTransaction(..)
-  , PreferTimezone(..)
-  , PreferMaxAffected(..)
+  ( Preferences (..)
+  , PreferCount (..)
+  , PreferHandling (..)
+  , PreferMissing (..)
+  , PreferRepresentation (..)
+  , PreferResolution (..)
+  , PreferTransaction (..)
+  , PreferTimezone (..)
+  , PreferMaxAffected (..)
   , fromHeaders
   , shouldCount
   , shouldExplainCount
   , prefAppliedHeader
   , toHeaderValue
-  ) where
-
-import qualified Data.ByteString.Char8     as BS
-import qualified Data.Map                  as Map
-import qualified Network.HTTP.Types.Header as HTTP
+  )
+where
 
 import Protolude
+
+import Data.ByteString.Char8 qualified as BS
+import Data.Map qualified as Map
+import Network.HTTP.Types.Header qualified as HTTP
 
 -- $setup
 -- Setup for doctests
@@ -49,16 +50,16 @@ import Protolude
 -- | Preferences recognized by the application.
 data Preferences
   = Preferences
-    { preferResolution     :: Maybe PreferResolution
-    , preferRepresentation :: Maybe PreferRepresentation
-    , preferCount          :: Maybe PreferCount
-    , preferTransaction    :: Maybe PreferTransaction
-    , preferMissing        :: Maybe PreferMissing
-    , preferHandling       :: Maybe PreferHandling
-    , preferTimezone       :: Maybe PreferTimezone
-    , preferMaxAffected    :: Maybe PreferMaxAffected
-    , invalidPrefs         :: [ByteString]
-    }
+  { preferResolution :: Maybe PreferResolution
+  , preferRepresentation :: Maybe PreferRepresentation
+  , preferCount :: Maybe PreferCount
+  , preferTransaction :: Maybe PreferTransaction
+  , preferMissing :: Maybe PreferMissing
+  , preferHandling :: Maybe PreferHandling
+  , preferTimezone :: Maybe PreferTimezone
+  , preferMaxAffected :: Maybe PreferMaxAffected
+  , invalidPrefs :: [ByteString]
+  }
 
 -- |
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
@@ -125,29 +126,29 @@ data Preferences
 --     , preferMaxAffected = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
---
 fromHeaders :: Bool -> [HTTP.Header] -> Preferences
 fromHeaders allowTxDbOverride headers =
   Preferences
-    { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
+    { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
-    , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
-    , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
-    , preferHandling       = parsePrefs [Strict, Lenient]
-    , preferTimezone       = PreferTimezone <$> timezonePref
-    , preferMaxAffected    = PreferMaxAffected <$> maxAffectedPref
-    , invalidPrefs         = filter isUnacceptable prefs
+    , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
+    , preferTransaction = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
+    , preferMissing = parsePrefs [ApplyDefaults, ApplyNulls]
+    , preferHandling = parsePrefs [Strict, Lenient]
+    , preferTimezone = PreferTimezone <$> timezonePref
+    , preferMaxAffected = PreferMaxAffected <$> maxAffectedPref
+    , invalidPrefs = filter isUnacceptable prefs
     }
   where
-    mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
+    mapToHeadVal :: (ToHeaderValue a) => [a] -> [ByteString]
     mapToHeadVal = map toHeaderValue
-    acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
-                    mapToHeadVal [Full, None, HeadersOnly] ++
-                    mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
-                    mapToHeadVal [Commit, Rollback] ++
-                    mapToHeadVal [ApplyDefaults, ApplyNulls] ++
-                    mapToHeadVal [Strict, Lenient]
+    acceptedPrefs =
+      mapToHeadVal [MergeDuplicates, IgnoreDuplicates]
+        ++ mapToHeadVal [Full, None, HeadersOnly]
+        ++ mapToHeadVal [ExactCount, PlannedCount, EstimatedCount]
+        ++ mapToHeadVal [Commit, Rollback]
+        ++ mapToHeadVal [ApplyDefaults, ApplyNulls]
+        ++ mapToHeadVal [Strict, Lenient]
 
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
@@ -158,41 +159,43 @@ fromHeaders allowTxDbOverride headers =
 
     maxAffectedPref = listStripPrefix "max-affected=" prefs >>= readMaybe . BS.unpack
 
-    isUnacceptable p = p `notElem` acceptedPrefs &&
-                       isNothing (BS.stripPrefix "timezone=" p) &&
-                       isNothing (BS.stripPrefix "max-affected=" p)
+    isUnacceptable p =
+      p `notElem` acceptedPrefs
+        && isNothing (BS.stripPrefix "timezone=" p)
+        && isNothing (BS.stripPrefix "max-affected=" p)
 
-    parsePrefs :: ToHeaderValue a => [a] -> Maybe a
+    parsePrefs :: (ToHeaderValue a) => [a] -> Maybe a
     parsePrefs vals =
       head $ mapMaybe (flip Map.lookup $ prefMap vals) prefs
 
-    prefMap :: ToHeaderValue a => [a] -> Map.Map ByteString a
+    prefMap :: (ToHeaderValue a) => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
-  if null prefsVals
-    then Nothing
-    else Just (HTTP.hPreferenceApplied, combined)
+prefAppliedHeader Preferences{preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected} =
+  if null prefsVals then
+    Nothing
+  else
+    Just (HTTP.hPreferenceApplied, combined)
   where
     combined = BS.intercalate ", " prefsVals
-    prefsVals = catMaybes [
-        toHeaderValue <$> preferResolution
-      , toHeaderValue <$> preferMissing
-      , toHeaderValue <$> preferRepresentation
-      , toHeaderValue <$> preferCount
-      , toHeaderValue <$> preferTransaction
-      , toHeaderValue <$> preferHandling
-      , toHeaderValue <$> preferTimezone
-      , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
-      ]
+    prefsVals =
+      catMaybes
+        [ toHeaderValue <$> preferResolution
+        , toHeaderValue <$> preferMissing
+        , toHeaderValue <$> preferRepresentation
+        , toHeaderValue <$> preferCount
+        , toHeaderValue <$> preferTransaction
+        , toHeaderValue <$> preferHandling
+        , toHeaderValue <$> preferTimezone
+        , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
+        ]
 
 -- |
 -- Convert a preference into the value that we look for in the 'Prefer' headers.
 --
 -- >>> toHeaderValue MergeDuplicates
 -- "resolution=merge-duplicates"
---
 class ToHeaderValue a where
   toHeaderValue :: a -> ByteString
 
@@ -200,10 +203,10 @@ class ToHeaderValue a where
 data PreferResolution
   = MergeDuplicates
   | IgnoreDuplicates
-  deriving Eq
+  deriving (Eq)
 
 instance ToHeaderValue PreferResolution where
-  toHeaderValue MergeDuplicates  = "resolution=merge-duplicates"
+  toHeaderValue MergeDuplicates = "resolution=merge-duplicates"
   toHeaderValue IgnoreDuplicates = "resolution=ignore-duplicates"
 
 -- |
@@ -211,26 +214,32 @@ instance ToHeaderValue PreferResolution where
 --
 -- From https://tools.ietf.org/html/rfc7240#section-4.2
 data PreferRepresentation
-  = Full        -- ^ Return the body.
-  | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
-  | None        -- ^ Return nothing from the mutated data.
-  deriving Eq
+  = -- | Return the body.
+    Full
+  | -- | Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
+    HeadersOnly
+  | -- | Return nothing from the mutated data.
+    None
+  deriving (Eq)
 
 instance ToHeaderValue PreferRepresentation where
-  toHeaderValue Full        = "return=representation"
-  toHeaderValue None        = "return=minimal"
+  toHeaderValue Full = "return=representation"
+  toHeaderValue None = "return=minimal"
   toHeaderValue HeadersOnly = "return=headers-only"
 
 -- | How to determine the count of (expected) results
 data PreferCount
-  = ExactCount     -- ^ Exact count (slower).
-  | PlannedCount   -- ^ PostgreSQL query planner rows count guess. Done by using EXPLAIN {query}.
-  | EstimatedCount -- ^ Use the query planner rows if the count is superior to max-rows, otherwise get the exact count.
-  deriving Eq
+  = -- | Exact count (slower).
+    ExactCount
+  | -- | PostgreSQL query planner rows count guess. Done by using EXPLAIN {query}.
+    PlannedCount
+  | -- | Use the query planner rows if the count is superior to max-rows, otherwise get the exact count.
+    EstimatedCount
+  deriving (Eq)
 
 instance ToHeaderValue PreferCount where
-  toHeaderValue ExactCount     = "count=exact"
-  toHeaderValue PlannedCount   = "count=planned"
+  toHeaderValue ExactCount = "count=exact"
+  toHeaderValue PlannedCount = "count=planned"
   toHeaderValue EstimatedCount = "count=estimated"
 
 shouldCount :: Maybe PreferCount -> Bool
@@ -243,35 +252,41 @@ shouldExplainCount prefCount =
 
 -- | Whether to commit or roll back transactions.
 data PreferTransaction
-  = Commit   -- ^ Commit transaction - the default.
-  | Rollback -- ^ Rollback transaction after sending the response - does not persist changes, e.g. for running tests.
-  deriving Eq
+  = -- | Commit transaction - the default.
+    Commit
+  | -- | Rollback transaction after sending the response - does not persist changes, e.g. for running tests.
+    Rollback
+  deriving (Eq)
 
 instance ToHeaderValue PreferTransaction where
-  toHeaderValue Commit   = "tx=commit"
+  toHeaderValue Commit = "tx=commit"
   toHeaderValue Rollback = "tx=rollback"
 
 -- |
 -- How to handle the insertion/update when the keys specified in ?columns are not present
 -- in the json body.
 data PreferMissing
-  = ApplyDefaults  -- ^ Use the default column value for missing values.
-  | ApplyNulls     -- ^ Use the null value for missing values.
-  deriving Eq
+  = -- | Use the default column value for missing values.
+    ApplyDefaults
+  | -- | Use the null value for missing values.
+    ApplyNulls
+  deriving (Eq)
 
 instance ToHeaderValue PreferMissing where
   toHeaderValue ApplyDefaults = "missing=default"
-  toHeaderValue ApplyNulls    = "missing=null"
+  toHeaderValue ApplyNulls = "missing=null"
 
 -- |
 -- Handling of unrecognised preferences
 data PreferHandling
-  = Strict  -- ^ Throw error on unrecognised preferences
-  | Lenient -- ^ Ignore unrecognised preferences
-  deriving Eq
+  = -- | Throw error on unrecognised preferences
+    Strict
+  | -- | Ignore unrecognised preferences
+    Lenient
+  deriving (Eq)
 
 instance ToHeaderValue PreferHandling where
-  toHeaderValue Strict  = "handling=strict"
+  toHeaderValue Strict = "handling=strict"
   toHeaderValue Lenient = "handling=lenient"
 
 -- |

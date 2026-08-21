@@ -1,5 +1,4 @@
-module PostgREST.Debounce
-  ( makeDebouncer) where
+module PostgREST.Debounce (makeDebouncer) where
 
 import Protolude
 
@@ -10,10 +9,11 @@ makeDebouncer :: IO () -> IO (IO ())
 makeDebouncer action = do
   flag <- newEmptyMVar
 
-  let worker = forever $ do
-        takeMVar flag
-        action
-      trigger = void $ tryPutMVar flag ()
+  let
+    worker = forever $ do
+      takeMVar flag
+      action
+    trigger = void $ tryPutMVar flag ()
 
   void $ forkIO worker
   pure trigger

@@ -2,8 +2,8 @@
 
 module PostgREST.SchemaCache.Identifiers
   ( FieldName
-  , QualifiedIdentifier(..)
-  , RelIdentifier(..)
+  , QualifiedIdentifier (..)
+  , RelIdentifier (..)
   , Schema
   , TableName
   , escapeIdent
@@ -11,15 +11,17 @@ module PostgREST.SchemaCache.Identifiers
   , quoteQi
   , toQi
   , trimNullChars
-  ) where
-
-import qualified Data.Aeson as JSON
-import qualified Data.Text  as T
+  )
+where
 
 import Protolude
 
+import Data.Aeson qualified as JSON
+import Data.Text qualified as T
+
 data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
-  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey, Show)
+  deriving (Eq, Generic, JSON.ToJSON, JSON.ToJSONKey, Ord, Show)
+
 instance Hashable RelIdentifier
 
 -- | Represents a pg identifier with a prepended schema name "schema.table".
@@ -27,9 +29,9 @@ instance Hashable RelIdentifier
 -- TODO: Refactor this, we also use QI for procedure names
 data QualifiedIdentifier = QualifiedIdentifier
   { qiSchema :: Schema
-  , qiName   :: TableName
+  , qiName :: TableName
   }
-  deriving (Eq, Show, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+  deriving (Eq, Generic, JSON.ToJSON, JSON.ToJSONKey, Ord, Show)
 
 instance Hashable QualifiedIdentifier
 
@@ -51,7 +53,7 @@ quoteQi (QualifiedIdentifier s i) =
 toQi :: Text -> QualifiedIdentifier
 toQi txt = case T.drop 1 <$> T.breakOn "." txt of
   (i, "") -> QualifiedIdentifier mempty i
-  (s, i)  -> QualifiedIdentifier s i
+  (s, i) -> QualifiedIdentifier s i
 
 escapeIdent :: Text -> Text
 escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
@@ -60,5 +62,7 @@ trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
 type Schema = Text
+
 type TableName = Text
+
 type FieldName = Text

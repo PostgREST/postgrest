@@ -1,51 +1,58 @@
-{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo     #-}
-{-|
-Module      : PostgREST.Logger
-Description : Logging based on the Observation.hs module. Access logs get sent to stdout and server diagnostic get sent to stderr.
--}
+{-# LANGUAGE RecursiveDo #-}
+
 -- TODO log with buffering enabled to not lose throughput on logging levels higher than LogError
+
+-- |
+-- Module      : PostgREST.Logger
+-- Description : Logging based on the Observation.hs module. Access logs get sent to stdout and server diagnostic get sent to stderr.
 module PostgREST.Logger
-  (observationLogger
+  ( observationLogger
   , init
   , LoggerState
-  ) where
+  )
+where
 
-import           Control.AutoUpdate                (defaultUpdateSettings,
-                                                    mkAutoUpdate, updateAction)
-import qualified Data.ByteString.Char8             as BS
-import qualified Data.Text.Encoding                as T
-import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
-import qualified Hasql.DynamicStatements.Statement as SQL
-import qualified Hasql.Statement                   as SQL
-
+import Control.AutoUpdate
+  ( defaultUpdateSettings
+  , mkAutoUpdate
+  , updateAction
+  )
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime, getZonedTime)
-
 import Network.HTTP.Types.Status (Status, status400, status500)
+import Numeric (showFFloat)
+import Protolude
 
-import PostgREST.Config        (LogLevel (..), Verbosity (..))
-import PostgREST.Debounce      (makeDebouncer)
+import Data.ByteString.Char8 qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Hasql.Connection qualified as SQL
+import Hasql.Decoders qualified as HD
+import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
+import Hasql.DynamicStatements.Statement qualified as SQL
+import Hasql.Pool qualified as SQL
+import Hasql.Pool.Observation qualified as SQL
+import Hasql.Statement qualified as SQL
+
+import PostgREST.Config (LogLevel (..), Verbosity (..))
+import PostgREST.Config.PgVersion (pgvName)
+import PostgREST.Debounce (makeDebouncer)
 import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
-import PostgREST.Query         (MainQuery (..))
-import PostgREST.SchemaCache   (queryTimingsWLabels)
+import PostgREST.Query (MainQuery (..))
+import PostgREST.SchemaCache (queryTimingsWLabels)
 
-import qualified Data.ByteString.Lazy       as LBS
-import qualified Data.Text                  as T
-import qualified Hasql.Connection           as SQL
-import qualified Hasql.Pool                 as SQL
-import qualified Hasql.Pool.Observation     as SQL
-import           Numeric                    (showFFloat)
-import           PostgREST.Config.PgVersion (pgvName)
-import qualified PostgREST.Error            as Error
-import           Protolude
+import PostgREST.Error qualified as Error
 
 data LoggerState = LoggerState
-  { stateGetZTime               :: IO ZonedTime  -- ^ Time with time zone used for logs
-  , stateLogDebouncePoolTimeout :: IO ()         -- ^ Logs with a debounce
-  , getLogLevel                 :: IO LogLevel   -- ^ Get LogLevel from Config
+  { stateGetZTime :: IO ZonedTime
+  -- ^ Time with time zone used for logs
+  , stateLogDebouncePoolTimeout :: IO ()
+  -- ^ Logs with a debounce
+  , getLogLevel :: IO LogLevel
+  -- ^ Get LogLevel from Config
   }
 
 init :: IO LogLevel -> IO LoggerState
@@ -53,17 +60,18 @@ init getLogLvl = mdo
   let
     oneSecond = 1_000_000
     loggerState = LoggerState zTime debouncePoolTimeout getLogLvl
-  zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
-  debouncePoolTimeout <- makeDebouncer $
-    logWithZTime loggerState (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
+  zTime <- mkAutoUpdate defaultUpdateSettings{updateAction = getZonedTime}
+  debouncePoolTimeout <-
+    makeDebouncer $
+      logWithZTime loggerState (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
   pure loggerState
 
 shouldLogResponse :: LogLevel -> Status -> Bool
 shouldLogResponse logLevel = case logLevel of
-  LogCrit  -> const False
+  LogCrit -> const False
   LogError -> (>= status500)
-  LogWarn  -> (>= status400)
-  LogInfo  -> const True
+  LogWarn -> (>= status400)
+  LogInfo -> const True
   LogDebug -> const True
 
 -- All observations are logged except some that depend on the log-level
@@ -79,13 +87,14 @@ observationLogger loggerState obs = do
         logWithZTime loggerState $ observationMessages o
     o@SchemaCacheEmptyObs ->
       when (logLevel >= LogError) $ do
-      logWithZTime loggerState $ observationMessages o
+        logWithZTime loggerState $ observationMessages o
     o@(HasqlPoolObs _) -> do
       when (logLevel >= LogDebug) $ do
         logWithZTime loggerState $ observationMessages o
     o@(QueryObs _ status) -> do
       when (shouldLogResponse logLevel status) $
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime loggerState $
+          observationMessages o
     o@PoolRequest ->
       when (logLevel >= LogDebug) $ do
         logWithZTime loggerState $ observationMessages o
@@ -124,8 +133,9 @@ formatZonedTime = formatTime defaultTimeLocale "%d/%b/%Y:%T %z"
 -- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
 renderSnippet :: SQL.Snippet -> ByteString
 renderSnippet snippet =
-  let SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder False
-      decoder = HD.noResult -- unused
+  let
+    SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder False
+    decoder = HD.noResult -- unused
   in
     sql
 
@@ -156,31 +166,37 @@ observationMessages = \case
   SchemaCacheEmptyObs ->
     pure $ T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.NoSchemaCacheError
   SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
-    pure $ "Failed to load the schema cache using "
-      <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)
-      <> " and "
-      <> "db-extra-search-path=" <> T.intercalate "," extraPaths
-      <> ". " <> jsonMessage usageErr
+    pure $
+      "Failed to load the schema cache using "
+        <> "db-schemas="
+        <> T.intercalate "," (toList dbSchemas)
+        <> " and "
+        <> "db-extra-search-path="
+        <> T.intercalate "," extraPaths
+        <> ". "
+        <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime timings ->
-    [ "Schema cache queried in " <> showMillis resultTime  <> " milliseconds " ] <>
-    let showTimings qt = [ T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt ] in
-    maybe mempty showTimings timings
+    ["Schema cache queried in " <> showMillis resultTime <> " milliseconds "]
+      <> let showTimings qt = [T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt]
+         in  maybe mempty showTimings timings
   SchemaCacheLoadedObs resultTime summary ->
-    [
-      "Schema cache loaded " <> summary
+    [ "Schema cache loaded " <> summary
     , "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
     ]
   ConnectionRetryObs delay ->
-    pure $ "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
+    pure $ "Attempting to reconnect to the database in " <> (show delay :: Text) <> " seconds..."
   QueryPgVersionError usageErr ->
     pure $ "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
   DBListenStart host port fullName channel -> do
     pure $ "Listener connected to " <> fullName <> " on " <> show (fold $ host <> fmap (":" <>) port) <> " and listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
-    pure $ "Failed listening for database notifications on the " <> show channel <> " channel. " <>
-      either showListenerConnError showListenerException listenErr
+    pure $
+      "Failed listening for database notifications on the "
+        <> show channel
+        <> " channel. "
+        <> either showListenerConnError showListenerException listenErr
   DBListenRetry delay ->
-    pure $ "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
+    pure $ "Retrying listening for database notifications in " <> (show delay :: Text) <> " seconds..."
   DBListenBugCallQueryFix ->
     pure "This is likely a PostgreSQL bug in the notification queue, executing the following to try to solve it: SELECT pg_notification_queue_usage();"
   DBListenerGotSCacheMsg channel ->
@@ -189,10 +205,9 @@ observationMessages = \case
     pure $ "Received a config reload message on the " <> show channel <> " channel"
   DBListenerConnectionCleanupFail ex ->
     pure $ "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
-  (QueryObs MainQuery{mqOpenAPI=(x, y, z),..} _) ->
-      let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
-      in
-        showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
+  (QueryObs MainQuery{mqOpenAPI = (x, y, z), ..} _) ->
+    let snipts = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+    in  showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
     [ "WARNING: " <> warningMsg
     , "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
@@ -206,26 +221,30 @@ observationMessages = \case
   ConfigInvalidObs err ->
     pure $ "Failed reloading config: " <> err
   ConfigSucceededObs ->
-     pure "Config reloaded"
+    pure "Config reloaded"
   PoolInit poolSize ->
-     pure $ "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
+    pure $ "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
   PoolAcqTimeoutObs -> pure $ jsonMessage SQL.AcquisitionTimeoutUsageError
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
-    pure $ "Connection " <> show uuid <> (
-      case status of
-        SQL.ConnectingConnectionStatus   -> " is being established"
-        SQL.ReadyForUseConnectionStatus reason -> " is available due to " <> case reason of
-          SQL.EstablishedConnectionReadyForUseReason      -> "connection establishment"
-          SQL.SessionFailedConnectionReadyForUseReason _  -> "session failure"
-          SQL.SessionSucceededConnectionReadyForUseReason -> "session success"
-        SQL.InUseConnectionStatus        -> " is used"
-        SQL.TerminatedConnectionStatus reason -> " is terminated due to " <> case reason of
-          SQL.AgingConnectionTerminationReason          -> "max lifetime"
-          SQL.IdlenessConnectionTerminationReason       -> "max idletime"
-          SQL.ReleaseConnectionTerminationReason        -> "release"
-          SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
-          SQL.InitializationErrorTerminationReason _    -> "init failure"
-    )
+    pure $
+      "Connection "
+        <> show uuid
+        <> ( case status of
+               SQL.ConnectingConnectionStatus -> " is being established"
+               SQL.ReadyForUseConnectionStatus reason ->
+                 " is available due to " <> case reason of
+                   SQL.EstablishedConnectionReadyForUseReason -> "connection establishment"
+                   SQL.SessionFailedConnectionReadyForUseReason _ -> "session failure"
+                   SQL.SessionSucceededConnectionReadyForUseReason -> "session success"
+               SQL.InUseConnectionStatus -> " is used"
+               SQL.TerminatedConnectionStatus reason ->
+                 " is terminated due to " <> case reason of
+                   SQL.AgingConnectionTerminationReason -> "max lifetime"
+                   SQL.IdlenessConnectionTerminationReason -> "max idletime"
+                   SQL.ReleaseConnectionTerminationReason -> "release"
+                   SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
+                   SQL.InitializationErrorTerminationReason _ -> "init failure"
+           )
   PoolRequest ->
     pure "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
@@ -240,7 +259,7 @@ observationMessages = \case
     pure $ "Received termination unix signal " <> signal
   WarpServerObs txt ->
     pure $ "Warp server: " <> txt
-  ResponseObs {} ->
+  ResponseObs{} ->
     mempty -- Control flow never reaches here, the observation message is returned in observationLogger function
   where
     showMillis :: Double -> Text
@@ -248,13 +267,11 @@ observationMessages = \case
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.PgError False err
 
-
     showListenerConnError :: SQL.ConnectionError -> Text
     showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
 
     showListenerException :: SomeException -> Text
     showListenerException = showOnSingleLine '\t' . show
-
 
 showOnSingleLine :: Char -> Text -> Text
 showOnSingleLine split txt = T.intercalate " " $ T.filter (/= split) <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"
