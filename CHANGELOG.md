@@ -85,6 +85,16 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Migration to v16
 
+- `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
+  + If you don't explicitly set this config, you don't need to change anything as the default value will do the same thing on this version. If you do set this config, read on.
+  + Now all config values must start with `$` character.
+     Example: `.roles.read` -> `$.roles.read`
+  + Keys with special characters, with the exception of `_` char must be quoted.
+      Example: `.roles.write-role` -> `$.roles["write-role"]`
+  + String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
+      Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
+  + Update the `jwt-role-claim-key` value accoring to the above rules. Also see the syntax reference: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
+
 - Drop support for PostgreSQL EOL version 13 by @wolfgangwalther in #4193
   + PostgreSQL 13 end of life was on 2025 ([ref](https://www.postgresql.org/support/versioning/))
   + Upgrade your PostgreSQL version to at least 14 to use this new PostgREST version.
@@ -96,16 +106,6 @@ All notable changes to this project will be documented in this file. From versio
 - `Prefer: timezone` no longer complies with `handling=lenient` and instead always fails by @steve-chavez in #5128
   + Supporting this required caching `pg_timezone_names`, which was expensive.
   + Ensure your requests always have a valid timezone.
-
-- `jwt-role-claim-key` no longer uses the JSPath DSL and instead uses JSON Path by @taimoorzaeem in #4984
-  + If you don't explicitly set this config, you don't need to change anything as the default value will do the same thing on this version. If you do set this config, read on.
-  + Now all config values must start with `$` character.
-     Example: `.roles.read` -> `$.roles.read`
-  + Keys with special characters, with the exception of `_` char must be quoted.
-      Example: `.roles.write-role` -> `$.roles["write-role"]`
-  + String comparison operators (`^==`, `==^` and `*==`) are replaced with regular expression search.
-      Example: `.roles[?(@ ^== "postgrest_test_")]` -> `$.roles[?search(@, "^postgrest_test_")]`
-  + Update the `jwt-role-claim-key` value accoring to the above rules. Also see the syntax reference: [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-jsonpath-syntax-and-semanti).
 
 ## [14.17] - 2026-08-13
 
