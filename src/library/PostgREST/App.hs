@@ -104,7 +104,7 @@ run appState mainThreadIdRef = do
 
     bracket (initServerSocket conf) NS.close $ \mainSocket -> do
 
-      let app = postgrest appState (AppState.schemaCacheLoader appState)
+      let app = postgrest appState
 
       address <- resolveSocketToAddress mainSocket
 
@@ -143,8 +143,8 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: AppState.AppState -> IO () -> Wai.Application
-postgrest appState connWorker =
+postgrest :: AppState.AppState -> Wai.Application
+postgrest appState =
   traceHeaderMiddleware appState .
   Cors.middleware appState $
     \req respond -> do
@@ -165,14 +165,6 @@ postgrest appState connWorker =
 
       AppState.getObserver appState $ genResponseObs (getLast authRole) req response
 
-      -- Launch the connWorker when the connection is down. The postgrest
-      -- function can respond successfully (with a stale schema cache) before
-      -- the connWorker is done. However, when there's an empty schema cache
-      -- postgrest responds with the error `PGRST002`; this means that the schema
-      -- cache is still loading, so we don't launch the connWorker here because
-      -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
-      -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
-      when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
       delay <- AppState.getNextDelay appState
       respond $ addRetryHint delay response
   where
