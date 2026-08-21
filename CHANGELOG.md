@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [16.2] - 2026-08-21
+
 ### Added
 
 - Make `jwt-role-claim-key` config backwards compatible by @taimoorzaeem in #5171
