@@ -216,6 +216,20 @@ def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
     assert f"failed to parse role-claim-key value ({invalidroleclaimkey})" in error
 
 
+@pytest.mark.parametrize(
+    "invalidroleclaimkey", FIXTURES["deprecatedinvalidroleclaimkeys"]
+)
+def test_invalid_deprecated_role_claim_key(invalidroleclaimkey, defaultenv):
+    "Given an invalid role-claim-key, Postgrest should exit with a non-zero exit code."
+    env = {
+        **defaultenv,
+        "PGRST_JWT_ROLE_CLAIM_KEY": invalidroleclaimkey,
+    }
+
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert f"failed to parse role-claim-key value ({invalidroleclaimkey})" in error
+
+
 @pytest.mark.parametrize("invalidopenapimodes", FIXTURES["invalidopenapimodes"])
 def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
     "Given an invalid openapi-mode, Postgrest should exit with a non-zero exit code."
