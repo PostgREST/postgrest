@@ -159,7 +159,7 @@ postgrest appState =
       maybeSchemaCache <- AppState.getSchemaCache appState
 
       let
-        handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+        handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity configDbWarningsEnabled) identity)
 
         -- GHC specialises this for each Timer, so timing costs nothing when disabled
         respondWith :: (Timer t) => RequestCtx t -> IO Wai.Response
