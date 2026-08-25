@@ -44,7 +44,7 @@ main = hspec $ do
         statement = Statement.Statement "select true where 1 = any ($1) and $2" encoder decoder True
       result <- Session.run (Session.statement ([3, 7], "a") statement) connection
       result `shouldSatisfy` \case
-        Left (Session.QueryError "select true where 1 = any ($1) and $2" ["[3, 7]", "\"a\""] _) -> True
+        Left (Session.QueryError "select true where 1 = any ($1) and $2" ["[3, 7]", "\"a\""] _ _) -> True
         _ -> False
 
     it "Failing prepared statements" $ \connection -> do
@@ -53,7 +53,7 @@ main = hspec $ do
         session = Session.statement () statement
       result <- Session.run (catchError session (const (pure ())) *> session) connection
       result `shouldSatisfy` \case
-        Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "26000" _ _ _))) -> False
+        Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "26000" _ _ _)) _) -> False
         _ -> True
 
     it "Prepared statements after error" $ \connection -> do
@@ -176,7 +176,7 @@ main = hspec $ do
           True
     runQuery conn sql = run (query sql) conn
     isSyntaxError = \case
-      Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "42601" _ _ _))) -> True
+      Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "42601" _ _ _)) _) -> True
       _ -> False
     preparedStatements =
       run $
