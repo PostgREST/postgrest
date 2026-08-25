@@ -8,6 +8,7 @@ import qualified Hasql.Decoders.Results          as ResultsDecoders
 import qualified Hasql.Encoders.Params           as ParamsEncoders
 import           Hasql.Errors
 import qualified Hasql.LibPq14                   as LibPQ
+import qualified Hasql.LibPq14.Notices           as Notices
 import           Hasql.Prelude
 import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
 
@@ -50,9 +51,17 @@ getIntegerDatetimes c =
         _ -> False
 
 {-# INLINE initConnection #-}
-initConnection :: LibPQ.Connection -> IO ()
-initConnection c =
+initConnection :: LibPQ.Connection -> Notices.NoticeChannel -> IO ()
+initConnection c noticeChannel = do
   void $ LibPQ.exec c (Commands.asBytes (Commands.setEncodersToUTF8 <> Commands.setMinClientMessagesToWarning))
+  Notices.registerNoticeReceiver noticeChannel c
+
+-- |
+-- Remove and return the notices buffered during command execution.
+{-# INLINE drainNotices #-}
+drainNotices :: Notices.NoticeChannel -> IO [Notices.Notice]
+drainNotices =
+  Notices.drainNotices
 
 {-# INLINE getResults #-}
 getResults :: LibPQ.Connection -> Bool -> ResultsDecoders.Results a -> IO (Either CommandError a)

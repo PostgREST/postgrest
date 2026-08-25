@@ -1,6 +1,7 @@
 module Hasql.Errors where
 
 import qualified Data.ByteString.Char8 as BC
+import qualified Hasql.LibPq14.Notices as Notices
 import           Hasql.Prelude
 
 -- | Error during execution of a session.
@@ -14,15 +15,19 @@ data SessionError
       [Text]
       -- | Error details.
       CommandError
+      -- | Notices (e.g. RAISE WARNING messages) buffered during the query's execution.
+      [Notices.Notice]
   | -- | Error during the execution of a pipeline.
     PipelineError
       -- | Error details.
       CommandError
+      -- | Notices (e.g. RAISE WARNING messages) buffered during the pipeline's execution.
+      [Notices.Notice]
   deriving (Show, Eq)
 
 instance Exception SessionError where
   displayException = \case
-    QueryError query params commandError ->
+    QueryError query params commandError notices ->
       let queryContext :: Maybe (ByteString, Int)
           queryContext = case commandError of
             ClientError _ -> Nothing
@@ -68,9 +73,28 @@ instance Exception SessionError where
             <> show params
             <> "\n  Error: "
             <> renderCommandErrorAsReason commandError
-    PipelineError commandError ->
-      "PipelineError!\n  Reason: " <> renderCommandErrorAsReason commandError
+            <> renderNotices notices
+    PipelineError commandError notices ->
+      "PipelineError!\n  Reason: "
+        <> renderCommandErrorAsReason commandError
+        <> renderNotices notices
     where
+      renderNotices = \case
+        [] -> mempty
+        ns ->
+          mconcat
+            [ "\n  Warnings:"
+            , mconcat (renderNotice <$> ns)
+            ]
+      renderNotice n =
+        "\n    - "
+          <> BC.unpack (Notices.noticeSeverity n)
+          <> " ("
+          <> BC.unpack (Notices.noticeCode n)
+          <> "): "
+          <> BC.unpack (Notices.noticeMessage n)
+          <> maybe "" (\d -> "\n      Details: " <> BC.unpack d) (Notices.noticeDetail n)
+          <> maybe "" (\h -> "\n      Hint: " <> BC.unpack h) (Notices.noticeHint n)
       renderCommandErrorAsReason = \case
         ClientError (Just message) -> "Client error: " <> show message
         ClientError Nothing -> "Client error without details"
@@ -87,6 +111,16 @@ instance Exception SessionError where
             "Error in row " <> show row <> ", column " <> show column <> ": " <> show rowError
           UnexpectedAmountOfRows amount ->
             "Unexpected amount of rows: " <> show amount
+
+-- |
+-- Attach drained notices to a session error. No-op on success paths by
+-- construction: callers only invoke this when the session failed.
+addNotices :: [Notices.Notice] -> SessionError -> SessionError
+addNotices notices = \case
+  QueryError template params commandError _ ->
+    QueryError template params commandError notices
+  PipelineError commandError _ ->
+    PipelineError commandError notices
 
 -- |
 -- An error of some command in the session.

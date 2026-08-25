@@ -32,6 +32,7 @@ import qualified Data.HashMap.Strict       as HM
 import qualified Data.Map.Internal         as M
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
+import qualified Hasql.LibPq14.Notices     as Notices
 import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
@@ -61,31 +62,39 @@ import Protolude
 -- >>> import PostgREST.SchemaCache.Relationship (Relationship (..))
 -- >>> import PostgREST.SchemaCache.Routine (Routine (..), RoutineParam (..))
 
--- | Encode Error to ByteString
-errorPayload :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> LByteString
-errorPayload verb = JSON.encode . toJsonPgrstError verb
+-- | Encode Error to ByteString. @includeWarnings@ gates emission of the
+-- structured notices array (db-warnings-enabled); logging callers pass True.
+errorPayload :: (ErrorBody a, ErrorHeaders a) => Verbosity -> Bool -> a -> LByteString
+errorPayload verb includeWarnings = JSON.encode . toJsonPgrstError verb includeWarnings
   where
-    toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> JSON.Value
-    toJsonPgrstError Verbose err = JSON.object [
-        "code"    .= code err
-      , "message" .= message err
-      , "details" .= details err
-      , "hint"    .= hint err
-      ]
-    toJsonPgrstError Minimal err = JSON.object [
-        "code"    .= code err
-      , "message" .= message err
-      ]
+    toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => Verbosity -> Bool -> a -> JSON.Value
+    toJsonPgrstError v w err =
+      let warningValues = warnings err
+       in case v of
+            Verbose ->
+              JSON.object $
+                [ "code"    .= code err
+                , "message" .= message err
+                , "details" .= details err
+                , "hint"    .= hint err
+                ]
+                <> ["warnings" .= warningValues | w, not (null warningValues)]
+            Minimal ->
+              JSON.object [
+                  "code"    .= code err
+                , "message" .= message err
+                ]
 
 -- | Create HTTP response from Error
-errorResponseFor :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> Response
-errorResponseFor verb err =
+errorResponseFor :: (ErrorBody a, ErrorHeaders a) => Verbosity -> Bool -> a -> Response
+errorResponseFor verb includeWarnings err =
   let
     baseHeader = MediaType.toContentType MTApplicationJSON
     cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
     pSHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
+    payload = errorPayload verb includeWarnings err
   in
-  responseLBS (status err) (baseHeader : cLHeader (errorPayload verb err) : pSHeader (code err) : headers err) $ errorPayload verb err
+  responseLBS (status err) (baseHeader : cLHeader payload : pSHeader (code err) : headers err) payload
 
 class ErrorHeaders a where
   status  :: a -> HTTP.Status
@@ -96,6 +105,10 @@ class ErrorBody a where
   message :: a -> Text
   details :: a -> Maybe JSON.Value
   hint    :: a -> Maybe JSON.Value
+  -- | Structured server notices (e.g. RAISE WARNING messages) collected while
+  -- the failing query executed.
+  warnings :: a -> [JSON.Value]
+  warnings _ = []
 
 instance ErrorHeaders ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
@@ -457,7 +470,7 @@ pgrstParseErrorHint err = case err of
 instance ErrorHeaders PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
-  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
+  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) _))) =
     case parseRaisePGRST m d of
       Right (_, r) -> map intoHeader (M.toList $ getHeaders r)
       Left e       -> headers e
@@ -470,34 +483,49 @@ instance ErrorHeaders PgError where
        else mempty
 
 instance ErrorBody PgError where
-  code    (PgError _ usageError) = code usageError
-  message (PgError _ usageError) = message usageError
-  details (PgError _ usageError) = details usageError
-  hint    (PgError _ usageError) = hint usageError
+  code     (PgError _ usageError) = code usageError
+  message  (PgError _ usageError) = message usageError
+  details  (PgError _ usageError) = details usageError
+  hint     (PgError _ usageError) = hint usageError
+  warnings (PgError _ usageError) = warnings usageError
+
+noticeToJson :: Notices.Notice -> JSON.Value
+noticeToJson n = JSON.object [
+    "severity" .= T.decodeUtf8 (Notices.noticeSeverity n)
+  , "code"     .= T.decodeUtf8 (Notices.noticeCode n)
+  , "message"  .= T.decodeUtf8 (Notices.noticeMessage n)
+  , "details"  .= fmap T.decodeUtf8 (Notices.noticeDetail n)
+  , "hint"     .= fmap T.decodeUtf8 (Notices.noticeHint n)
+  ]
 
 instance ErrorBody SQL.UsageError where
-  code    (SQL.ConnectionUsageError _)                   = "PGRST000"
-  code    (SQL.SessionUsageError (SQL.PipelineError e))  = code e
-  code    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = code e
-  code    SQL.AcquisitionTimeoutUsageError               = "PGRST003"
+  code    (SQL.ConnectionUsageError _)                     = "PGRST000"
+  code    (SQL.SessionUsageError (SQL.PipelineError e _))  = code e
+  code    (SQL.SessionUsageError (SQL.QueryError _ _ e _)) = code e
+  code    SQL.AcquisitionTimeoutUsageError                 = "PGRST003"
 
   message (SQL.ConnectionUsageError _) = "Database connection error."
-  message (SQL.SessionUsageError (SQL.PipelineError e))  = message e
-  message (SQL.SessionUsageError (SQL.QueryError _ _ e)) = message e
+  message (SQL.SessionUsageError (SQL.PipelineError e _))  = message e
+  message (SQL.SessionUsageError (SQL.QueryError _ _ e _)) = message e
   message SQL.AcquisitionTimeoutUsageError = "Timed out acquiring connection from connection pool."
 
   details (SQL.ConnectionUsageError e) = JSON.String . T.decodeUtf8 <$> e
-  details (SQL.SessionUsageError (SQL.PipelineError e))  = details e
-  details (SQL.SessionUsageError (SQL.QueryError _ _ e)) = details e
+  details (SQL.SessionUsageError (SQL.PipelineError e _))  = details e
+  details (SQL.SessionUsageError (SQL.QueryError _ _ e _)) = details e
   details SQL.AcquisitionTimeoutUsageError               = Nothing
 
-  hint    (SQL.ConnectionUsageError _)                   = Nothing
-  hint    (SQL.SessionUsageError (SQL.PipelineError e))  = hint e
-  hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
-  hint    SQL.AcquisitionTimeoutUsageError               = Nothing
+  hint    (SQL.ConnectionUsageError _)                     = Nothing
+  hint    (SQL.SessionUsageError (SQL.PipelineError e _))  = hint e
+  hint    (SQL.SessionUsageError (SQL.QueryError _ _ e _)) = hint e
+  hint    SQL.AcquisitionTimeoutUsageError                 = Nothing
+
+  warnings (SQL.SessionUsageError (SQL.PipelineError _ ns))  = map noticeToJson ns
+  warnings (SQL.SessionUsageError (SQL.QueryError _ _ _ ns)) = map noticeToJson ns
+  warnings SQL.AcquisitionTimeoutUsageError                  = []
+  warnings (SQL.ConnectionUsageError _)                      = []
+
 
 instance ErrorBody SQL.CommandError where
-  -- Special error raised with code PGRST, to allow full response control
   code (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
     case parseRaisePGRST m d of
       Right (r, _) -> getCode r
@@ -537,10 +565,10 @@ instance ErrorBody SQL.CommandError where
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
 pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
-pgErrorStatus _      (SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _)))       = HTTP.status503
-pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
-pgErrorStatus authed (SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError rError)))  = mapSQLtoHTTP authed rError
-pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) = mapSQLtoHTTP authed rError
+pgErrorStatus _      (SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _) _))       = HTTP.status503
+pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _) _))      = HTTP.status503
+pgErrorStatus authed (SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError rError) _))  = mapSQLtoHTTP authed rError
+pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError) _)) = mapSQLtoHTTP authed rError
 
 mapSQLtoHTTP :: Bool -> SQL.ResultError -> HTTP.Status
 mapSQLtoHTTP authed rError =
@@ -634,6 +662,12 @@ instance ErrorBody Error where
   hint (JwtErr err)         = hint err
   hint NoSchemaCacheError   = Nothing
   hint (PgErr err)          = hint err
+
+  warnings (ApiRequestErr err)  = warnings err
+  warnings (SchemaCacheErr err) = warnings err
+  warnings (JwtErr err)         = warnings err
+  warnings NoSchemaCacheError   = []
+  warnings (PgErr err)          = warnings err
 
 instance ErrorHeaders JwtError where
   status JwtDecodeErr{}   = HTTP.unauthorized401

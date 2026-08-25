@@ -433,6 +433,23 @@ db-plan-enabled
 
   When this is set to :code:`true`, the execution plan of a request can be retrieved by using the :code:`Accept: application/vnd.pgrst.plan` header. See :ref:`explain_plan`.
 
+.. _db-warnings-enabled:
+
+db-warnings-enabled
+-------------------
+
+  =============== ==========================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_DB_WARNINGS_ENABLED
+  **In-Database** pgrst.db_warnings_enabled
+  =============== ==========================
+
+  When this is set to :code:`true`, error responses include a :code:`warnings` array with the messages raised with :code:`RAISE WARNING` (and other non-fatal levels) by the failing statement — severity, SQLSTATE code, message, detail and hint for each. Only requests that already fail get the array; successful responses are unchanged. This is useful for reporting all validation problems from a database function at once instead of only the first fatal error.
+
+  Warnings may reveal information your functions log internally, so keep this off for untrusted clients.
+
 .. _db-pool:
 
 db-pool

@@ -6,6 +6,7 @@ import qualified Hasql.Decoders.Results          as Decoders.Results
 import qualified Hasql.Encoders.All              as Encoders
 import qualified Hasql.Encoders.Params           as Encoders.Params
 import           Hasql.Errors
+import qualified Hasql.IO                        as IO
 import qualified Hasql.LibPq14                   as Pq
 import           Hasql.Prelude
 import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
@@ -44,13 +45,13 @@ run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integer
 
     runResultsDecoder :: forall a. Decoders.Results.Results a -> ExceptT SessionError IO a
     runResultsDecoder decoder =
-      ExceptT (first PipelineError <$> Decoders.Results.run decoder connection integerDatetimes)
+      ExceptT (first (`PipelineError` []) <$> IO.getResults connection integerDatetimes decoder)
 
     runCommand :: IO Bool -> ExceptT SessionError IO ()
     runCommand action =
       lift action >>= \case
         True -> pure ()
-        False -> ExceptT (Left . PipelineError . ClientError <$> Pq.errorMessage connection)
+        False -> ExceptT (Left . (`PipelineError` []) . ClientError <$> Pq.errorMessage connection)
 
 -- |
 -- Composable abstraction over the execution of queries in [the pipeline mode](https://www.postgresql.org/docs/current/libpq-pipeline-mode.html).
@@ -167,37 +168,30 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
                     sent <- Pq.sendPrepare connection key sql (mfilter (not . null) (Just oidList))
                     if sent
                       then pure (True, Right (key, recv))
-                      else (False,) . Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
+                      else (False,) . Left . commandToSessionError [] . ClientError <$> Pq.errorMessage connection
                   where
                     recv =
-                      fmap (first commandToSessionError)
-                        $ (<*)
-                        <$> Decoders.Results.run (Decoders.Results.single Decoders.Result.noResult) connection integerDatetimes
-                        <*> Decoders.Results.run Decoders.Results.dropRemainders connection integerDatetimes
+                      fmap (first (commandToSessionError []))
+                        $ IO.getResults connection integerDatetimes
+                        $ Decoders.Results.single Decoders.Result.noResult
                 onOldRemoteKey key =
                   pure (Right (key, pure (Right ())))
 
             sendQuery key =
               Pq.sendQueryPrepared connection key valueAndFormatList Pq.Binary >>= \case
-                False -> Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
+                False -> Left . commandToSessionError [] . ClientError <$> Pq.errorMessage connection
                 True -> pure (Right recv)
               where
                 recv =
-                  fmap (first commandToSessionError)
-                    $ (<*)
-                    <$> Decoders.Results.run decoder connection integerDatetimes
-                    <*> Decoders.Results.run Decoders.Results.dropRemainders connection integerDatetimes
+                  first (commandToSessionError []) <$> IO.getResults connection integerDatetimes decoder
 
         runUnprepared =
           Pq.sendQueryParams connection sql (Encoders.Params.compileUnpreparedStatementData encoder integerDatetimes params) Pq.Binary >>= \case
-            False -> Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
+            False -> Left . commandToSessionError [] . ClientError <$> Pq.errorMessage connection
             True -> pure (Right recv)
           where
             recv =
-              fmap (first commandToSessionError)
-                $ (<*)
-                <$> Decoders.Results.run decoder connection integerDatetimes
-                <*> Decoders.Results.run Decoders.Results.dropRemainders connection integerDatetimes
+              first (commandToSessionError []) <$> IO.getResults connection integerDatetimes decoder
 
-    commandToSessionError =
-      QueryError sql (Encoders.Params.renderReadable encoder params)
+    commandToSessionError notices commandError =
+      QueryError sql (Encoders.Params.renderReadable encoder params) commandError notices

@@ -30,13 +30,14 @@ run (Session impl) connection =
       runExceptT $ runReaderT impl connection
     handler =
       case connection of
-        Connection.Connection _ pqConnVar _ registry ->
-          withMVar pqConnVar \pqConn ->
+        Connection.Connection _ pqConnVar _ registry noticeChannel ->
+          withMVar pqConnVar \pqConn -> do
             Pq.transactionStatus pqConn >>= \case
               Pq.TransIdle -> pure ()
               _ -> do
                 PreparedStatementRegistry.reset registry
                 Pq.reset pqConn
+            void $ IO.drainNotices noticeChannel
 
 -- |
 -- Possibly a multi-statement query,
@@ -46,14 +47,16 @@ sql :: ByteString -> Session ()
 sql sql =
   Session
     $ ReaderT
-    $ \(Connection.Connection _ pqConnectionRef integerDatetimes _) ->
+    $ \(Connection.Connection _ pqConnectionRef integerDatetimes _ noticeChannel) ->
       ExceptT
-        $ fmap (first (QueryError sql []))
         $ withMVar pqConnectionRef
         $ \pqConnection -> do
           r1 <- IO.sendNonparametricStatement pqConnection sql
           r2 <- IO.getResults pqConnection integerDatetimes decoder
-          return $ r1 *> r2
+          notices <- IO.drainNotices noticeChannel
+          return $ case r1 *> r2 of
+            Left commandError -> Left (QueryError sql [] commandError notices)
+            Right result      -> Right result
   where
     decoder =
       Decoders.Results.single Decoders.Result.noResult
@@ -64,19 +67,23 @@ statement :: params -> Statement.Statement params result -> Session result
 statement input (Statement.Statement template (Encoders.Params paramsEncoder) (Decoders.Result decoder) preparable) =
   Session
     $ ReaderT
-    $ \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry) ->
+    $ \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry noticeChannel) ->
       ExceptT
-        $ fmap (first (QueryError template (Encoders.Params.renderReadable paramsEncoder input)))
         $ withMVar pqConnectionRef
         $ \pqConnection -> do
           r1 <- IO.sendParametricStatement pqConnection integerDatetimes registry template paramsEncoder (usePreparedStatements && preparable) input
           r2 <- IO.getResults pqConnection integerDatetimes decoder
-          return $ r1 *> r2
+          notices <- IO.drainNotices noticeChannel
+          return $ case r1 *> r2 of
+            Left commandError -> Left (QueryError template (Encoders.Params.renderReadable paramsEncoder input) commandError notices)
+            Right result -> Right result
 
 -- |
 -- Execute a pipeline.
 pipeline :: Pipeline.Pipeline result -> Session result
 pipeline pipeline =
-  Session $ ReaderT \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry) ->
-    ExceptT $ withMVar pqConnectionRef \pqConnection ->
-      Pipeline.run pipeline usePreparedStatements pqConnection registry integerDatetimes
+  Session $ ReaderT \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry noticeChannel) ->
+    ExceptT $ withMVar pqConnectionRef \pqConnection -> do
+      result <- Pipeline.run pipeline usePreparedStatements pqConnection registry integerDatetimes
+      notices <- IO.drainNotices noticeChannel
+      return $ first (addNotices notices) result
