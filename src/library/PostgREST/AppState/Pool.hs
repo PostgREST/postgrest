@@ -60,9 +60,9 @@ usePool appState@AppState{stateObserver = observer, ..} sess = do
           in  when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
                 observer $ ExitDBFatalError ServerAuthError err
                 killApp appState
-        err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
+        err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr) _)) ->
           handleResultError err tpl resultErr
-        err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
+        err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _) _)) ->
           -- An error on the client-side, usually indicates problems with connection
           observer $ QueryErrorCodeHighObs err
     )
