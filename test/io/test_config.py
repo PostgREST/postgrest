@@ -14,7 +14,6 @@ from postgrest import (
     PostgrestTimedOut,
     freeport,
     run,
-    sleep_until_postgrest_config_reload,
 )
 
 
@@ -117,53 +116,12 @@ def test_role_claim_key(roleclaim, defaultenv):
         assert response.status_code == roleclaim["expected_status"]
 
 
-# DEPRECATED: This test belongs to deprecated feature.
-@pytest.mark.parametrize(
-    "roleclaim", FIXTURES["deprecatedroleclaims"], ids=lambda claim: claim["key"]
-)
-def test_deprecated_role_claim_key(roleclaim, defaultenv):
-    "Authorization should depend on a correct role-claim-key and JWT claim."
-    env = {
-        **defaultenv,
-        "PGRST_JWT_ROLE_CLAIM_KEY": roleclaim["key"],
-        "PGRST_JWT_SECRET": SECRET,
-    }
-    headers = jwtauthheader(roleclaim["data"], SECRET)
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/authors_only", headers=headers)
-        assert response.status_code == roleclaim["expected_status"]
-
-
 @pytest.mark.parametrize(
     "jwtaudroleclaim",
     FIXTURES["jwtaudroleclaims"],
     ids=lambda claim: claim["key"] + "_" + str(claim["expected_status"]),
 )
 def test_jwt_aud_in_role_claim_key(jwtaudroleclaim, defaultenv):
-    "Allows authorization with JWT aud claim in role-claim-key"
-
-    env = {
-        **defaultenv,
-        "PGRST_JWT_AUD": "postgrest_test_author",
-        "PGRST_JWT_ROLE_CLAIM_KEY": jwtaudroleclaim["key"],
-        "PGRST_JWT_SECRET": SECRET,
-    }
-
-    headers = jwtauthheader(jwtaudroleclaim["data"], SECRET)
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/authors_only", headers=headers)
-        assert response.status_code == jwtaudroleclaim["expected_status"]
-
-
-# DEPRECATED: This test belongs to deprecated feature.
-@pytest.mark.parametrize(
-    "jwtaudroleclaim",
-    FIXTURES["deprecatedjwtaudroleclaims"],
-    ids=lambda claim: claim["key"] + "_" + str(claim["expected_status"]),
-)
-def test_jwt_aud_in_deprecated_role_claim_key(jwtaudroleclaim, defaultenv):
     "Allows authorization with JWT aud claim in role-claim-key"
 
     env = {
@@ -291,63 +249,3 @@ def test_use_legacy_target_names(enabled, defaultenv):
         else:
             assert response.status_code == 400
             assert not has_warning_log and not has_hint_log
-
-
-# This test belongs to a deprecated feature.
-@pytest.mark.parametrize(
-    "roleclaimkey",
-    [".roles.user_role", "$.roles.user_role"],
-    ids=["deprecated syntax", "new syntax"],
-)
-def test_deprecated_role_claim_key_warning(roleclaimkey, defaultenv):
-    "Show a warning when a deprecated syntax for jwt-role-claim-key is used"
-
-    env = {
-        **defaultenv,
-        "PGRST_JWT_ROLE_CLAIM_KEY": roleclaimkey,
-    }
-
-    with run(env=env, no_startup_stdout=False) as postgrest:
-
-        output = postgrest.read_stdout(nlines=15)
-
-        warning_log = 'WARNING: The config `jwt-role-claim-key=."roles"."user_role"` is using the deprecated JSPath syntax.'
-        update_log = 'Update `jwt-role-claim-key=."roles"."user_role"` to the new JSONPath syntax as support for JSPath will be removed in a future release. See the migration guide on how to update: https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16'
-
-        if roleclaimkey == ".roles.user_role":
-            assert any(warning_log in line for line in output)
-            assert any(update_log in line for line in output)
-
-            # Should log again on config reload
-            response = postgrest.session.post(
-                "/rpc/update_role_claim_key_and_reload",
-                data={"new_key": ".again.deprecated.syntax"},
-            )
-            response.status_code == 204
-            sleep_until_postgrest_config_reload()
-
-            output = postgrest.read_stdout(nlines=15)
-
-            reload_warning_log = 'WARNING: The config `jwt-role-claim-key=."again"."deprecated"."syntax"` is using the deprecated JSPath syntax.'
-            reload_update_log = 'Update `jwt-role-claim-key=."again"."deprecated"."syntax"` to the new JSONPath syntax as support for JSPath will be removed in a future release. See the migration guide on how to update: https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16'
-
-            assert any(reload_warning_log in line for line in output)
-            assert any(reload_update_log in line for line in output)
-
-            # Should NOT log again on config reload when corrected
-            response = postgrest.session.post(
-                "/rpc/update_role_claim_key_and_reload",
-                data={"new_key": "$.again.deprecated.syntax"},
-            )
-            response.status_code == 204
-            sleep_until_postgrest_config_reload()
-
-            output = postgrest.read_stdout(nlines=15)
-
-            assert not any("WARNING" in line for line in output)
-
-            response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
-            assert response.status_code == 204
-        else:
-            assert not any(warning_log in line for line in output)
-            assert not any(update_log in line for line in output)

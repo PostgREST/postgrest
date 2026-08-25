@@ -27,12 +27,11 @@ import Data.Text               ()
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
-import PostgREST.Auth.Types              (AuthResult (..))
-import PostgREST.Config                  (AppConfig (..), audMatchesCfg)
-import PostgREST.Config.DeprecatedJSPath (evaluateDeprecatedJSPath)
-import PostgREST.Config.JSPath           (evaluateJSPath)
-import PostgREST.Error                   (Error (..), JwtClaimsError (..),
-                                          JwtDecodeError (..), JwtError (..))
+import PostgREST.Auth.Types    (AuthResult (..))
+import PostgREST.Config        (AppConfig (..), audMatchesCfg)
+import PostgREST.Config.JSPath (evaluateJSPath)
+import PostgREST.Error         (Error (..), JwtClaimsError (..),
+                                JwtDecodeError (..), JwtError (..))
 
 import Data.Aeson       ((.:?))
 import Data.Aeson.Types (parseMaybe)
@@ -112,9 +111,8 @@ parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JSON.O
 parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims = do
   validateClaims time (audMatchesCfg cfg) mclaims
   -- role defaults to anon if not specified in jwt
-  let claims = Just $ JSON.Object mclaims
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
-    unquoted <$> either (evaluateDeprecatedJSPath claims) (evaluateJSPath claims) configJwtRoleClaimKey <|> configDbAnonRole
+    unquoted <$> evaluateJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
   pure AuthResult
            { authClaims = mclaims
            , authRole = role
