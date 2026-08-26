@@ -107,8 +107,9 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
     let jwtPayload = [json|{ "exp": 1446678149, "role": "postgrest_test_author", "id": "jdoe" }|]
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` [json| {"message":"JWT expired","code":"PGRST303","hint":null,"details":null} |]
+      `shouldRespondWith` ResponseMatcher
         { matchStatus = 401
+        , matchBody = matchErrorPresent "PGRST303" (Just "JWT expired") Nothing (Just "Invalid by")
         , matchHeaders = [
             "WWW-Authenticate" <:>
             "Bearer error=\"invalid_token\", error_description=\"JWT expired\""

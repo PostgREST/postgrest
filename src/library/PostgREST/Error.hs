@@ -663,9 +663,9 @@ instance ErrorBody JwtError where
     UnreachableDecodeError -> "JWT couldn't be decoded"
   message JwtTokenRequired = "Anonymous access is disabled"
   message (JwtClaimsErr e) = case e of
-    JWTExpired               -> "JWT expired"
-    JWTNotYetValid           -> "JWT not yet valid"
-    JWTIssuedAtFuture        -> "JWT issued at future"
+    JWTExpired{}             -> "JWT expired"
+    JWTNotYetValid{}         -> "JWT not yet valid"
+    JWTIssuedAtFuture{}      -> "JWT issued at future"
     JWTNotInAudience         -> "JWT not in audience"
     ParsingClaimsFailed      -> "Parsing claims failed"
     ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
@@ -677,6 +677,13 @@ instance ErrorBody JwtError where
     KeyError dets     -> Just $ JSON.String dets
     BadAlgorithm dets -> Just $ JSON.String dets
     _                 -> Nothing
+  details (JwtClaimsErr e) = case e of
+    JWTExpired secs        -> invalidBy secs
+    JWTNotYetValid secs    -> invalidBy secs
+    JWTIssuedAtFuture secs -> invalidBy secs
+    _                      -> Nothing
+    where
+      invalidBy secs = Just $ JSON.String $ "Invalid by " <> show secs <> " seconds"
   details _ = Nothing
 
   hint _    = Nothing

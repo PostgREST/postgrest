@@ -136,42 +136,31 @@ spec withConfig = do
           let jwtPayload = [json|{ "exp": #{currentTime} }|]
               auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
-            `shouldRespondWith`
-            [json|{
-              "code":"PGRST303",
-              "details":null,
-              "hint":null,
-              "message":"JWT expired"
-            }|]
-            { matchStatus = 401 }
+            `shouldRespondWith` ResponseMatcher
+              { matchStatus = 401
+              , matchBody = matchErrorPresent "PGRST303" (Just "JWT expired") Nothing (Just "Invalid by")
+              , matchHeaders = [] }
 
         it "it should return error if used before it is valid" $ do
           currentTime <- liftIO $ relativeSeconds 35
           let jwtPayload = [json|{ "nbf": #{currentTime} }|]
               auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
-            `shouldRespondWith`
-            [json|{
-              "code":"PGRST303",
-              "details":null,
-              "hint":null,
-              "message":"JWT not yet valid"
-            }|]
-            { matchStatus = 401 }
+            `shouldRespondWith` ResponseMatcher
+              { matchStatus = 401
+              , matchBody = matchErrorPresent "PGRST303" (Just "JWT not yet valid") Nothing (Just "Invalid by")
+              , matchHeaders = [] }
 
         it "it should return error if issued at future" $ do
           currentTime <- liftIO $ relativeSeconds 35
           let jwtPayload = [json|{ "iat": #{currentTime} }|]
               auth = authHeaderJWT $ generateJWT jwtPayload
           request methodGet "/authors_only" [auth] ""
-            `shouldRespondWith`
-            [json|{
-              "code":"PGRST303",
-              "details":null,
-              "hint":null,
-              "message":"JWT issued at future"
-            }|]
-            { matchStatus = 401 }
+            `shouldRespondWith` ResponseMatcher
+              { matchStatus = 401
+              , matchBody = matchErrorPresent "PGRST303" (Just "JWT issued at future") Nothing (Just "Invalid by")
+              , matchHeaders = []
+              }
 
   withConfig baseCfg { configJwtAudience = Just "spec tests" } $ describe "Test JWT Audience error" $ do
     it "it should return error if JWT not in audience" $ do

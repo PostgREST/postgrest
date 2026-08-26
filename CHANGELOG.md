@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Changes
+
+- Error response body now includes details for JWT time validation errors by @steve-chavez in #5196
+
 ## [16.2] - 2026-08-21
 
 ### Added

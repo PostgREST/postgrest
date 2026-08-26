@@ -106,9 +106,9 @@ data JwtDecodeError
   deriving Show
 
 data JwtClaimsError
-  = JWTExpired
-  | JWTNotYetValid
-  | JWTIssuedAtFuture
+  = JWTExpired Int64
+  | JWTNotYetValid Int64
+  | JWTIssuedAtFuture Int64
   | JWTNotInAudience
   | ParsingClaimsFailed
   | ExpClaimNotNumber

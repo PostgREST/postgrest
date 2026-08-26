@@ -6,6 +6,7 @@ import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
+import qualified Data.Text              as T
 import qualified Jose.Jwa               as JWT
 import qualified Jose.Jws               as JWT
 import qualified Jose.Jwt               as JWT
@@ -242,6 +243,21 @@ isErrorFormat s =
   obj = JSON.decode s :: Maybe (M.Map Text JSON.Value)
   keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]
+
+-- matches equality for code and infixes for message, detail and hint
+matchErrorPresent :: Text -> Maybe Text -> Maybe Text -> Maybe Text -> MatchBody
+matchErrorPresent code msg hint details = MatchBody $ \_ body ->
+  case JSON.decode body :: Maybe (M.Map Text JSON.Value) of
+    Just obj
+      | M.lookup "code" obj == Just (JSON.String code)
+      , matchesInfix msg (M.lookup "message" obj)
+      , matchesInfix hint (M.lookup "hint" obj)
+      , matchesInfix details (M.lookup "details" obj) -> Nothing
+    _ -> Just $ toS (decodeUtf8 (BL.toStrict body))
+  where
+    matchesInfix Nothing _ = True
+    matchesInfix (Just expected) (Just (JSON.String actual)) = expected `T.isInfixOf` actual
+    matchesInfix _ _ = False
 
 planCost :: SResponse -> Float
 planCost resp =

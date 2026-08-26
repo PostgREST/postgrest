@@ -197,7 +197,6 @@ After expiration, the API returns HTTP 401 Unauthorized:
 
   {
     "code": "PGRST301",
-    "details": null,
     "hint": null,
     "message": "JWT expired"
   }
