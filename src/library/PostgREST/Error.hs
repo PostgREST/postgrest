@@ -663,9 +663,9 @@ instance ErrorBody JwtError where
     UnreachableDecodeError -> "JWT couldn't be decoded"
   message JwtTokenRequired = "Anonymous access is disabled"
   message (JwtClaimsErr e) = case e of
-    JWTExpired               -> "JWT expired"
-    JWTNotYetValid           -> "JWT not yet valid"
-    JWTIssuedAtFuture        -> "JWT issued at future"
+    JWTExpired secs          -> "JWT expired by " <> show secs <> " seconds"
+    JWTNotYetValid secs      -> "JWT not yet valid by " <> show secs <> " seconds"
+    JWTIssuedAtFuture secs   -> "JWT issued at future by " <> show secs <> " seconds"
     JWTNotInAudience         -> "JWT not in audience"
     ParsingClaimsFailed      -> "Parsing claims failed"
     ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
