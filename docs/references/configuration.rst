@@ -744,6 +744,21 @@ jwt-cache-max-entries
 
   Maximum number of entries in JWT cache. The value :code:`0` disables JWT caching. See :ref:`jwt_caching`.
 
+.. _jwt-allowed-skew-seconds:
+
+jwt-allowed-skew-seconds
+------------------------
+
+  =============== =================================
+  **Type**        Int
+  **Default**     30
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_ALLOWED_SKEW_SECONDS
+  **In-Database** pgrst.jwt_allowed_skew_seconds
+  =============== =================================
+
+  The number of seconds of clock skew allowed when validating JWT claims. Values must be between 30 and 300.
+
 .. _log-level:
 
 log-level

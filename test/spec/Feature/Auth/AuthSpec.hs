@@ -5,6 +5,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..))
+
 import Protolude  hiding (get)
 import SpecHelper
 
@@ -237,4 +239,13 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
     request methodGet "/authors_only" [authHeader "Bearer" token] ""
       `shouldRespondWith` 200
     request methodGet "/authors_only" [authHeader "bearer" token] ""
+      `shouldRespondWith` 200
+
+skewSpec :: SpecWithConfig
+skewSpec withConfig = withConfig baseCfg { configJwtAllowedSkewSeconds = 60 } $ do
+  it "allows JWT claims within the configured clock skew" $ do
+    currentTime <- liftIO $ relativeSeconds 35
+    let jwtPayload = [json|{ "role": "postgrest_test_author", "nbf": #{currentTime} }|]
+        auth = authHeaderJWT $ generateJWT jwtPayload
+    request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200

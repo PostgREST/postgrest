@@ -182,7 +182,7 @@ The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/d
 - ``iat`` Issued At
 - ``nbf`` Not Before
 
-We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
+We allow a clock skew when validating the above claims, this is configured by :ref:`jwt-allowed-skew-seconds`.
 
 .. _jwt_aud:
 

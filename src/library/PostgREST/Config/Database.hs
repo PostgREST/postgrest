@@ -62,6 +62,7 @@ dbSettingsNames =
   ,"jwt_secret"
   ,"jwt_secret_is_base64"
   ,"jwt_cache_max_lifetime"
+  ,"jwt_allowed_skew_seconds"
   ,"openapi_mode"
   ,"openapi_security_active"
   ,"openapi_server_proxy_uri"

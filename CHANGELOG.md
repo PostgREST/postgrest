@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Changes
+
+- Add `jwt-allowed-skew-seconds` to configure clock skew when validating JWTs by @steve-chavez in #5196
+
 ## [16.2] - 2026-08-21
 
 ### Added
