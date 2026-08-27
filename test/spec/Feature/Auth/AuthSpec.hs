@@ -104,7 +104,8 @@ spec withConfig = withConfig baseCfg $ describe "authorization" $ do
       }
 
   it "fails with an expired token" $ do
-    let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.f8__E6VQwYcDqwHmr9PG03uaZn8Zh1b0vbJ9DYS0AdM"
+    let jwtPayload = [json|{ "exp": 1446678149, "role": "postgrest_test_author", "id": "jdoe" }|]
+        auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` [json| {"message":"JWT expired","code":"PGRST303","hint":null,"details":null} |]
         { matchStatus = 401
