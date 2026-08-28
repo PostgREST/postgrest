@@ -139,7 +139,7 @@ spec withConfig = do
             `shouldRespondWith` ResponseMatcher
               { matchStatus = 401
               , matchBody = matchErrorPresent "PGRST303" (Just "JWT expired") Nothing (Just "Invalid by")
-              , matchHeaders = [] }
+              , matchHeaders = [matchHeaderValuePresent "Proxy-Status" "PostgREST; error=PGRST303; details=\"Invalid by"] }
 
         it "it should return error if used before it is valid" $ do
           currentTime <- liftIO $ relativeSeconds 35
@@ -149,7 +149,7 @@ spec withConfig = do
             `shouldRespondWith` ResponseMatcher
               { matchStatus = 401
               , matchBody = matchErrorPresent "PGRST303" (Just "JWT not yet valid") Nothing (Just "Invalid by")
-              , matchHeaders = [] }
+              , matchHeaders = [matchHeaderValuePresent "Proxy-Status" "PostgREST; error=PGRST303; details=\"Invalid by"] }
 
         it "it should return error if issued at future" $ do
           currentTime <- liftIO $ relativeSeconds 35
@@ -159,8 +159,7 @@ spec withConfig = do
             `shouldRespondWith` ResponseMatcher
               { matchStatus = 401
               , matchBody = matchErrorPresent "PGRST303" (Just "JWT issued at future") Nothing (Just "Invalid by")
-              , matchHeaders = []
-              }
+              , matchHeaders = [matchHeaderValuePresent "Proxy-Status" "PostgREST; error=PGRST303; details=\"Invalid by"] }
 
   withConfig baseCfg { configJwtAudience = Just "spec tests" } $ describe "Test JWT Audience error" $ do
     it "it should return error if JWT not in audience" $ do
@@ -174,7 +173,8 @@ spec withConfig = do
           "hint":null,
           "message":"JWT not in audience"
         }|]
-        { matchStatus = 401 }
+        { matchStatus = 401
+        , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST303" ] }
 
   withConfig baseCfg $ describe "Test JWT Token format errors" $ do
     it "when partial token is provided" $ do
@@ -187,7 +187,8 @@ spec withConfig = do
           "hint":null,
           "message":"Expected 3 parts in JWT; got 2"
         }|]
-        { matchStatus = 401 }
+        { matchStatus = 401
+        , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST301" ] }
 
     it "when token is complete but random characters" $ do
       let auth = authHeaderJWT "quifquirndsjagnrgniur.fonvoienqhhdj.iuqvnvhojah"
@@ -199,7 +200,8 @@ spec withConfig = do
           "hint":null,
           "message":"JWT cryptographic operation failed"
         }|]
-        { matchStatus = 401 }
+        { matchStatus = 401
+        , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST301" ] }
 
     it "when token with algorithm 'none' is used" $ do
       let auth = authHeaderJWT "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI"
@@ -211,7 +213,8 @@ spec withConfig = do
           "hint":null,
           "message":"Wrong or unsupported encoding algorithm"
         }|]
-        { matchStatus = 401 }
+        { matchStatus = 401
+        , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST301" ] }
 
   -- By default, error verbosity is set to 'verbose', which returns all error
   -- fields. No need to test that explicitly.

@@ -474,6 +474,15 @@ For example, doing a request on a table with high count (say 30_000_000), we get
 
 The PostgreSQL error code ``57014`` (`ref <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_) reveals that the error is due to a short ``statement_timeout`` value.
 
+For ``PGRST303`` JWT claims validation errors, ``Proxy-Status`` also includes ``details``.
+
+.. code-block:: http
+
+  HTTP/1.1 401 Unauthorized
+  Proxy-Status: PostgREST; error=PGRST303; details="Invalid by 35 seconds"
+
+``details`` are only shown for ``PGRST303`` for now.
+
 .. _client_error_verbosity:
 
 Client Error Verbosity
