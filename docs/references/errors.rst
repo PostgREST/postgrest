@@ -517,3 +517,5 @@ With ``minimal``, just ``code`` and ``message`` is returned.
       "code": "PGRST205",
       "message": "Could not find the table 'public.itemsxx' in the schema cache"
   }
+
+``minimal`` also applies to the :ref:`proxy-status_header` ``details`` field.

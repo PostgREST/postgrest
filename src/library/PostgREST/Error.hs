@@ -86,8 +86,10 @@ errorResponseFor verb err =
     pSHeader code' =
       ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code' <> detailsHeader)
       where
-        detailsHeader = if code' == "PGRST303"
-          then maybe mempty (\d -> "; details=" <> LBS.toStrict (JSON.encode d)) (details err)
+        detailsHeader = if code' == "PGRST303" then
+          case verb of
+            Verbose -> maybe mempty (\d -> "; details=" <> LBS.toStrict (JSON.encode d)) (details err)
+            Minimal -> mempty
           else mempty
   in
   responseLBS (status err) (baseHeader : cLHeader (errorPayload verb err) : pSHeader (code err) : headers err) $ errorPayload verb err

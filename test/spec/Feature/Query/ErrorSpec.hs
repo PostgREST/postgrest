@@ -218,7 +218,7 @@ spec withConfig = do
 
   -- By default, error verbosity is set to 'verbose', which returns all error
   -- fields. No need to test that explicitly.
-  withConfig baseCfg { configClientErrorVerbosity = Minimal } $ describe "Test client-error-verbosity config" $
+  withConfig baseCfg { configClientErrorVerbosity = Minimal } $ describe "Test client-error-verbosity config" $ do
     it "hides details and hint when set to 'minimal'" $
       request methodGet "/itemsx" [] ""
         `shouldRespondWith`
@@ -227,3 +227,16 @@ spec withConfig = do
           "message":"Could not find the table 'test.itemsx' in the schema cache"
         }|]
         { matchStatus = 404 }
+
+    it "hides Proxy-Status details when set to 'minimal'" $ do
+      currentTime <- liftIO $ relativeSeconds (-35)
+      let jwtPayload = [json|{ "exp": #{currentTime} }|]
+          auth = authHeaderJWT $ generateJWT jwtPayload
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+        [json|{
+          "code":"PGRST303",
+          "message":"JWT expired"
+        }|]
+        { matchStatus = 401
+        , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST303" ] }

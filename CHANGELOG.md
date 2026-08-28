@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Error response body now includes details for JWT time validation errors by @steve-chavez in #5196
 - `Proxy-Status` now includes a `details` parameter for `PGRST303` error codes by @steve-chavez in #5196
+- `Proxy-Status` `details` is hidden according to `client-error-verbosity` by @steve-chavez in #5196
 
 ## [16.2] - 2026-08-21
 
