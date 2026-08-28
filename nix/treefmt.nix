@@ -1,4 +1,4 @@
-{ lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 let
   hlintConfig = pkgs.writeText "hlintConfig.yml" ''
 
@@ -27,9 +27,38 @@ in
   programs.ruff-check.enable = true;
   programs.stylish-haskell.enable = true;
 
-  settings.formatter.hlint.options = [
-    "--hint=${hlintConfig}"
-  ];
+  settings.formatter.hlint = {
+    command = pkgs.writeShellApplication {
+      name = "hlint-wrapper";
+      runtimeInputs = with pkgs; [
+        jq
+        # The "apply-refact" package is marked broken in nixpkgs because it
+        # doesn't build with GHC 9.10, so we are using the GHC 9.12 pinned version.
+        # https://github.com/mpickering/apply-refact#ghc-version-compatibility
+        haskell.packages.ghc912.apply-refact
+      ];
+      # hlint with --refactor flag does not support more than a single file at a time,
+      # so loop through these files manually.
+      # Unfortuantely, hlint is painfully slow doing so, so we run it on all provided files first
+      # and then loop through the files which require changes only.
+      text = ''
+        mapfile -t filenames < <(
+            ${lib.getExe config.programs.hlint.package} --hint=${hlintConfig} --json "$@" \
+              | jq -r '.[].file' \
+              | sort -u \
+              | grep -v '^$'
+        )
+
+        for file in "''${filenames[@]}"; do
+            ${lib.getExe config.programs.hlint.package} \
+              --hint="${hlintConfig}" \
+              --refactor \
+              --refactor-options=--inplace \
+              "$file"
+        done
+      '';
+    };
+  };
 
   # ruff has gaps in scanning for unused code, so we use vulture
   settings.formatter.vulture = {
