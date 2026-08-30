@@ -22,9 +22,9 @@ in
   programs.black.enable = true;
   programs.deadnix.enable = true;
   programs.hlint.enable = true;
+  programs.nixf-diagnose.enable = true;
   programs.nixpkgs-fmt.enable = true;
   programs.ruff-check.enable = true;
-  programs.statix.enable = true;
   programs.stylish-haskell.enable = true;
 
   settings.formatter.hlint.options = [
