@@ -5,7 +5,6 @@
 , git
 , hlint
 , hsie
-, nixpkgs-fmt
 , python3Packages
 , stylish-haskell
 , writeText
@@ -20,9 +19,6 @@ let
         withTmpDir = true;
       }
       ''
-        # Format Nix files
-        ${nixpkgs-fmt}/bin/nixpkgs-fmt .
-
         # Format Haskell files
         ${fd}/bin/fd '\.l?hs$' \
           | xargs ${stylish-haskell}/bin/stylish-haskell -i
