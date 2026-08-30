@@ -4,4 +4,5 @@
 
   programs.actionlint.enable = true;
   programs.deadnix.enable = true;
+  programs.ruff-check.enable = true;
 }
