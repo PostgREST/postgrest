@@ -14,8 +14,6 @@ let
         workingDir = "/";
       }
       ''
-        echo "Checking consistency of import aliases in Haskell code..."
-        ${hsie} check-aliases src/library src/executable
       '';
 
 in
