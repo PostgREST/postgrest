@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 let
   hlintConfig = pkgs.writeText "hlintConfig.yml" ''
 
@@ -30,4 +30,15 @@ in
   settings.formatter.hlint.options = [
     "--hint=${hlintConfig}"
   ];
+
+  # ruff has gaps in scanning for unused code, so we use vulture
+  settings.formatter.vulture = {
+    command = "${lib.getExe pkgs.python3Packages.vulture}";
+    options = [
+      "--min-confidence"
+      "80"
+    ];
+    includes = [ "*.py" ];
+    excludes = [ "docs/conf.py" ];
+  };
 }
