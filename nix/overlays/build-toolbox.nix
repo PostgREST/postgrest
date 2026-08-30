@@ -5,11 +5,11 @@
 , extra ? { }
 }:
 let
-  bash-completion = builtins.map (tool: (builtins.getAttr tool tools).bash-completion) (builtins.attrNames tools);
+  bash-completion = map (tool: (builtins.getAttr tool tools).bash-completion) (builtins.attrNames tools);
 
   env = buildEnv {
     inherit name;
-    paths = builtins.map (tool: (builtins.getAttr tool tools).bin) (builtins.attrNames tools);
+    paths = map (tool: (builtins.getAttr tool tools).bin) (builtins.attrNames tools);
   };
 
 in

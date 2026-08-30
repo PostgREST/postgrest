@@ -16,7 +16,7 @@ in
 , # Nix files that describe the Nixpkgs repository. We evaluate the expression
   # using `import` below.
   nixpkgs ? let inherit (nixpkgsVersion) owner repo rev tarballHash; in
-  builtins.fetchTarball {
+  fetchTarball {
     url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
     sha256 = tarballHash;
   }
@@ -44,7 +44,7 @@ let
       inherit (lock.nodes.treefmt-nix) locked;
       inherit (locked) owner repo rev;
     in
-    builtins.fetchTarball {
+    fetchTarball {
       url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
       sha256 = locked.narHash;
     };
