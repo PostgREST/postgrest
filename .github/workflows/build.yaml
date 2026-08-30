@@ -24,6 +24,8 @@ on:
       - '**.hs'
       - '!**.md'
 
+permissions: {}
+
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
   group: build-${{ github.head_ref || github.run_id }}
@@ -45,6 +47,8 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -79,6 +83,8 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -126,6 +132,8 @@ jobs:
       STACK_ROOT: ${{ github.workspace }}/.stack
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - if: ${{ !matrix.vm }}
         uses: haskell-actions/setup@6037f33647c3f17758a2356c80fc4a53d7e0685d # v2.12.0
         with:
@@ -175,6 +183,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: haskell-actions/setup@6037f33647c3f17758a2356c80fc4a53d7e0685d # v2.12.0
         with:
           ghc-version: ${{ matrix.ghc }}

@@ -1,10 +1,13 @@
 name: Backport
 
 on:
+  # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
       - closed
       - labeled
+
+permissions: {}
 
 jobs:
   backport:
@@ -43,6 +46,7 @@ jobs:
           allow-unsafe-pr-checkout: true
           ref: ${{ github.event.pull_request.head.sha }}
           token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       # Backport action that creates the PR with given settings
       - name: Create backport PR
