@@ -10,6 +10,8 @@ on:
       - main
       - v[0-9]+
 
+permissions: {}
+
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
   group: style-${{ github.head_ref || github.run_id }}
@@ -21,6 +23,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -38,6 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 100  # fetch history (last 100 commits) instead of default shallow clone history, this is deemed enough for a PR history
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
@@ -45,9 +50,11 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: gitTools.commitCheck.bin
       - name: Run commitlint (check locally with `nix-shell --run postgrest-commitlint`)
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           # Fetch target branch explicitly
-          git fetch origin ${{ github.base_ref }}
+          git fetch origin "$GITHUB_BASE_REF"
 
           # Run commitlint
-          postgrest-commitlint --from origin/${{ github.base_ref }} --to HEAD
+          postgrest-commitlint --from origin/"$GITHUB_BASE_REF" --to HEAD

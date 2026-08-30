@@ -26,6 +26,7 @@ in
   programs.nixpkgs-fmt.enable = true;
   programs.ruff-check.enable = true;
   programs.stylish-haskell.enable = true;
+  programs.zizmor.enable = true;
 
   settings.formatter.hlint = {
     command = pkgs.writeShellApplication {
