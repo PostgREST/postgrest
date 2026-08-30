@@ -142,7 +142,7 @@ rec {
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie treefmtNix; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests devCabalOptions hsie treefmtNix; };
 
   # Documentation tools.
   docs =
@@ -163,10 +163,6 @@ rec {
   # Scripts for publishing new releases.
   release =
     pkgs.callPackage nix/tools/release.nix { };
-
-  # Linting tools.
-  style =
-    pkgs.callPackage nix/tools/style.nix { inherit hsie; };
 
   # Scripts for running tests.
   tests =

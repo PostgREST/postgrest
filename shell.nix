@@ -23,7 +23,6 @@ let
       postgrest.loadtest
       postgrest.nixpkgsTools
       postgrest.release
-      postgrest.style
       postgrest.tests
       postgrest.withTools
     ]

@@ -10,7 +10,6 @@
 , hsie
 , nix
 , stdenv
-, style
 , tests
 , treefmtNix
 , haskellPackages
@@ -87,7 +86,6 @@ let
         ${tests}/bin/postgrest-test-io
         ${tests}/bin/postgrest-test-big-schema
         ${tests}/bin/postgrest-test-replica
-        ${style}/bin/postgrest-lint
       '';
 
   dumpMinimalImports =
