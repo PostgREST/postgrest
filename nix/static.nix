@@ -1,5 +1,4 @@
 { compiler
-, name
 , pkgs
 , src
 }:
@@ -33,5 +32,5 @@ in
 {
   inherit packagesStatic;
 
-  postgrestStatic = makeExecutableStatic (packagesStatic.callCabal2nix name src { });
+  postgrestStatic = makeExecutableStatic (packagesStatic.callCabal2nix "postgrest" src { });
 }
