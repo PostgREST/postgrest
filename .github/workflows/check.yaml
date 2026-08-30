@@ -25,11 +25,13 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: style.lint.bin treefmtNix.wrapper
+          tools: hsie.bin style.lint.bin treefmtNix.wrapper
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run treefmt
         run: treefmt --ci
+      - name: Checking consistency of import aliases in Haskell code
+        run: hsie check-aliases src/library src/executable
 
   commit:
     if: github.event_name != 'push'  # we don't run this on a push, a failure on push disrupts the release workflow
