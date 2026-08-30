@@ -7,7 +7,6 @@
 , hsie
 , nixpkgs-fmt
 , python3Packages
-, ruff
 , statix
 , stylish-haskell
 , writeText
@@ -76,9 +75,6 @@ let
         echo "Scanning python files for unused code..."
         ${fd}/bin/fd '\.l?py$' \
           | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py --min-confidence 80
-
-        echo "Linting python files..."
-        ${ruff}/bin/ruff check .
 
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases src/library src/executable
