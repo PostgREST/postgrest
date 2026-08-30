@@ -23,9 +23,6 @@
 }:
 
 let
-  name =
-    "postgrest";
-
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as little as possible, as the files
   # added here will increase the space used in the Nix store and trigger the
@@ -71,7 +68,7 @@ let
   haskellPackages = pkgs.haskell.packages."${compiler}";
 
   # Dynamic derivation for PostgREST
-  postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix name src { }) [
+  postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix "postgrest" src { }) [
     # To allow ghc-datasize to be used.
     lib.disableLibraryProfiling
     # We are never going to use shared haskell libraries anyway. "Dynamic" refers to how
@@ -79,7 +76,7 @@ let
     lib.disableSharedLibraries
   ];
 
-  staticHaskellPackage = import nix/static.nix { inherit compiler name pkgs src; };
+  staticHaskellPackage = import nix/static.nix { inherit compiler pkgs src; };
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
