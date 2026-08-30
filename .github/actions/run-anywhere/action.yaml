@@ -28,8 +28,10 @@ runs:
     - if: ${{ inputs.vm == '' }}
       name: Prepare
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      # zizmor: ignore[template-injection]
       run: ${{ inputs.prepare }}
     - if: ${{ inputs.vm == '' }}
       name: Run
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      # zizmor: ignore[template-injection]
       run: ${{ inputs.run }}

@@ -22,5 +22,7 @@ runs:
         authToken: ${{ inputs.authToken }}
         skipPush: ${{ inputs.authToken == '' }}
     - if: ${{ inputs.tools }}
-      run: nix-env -f default.nix -iA ${{ inputs.tools }}
+      env:
+        TOOLS: ${{ inputs.tools }}
+      run: nix-env -f default.nix -iA $TOOLS
       shell: bash
