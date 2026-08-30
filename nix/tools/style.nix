@@ -7,7 +7,6 @@
 , hsie
 , nixpkgs-fmt
 , python3Packages
-, statix
 , stylish-haskell
 , writeText
 }:
@@ -22,7 +21,6 @@ let
       }
       ''
         # Format Nix files
-        ${statix}/bin/statix fix
         ${nixpkgs-fmt}/bin/nixpkgs-fmt .
 
         # Format Haskell files
