@@ -25,11 +25,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: style.lint.bin style.styleCheck.bin treefmtNix.wrapper
+          tools: style.lint.bin treefmtNix.wrapper
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
-      - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
-        run: postgrest-style-check
       - name: Run treefmt
         run: treefmt --ci
 

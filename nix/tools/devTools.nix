@@ -88,7 +88,6 @@ let
         ${tests}/bin/postgrest-test-big-schema
         ${tests}/bin/postgrest-test-replica
         ${style}/bin/postgrest-lint
-        ${style}/bin/postgrest-style-check
       '';
 
   dumpMinimalImports =
