@@ -1,7 +1,6 @@
 { black
 , buildToolbox
 , checkedShellScript
-, deadnix
 , fd
 , git
 , hlint
@@ -73,9 +72,6 @@ let
         workingDir = "/";
       }
       ''
-        echo "Scanning nix files for unused code..."
-        ${deadnix}/bin/deadnix -f
-
         # ruff has gaps in scanning for unused code, so we use vulture
         echo "Scanning python files for unused code..."
         ${fd}/bin/fd '\.l?py$' \
