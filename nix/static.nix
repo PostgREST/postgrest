@@ -7,7 +7,9 @@ let
   inherit (pkgs) pkgsStatic;
   inherit (pkgsStatic.haskell) lib;
 
-  packagesStatic = pkgsStatic.haskell.packages.native-bignum."${compiler}";
+  packagesStatic = pkgsStatic.haskell.packages.native-bignum."${compiler}".override {
+    overrides = pkgsStatic.callPackage ./overlays/haskell-packages.nix { };
+  };
 
   makeExecutableStatic = drv: pkgs.lib.pipe drv [
     lib.compose.justStaticExecutables

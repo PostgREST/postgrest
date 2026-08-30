@@ -40,7 +40,6 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
-      (allOverlays.haskell-packages { inherit compiler; })
     ];
 
   # Evaluated expression of the Nixpkgs repository.
@@ -65,7 +64,9 @@ let
       }
     ];
 
-  haskellPackages = pkgs.haskell.packages."${compiler}";
+  haskellPackages = pkgs.haskell.packages."${compiler}".override {
+    overrides = pkgs.callPackage ./nix/overlays/haskell-packages.nix { };
+  };
 
   # Dynamic derivation for PostgREST
   postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix "postgrest" src { }) [
@@ -120,7 +121,7 @@ rec {
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
+      inherit (haskellPackages) ghcWithPackages;
     };
 
   # Used by CI on MacOS
