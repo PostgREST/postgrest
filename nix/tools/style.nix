@@ -5,7 +5,6 @@
 , hlint
 , hsie
 , python3Packages
-, stylish-haskell
 , writeText
 }:
 let
@@ -18,9 +17,6 @@ let
         withTmpDir = true;
       }
       ''
-        # Format Haskell files
-        ${fd}/bin/fd '\.l?hs$' \
-          | xargs ${stylish-haskell}/bin/stylish-haskell -i
       '';
 
   # Script to check whether any uncommitted changes result from postgrest-style
