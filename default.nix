@@ -1,3 +1,6 @@
+let
+  lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+in
 { system ? builtins.currentSystem
 
 , compiler ? "ghc9123"
@@ -5,10 +8,7 @@
 , # Commit of the Nixpkgs repository that we want to use.
   # It defaults to reading the inputs from flake.lock, which serves
   # as a compatibility layer for non-flake builds / default.nix / shell.nix.
-  nixpkgsVersion ? let
-    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
-  in
-  {
+  nixpkgsVersion ? {
     inherit (lock.nodes.nixpkgs.locked) owner repo rev;
     tarballHash = lock.nodes.nixpkgs.locked.narHash;
   }
@@ -38,6 +38,18 @@ let
       inherit system;
       overlays = [ (import ./nix/overlays) ];
     };
+
+  treefmtNixSrc =
+    let
+      inherit (lock.nodes.treefmt-nix) locked;
+      inherit (locked) owner repo rev;
+    in
+    builtins.fetchTarball {
+      url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
+      sha256 = locked.narHash;
+    };
+
+  treefmtNix = ((import treefmtNixSrc).evalModule pkgs ./nix/treefmt.nix).config.build;
 
   postgresqlVersions =
     [
@@ -89,7 +101,7 @@ let
   }).config.result;
 in
 rec {
-  inherit nixpkgs pkgs;
+  inherit nixpkgs pkgs treefmtNix;
 
   # Derivation for the PostgREST Haskell package, including the executable,
   # libraries and documentation. We disable running the test suite on Nix
@@ -130,7 +142,7 @@ rec {
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie treefmtNix; };
 
   # Documentation tools.
   docs =

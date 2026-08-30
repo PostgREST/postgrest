@@ -186,20 +186,12 @@ postgrest-coverage: To see the results, visit file://$(pwd)/coverage/check/hpc_i
 
 ## Linting and styling code
 
-The nix-shell also contains scripts for linting and styling the PostgREST
+The nix-shell also contains configuration for linting and styling the PostgREST
 source code:
 
 ```bash
-# Linting
-$ nix-shell --run postgrest-lint
-
-# Styling / auto-formatting code
-$ nix-shell --run postgrest-style
-
+nix-shell --run treefmt
 ```
-
-There is also `postgrest-style-check` that exits with a non-zero exit code if
-the check resulted in any uncommitted changes. It's mostly useful for CI.
 
 ## Documentation
 
