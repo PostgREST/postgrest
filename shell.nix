@@ -54,8 +54,8 @@ lib.overrideDerivation postgrest.env (
 
       ''
       + builtins.concatStringsSep "\n" (
-        builtins.map (bash-completion: "source ${bash-completion}") (
-          builtins.concatLists (builtins.map (toolbox: toolbox.bash-completion) toolboxes)
+        map (bash-completion: "source ${bash-completion}") (
+          builtins.concatLists (map (toolbox: toolbox.bash-completion) toolboxes)
         )
       );
   }

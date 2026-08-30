@@ -157,7 +157,7 @@ let
   withPgAll =
     let
       runners =
-        builtins.map
+        map
           (version:
             ''
               cat << EOF
@@ -333,7 +333,7 @@ buildToolbox
       withPgrst;
   } // builtins.listToAttrs (
     # Create a `postgrest-with-pg-` for each PostgreSQL version
-    builtins.map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
+    map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
   );
   # make latest withPg available for other nix files
   extra = { inherit withPg; };
