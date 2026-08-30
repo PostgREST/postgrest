@@ -37,6 +37,7 @@ lib.overrideDerivation postgrest.env (
         pkgs.cabal-install
         pkgs.postgresql
         postgrest.hsie.bin
+        postgrest.treefmtNix.wrapper
       ]
       ++ toolboxes;
 

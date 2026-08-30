@@ -12,6 +12,7 @@
 , stdenv
 , style
 , tests
+, treefmtNix
 , haskellPackages
 , ctags
 , openssl
@@ -79,6 +80,7 @@ let
         workingDir = "/";
       }
       ''
+        ${treefmtNix.wrapper}/bin/treefmt
         ${tests}/bin/postgrest-test-spec
         ${tests}/bin/postgrest-test-observability
         ${tests}/bin/postgrest-test-doctests
