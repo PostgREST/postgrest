@@ -32,19 +32,12 @@ let
       (pkgs.gitignoreSource ./.)
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
 
-  allOverlays =
-    import nix/overlays;
-
-  overlays =
-    [
-      allOverlays.build-toolbox
-      allOverlays.checked-shell-script
-      allOverlays.gitignore
-    ];
-
   # Evaluated expression of the Nixpkgs repository.
   pkgs =
-    import nixpkgs { inherit overlays system; };
+    import nixpkgs {
+      inherit system;
+      overlays = [ (import ./nix/overlays) ];
+    };
 
   postgresqlVersions =
     [
