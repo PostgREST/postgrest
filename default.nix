@@ -74,7 +74,7 @@ let
   postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix name src { }) [
     # To allow ghc-datasize to be used.
     lib.disableLibraryProfiling
-    # We are never going to use dynamic haskell libraries anyway. "Dynamic" refers to how
+    # We are never going to use shared haskell libraries anyway. "Dynamic" refers to how
     # non-haskell deps are linked. All haskell dependencies are always statically linked.
     lib.disableSharedLibraries
   ];
