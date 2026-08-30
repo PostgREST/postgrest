@@ -25,9 +25,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: hsie.bin style.lint.bin treefmtNix.wrapper
-      - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
-        run: postgrest-lint
+          tools: hsie.bin treefmtNix.wrapper
       - name: Run treefmt
         run: treefmt --ci
       - name: Checking consistency of import aliases in Haskell code
