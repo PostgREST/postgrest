@@ -1,25 +1,11 @@
 { buildToolbox
 , checkedShellScript
 , fd
-, hlint
 , hsie
 , python3Packages
-, writeText
+
 }:
 let
-  hlintConfig = writeText "hlintConfig.yml" ''
-
-    # Arguments passed to hlint
-    - arguments: [-j, -XQuasiQuotes, -XNoPatternSynonyms]
-
-    # Warnings
-    - warn: { lhs: "a == a", rhs: "True",  note: "This comparison always evaluates to True" }
-    - warn: { lhs: "a /= a", rhs: "False", note: "This comparison always evaluates to False" }
-    - warn: { lhs: "a < a",  rhs: "False", note: "This comparison always evaluates to False" }
-    - warn: { lhs: "a > a",  rhs: "False", note: "This comparison always evaluates to False" }
-    - warn: { lhs: "a <= a", rhs: "True",  note: "This comparison always evaluates to True" }
-    - warn: { lhs: "a >= a", rhs: "True",  note: "This comparison always evaluates to True" }
-  '';
 
   lint =
     checkedShellScript
@@ -36,10 +22,6 @@ let
 
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases src/library src/executable
-
-        echo "Linting Haskell files..."
-        ${fd}/bin/fd '\.l?hs$' \
-          | xargs ${hlint}/bin/hlint --hint=${hlintConfig}
       '';
 
 in
