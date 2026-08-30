@@ -1,40 +1,12 @@
 { buildToolbox
 , checkedShellScript
 , fd
-, git
 , hlint
 , hsie
 , python3Packages
 , writeText
 }:
 let
-  style =
-    checkedShellScript
-      {
-        name = "postgrest-style";
-        docs = "Automatically format Haskell, Nix and Python files.";
-        workingDir = "/";
-        withTmpDir = true;
-      }
-      ''
-      '';
-
-  # Script to check whether any uncommitted changes result from postgrest-style
-  styleCheck =
-    checkedShellScript
-      {
-        name = "postgrest-style-check";
-        docs = "Check whether postgrest-style results in any uncommitted changes.";
-        workingDir = "/";
-      }
-      ''
-        ${style}
-
-        trap "echo postgrest-style-check failed. Run postgrest-style to fix issues automatically." ERR
-
-        ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix' '*.py'
-      '';
-
   hlintConfig = writeText "hlintConfig.yml" ''
 
     # Arguments passed to hlint
@@ -74,5 +46,5 @@ in
 buildToolbox
 {
   name = "postgrest-style";
-  tools = { inherit style styleCheck lint; };
+  tools = { inherit lint; };
 }

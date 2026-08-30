@@ -164,7 +164,7 @@ rec {
   release =
     pkgs.callPackage nix/tools/release.nix { };
 
-  # Linting and styling tools.
+  # Linting tools.
   style =
     pkgs.callPackage nix/tools/style.nix { inherit hsie; };
 

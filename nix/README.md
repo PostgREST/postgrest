@@ -87,7 +87,7 @@ completion will not work with `nix-shell --run`, as Nix has yet to evaluate
 our Nix expressions to see which utilities are available.
 
 ```bash
-$ nix-shell --run postgrest-style
+$ nix-shell --run postgrest-test-spec
 
 # Note that you need to quote any arguments that you would like to pass to
 # the command to be run in nix-shell:
