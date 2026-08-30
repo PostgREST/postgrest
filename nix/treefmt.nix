@@ -4,6 +4,7 @@
 
   programs.actionlint.enable = true;
   programs.deadnix.enable = true;
+  programs.nixpkgs-fmt.enable = true;
   programs.ruff-check.enable = true;
   programs.statix.enable = true;
 }
