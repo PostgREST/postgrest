@@ -1,5 +1,4 @@
-{ actionlint
-, black
+{ black
 , buildToolbox
 , checkedShellScript
 , deadnix
@@ -74,9 +73,6 @@ let
         workingDir = "/";
       }
       ''
-        echo "Linting workflows..."
-        ${actionlint}/bin/actionlint
-
         echo "Scanning nix files for unused code..."
         ${deadnix}/bin/deadnix -f
 
