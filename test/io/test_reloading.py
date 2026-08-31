@@ -5,7 +5,7 @@ import time
 import pytest
 import requests
 
-from config import CONFIGSDIR, SECRET
+from config import SIGUSR2DIR, SECRET
 from util import (
     jwtauthheader,
     psql_as_superuser,
@@ -45,7 +45,7 @@ def test_db_schema_notify_reload(defaultenv):
 
 def test_db_schema_reload(tmp_path, defaultenv):
     "DB schema should be reloaded from file when PostgREST is sent SIGUSR2."
-    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    config = (SIGUSR2DIR / "db-schemas.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -256,7 +256,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
 
 def test_jwt_secret_reload(tmp_path, defaultenv):
     "JWT secret should be reloaded from file when PostgREST is sent SIGUSR2."
-    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    config = (SIGUSR2DIR / "jwt-secret.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -416,7 +416,7 @@ def test_stale_schema_cache_dropped_table_returns_database_error(defaultenv):
 def test_config_log_level_is_reloadable(tmp_path, defaultenv):
     "Config log-level should be reloadable on SIGUSR2"
 
-    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    config = (SIGUSR2DIR / "log-level.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
@@ -453,7 +453,7 @@ def test_config_log_level_is_reloadable(tmp_path, defaultenv):
 def test_config_db_channel_enabled_is_reloadable(tmp_path, defaultenv):
     "Config db-channel-enabled should be reloadable on SIGUSR2"
 
-    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    config = (SIGUSR2DIR / "db-channel-enabled.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
