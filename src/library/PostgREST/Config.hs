@@ -58,9 +58,6 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.Database         (RoleIsolationLvl, RoleSettings)
-import PostgREST.Config.DeprecatedJSPath (DeprecatedJSPath,
-                                          dumpDeprecatedJSPath,
-                                          pDeprecatedRoleClaimKey)
 import PostgREST.Config.JSPath           (JSPath (..), defaultRoleJSPathKey,
                                           dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..), isMalformedProxyUri,
@@ -101,7 +98,7 @@ data AppConfig = AppConfig
   , configFilePath                  :: Maybe FilePath
   , configJWKS                      :: Maybe JwkSet
   , configJwtAudience               :: Maybe Text
-  , configJwtRoleClaimKey           :: Either DeprecatedJSPath JSPath
+  , configJwtRoleClaimKey           :: JSPath
   , configJwtSecret                 :: Maybe BS.ByteString
   , configJwtSecretIsBase64         :: Bool
   , configJwtCacheMaxEntries        :: Int
@@ -188,7 +185,7 @@ toText conf =
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
-      ,("jwt-role-claim-key",        q . dumpJwtRoleClaimKey . configJwtRoleClaimKey)
+      ,("jwt-role-claim-key",        q . dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-entries",         show . configJwtCacheMaxEntries)
@@ -211,11 +208,6 @@ toText conf =
       ,("admin-server-unix-socket",  q . maybe mempty T.pack . configAdminServerUnixSocket)
       ,("admin-server-unix-socket-mode", q . T.pack . showAdminSocketMode)
       ]
-
-    dumpJwtRoleClaimKey :: Either DeprecatedJSPath JSPath -> Text
-    dumpJwtRoleClaimKey = \case
-      Right rck -> dumpJSPath rck
-      Left drck -> dumpDeprecatedJSPath drck
 
     -- quote all app.settings
     appSettings = second q <$> configAppSettings conf
@@ -429,15 +421,11 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just "rollback-allow-override" -> pure $ f (True,       True)
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
 
-    parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config (Either DeprecatedJSPath JSPath)
+    parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath
     parseRoleClaimKey k al =
       optWithAlias (optString k) (optString al) >>= \case
-        Nothing  -> pure (Right defaultRoleJSPathKey) -- $.role
-        Just rck -> case pRoleClaimKey rck of
-          Right res -> pure $ Right res
-          Left _ -> case pDeprecatedRoleClaimKey rck of
-              Left e    -> fail $ show e
-              Right res -> pure $ Left res
+        Nothing  -> pure defaultRoleJSPathKey -- $.role
+        Just rck -> either (fail . show) pure $ pRoleClaimKey rck
 
     parseCORSAllowedOrigins k =
       optString k >>= \case

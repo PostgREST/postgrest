@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Removed
+
+- Remove deprecated JSPath DSL syntax for `jwt-role-claim-key` config by @taimoorzaeem in #5192
+
 ## [16.2] - 2026-08-21
 
 ### Added
