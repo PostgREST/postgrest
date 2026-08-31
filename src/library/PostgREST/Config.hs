@@ -450,8 +450,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     parseJwtAllowedSkewSeconds k =
       optInt k >>= \case
         Nothing -> pure 30
-        Just skew | skew >= 30 && skew <= 300 -> pure skew
-                  | otherwise -> fail "jwt-allowed-skew-seconds must be between 30 and 300"
+        Just skew | skew >= 0 && skew <= 300 -> pure skew
+                  | otherwise -> fail "jwt-allowed-skew-seconds must be between 0 and 300"
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =

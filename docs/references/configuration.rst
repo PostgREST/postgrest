@@ -757,7 +757,7 @@ jwt-allowed-skew-seconds
   **In-Database** pgrst.jwt_allowed_skew_seconds
   =============== =================================
 
-  The number of seconds of clock skew allowed when validating JWT claims. Values must be between 30 and 300.
+  The number of seconds of clock skew allowed when validating JWT claims. Values must be between 0 and 300.
 
 .. _log-level:
 
