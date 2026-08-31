@@ -13,6 +13,7 @@ module PostgREST.Error.Types
   , JwtError (..)
   , JwtDecodeError(..)
   , JwtClaimsError(..)
+  , EpochTime
   , PgRaiseErrMessage(..)
   , PgRaiseErrDetails(..)
   ) where
@@ -105,10 +106,12 @@ data JwtDecodeError
   | UnreachableDecodeError
   deriving Show
 
+type EpochTime = Int64
+
 data JwtClaimsError
-  = JWTExpired
-  | JWTNotYetValid
-  | JWTIssuedAtFuture
+  = JWTExpired Int64 EpochTime EpochTime
+  | JWTNotYetValid Int64 EpochTime EpochTime
+  | JWTIssuedAtFuture Int64 EpochTime EpochTime
   | JWTNotInAudience
   | ParsingClaimsFailed
   | ExpClaimNotNumber

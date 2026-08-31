@@ -507,6 +507,7 @@ def test_expired_jwt_log_lacks_role(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
+        assert response.json()["details"] is None
 
         output = postgrest.read_stdout(nlines=1)
 
@@ -514,6 +515,39 @@ def test_expired_jwt_log_lacks_role(defaultenv):
     assert re.match(
         r'- - - \[.+\] "GET /authors_only HTTP/1.1" 401 \d+ "" "python-requests/.+"',
         output[0],
+    )
+
+
+@pytest.mark.parametrize(
+    ("claim", "offset", "message"),
+    [
+        ("exp", -35, "JWT expired"),
+        ("nbf", 35, "JWT not yet valid"),
+        ("iat", 35, "JWT issued at future"),
+    ],
+)
+def test_jwt_time_validation_difference_is_logged(claim, offset, message, defaultenv):
+    "JWT time validation differences are logged"
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SECRET": SECRET,
+        "PGRST_LOG_LEVEL": "warn",
+    }
+    headers = jwtauthheader({claim: relativeSeconds(offset)}, SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
+
+        output = postgrest.read_stdout(nlines=2)
+
+    assert any(
+        f"{message}, diff: " in line
+        and re.search(
+            r", current time \(epoch\): \d+, (exp|nbf|iat) \(epoch\): \d+$", line
+        )
+        for line in output
     )
 
 

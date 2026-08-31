@@ -160,11 +160,14 @@ postgrest appState =
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
 
-      let handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+      let logError (Error.JwtErr jwtErr@(Error.JwtClaimsErr Error.JWTExpired{})) = AppState.getObserver appState $ JwtErrorObs jwtErr
+          logError (Error.JwtErr jwtErr@(Error.JwtClaimsErr Error.JWTNotYetValid{})) = AppState.getObserver appState $ JwtErrorObs jwtErr
+          logError (Error.JwtErr jwtErr@(Error.JwtClaimsErr Error.JWTIssuedAtFuture{})) = AppState.getObserver appState $ JwtErrorObs jwtErr
+          logError _ = pure ()
 
       -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
       -- has to be before runExceptT to make sure role is not lost on error
-      (response, authRole) <- runWriterT . handleError . runExceptT $ do
+      (result, authRole) <- runWriterT . runExceptT $ do
         (jwtTime, authResult@AuthResult{..}) <- withTiming appConf $
           Auth.getAuthResult appState $ ApiRequest.userBearerAuth req
 
@@ -172,7 +175,13 @@ postgrest appState =
 
         postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req
 
+      let response = either (Error.errorResponseFor configClientErrorVerbosity) identity result
+
       AppState.getObserver appState $ genResponseObs (getLast authRole) req response
+
+      case result of
+        Left err -> logError err
+        Right _  -> pure ()
 
       delay <- AppState.getNextDelay appState
       respond $ addRetryHint delay response

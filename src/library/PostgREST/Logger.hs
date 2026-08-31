@@ -78,6 +78,9 @@ observationLogger loggerState obs = do
     o@(QueryErrorCodeHighObs _) -> do
       when (logLevel >= LogError) $ do
         logWithZTime loggerState $ observationMessages o
+    o@(JwtErrorObs _) -> do
+      when (logLevel >= LogError) $ do
+        logWithZTime loggerState $ observationMessages o
     o@SchemaCacheEmptyObs ->
       when (logLevel >= LogError) $ do
       logWithZTime loggerState $ observationMessages o
@@ -208,6 +211,8 @@ observationMessages = \case
     pure $ "Failed to query the role settings. " <> jsonMessage usageErr
   QueryErrorCodeHighObs usageErr ->
     pure $ jsonMessage usageErr
+  JwtErrorObs jwtErr ->
+    pure $ Error.jwtErrorMessage jwtErr
   ConfigInvalidObs err ->
     pure $ "Failed reloading config: " <> err
   ConfigSucceededObs ->

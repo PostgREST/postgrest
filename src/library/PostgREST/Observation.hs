@@ -18,6 +18,7 @@ import           Network.HTTP.Types.Status         (Status)
 import qualified Network.Wai                       as Wai
 import           PostgREST.Config.DeprecatedJSPath (DeprecatedJSPath)
 import           PostgREST.Config.PgVersion
+import           PostgREST.Error.Types             (JwtError)
 import           PostgREST.Query                   (MainQuery)
 import           PostgREST.SchemaCache             (QueryTimings)
 
@@ -51,6 +52,7 @@ data Observation
   | ConfigSucceededObs
   | QueryRoleSettingsErrorObs SQL.UsageError
   | QueryErrorCodeHighObs SQL.UsageError
+  | JwtErrorObs JwtError
   | QueryPgVersionError SQL.UsageError
   | PoolInit Int
   | PoolAcqTimeoutObs

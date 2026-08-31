@@ -21,6 +21,7 @@ module PostgREST.Error
   , status
   , noRelBetweenHint
   , noRpcHint
+  , jwtErrorMessage
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -663,9 +664,9 @@ instance ErrorBody JwtError where
     UnreachableDecodeError -> "JWT couldn't be decoded"
   message JwtTokenRequired = "Anonymous access is disabled"
   message (JwtClaimsErr e) = case e of
-    JWTExpired               -> "JWT expired"
-    JWTNotYetValid           -> "JWT not yet valid"
-    JWTIssuedAtFuture        -> "JWT issued at future"
+    JWTExpired{}             -> "JWT expired"
+    JWTNotYetValid{}         -> "JWT not yet valid"
+    JWTIssuedAtFuture{}      -> "JWT issued at future"
     JWTNotInAudience         -> "JWT not in audience"
     ParsingClaimsFailed      -> "Parsing claims failed"
     ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
@@ -680,6 +681,18 @@ instance ErrorBody JwtError where
   details _ = Nothing
 
   hint _    = Nothing
+
+jwtErrorMessage :: JwtError -> Text
+jwtErrorMessage e = case e of
+  JwtClaimsErr ce -> case ce of
+    JWTExpired difference now claim        -> timeMsg "JWT expired" "exp" difference now claim
+    JWTNotYetValid difference now claim    -> timeMsg "JWT not yet valid" "nbf" difference now claim
+    JWTIssuedAtFuture difference now claim -> timeMsg "JWT issued at future" "iat" difference now claim
+    _                      -> message e
+  _ -> message e
+  where
+    timeMsg msg claimName difference now claim =
+      msg <> ", diff: " <> show difference <> " seconds, current time (epoch): " <> show now <> ", " <> claimName <> " (epoch): " <> show claim
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
