@@ -158,17 +158,16 @@ let
         ];
       }
       ''
-        curl_command="${curl}/bin/curl --parallel --parallel-immediate "
-        curl_command+="''${_arg_leftovers[*]} "
+        curl_command=("${curl}/bin/curl" --parallel --parallel-immediate)
+        curl_command+=("''${_arg_leftovers[@]}")
 
         x=1
-        while [ $x -le "$1" ]
-        do
-          curl_command+="$_arg_host "
+        while [ $x -le "$1" ]; do
+          curl_command+=("$_arg_host")
           x=$((x + 1))
         done
 
-        eval "$curl_command"
+        "''${curl_command[@]}"
       '';
 
   genCtags =
