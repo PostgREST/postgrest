@@ -141,7 +141,7 @@ spec withConfig = do
               "code":"PGRST303",
               "details":null,
               "hint":null,
-              "message":"JWT expired"
+              "message":"JWT expired by 35 seconds"
             }|]
             { matchStatus = 401 }
 
@@ -155,7 +155,7 @@ spec withConfig = do
               "code":"PGRST303",
               "details":null,
               "hint":null,
-              "message":"JWT not yet valid"
+              "message":"JWT not yet valid by 35 seconds"
             }|]
             { matchStatus = 401 }
 
@@ -169,7 +169,7 @@ spec withConfig = do
               "code":"PGRST303",
               "details":null,
               "hint":null,
-              "message":"JWT issued at future"
+              "message":"JWT issued at future by 35 seconds"
             }|]
             { matchStatus = 401 }
 
