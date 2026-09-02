@@ -36,8 +36,6 @@ import qualified PostgREST.Metrics       as Metrics
 import           PostgREST.Observation
 import           PostgREST.Version       (prettyVersion)
 
-import Control.AutoUpdate         (defaultUpdateSettings, mkAutoUpdate,
-                                   updateAction)
 import Control.Concurrent.STM     (newEmptyTMVarIO)
 import Data.IORef                 (IORef, newIORef, readIORef)
 import Data.Time.Clock            (getCurrentTime)
@@ -78,7 +76,7 @@ initWithPool pool confRef loggerState metricsState observer appKiller = mdo
     <*> newIORef Nothing
     <*> makeDebouncer (retryingSchemaCacheLoad appState *> threadDelay 100000)  -- 100ms cooldown
     <*> pure confRef
-    <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
+    <*> pure getCurrentTime
     <*> pure appKiller
     <*> newIORef 0
     <*> pure observer
