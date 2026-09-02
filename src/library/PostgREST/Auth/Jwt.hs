@@ -46,15 +46,15 @@ decodeClaims :: MonadError Error m => JWT.JwtContent -> m JSON.Object
 decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 
-validateClaims :: MonadError Error m => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
-validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
+validateClaims :: MonadError Error m => Int -> UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
+validateClaims allowedSkewSeconds time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors allowedSkewSeconds time audMatches claims)
 
 data ValidAud = VAString Text | VAArray [Text] deriving Generic
 instance JSON.FromJSON ValidAud where
   parseJSON = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue }
 
-checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
-checkForErrors time audMatches = mconcat
+checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => Int -> UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
+checkForErrors allowedSkewSeconds time audMatches = mconcat
   [
     claim "exp" ExpClaimNotNumber $ inThePast JWTExpired
   , claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid
@@ -62,13 +62,13 @@ checkForErrors time audMatches = mconcat
   , claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience
   ]
   where
-      allowedSkewSeconds = 30 :: Int64
+      allowedSkew = fromIntegral allowedSkewSeconds :: Int64
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
       toSec = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       now = toSec time
 
-      inTheFuture = checkTime ((now + allowedSkewSeconds) <)
-      inThePast = checkTime ((now - allowedSkewSeconds) >)
+      inTheFuture = checkTime ((now + allowedSkew) <)
+      inThePast = checkTime ((now - allowedSkew) >)
 
       checkTime cond = checkValue (cond. sciToInt)
 
@@ -109,8 +109,8 @@ parseToken secret tkn = do
       jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError
 
 parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JSON.Object -> m AuthResult
-parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims = do
-  validateClaims time (audMatchesCfg cfg) mclaims
+parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole, configJwtAllowedSkewSeconds} time mclaims = do
+  validateClaims configJwtAllowedSkewSeconds time (audMatchesCfg cfg) mclaims
   -- role defaults to anon if not specified in jwt
   let claims = Just $ JSON.Object mclaims
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $

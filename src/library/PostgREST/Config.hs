@@ -105,6 +105,7 @@ data AppConfig = AppConfig
   , configJwtSecret                 :: Maybe BS.ByteString
   , configJwtSecretIsBase64         :: Bool
   , configJwtCacheMaxEntries        :: Int
+  , configJwtAllowedSkewSeconds     :: Int
   , configLogLevel                  :: LogLevel
   , configLogQuery                  :: Bool
   , configOpenApiMode               :: OpenAPIMode
@@ -192,6 +193,7 @@ toText conf =
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-entries",         show . configJwtCacheMaxEntries)
+      ,("jwt-allowed-skew-seconds",      show . configJwtAllowedSkewSeconds)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("log-query",                     T.toLower . show . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
@@ -316,6 +318,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
     <*> (fromMaybe 1000 <$> optInt "jwt-cache-max-entries")
+    <*> parseJwtAllowedSkewSeconds "jwt-allowed-skew-seconds"
     <*> parseLogLevel "log-level"
     <*> (fromMaybe False <$> optBool "log-query")
     <*> parseOpenAPIMode "openapi-mode"
@@ -443,6 +446,12 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
       optString k >>= \case
         Nothing   -> pure []
         Just orig -> pure (T.strip <$> T.splitOn "," orig)
+
+    parseJwtAllowedSkewSeconds k =
+      optInt k >>= \case
+        Nothing -> pure 30
+        Just skew | skew >= 0 && skew <= 300 -> pure skew
+                  | otherwise -> fail "jwt-allowed-skew-seconds must be between 0 and 300"
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =
@@ -771,6 +780,7 @@ exampleConfigFile = S.unlines
   , ""
   , "## Enables JWT Cache and sets its max size, disables caching with 0"
   , "# jwt-cache-max-entries = 0"
+  , "jwt-allowed-skew-seconds = 30"
   , ""
   , "## Logging level, the admitted values are: crit, error, warn, info and debug."
   , "log-level = \"error\""

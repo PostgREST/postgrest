@@ -117,6 +117,7 @@ main = do
         , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
         , ("Feature.Auth.AudienceJwtSecretSpec"                , Feature.Auth.AudienceJwtSecretSpec.spec)
         , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.spec)
+        , ("Feature.Auth.AuthSpec"                             , Feature.Auth.AuthSpec.skewSpec)
         , ("Feature.Auth.BinaryJwtSecretSpec"                  , Feature.Auth.BinaryJwtSecretSpec.spec)
         , ("Feature.Auth.JwtCacheSpec"                         , Feature.Auth.JwtCacheSpec.spec)
         , ("Feature.Auth.NoAnonSpec"                           , Feature.Auth.NoAnonSpec.spec)

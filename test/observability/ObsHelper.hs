@@ -90,6 +90,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxEntries        = 10
+  , configJwtAllowedSkewSeconds     = 30
   , configLogLevel                  = LogCrit
   , configLogQuery                  = False
   , configOpenApiMode               = OAFollowPriv

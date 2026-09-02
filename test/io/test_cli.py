@@ -297,6 +297,18 @@ def test_invalid_client_error_verbosity(defaultenv):
     assert "Invalid client-error-verbosity. Check your configuration." in error
 
 
+@pytest.mark.parametrize("skew", [-1, 301])
+def test_invalid_jwt_allowed_skew_seconds(skew, defaultenv):
+    "Given a JWT clock skew outside of the allowed range, PostgREST should reject the config."
+    env = {
+        **defaultenv,
+        "PGRST_JWT_ALLOWED_SKEW_SECONDS": str(skew),
+    }
+
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "jwt-allowed-skew-seconds must be between 0 and 300" in error
+
+
 @pytest.mark.parametrize("restricted_schema", FIXTURES["restrictedschemas"])
 def test_restricted_db_schemas(restricted_schema, defaultenv):
     "Should print error when db-schemas config contain pg_catalog or information_schema"
