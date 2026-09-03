@@ -1,7 +1,8 @@
 <!--
-When submitting a new feature or fix:
+Before submitting a PR, please make sure you have done the following:
 
-- Add a new entry to the CHANGELOG - https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#unreleased
+- Please confirm that you've read our [contributing guide](https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md#code).
+- If relevant, add a new entry to the CHANGELOG - https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#unreleased. See previous entries for reference.
 - If relevant, update the docs
 - Use a prefix for the PR title or commits, e.g. "fix: description of the fix".
   + `add`, Add a new feature
