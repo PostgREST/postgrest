@@ -547,6 +547,10 @@ jwt-secret-is-base64
 
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
+  .. warning::
+
+     Base64 decoding is strict following `RFC 4648 <https://www.rfc-editor.org/info/rfc4648/#section-3.3>`_, hence a base64 ``jwt-secret`` must not contain any line breaks.
+
 .. _log-level:
 
 log-level
