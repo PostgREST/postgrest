@@ -201,21 +201,31 @@ let
       ''
         # Based on https://stackoverflow.com/questions/59002949/how-to-create-a-json-web-token-jwt-using-openssl-shell-commands
 
+        # Encode input using base64 as required by JWT
+        base64url() {
+          base64 \
+            | tr -d '\n' \
+            | tr '+/' '-_' \
+            | tr -d '='
+        }
+
         # Construct the header
-        jwt_header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 | sed s/\+/-/g | sed 's/\//_/g' | sed -E s/=+$//)
+        jwt_header=$(printf '%s' '{"alg":"HS256","typ":"JWT"}' | base64url)
 
         # Construct the exp value
         expiry=$((EPOCHSECONDS + _arg_exp))
 
         # Construct the payload
-        payload=$(echo -n "{\"role\": \"$_arg_role\", \"exp\": $expiry}" | base64 | sed s/\+/-/g |sed 's/\//_/g' |  sed -E s/=+$//)
+        payload_json=$(printf '{"role": "%s", "exp": %s}' \
+          "$_arg_role" "$expiry")
+        payload=$(printf '%s' "$payload_json" | base64url)
 
         # Convert secret to hex
         hexsecret=$(echo -n "$_arg_secret" | xxd -p | paste -sd "")
 
         # Calculate hmac signature -- note option to pass in the key as hex bytes
         hmac_signature=$(echo -n "$jwt_header.$payload" |  ${openssl}/bin/openssl dgst -sha256 -mac HMAC -macopt hexkey:"$hexsecret" -binary \
-          | base64  | sed s/\+/-/g | sed 's/\//_/g' | sed -E s/=+$//)
+          | base64url)
 
         # Create the full token
         jwt="$jwt_header.$payload.$hmac_signature"
