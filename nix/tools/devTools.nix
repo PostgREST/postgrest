@@ -196,6 +196,7 @@ let
           "ARG_POSITIONAL_SINGLE([role], [role for the jwt payload])"
           "ARG_OPTIONAL_SINGLE([secret],, [secret used to sign the JWT], [reallyreallyreallyreallyverysafe])"
           "ARG_OPTIONAL_SINGLE([exp],, [seconds for JWT expiry, it accepts negative values], [3600])"
+          "ARG_OPTIONAL_SINGLE([iat],, [seconds since JWT issued, it accepts negative values], [0])"
         ];
       }
       ''
@@ -215,9 +216,12 @@ let
         # Construct the exp value
         expiry=$((EPOCHSECONDS + _arg_exp))
 
+        # Construct the iat value
+        issued_at=$((EPOCHSECONDS + _arg_iat))
+
         # Construct the payload
-        payload_json=$(printf '{"role": "%s", "exp": %s}' \
-          "$_arg_role" "$expiry")
+        payload_json=$(printf '{"role": "%s", "exp": %s, "iat": %s}' \
+          "$_arg_role" "$expiry" "$issued_at")
         payload=$(printf '%s' "$payload_json" | base64url)
 
         # Convert secret to hex
