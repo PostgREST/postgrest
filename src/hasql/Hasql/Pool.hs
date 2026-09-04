@@ -154,6 +154,8 @@ use Pool{..} sess = do
       else
         retry
 
+  poolObserver PoolRequest
+
   maybeActWithoutContention <- atomically $ do
     reuseVar <- readTVar poolReuseVar
     optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
@@ -182,6 +184,7 @@ use Pool{..} sess = do
             timedOut <- timeout
             if timedOut then return $ do
               observeConnectionWaitTime
+              poolObserver PoolRequestFullfilled
               return $ Left AcquisitionTimeoutUsageError
             else
               retry
@@ -193,6 +196,7 @@ use Pool{..} sess = do
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
       Connection.acquire poolConnectionSettings >>= \case
         Left connErr -> do
+          poolObserver PoolRequestFullfilled
           poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) connErr))))
           atomically $ modifyTVar' poolCapacity succ
           return $ Left $ ConnectionUsageError connErr
@@ -215,6 +219,7 @@ use Pool{..} sess = do
           runSessionOnConnection reuseVar entry{entryUseTimeNSec = now}
 
     runSessionOnConnection reuseVar entry = do
+      poolObserver PoolRequestFullfilled
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 

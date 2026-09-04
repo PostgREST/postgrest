@@ -12,7 +12,7 @@ import Test.Hspec (SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (getState)
 
 import ObsHelper
-import PostgREST.Config (AppConfig (configDbPoolSize, configDbSchemas))
+import PostgREST.Config (AppConfig (configDbPoolAcquisitionTimeout, configDbPoolSize, configDbSchemas))
 import PostgREST.Metrics
   ( ConnStats (..)
   , MetricsState (..)
@@ -123,10 +123,57 @@ spec = describe "Server started with metrics enabled" $ do
 
         -- request one more connection so we have contention to observe ConnectionWaitCompletedStatus
         void $ forkIO hold
-        waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@PoolRequest <- pure x]
+        waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
 
         putMVar signal ()
         waitFor (1 * sec) "ConnectionWaitCompletedStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionWaitCompletedStatus _)) <- pure x]
+
+  it "Should decrement poolWaiting gauge as soon as connection is acquired (before executing session)" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    liftIO
+      $ checkState'
+        metrics
+        [ expectGauge @"poolWaiting" (+ 0)
+        ]
+      $ do
+        signal <- newEmptyMVar
+        let
+          waitFor = waitForObs specObsChan
+          hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
+        void $ forkIO hold
+        waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
+
+        waitFor (1 * sec) "PoolRequestFullfilled" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequestFullfilled) <- pure x]
+
+        putMVar signal ()
+        waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
+
+  it "Should decrement poolWaiting gauge even when the thread times out" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    liftIO
+      $ checkState'
+        metrics
+        [ expectGauge @"poolWaiting" (+ 0)
+        ]
+      $ do
+        signal <- newEmptyMVar
+        let
+          waitFor = waitForObs specObsChan
+          poolSize = configDbPoolSize testCfg
+          poolAcquisitionTimeout = configDbPoolAcquisitionTimeout testCfg
+          hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
+
+        -- exhaust the pool
+        replicateM_ poolSize $ forkIO hold
+        replicateM_ poolSize $ waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.InUseConnectionStatus)) <- pure x]
+
+        -- request one more connection so we have a connection timing out
+        void $ forkIO hold
+        waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
+
+        waitFor ((1 + poolAcquisitionTimeout) * sec) "PoolRequestFullfilled" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequestFullfilled) <- pure x]
+        putMVar signal ()
+        waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
 
   -- The test verifies we properly count in use connections
   -- The idea is to fork a worker thread that
