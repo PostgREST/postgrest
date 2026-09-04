@@ -155,7 +155,7 @@ observationMessages = \case
   ExitDBFatalError ServerError08P01 usageErr ->
     pure $ "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
   SchemaCacheEmptyObs ->
-    pure $ T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.NoSchemaCacheError
+    pure $ T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose True $ Error.NoSchemaCacheError
   SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
     pure $ "Failed to load the schema cache using "
       <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)
@@ -251,8 +251,7 @@ observationMessages = \case
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""
 
-    jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose $ Error.PgError False err
-
+    jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload Verbose True $ Error.PgError False err
 
     showListenerConnError :: SQL.ConnectionError -> Text
     showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)

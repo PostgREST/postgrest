@@ -79,7 +79,7 @@ import Prelude                as Exports hiding (all, and, any, concat,
                                           (.))
 import System.Environment     as Exports
 import System.Exit            as Exports
-import System.IO              as Exports (Handle, hClose)
+import System.IO              as Exports (Handle, hClose, hPutStrLn, stderr)
 import System.IO.Error        as Exports
 import System.IO.Unsafe       as Exports
 import System.Mem             as Exports

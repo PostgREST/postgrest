@@ -51,6 +51,7 @@ dbSettingsNames =
   ,"db_extra_search_path"
   ,"db_max_rows"
   ,"db_plan_enabled"
+  ,"db_warnings_enabled"
   ,"db_pre_request"
   ,"db_prepared_statements"
   ,"db_root_spec"

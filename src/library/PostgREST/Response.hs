@@ -73,7 +73,7 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly
       ++ cLHeader
       ++ contentTypeHeaders pMedia ctxApiRequest
       ++ prefHeader
-    bod | status == HTTP.status416 = Error.errorPayload configClientErrorVerbosity $ Error.ApiRequestErr $ Error.InvalidRange $
+    bod | status == HTTP.status416 = Error.errorPayload configClientErrorVerbosity True $ Error.ApiRequestErr $ Error.InvalidRange $
                                      Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         | headersOnly              = mempty
         | otherwise                = LBS.fromStrict rsBody
@@ -177,7 +177,7 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crPr
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     rsOrErrBody = if status == HTTP.status416
-      then Error.errorPayload configClientErrorVerbosity $ Error.ApiRequestErr $ Error.InvalidRange
+      then Error.errorPayload configClientErrorVerbosity True $ Error.ApiRequestErr $ Error.InvalidRange
         $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
       else LBS.fromStrict rsBody
     isHeadMethod = invMethod == InvRead True
