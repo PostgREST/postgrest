@@ -59,7 +59,7 @@ checkForErrors time audMatches = mconcat
     claim "exp" ExpClaimNotNumber $ inThePast JWTExpired
   , claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid
   , claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture
-  , claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience
+  , claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) (const JWTNotInAudience)
   ]
   where
       allowedSkewSeconds = 30 :: Int64
@@ -67,10 +67,12 @@ checkForErrors time audMatches = mconcat
       toSec = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       now = toSec time
 
-      inTheFuture = checkTime ((now + allowedSkewSeconds) <)
-      inThePast = checkTime ((now - allowedSkewSeconds) >)
-
-      checkTime cond = checkValue (cond. sciToInt)
+      inTheFuture msg = checkValue (((now + allowedSkewSeconds) <) . sciToInt) $ \val ->
+        let claimTime = sciToInt val
+        in msg (claimTime - now) now claimTime
+      inThePast msg = checkValue (((now - allowedSkewSeconds) >) . sciToInt) $ \val ->
+        let claimTime = sciToInt val
+        in msg (now - claimTime) now claimTime
 
       validAud = \case
         (VAString aud) -> audMatches aud
@@ -78,7 +80,7 @@ checkForErrors time audMatches = mconcat
 
       checkValue invalid msg val =
         if invalid val then
-          pure msg
+          pure $ msg val
         else
           mempty
 
