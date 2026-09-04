@@ -39,7 +39,7 @@ main = do
     P.acquire $
       P.settings
         [ P.size (configDbPoolSize testCfg),
-          P.acquisitionTimeout 10,
+          P.acquisitionTimeout 1,
           P.agingTimeout 60,
           P.idlenessTimeout 60,
           P.staticConnectionSettings $ toConnectionSettings identity testCfg,

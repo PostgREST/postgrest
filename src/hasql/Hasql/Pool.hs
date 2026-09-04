@@ -184,9 +184,11 @@ use Pool{..} sess =
   bracket
     acquireSlot
     (traverse_ releaseSlot)
-    $ \case
-      Left ex -> pure $ Left ex
-      Right slot -> runSessionOnSlot slot
+    $ \slotOrError -> do
+      poolObserver PoolRequestFullfilled
+      case slotOrError of
+        Left ex -> pure $ Left ex
+        Right slot -> runSessionOnSlot slot
   where
     tryAvailableConnection :: STM (IO (Either UsageError Entry))
     tryAvailableConnection =
@@ -210,6 +212,7 @@ use Pool{..} sess =
 
     acquireSlot :: IO (Either UsageError Slot)
     acquireSlot = do
+      poolObserver PoolRequest
       maybeActWithoutContention <- atomically $ optional tryAcquireSlot
 
       case maybeActWithoutContention of

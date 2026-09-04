@@ -44,11 +44,7 @@ initPool cfg@AppConfig{..} observer = do
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool appState@AppState{stateObserver = observer, ..} sess = do
-  observer PoolRequest
-
   res <- SQL.use statePool sess
-
-  observer PoolRequestFullfilled
 
   whenLeft
     res

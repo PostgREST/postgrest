@@ -99,12 +99,6 @@ observationLogger loggerState obs = do
       when (logLevel >= LogInfo) $
         logWithZTime $
           observationMessages o
-    o@PoolRequest ->
-      when (logLevel >= LogDebug) $ do
-        logWithZTime $ observationMessages o
-    o@PoolRequestFullfilled ->
-      when (logLevel >= LogDebug) $ do
-        logWithZTime $ observationMessages o
     ResponseObs maybeRole req status contentLen ->
       when (shouldLogResponse logLevel status) $ do
         zTime <- getZonedTime
@@ -264,9 +258,9 @@ observationMessages = \case
                    SQL.InitializationErrorTerminationReason _ -> "init failure"
                    SQL.SessionExceptionTerminationReason ex -> "session exception: " <> showOnSingleLine '\t' (show ex)
            )
-  PoolRequest ->
+  HasqlPoolObs SQL.PoolRequest ->
     pure "Trying to borrow a connection from pool"
-  PoolRequestFullfilled ->
+  HasqlPoolObs SQL.PoolRequestFullfilled ->
     pure "Borrowed a connection from the pool"
   PoolFlushed ->
     pure "Database connection pool flushed"
