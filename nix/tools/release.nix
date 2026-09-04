@@ -7,6 +7,9 @@ let
       {
         name = "postgrest-release";
         docs = "Patch postgrest.cabal, CHANGELOG.md, commit and push all in one go.";
+        args = [
+          "ARG_OPTIONAL_BOOLEAN([skip-confirmation],,[skip confirmation when run in CI])"
+        ];
         workingDir = "/";
       }
       ''
@@ -90,22 +93,27 @@ let
           push2=""
         fi
 
-        echo "To push the version bump(s), the following will be run:"
-        echo
-        echo "$push1"
-        echo "$push2"
-        echo
+        if [[ "$_arg_skip_confirmation" == "on" ]]; then
+          $push1
+          $push2
+        else
+          echo "To push the version bump(s), the following will be run:"
+          echo
+          echo "$push1"
+          echo "$push2"
+          echo
 
-        read -r -p 'Proceed? (y/N) ' REPLY
-        case "$REPLY" in
-          y|Y)
-            $push1
-            $push2
-            ;;
-          *)
-            echo "Aborting ..."
-            ;;
-        esac
+          read -r -p 'Proceed? (y/N) ' REPLY
+          case "$REPLY" in
+            y|Y)
+              $push1
+              $push2
+              ;;
+            *)
+              echo "Aborting ..."
+              ;;
+          esac
+        fi
       '';
 
 in
