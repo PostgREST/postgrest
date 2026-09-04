@@ -1,0 +1,52 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    name: Bump version
+    runs-on: ubuntu-24.04
+    steps:
+
+      # This actions creates the github token using the postgrest app secrets
+      - name: Create Github App Token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.POSTGREST_CI_APP_ID }}
+          private-key: ${{ secrets.POSTGREST_CI_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: release.release.bin
+
+      # "app-slug" identifier gives us the bot name i.e. "postgrest-ci"
+      - name: Get PostgREST CI Bot ID
+        id: get-bot-id
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          bot_id="$(curl -sg "https://api.github.com/users/${{ steps.app-token.outputs.app-slug }}[bot]" | jq -r .id)"
+          echo "id=${bot_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git identity for commit author
+        run: |
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email \
+            "${{ steps.get-bot-id.outputs.id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+
+      - name: Push bump version commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: postgrest-release --skip-confirmation
