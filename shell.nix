@@ -52,6 +52,13 @@ lib.overrideDerivation postgrest.env (
         source ${pkgs.git}/share/git/contrib/completion/git-completion.bash
         source ${postgrest.hsie.bash-completion}
 
+        # Activate current shell's additional .git configuration.
+        # Since there can only be a single such value, this will not cause a garbage
+        # collection problem - older references to the /nix/store will be cleaned up
+        # automatically when entering the nix-shell on a newer branch.
+        # Git ignores files it can't find, which means that once a file has been garbage
+        # collected, git will continue to work even without entering nix-shell.
+        git config --local include.path ${postgrest.gitTools.config}
       ''
       + builtins.concatStringsSep "\n" (
         map (bash-completion: "source ${bash-completion}") (

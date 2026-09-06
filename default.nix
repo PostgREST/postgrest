@@ -150,7 +150,7 @@ rec {
 
   # Git tools.
   gitTools =
-    pkgs.callPackage nix/tools/gitTools.nix { };
+    pkgs.callPackage nix/tools/gitTools.nix { inherit treefmtNix; };
 
   # Load testing tools.
   loadtest =
