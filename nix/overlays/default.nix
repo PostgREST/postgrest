@@ -1,5 +1,4 @@
-_: super:
-{
+_: super: {
   buildToolbox = super.callPackage ./build-toolbox.nix { };
   checkedShellScript = super.callPackage ./checked-shell-script.nix { };
 

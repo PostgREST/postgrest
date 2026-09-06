@@ -3,8 +3,7 @@
 let
   inherit (haskell) lib;
 in
-_: prev:
-{
+_: prev: {
   # To pin custom versions of Haskell packages:
   #   protolude =
   #     prev.callHackageDirect
@@ -48,59 +47,42 @@ _: prev:
   fuzzyset = prev.fuzzyset_0_2_4;
 
   # TODO: Remove once available in nixpkgs
-  auto-update =
-    prev.callHackageDirect
-      {
-        pkg = "auto-update";
-        ver = "0.2.7";
-        sha256 = "sha256-fHX/OqF/cB9rbpGpLUtA29bcEJS43HUWHcK55yUxKoo=";
-      }
-      { };
+  auto-update = prev.callHackageDirect {
+    pkg = "auto-update";
+    ver = "0.2.7";
+    sha256 = "sha256-fHX/OqF/cB9rbpGpLUtA29bcEJS43HUWHcK55yUxKoo=";
+  } { };
 
   # TODO: Remove once available in nixpkgs
-  aeson-jsonpath =
-    prev.callHackageDirect
-      {
-        pkg = "aeson-jsonpath";
-        ver = "0.4.2.0";
-        sha256 = "sha256-K+3brf1zjSSjojtSCXFrip5rrP7AO/S4zndAxAnvEfc=";
-      }
-      { };
+  aeson-jsonpath = prev.callHackageDirect {
+    pkg = "aeson-jsonpath";
+    ver = "0.4.2.0";
+    sha256 = "sha256-K+3brf1zjSSjojtSCXFrip5rrP7AO/S4zndAxAnvEfc=";
+  } { };
 
-  http2 =
-    prev.callHackageDirect
-      {
-        pkg = "http2";
-        ver = "5.4.0";
-        sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
-      }
-      { };
+  http2 = prev.callHackageDirect {
+    pkg = "http2";
+    ver = "5.4.0";
+    sha256 = "sha256-PeEWVd61bQ8G7LvfLeXklzXqNJFaAjE2ecRMWJZESPE=";
+  } { };
 
-  http-semantics =
-    prev.callHackageDirect
-      {
-        pkg = "http-semantics";
-        ver = "0.4.0";
-        sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
-      }
-      { };
+  http-semantics = prev.callHackageDirect {
+    pkg = "http-semantics";
+    ver = "0.4.0";
+    sha256 = "sha256-rh0z51EKvsu5rQd5n2z3fSRjjEObouNZSBPO9NFYOF0=";
+  } { };
 
-  network-run =
-    prev.callHackageDirect
-      {
-        pkg = "network-run";
-        ver = "0.5.0";
-        sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
-      }
-      { };
+  network-run = prev.callHackageDirect {
+    pkg = "network-run";
+    ver = "0.5.0";
+    sha256 = "sha256-vbXh+CzxDsGApjqHxCYf/ijpZtUCApFbkcF5gyN0THU=";
+  } { };
 
-  warp =
-    lib.dontCheck
-      (prev.callHackageDirect
-        {
-          pkg = "warp";
-          ver = "3.4.14";
-          sha256 = "sha256-RnoOUlC6dOP0sK/tYAJCX1oLzVFG1GILUY+yVbmvW8Y=";
-        }
-        { });
+  warp = lib.dontCheck (
+    prev.callHackageDirect {
+      pkg = "warp";
+      ver = "3.4.14";
+      sha256 = "sha256-RnoOUlC6dOP0sK/tYAJCX1oLzVFG1GILUY+yVbmvW8Y=";
+    } { }
+  );
 }

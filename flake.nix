@@ -12,7 +12,8 @@
     extra-trusted-public-keys = "postgrest.cachix.org-1:icgW4R15fz1+LqvhPjt4EnX/r19AaqxiVV+1olwlZtI=";
   };
 
-  outputs = { nixpkgs, ... }:
+  outputs =
+    { nixpkgs, ... }:
     let
       systems = [
         "aarch64-darwin"
@@ -21,25 +22,31 @@
         "x86_64-linux"
       ];
 
-      pgrstFor = system: import ./default.nix {
-        inherit system;
-        nixpkgsVersion = {
-          owner = "nixos";
-          repo = "nixpkgs";
-          inherit (nixpkgs) rev;
-          tarballHash = nixpkgs.narHash;
+      pgrstFor =
+        system:
+        import ./default.nix {
+          inherit system;
+          nixpkgsVersion = {
+            owner = "nixos";
+            repo = "nixpkgs";
+            inherit (nixpkgs) rev;
+            tarballHash = nixpkgs.narHash;
+          };
         };
-      };
 
       genSystems = f: nixpkgs.lib.genAttrs systems (system: f (pgrstFor system));
     in
     {
-      packages = genSystems (attrs: {
-        default = attrs.postgrestPackage.bin;
-        profiled = attrs.postgrestProfiled.bin;
-      } // nixpkgs.lib.optionalAttrs (attrs ? postgrestStatic) {
-        static = attrs.postgrestStatic;
-      });
+      packages = genSystems (
+        attrs:
+        {
+          default = attrs.postgrestPackage.bin;
+          profiled = attrs.postgrestProfiled.bin;
+        }
+        // nixpkgs.lib.optionalAttrs (attrs ? postgrestStatic) {
+          static = attrs.postgrestStatic;
+        }
+      );
 
       apps = genSystems (attrs: {
         default = {

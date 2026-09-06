@@ -1,8 +1,9 @@
-{ buildToolbox
-, cabal-install
-, checkedShellScript
-, devCabalOptions
-, postgrest
+{
+  buildToolbox,
+  cabal-install,
+  checkedShellScript,
+  devCabalOptions,
+  postgrest,
 }:
 let
   build =
@@ -49,15 +50,14 @@ let
       {
         name = "postgrest-run";
         docs = "Run PostgREST after building it interactively with cabal-install";
-        args =
-          [
-            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
-            "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
-            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
-            "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
-            "ARG_USE_ENV([PGRST_ADMIN_SERVER_PORT], [3001], [PostgREST admin server port])"
-            "ARG_LEFTOVERS([PostgREST arguments])"
-          ];
+        args = [
+          "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
+          "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
+          "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
+          "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
+          "ARG_USE_ENV([PGRST_ADMIN_SERVER_PORT], [3001], [PostgREST admin server port])"
+          "ARG_LEFTOVERS([PostgREST arguments])"
+        ];
         workingDir = "/";
         withEnv = postgrest.env;
       }
@@ -76,20 +76,18 @@ let
           postgrest "''${_arg_leftovers[@]}"
       '';
 
-
   runProfiled =
     checkedShellScript
       {
         name = "postgrest-profiled-run";
         docs = "Run a profiled build of postgREST. This will generate a postgrest.prof file that can be used to do optimization.";
-        args =
-          [
-            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
-            "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
-            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
-            "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
-            "ARG_LEFTOVERS([PostgREST arguments])"
-          ];
+        args = [
+          "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [], [PostgREST anonymous role. (default: 'postgrest_test_anonymous')])"
+          "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
+          "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
+          "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
+          "ARG_LEFTOVERS([PostgREST arguments])"
+        ];
         workingDir = "/";
         withEnv = postgrest.env;
       }
@@ -120,8 +118,7 @@ let
         exec ${cabal-install}/bin/cabal v2-repl "''${_arg_leftovers[@]}"
       '';
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-cabal";
   tools = {
     inherit
@@ -130,6 +127,7 @@ buildToolbox
       update
       run
       runProfiled
-      repl;
+      repl
+      ;
   };
 }
