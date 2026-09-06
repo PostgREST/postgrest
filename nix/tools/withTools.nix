@@ -1,42 +1,49 @@
-{ buildToolbox
-, checkedShellScript
-, curl
-, lib
-, libfaketime
-, postgresqlVersions
-, postgrest
-, python3Packages
-, writeText
-, writers
+{
+  buildToolbox,
+  checkedShellScript,
+  curl,
+  lib,
+  libfaketime,
+  postgresqlVersions,
+  postgrest,
+  python3Packages,
+  writeText,
+  writers,
 }:
 let
   withTmpDb =
-    { name, postgresql, config ? "" }:
+    {
+      name,
+      postgresql,
+      config ? "",
+    }:
     let
       commandName = "postgrest-with-${name}";
-      postgresqlConf = writeText "postgresql.conf" ("
+      postgresqlConf = writeText "postgresql.conf" (
+        "
         autovacuum = false
         listen_addresses = ''
         log_statement = all
         shared_preload_libraries=pg_stat_statements
-      " + config);
+      "
+        + config
+      );
     in
     checkedShellScript
       {
         name = commandName;
         docs = "Run the given command in a temporary database with ${name}. If you wish to mutate the database, login with the postgres role.";
-        args =
-          [
-            "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from])"
-            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
-            "ARG_LEFTOVERS([command arguments])"
-            "ARG_USE_ENV([PGUSER], [Postgrest_Test_Authenticator], [Authenticator PG role])" # user is written in mixed case to implicitly test that it is being properly quoted in schema cache queries
-            "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
-            "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
-            "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"
-            "ARG_USE_ENV([PGOPTIONS], [-c search_path=public,test], [PG options to use])"
-            "ARG_OPTIONAL_BOOLEAN([replica],, [Enable a replica for the database])"
-          ];
+        args = [
+          "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from])"
+          "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+          "ARG_LEFTOVERS([command arguments])"
+          "ARG_USE_ENV([PGUSER], [Postgrest_Test_Authenticator], [Authenticator PG role])" # user is written in mixed case to implicitly test that it is being properly quoted in schema cache queries
+          "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
+          "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
+          "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"
+          "ARG_USE_ENV([PGOPTIONS], [-c search_path=public,test], [PG options to use])"
+          "ARG_OPTIONAL_BOOLEAN([replica],, [Enable a replica for the database])"
+        ];
         positionalCompletion = "_command";
         workingDir = "/";
         redirectTixFiles = false;
@@ -156,43 +163,36 @@ let
   # Helper script for running a command against all PostgreSQL versions.
   withPgAll =
     let
-      runners =
-        map
-          (version:
-            ''
-              cat << EOF
+      runners = map (version: ''
+        cat << EOF
 
-              Running against ${version.name}...
+        Running against ${version.name}...
 
-              EOF
+        EOF
 
-              trap 'echo "Failed on ${version.name}"' exit
+        trap 'echo "Failed on ${version.name}"' exit
 
-              (${withTmpDb version} "$_arg_command" "''${_arg_leftovers[@]}")
+        (${withTmpDb version} "$_arg_command" "''${_arg_leftovers[@]}")
 
-              trap "" exit
+        trap "" exit
 
-              cat << EOF
+        cat << EOF
 
-              Done running against ${version.name}.
+        Done running against ${version.name}.
 
-              EOF
-            '')
-          postgresqlVersions;
+        EOF
+      '') postgresqlVersions;
     in
-    checkedShellScript
-      {
-        name = "postgrest-with-all";
-        docs = "Run command against all supported PostgreSQL versions.";
-        args =
-          [
-            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
-            "ARG_LEFTOVERS([command arguments])"
-          ];
-        positionalCompletion = "_command";
-        workingDir = "/";
-      }
-      (lib.concatStringsSep "\n\n" runners);
+    checkedShellScript {
+      name = "postgrest-with-all";
+      docs = "Run command against all supported PostgreSQL versions.";
+      args = [
+        "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+        "ARG_LEFTOVERS([command arguments])"
+      ];
+      positionalCompletion = "_command";
+      workingDir = "/";
+    } (lib.concatStringsSep "\n\n" runners);
 
   withPg = withTmpDb (builtins.head postgresqlVersions);
 
@@ -222,8 +222,7 @@ let
 
   # Broadcast SIGINT to any running postgrest instances on the host. Uses python for cross-platform compatibility.
   signalPostgrest =
-    writers.writePython3 "postgrest-signal-int"
-      { libraries = [ python3Packages.psutil ]; }
+    writers.writePython3 "postgrest-signal-int" { libraries = [ python3Packages.psutil ]; }
       ''
         import psutil
         import signal
@@ -244,17 +243,16 @@ let
       {
         name = commandName;
         docs = "Build and run PostgREST and run <command> with PGRST_SERVER_UNIX_SOCKET set.";
-        args =
-          [
-            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
-            "ARG_LEFTOVERS([command arguments])"
-            "ARG_OPTIONAL_SINGLE([faketime], [f], [Fake the system time when starting PostgREST. This is useful to test expiry of JWT, for example in loadtests])"
-            "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
-            "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
-            "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring])"
-            "ARG_USE_ENV([FAKETIME_LIB], [${libfaketime}/lib/libfaketime.so.1], [Faketime Library to preload])"
-            "ARG_USE_ENV([PGRST_CMD], [postgrest-run], [PostgREST executable to run])"
-          ];
+        args = [
+          "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+          "ARG_LEFTOVERS([command arguments])"
+          "ARG_OPTIONAL_SINGLE([faketime], [f], [Fake the system time when starting PostgREST. This is useful to test expiry of JWT, for example in loadtests])"
+          "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
+          "ARG_OPTIONAL_SINGLE([timeout], [t], [Maximum time to wait for PostgREST to be ready], [5])"
+          "ARG_OPTIONAL_SINGLE([sleep], [s],   [Sleep time after PostgREST is ready, this is useful for monitoring])"
+          "ARG_USE_ENV([FAKETIME_LIB], [${libfaketime}/lib/libfaketime.so.1], [Faketime Library to preload])"
+          "ARG_USE_ENV([PGRST_CMD], [postgrest-run], [PostgREST executable to run])"
+        ];
         positionalCompletion = "_command";
         workingDir = "/";
         withEnv = postgrest.env;
@@ -317,23 +315,28 @@ let
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
-  monitorPid =
-    writers.writePython3 "postgrest-monitor-pid"
-      {
-        libraries = [ python3Packages.pandas python3Packages.tabulate python3Packages.psutil ];
-      }
-      (builtins.readFile ./monitor_pid.py);
+  monitorPid = writers.writePython3 "postgrest-monitor-pid" {
+    libraries = [
+      python3Packages.pandas
+      python3Packages.tabulate
+      python3Packages.psutil
+    ];
+  } (builtins.readFile ./monitor_pid.py);
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-with";
   tools = {
     inherit
       withPgAll
-      withPgrst;
-  } // builtins.listToAttrs (
+      withPgrst
+      ;
+  }
+  // builtins.listToAttrs (
     # Create a `postgrest-with-pg-` for each PostgreSQL version
-    map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
+    map (pg: {
+      inherit (pg) name;
+      value = withTmpDb pg;
+    }) postgresqlVersions
   );
   # make latest withPg available for other nix files
   extra = { inherit withPg; };

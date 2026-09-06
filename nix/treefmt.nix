@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   hlintConfig = pkgs.writeText "hlintConfig.yml" ''
 
@@ -23,7 +28,7 @@ in
   programs.deadnix.enable = true;
   programs.hlint.enable = true;
   programs.nixf-diagnose.enable = true;
-  programs.nixpkgs-fmt.enable = true;
+  programs.nixfmt.enable = true;
   programs.ruff-check.enable = true;
   programs.stylish-haskell.enable = true;
   programs.zizmor.enable = true;

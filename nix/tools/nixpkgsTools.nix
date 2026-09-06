@@ -1,5 +1,6 @@
-{ buildToolbox
-, checkedShellScript
+{
+  buildToolbox,
+  checkedShellScript,
 }:
 # Utility script for pinning the latest stable version of Nixpkgs.
 
@@ -21,8 +22,7 @@ let
       '';
 
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-nixpkgs";
   tools = { inherit upgrade; };
 }

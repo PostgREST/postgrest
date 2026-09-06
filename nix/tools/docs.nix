@@ -1,13 +1,14 @@
-{ aspell
-, aspellDicts
-, buildToolbox
-, checkedShellScript
-, lib
-, plantuml
-, python3
-, python3Packages
-, writeTextFile
-, writers
+{
+  aspell,
+  aspellDicts,
+  buildToolbox,
+  checkedShellScript,
+  lib,
+  plantuml,
+  python3,
+  python3Packages,
+  writeTextFile,
+  writers,
 }:
 let
   selectPythonPackages = ps: [
@@ -21,7 +22,9 @@ let
 
   requirements = writeTextFile {
     name = "requirements.txt";
-    text = lib.concatMapStringsSep "\n" (pkg: "${pkg.pname}==${pkg.version}") (selectPythonPackages python3Packages);
+    text = lib.concatMapStringsSep "\n" (pkg: "${pkg.pname}==${pkg.version}") (
+      selectPythonPackages python3Packages
+    );
   };
 
   python = python3.withPackages selectPythonPackages;
@@ -78,8 +81,7 @@ let
       '';
 
   server =
-    writers.writePython3
-      "postgrest-docs-server"
+    writers.writePython3 "postgrest-docs-server"
       { libraries = selectPythonPackages python3Packages ++ [ python3Packages.livereload ]; }
       ''
         import sys
@@ -187,8 +189,7 @@ let
       '';
 
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-docs";
   tools = {
     inherit
@@ -198,7 +199,8 @@ buildToolbox
       linkcheck
       render
       serve
-      spellcheck;
+      spellcheck
+      ;
   };
   extra = { inherit requirements; };
 }

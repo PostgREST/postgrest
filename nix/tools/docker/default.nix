@@ -1,32 +1,31 @@
-{ buildToolbox
-, postgrest
-, dockerTools
-, checkedShellScript
+{
+  buildToolbox,
+  postgrest,
+  dockerTools,
+  checkedShellScript,
 }:
 let
-  image =
-    dockerTools.buildImage {
-      name = "postgrest";
-      tag = "latest";
-      copyToRoot = postgrest;
+  image = dockerTools.buildImage {
+    name = "postgrest";
+    tag = "latest";
+    copyToRoot = postgrest;
 
-      # Set the current time as the image creation date. This makes the build
-      # non-reproducible, but that should not be an issue for us.
-      created = "now";
+    # Set the current time as the image creation date. This makes the build
+    # non-reproducible, but that should not be an issue for us.
+    created = "now";
 
-      extraCommands =
-        ''
-          rmdir share
-        '';
+    extraCommands = ''
+      rmdir share
+    '';
 
-      config = {
-        Cmd = [ "/bin/postgrest" ];
-        User = "1000";
-        ExposedPorts = {
-          "3000/tcp" = { };
-        };
+    config = {
+      Cmd = [ "/bin/postgrest" ];
+      User = "1000";
+      ExposedPorts = {
+        "3000/tcp" = { };
       };
     };
+  };
 
   load =
     checkedShellScript
@@ -39,8 +38,7 @@ let
       '';
 
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-docker";
   tools = { inherit load; };
   extra = { inherit image; };
