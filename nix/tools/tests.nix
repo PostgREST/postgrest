@@ -1,21 +1,22 @@
-{ buildToolbox
-, cabal-install
-, checkedShellScript
-, curl
-, devCabalOptions
-, ghc
-, glibcLocales ? null
-, gnugrep
-, hpc-codecov
-, jq
-, lib
-, nginx
-, postgrest
-, python3
-, runtimeShell
-, stdenv
-, weeder
-, withTools
+{
+  buildToolbox,
+  cabal-install,
+  checkedShellScript,
+  curl,
+  devCabalOptions,
+  ghc,
+  glibcLocales ? null,
+  gnugrep,
+  hpc-codecov,
+  jq,
+  lib,
+  nginx,
+  postgrest,
+  python3,
+  runtimeShell,
+  stdenv,
+  weeder,
+  withTools,
 }:
 let
   testSpec =
@@ -73,16 +74,15 @@ let
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec"
       '';
 
-  ioTestPython =
-    python3.withPackages (ps: [
-      ps.pyjwt
-      ps.pytest
-      ps.pytest-xdist
-      ps.pyyaml
-      ps.requests
-      ps.requests-unixsocket
-      ps.syrupy
-    ]);
+  ioTestPython = python3.withPackages (ps: [
+    ps.pyjwt
+    ps.pytest
+    ps.pytest-xdist
+    ps.pyyaml
+    ps.requests
+    ps.requests-unixsocket
+    ps.syrupy
+  ]);
 
   testIO =
     checkedShellScript
@@ -161,78 +161,79 @@ let
         # required for `hpc markup` in CI; glibcLocales is not available e.g. on Darwin
         lib.optionalString (stdenv.isLinux && stdenv.hostPlatform.libc == "glibc") ''
           export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
-        '' +
-
         ''
-          # clean up previous coverage reports
-          mkdir -p coverage
-          rm -rf coverage/*
+        +
 
-          # build once before running all the tests
-          ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability
+          ''
+            # clean up previous coverage reports
+            mkdir -p coverage
+            rm -rf coverage/*
 
-          (
-            trap 'echo Found dead code: Check file list above.' ERR ;
-            ${weeder}/bin/weeder --config=./test/weeder.toml
-          )
+            # build once before running all the tests
+            ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability
 
-          # collect all tests
-          HPCTIXFILE="$tmpdir"/io.tix \
-            ${withTools.withPg} -f test/io/fixtures/load.sql \
-            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io
+            (
+              trap 'echo Found dead code: Check file list above.' ERR ;
+              ${weeder}/bin/weeder --config=./test/weeder.toml
+            )
 
-          HPCTIXFILE="$tmpdir"/big_schema.tix \
-            ${withTools.withPg} -f test/io/fixtures/big_schema.sql \
-            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py
+            # collect all tests
+            HPCTIXFILE="$tmpdir"/io.tix \
+              ${withTools.withPg} -f test/io/fixtures/load.sql \
+              ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io
 
-          HPCTIXFILE="$tmpdir"/replica.tix \
-            ${withTools.withPg} --replica -f test/io/fixtures/replica.sql \
-            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_replica.py
+            HPCTIXFILE="$tmpdir"/big_schema.tix \
+              ${withTools.withPg} -f test/io/fixtures/big_schema.sql \
+              ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py
 
-          HPCTIXFILE="$tmpdir"/spec.tix \
-            ${withTools.withPg} -f test/spec/fixtures/load.sql \
-            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+            HPCTIXFILE="$tmpdir"/replica.tix \
+              ${withTools.withPg} --replica -f test/io/fixtures/replica.sql \
+              ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_replica.py
 
-          HPCTIXFILE="$tmpdir"/observability.tix \
-            ${withTools.withPg} -f test/observability/fixtures/load.sql \
-            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability
+            HPCTIXFILE="$tmpdir"/spec.tix \
+              ${withTools.withPg} -f test/spec/fixtures/load.sql \
+              ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 
-          # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
+            HPCTIXFILE="$tmpdir"/observability.tix \
+              ${withTools.withPg} -f test/observability/fixtures/load.sql \
+              ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability
 
-          # collect all the tix files
-          ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
-            "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix \
-            "$tmpdir"/observability.tix
+            # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
-          # prepare the overlay
-          ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
-          ${ghc}/bin/hpc sum --union --output="$tmpdir"/tests-overlay.tix "$tmpdir"/tests.tix "$tmpdir"/overlay.tix
+            # collect all the tix files
+            ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
+              "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix \
+              "$tmpdir"/observability.tix
 
-          # check nothing in the overlay is actually tested
-          ${ghc}/bin/hpc map --function=inv --output="$tmpdir"/inverted.tix "$tmpdir"/tests.tix
-          ${ghc}/bin/hpc combine --function=sub \
-            --output="$tmpdir"/check.tix "$tmpdir"/overlay.tix "$tmpdir"/inverted.tix
-          # returns zero exit code if any count="<non-zero>" lines are found, i.e.
-          # something is covered by both the overlay and the tests
-          if ${ghc}/bin/hpc report --xml "$tmpdir"/check.tix | ${gnugrep}/bin/grep -qP 'count="[^0]'
-          then
-            ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/overlay "$tmpdir"/overlay.tix || true
-            ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/check "$tmpdir"/check.tix || true
-            echo "ERROR: Something is covered by both the tests and the overlay:"
-            echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/check/hpc_index.html"
-            exit 1
-          else
-            # copy the result .tix file to the coverage/ dir to make it available to postgrest-coverage-draft-overlay, too
-            cp "$tmpdir"/tests-overlay.tix coverage/postgrest.tix
-            # prepare codecov json report
-            ${hpc-codecov}/bin/hpc-codecov --mix=.hpc --out=coverage/codecov.json coverage/postgrest.tix
+            # prepare the overlay
+            ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
+            ${ghc}/bin/hpc sum --union --output="$tmpdir"/tests-overlay.tix "$tmpdir"/tests.tix "$tmpdir"/overlay.tix
 
-            # create html and stdout reports
-            ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix
-            echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/hpc_index.html"
-            ${ghc}/bin/hpc report coverage/postgrest.tix "''${_arg_leftovers[@]}"
-          fi
-        ''
+            # check nothing in the overlay is actually tested
+            ${ghc}/bin/hpc map --function=inv --output="$tmpdir"/inverted.tix "$tmpdir"/tests.tix
+            ${ghc}/bin/hpc combine --function=sub \
+              --output="$tmpdir"/check.tix "$tmpdir"/overlay.tix "$tmpdir"/inverted.tix
+            # returns zero exit code if any count="<non-zero>" lines are found, i.e.
+            # something is covered by both the overlay and the tests
+            if ${ghc}/bin/hpc report --xml "$tmpdir"/check.tix | ${gnugrep}/bin/grep -qP 'count="[^0]'
+            then
+              ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/overlay "$tmpdir"/overlay.tix || true
+              ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/check "$tmpdir"/check.tix || true
+              echo "ERROR: Something is covered by both the tests and the overlay:"
+              echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/check/hpc_index.html"
+              exit 1
+            else
+              # copy the result .tix file to the coverage/ dir to make it available to postgrest-coverage-draft-overlay, too
+              cp "$tmpdir"/tests-overlay.tix coverage/postgrest.tix
+              # prepare codecov json report
+              ${hpc-codecov}/bin/hpc-codecov --mix=.hpc --out=coverage/codecov.json coverage/postgrest.tix
+
+              # create html and stdout reports
+              ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix
+              echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/hpc_index.html"
+              ${ghc}/bin/hpc report coverage/postgrest.tix "''${_arg_leftovers[@]}"
+            fi
+          ''
       );
 
   coverageDraftOverlay =
@@ -263,8 +264,7 @@ let
       '';
 
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-tests";
   tools = {
     inherit
@@ -278,6 +278,7 @@ buildToolbox
       dumpSchema
       coverage
       coverageDraftOverlay
-      testMemory;
+      testMemory
+      ;
   };
 }

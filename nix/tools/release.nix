@@ -1,5 +1,6 @@
-{ buildToolbox
-, checkedShellScript
+{
+  buildToolbox,
+  checkedShellScript,
 }:
 let
   release =
@@ -109,8 +110,7 @@ let
       '';
 
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-release";
   tools = { inherit release; };
 }

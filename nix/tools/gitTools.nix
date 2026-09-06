@@ -1,11 +1,12 @@
-{ buildToolbox
-, checkedShellScript
-, commitlint
-, lib
-, moreutils
-, treefmtNix
-, writeShellApplication
-, writeText
+{
+  buildToolbox,
+  checkedShellScript,
+  commitlint,
+  lib,
+  moreutils,
+  treefmtNix,
+  writeShellApplication,
+  writeText,
 }:
 let
   # Rules format: [<severity>, <"always"/"never">, <value>]
@@ -57,35 +58,34 @@ let
         ${commitlint}/bin/commitlint --config ${commitlintConfig} --from "$_arg_from" --to "$_arg_to"
       '';
 
-  mergeDriver = writeShellApplication
-    {
-      name = "treefmt-merge-driver";
-      runtimeInputs = [
-        moreutils
-        treefmtNix.wrapper
-      ];
-      text = ''
-        # The first argument (%P) is the path to the original file, which is used
-        # by treefmt to decide which formatters to run based on the extension.
-        filename="$1"
-        shift 1
+  mergeDriver = writeShellApplication {
+    name = "treefmt-merge-driver";
+    runtimeInputs = [
+      moreutils
+      treefmtNix.wrapper
+    ];
+    text = ''
+      # The first argument (%P) is the path to the original file, which is used
+      # by treefmt to decide which formatters to run based on the extension.
+      filename="$1"
+      shift 1
 
-        >&2 echo "Running treefmt-merge-driver for '$filename'..."
+      >&2 echo "Running treefmt-merge-driver for '$filename'..."
 
-        function format() {
-          cat "$1" | treefmt --stdin "$filename" | sponge "$1"
-        }
+      function format() {
+        cat "$1" | treefmt --stdin "$filename" | sponge "$1"
+      }
 
-        # The next three arguments %A, %O and %B are temporary files which contain
-        # the three states of this file: current version, ancestor's version and
-        # other branch's version.
-        format "$1"
-        format "$2"
-        format "$3"
+      # The next three arguments %A, %O and %B are temporary files which contain
+      # the three states of this file: current version, ancestor's version and
+      # other branch's version.
+      format "$1"
+      format "$2"
+      format "$3"
 
-        git merge-file "$@"
-      '';
-    };
+      git merge-file "$@"
+    '';
+  };
 
   # This addition to the git configuration is appended to .git/config in shell.nix, i.e.
   # when entering the nix-shell environment.
@@ -101,8 +101,7 @@ let
       driver = ${lib.getExe mergeDriver} %P %A %O %B -L %X -L %S -L %Y
   '';
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-commitlint";
   tools = { inherit commitCheck; };
   extra = { inherit config; };
