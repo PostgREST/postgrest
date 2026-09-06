@@ -1,15 +1,16 @@
 module Hasql.Pipeline.Core where
 
-import qualified Hasql.Decoders.All              as Decoders
-import qualified Hasql.Decoders.Result           as Decoders.Result
-import qualified Hasql.Decoders.Results          as Decoders.Results
-import qualified Hasql.Encoders.All              as Encoders
-import qualified Hasql.Encoders.Params           as Encoders.Params
-import           Hasql.Errors
-import qualified Hasql.LibPq14                   as Pq
-import           Hasql.Prelude
-import qualified Hasql.PreparedStatementRegistry as PreparedStatementRegistry
-import qualified Hasql.Statement                 as Statement
+import Hasql.Errors
+import Hasql.Prelude
+
+import Hasql.Decoders.All qualified as Decoders
+import Hasql.Decoders.Result qualified as Decoders.Result
+import Hasql.Decoders.Results qualified as Decoders.Results
+import Hasql.Encoders.All qualified as Encoders
+import Hasql.Encoders.Params qualified as Encoders.Params
+import Hasql.LibPq14 qualified as Pq
+import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
+import Hasql.Statement qualified as Statement
 
 run :: forall a. Pipeline a -> Bool -> Pq.Connection -> PreparedStatementRegistry.PreparedStatementRegistry -> Bool -> IO (Either SessionError a)
 run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integerDatetimes = do
@@ -114,11 +115,11 @@ run (Pipeline sendQueriesInIO) usePreparedStatements connection registry integer
 -- @
 newtype Pipeline a
   = Pipeline
-      ( Bool ->
-        Pq.Connection ->
-        PreparedStatementRegistry.PreparedStatementRegistry ->
-        Bool ->
-        IO (Either SessionError (IO (Either SessionError a)))
+      ( Bool
+        -> Pq.Connection
+        -> PreparedStatementRegistry.PreparedStatementRegistry
+        -> Bool
+        -> IO (Either SessionError (IO (Either SessionError a)))
       )
   deriving (Functor)
 
@@ -145,9 +146,10 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
   Pipeline run
   where
     run usePreparedStatements connection registry integerDatetimes =
-      if usePreparedStatements && preparable
-        then runPrepared
-        else runUnprepared
+      if usePreparedStatements && preparable then
+        runPrepared
+      else
+        runUnprepared
       where
         runPrepared = runExceptT do
           (key, keyRecv) <- ExceptT resolvePreparedStatementKey
@@ -165,9 +167,10 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
                 onNewRemoteKey key =
                   do
                     sent <- Pq.sendPrepare connection key sql (mfilter (not . null) (Just oidList))
-                    if sent
-                      then pure (True, Right (key, recv))
-                      else (False,) . Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
+                    if sent then
+                      pure (True, Right (key, recv))
+                    else
+                      (False,) . Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
                   where
                     recv =
                       fmap (first commandToSessionError)

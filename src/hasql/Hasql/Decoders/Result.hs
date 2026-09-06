@@ -1,18 +1,20 @@
 module Hasql.Decoders.Result where
 
-import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
-import qualified Data.ByteString                  as ByteString
-import qualified Data.Vector                      as Vector
-import qualified Data.Vector.Mutable              as MutableVector
-import qualified Hasql.Decoders.Row               as Row
-import           Hasql.Errors
-import qualified Hasql.LibPq14                    as LibPQ
-import           Hasql.Prelude                    hiding (many, maybe)
-import qualified Hasql.Prelude                    as Prelude
+import Data.Attoparsec.ByteString.Char8 qualified as Attoparsec
+import Data.ByteString qualified as ByteString
+import Data.Vector qualified as Vector
+import Data.Vector.Mutable qualified as MutableVector
+
+import Hasql.Errors
+import Hasql.Prelude hiding (many, maybe)
+
+import Hasql.Decoders.Row qualified as Row
+import Hasql.LibPq14 qualified as LibPQ
+import Hasql.Prelude qualified as Prelude
 
 newtype Result a
   = Result (ReaderT (Bool, LibPQ.Result) (ExceptT ResultError IO) a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 {-# INLINE run #-}
 run :: Result a -> Bool -> LibPQ.Result -> IO (Either ResultError a)
@@ -47,9 +49,10 @@ rowsAffected =
         notNothing =
           Prelude.maybe (Left (UnexpectedResult "No bytes")) Right
         notEmpty bytes =
-          if ByteString.null bytes
-            then Left (UnexpectedResult "Empty bytes")
-            else Right bytes
+          if ByteString.null bytes then
+            Left (UnexpectedResult "Empty bytes")
+          else
+            Right bytes
         decimal bytes =
           first (\m -> UnexpectedResult ("Decimal parsing failure: " <> fromString m))
             $ Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) bytes
@@ -95,7 +98,7 @@ serverError =
       Just pos ->
         case Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) pos of
           Right pos -> Just pos
-          _         -> Nothing
+          _ -> Nothing
 
 {-# INLINE maybe #-}
 maybe :: Row.Row a -> Result (Maybe a)

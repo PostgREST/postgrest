@@ -1,11 +1,12 @@
 module Hasql.Decoders.Composite where
 
-import           Hasql.Prelude
-import qualified PostgreSQL.Binary.Decoding as A
+import PostgreSQL.Binary.Decoding qualified as A
+
+import Hasql.Prelude
 
 newtype Composite a
   = Composite (ReaderT Bool A.Composite a)
-  deriving (Functor, Applicative, Monad, MonadFail)
+  deriving (Applicative, Functor, Monad, MonadFail)
 
 {-# INLINE run #-}
 run :: Composite a -> Bool -> A.Value a

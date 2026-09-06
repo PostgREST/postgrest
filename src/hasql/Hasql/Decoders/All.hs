@@ -2,25 +2,27 @@
 -- A DSL for declaration of result decoders.
 module Hasql.Decoders.All where
 
-import qualified Data.Aeson                 as Aeson
-import qualified Data.IP                    as Iproute
-import qualified Data.Vector.Generic        as GenericVector
-import qualified Hasql.Decoders.Array       as Array
-import qualified Hasql.Decoders.Composite   as Composite
-import qualified Hasql.Decoders.Result      as Result
-import qualified Hasql.Decoders.Results     as Results
-import qualified Hasql.Decoders.Row         as Row
-import qualified Hasql.Decoders.Value       as Value
-import           Hasql.Prelude              hiding (bool, maybe)
-import qualified Hasql.Prelude              as Prelude
-import qualified PostgreSQL.Binary.Decoding as A
-import qualified PostgreSQL.Binary.Range    as R
+import Data.Aeson qualified as Aeson
+import Data.IP qualified as Iproute
+import Data.Vector.Generic qualified as GenericVector
+import PostgreSQL.Binary.Decoding qualified as A
+import PostgreSQL.Binary.Range qualified as R
+
+import Hasql.Prelude hiding (bool, maybe)
+
+import Hasql.Decoders.Array qualified as Array
+import Hasql.Decoders.Composite qualified as Composite
+import Hasql.Decoders.Result qualified as Result
+import Hasql.Decoders.Results qualified as Results
+import Hasql.Decoders.Row qualified as Row
+import Hasql.Decoders.Value qualified as Value
+import Hasql.Prelude qualified as Prelude
 
 -- * Result
 
 -- |
 -- Decoder of a query result.
-newtype Result a = Result (Results.Results a) deriving (Functor, Filterable)
+newtype Result a = Result (Results.Results a) deriving (Filterable, Functor)
 
 -- |
 -- Decode no value from the result.
@@ -97,7 +99,7 @@ rowList = foldrRows strictCons []
 -- x = (,,) '<$>' ('column' . 'nullable') 'int8' '<*>' ('column' . 'nonNullable') 'text' '<*>' ('column' . 'nonNullable') 'time'
 -- @
 newtype Row a = Row (Row.Row a)
-  deriving (Functor, Applicative, Monad, MonadFail)
+  deriving (Applicative, Functor, Monad, MonadFail)
 
 -- |
 -- Lift an individual value decoder to a composable row decoder.
@@ -130,7 +132,7 @@ nullable = Nullable
 -- |
 -- Decoder of a value.
 newtype Value a = Value (Value.Value a)
-  deriving (Functor, Filterable)
+  deriving (Filterable, Functor)
 
 type role Value representational
 
@@ -481,7 +483,7 @@ element = \case
 -- |
 -- Composable decoder of composite values (rows, records).
 newtype Composite a = Composite (Composite.Composite a)
-  deriving (Functor, Applicative, Monad, MonadFail)
+  deriving (Applicative, Functor, Monad, MonadFail)
 
 -- |
 -- Lift a 'Value' decoder into a 'Composite' decoder for parsing of component values.

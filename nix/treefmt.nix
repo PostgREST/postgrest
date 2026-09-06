@@ -21,11 +21,15 @@ in
   programs.actionlint.enable = true;
   programs.black.enable = true;
   programs.deadnix.enable = true;
+  programs.fourmolu.enable = true;
   programs.hlint.enable = true;
   programs.nixf-diagnose.enable = true;
   programs.nixpkgs-fmt.enable = true;
   programs.ruff-check.enable = true;
-  programs.stylish-haskell.enable = true;
+
+  programs.fourmolu.ghcOpts = [
+    "BangPatterns"
+  ];
 
   settings.formatter.hlint = {
     command = pkgs.writeShellApplication {

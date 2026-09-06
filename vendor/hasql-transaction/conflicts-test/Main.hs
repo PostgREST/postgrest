@@ -1,16 +1,18 @@
 module Main where
 
-import qualified Control.Concurrent.Async                  as F
-import qualified Hasql.Connection                          as A
-import qualified Hasql.Connection.Setting                  as H
-import qualified Hasql.Connection.Setting.Connection       as I
+import Prelude
+
+import qualified Control.Concurrent.Async as F
+import qualified Main.Statements as D
+import qualified Main.Transactions as E
+
+import qualified Hasql.Connection as A
+import qualified Hasql.Connection.Setting as H
+import qualified Hasql.Connection.Setting.Connection as I
 import qualified Hasql.Connection.Setting.Connection.Param as J
-import qualified Hasql.Session                             as B
-import qualified Hasql.Transaction                         as C
-import qualified Hasql.Transaction.Sessions                as G
-import qualified Main.Statements                           as D
-import qualified Main.Transactions                         as E
-import           Prelude
+import qualified Hasql.Session as B
+import qualified Hasql.Transaction as C
+import qualified Hasql.Transaction.Sessions as G
 
 main :: IO ()
 main =
@@ -25,11 +27,11 @@ main =
             connectionSettings =
               [ H.connection
                   ( I.params
-                      [ J.host "localhost",
-                        J.port 5432,
-                        J.user "postgres",
-                        J.password "postgres",
-                        J.dbname "postgres"
+                      [ J.host "localhost"
+                      , J.port 5432
+                      , J.user "postgres"
+                      , J.password "postgres"
+                      , J.dbname "postgres"
                       ]
                   )
               ]
@@ -43,9 +45,10 @@ main =
         try (transaction connection1 E.dropSchema) :: IO (Either SomeException ())
         transaction connection1 E.createSchema
         success <- fmap and (traverse runTest tests)
-        if success
-          then exitSuccess
-          else exitFailure
+        if success then
+          exitSuccess
+        else
+          exitFailure
       where
         runTest test =
           test connection1 connection2

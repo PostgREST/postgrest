@@ -1,17 +1,18 @@
 module Hasql.Transaction.Sessions
-  ( transaction,
-    transactionNoRetry,
+  ( transaction
+  , transactionNoRetry
 
     -- * Transaction settings
-    C.Mode (..),
-    C.IsolationLevel (..),
+  , C.Mode (..)
+  , C.IsolationLevel (..)
   )
 where
 
-import qualified Hasql.Session                         as B
-import qualified Hasql.Transaction.Config              as C
-import           Hasql.Transaction.Private.Prelude
-import qualified Hasql.Transaction.Private.Transaction as A
+import Hasql.Transaction.Private.Prelude
+
+import Hasql.Session qualified as B
+import Hasql.Transaction.Config qualified as C
+import Hasql.Transaction.Private.Transaction qualified as A
 
 -- |
 -- Execute the transaction using the provided isolation level and mode.

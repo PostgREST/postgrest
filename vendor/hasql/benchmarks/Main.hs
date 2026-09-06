@@ -1,13 +1,14 @@
 module Main where
 
-import           Criterion
-import           Criterion.Main
+import Criterion
+import Criterion.Main
+import Prelude
+
 import qualified Hasql.Connection as A
-import qualified Hasql.Decoders   as D
-import qualified Hasql.Pipeline   as E
-import qualified Hasql.Session    as B
-import qualified Hasql.Statement  as C
-import           Prelude
+import qualified Hasql.Decoders as D
+import qualified Hasql.Pipeline as E
+import qualified Hasql.Session as B
+import qualified Hasql.Statement as C
 
 main :: IO ()
 main =
@@ -19,12 +20,12 @@ main =
       A.acquire []
     useConnection connection =
       defaultMain
-        [ sessionBench "largeResultInVector" sessionWithSingleLargeResultInVector,
-          sessionBench "largeResultInList" sessionWithSingleLargeResultInList,
-          sessionBench "manyLargeResults" sessionWithManyLargeResults,
-          sessionBench "manyLargeResultsViaPipeline" sessionWithManyLargeResultsViaPipeline,
-          sessionBench "manySmallResults" sessionWithManySmallResults,
-          sessionBench "manySmallResultsViaPipeline" sessionWithManySmallResultsViaPipeline
+        [ sessionBench "largeResultInVector" sessionWithSingleLargeResultInVector
+        , sessionBench "largeResultInList" sessionWithSingleLargeResultInList
+        , sessionBench "manyLargeResults" sessionWithManyLargeResults
+        , sessionBench "manyLargeResultsViaPipeline" sessionWithManyLargeResultsViaPipeline
+        , sessionBench "manySmallResults" sessionWithManySmallResults
+        , sessionBench "manySmallResultsViaPipeline" sessionWithManySmallResultsViaPipeline
         ]
       where
         sessionBench :: (NFData a) => String -> B.Session a -> Benchmark

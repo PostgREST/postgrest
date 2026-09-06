@@ -1,11 +1,12 @@
 module Hasql.Pool.Config.Setting where
 
-import qualified Hasql.Connection.Setting as Connection.Setting
-import           Hasql.Pool.Config.Config (Config)
-import qualified Hasql.Pool.Config.Config as Config
-import           Hasql.Pool.Observation   (Observation)
-import           Hasql.Pool.Prelude
-import qualified Hasql.Session            as Session
+import Hasql.Pool.Config.Config (Config)
+import Hasql.Pool.Observation (Observation)
+import Hasql.Pool.Prelude
+
+import Hasql.Connection.Setting qualified as Connection.Setting
+import Hasql.Pool.Config.Config qualified as Config
+import Hasql.Session qualified as Session
 
 apply :: Setting -> Config -> Config
 apply (Setting run) = run
@@ -19,14 +20,14 @@ newtype Setting
 -- 3 by default.
 size :: Int -> Setting
 size x =
-  Setting (\config -> config {Config.size = x})
+  Setting (\config -> config{Config.size = x})
 
 -- | Connection acquisition timeout.
 --
 -- 10 seconds by default.
 acquisitionTimeout :: DiffTime -> Setting
 acquisitionTimeout x =
-  Setting (\config -> config {Config.acquisitionTimeout = x})
+  Setting (\config -> config{Config.acquisitionTimeout = x})
 
 -- | Maximal connection lifetime.
 --
@@ -38,7 +39,7 @@ acquisitionTimeout x =
 -- 1 day by default.
 agingTimeout :: DiffTime -> Setting
 agingTimeout x =
-  Setting (\config -> config {Config.agingTimeout = x})
+  Setting (\config -> config{Config.agingTimeout = x})
 
 -- | Maximal connection idle time.
 --
@@ -47,7 +48,7 @@ agingTimeout x =
 -- 10 minutes by default.
 idlenessTimeout :: DiffTime -> Setting
 idlenessTimeout x =
-  Setting (\config -> config {Config.idlenessTimeout = x})
+  Setting (\config -> config{Config.idlenessTimeout = x})
 
 -- | Connection string.
 --
@@ -56,7 +57,7 @@ idlenessTimeout x =
 -- > "postgresql://postgres:postgres@localhost:5432/postgres"
 staticConnectionSettings :: [Connection.Setting.Setting] -> Setting
 staticConnectionSettings x =
-  Setting (\config -> config {Config.connectionSettingsProvider = pure x})
+  Setting (\config -> config{Config.connectionSettingsProvider = pure x})
 
 -- | Action providing connection settings.
 --
@@ -68,7 +69,7 @@ staticConnectionSettings x =
 -- > pure "postgresql://postgres:postgres@localhost:5432/postgres"
 dynamicConnectionSettings :: IO [Connection.Setting.Setting] -> Setting
 dynamicConnectionSettings x =
-  Setting (\config -> config {Config.connectionSettingsProvider = x})
+  Setting (\config -> config{Config.connectionSettingsProvider = x})
 
 -- | Observation handler.
 --
@@ -82,7 +83,7 @@ dynamicConnectionSettings x =
 -- > const (pure ())
 observationHandler :: (Observation -> IO ()) -> Setting
 observationHandler x =
-  Setting (\config -> config {Config.observationHandler = x})
+  Setting (\config -> config{Config.observationHandler = x})
 
 -- | Initial session.
 --
@@ -90,4 +91,4 @@ observationHandler x =
 -- Lets you specify the connection-wide settings.
 initSession :: Session.Session () -> Setting
 initSession x =
-  Setting (\config -> config {Config.initSession = x})
+  Setting (\config -> config{Config.initSession = x})

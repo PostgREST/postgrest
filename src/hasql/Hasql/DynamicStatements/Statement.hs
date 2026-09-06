@@ -1,11 +1,13 @@
 module Hasql.DynamicStatements.Statement where
 
-import qualified Hasql.Decoders                       as Decoders
-import           Hasql.DynamicStatements.Prelude
-import qualified Hasql.DynamicStatements.Snippet.Defs as SnippetDefs
-import           Hasql.Statement
-import qualified Ptr.ByteString                       as ByteString
-import qualified Ptr.Poking                           as Poking
+import Ptr.ByteString qualified as ByteString
+import Ptr.Poking qualified as Poking
+
+import Hasql.DynamicStatements.Prelude
+import Hasql.Statement
+
+import Hasql.Decoders qualified as Decoders
+import Hasql.DynamicStatements.Snippet.Defs qualified as SnippetDefs
 
 -- |
 -- Construct a statement dynamically, specifying the parameters in-place
@@ -55,9 +57,11 @@ dynamicallyParameterized (SnippetDefs.Snippet chunks) decoder prepared =
   let step (!paramId, !poking, !encoder) = \case
         SnippetDefs.StringSnippetChunk sql -> (paramId, poking <> Poking.bytes sql, encoder)
         SnippetDefs.ParamSnippetChunk paramEncoder ->
-          let newParamId = paramId + 1
-              newPoking = poking <> Poking.word8 36 <> Poking.asciiIntegral paramId
-              newEncoder = encoder <> paramEncoder
-           in (newParamId, newPoking, newEncoder)
-   in case foldl' step (1, mempty, mempty) chunks of
+          let
+            newParamId = paramId + 1
+            newPoking = poking <> Poking.word8 36 <> Poking.asciiIntegral paramId
+            newEncoder = encoder <> paramEncoder
+          in
+            (newParamId, newPoking, newEncoder)
+  in  case foldl' step (1, mempty, mempty) chunks of
         (_, poking, encoder) -> Statement (ByteString.poking poking) encoder decoder prepared

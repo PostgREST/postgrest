@@ -1,16 +1,17 @@
 module Hasql.NotificationsSpec (main, spec) where
 
-import Control.Concurrent                  (forkIO, killThread)
+import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar
-import Control.Monad                       (void)
+import Control.Monad (void)
 import Data.ByteString
+import System.Exit (die)
+import Test.Hspec
+import Test.QuickCheck
+
 import Hasql.Connection
 import Hasql.Connection.Setting
 import Hasql.Connection.Setting.Connection
 import Hasql.Notifications
-import System.Exit                         (die)
-import Test.Hspec
-import Test.QuickCheck
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.
@@ -22,7 +23,7 @@ spec = do
   describe "send and receive notification" $
     describe "when I send a notification to channel my handler is listening to" $
       it "should call our notification handler" $ do
-        dbOrError <- acquire [ connection $ string "postgres://postgres:roottoor@localhost/hasql_notifications_test"]
+        dbOrError <- acquire [connection $ string "postgres://postgres:roottoor@localhost/hasql_notifications_test"]
         case dbOrError of
           Right db -> do
             let channelToListen = toPgIdentifier "test-channel"
@@ -36,7 +37,7 @@ spec = do
   describe "FatalError show instance" $
     it "extracts message" $
       ( show $
-          FatalError {fatalErrorMessage = "some message"}
+          FatalError{fatalErrorMessage = "some message"}
       )
         `shouldBe` "some message"
   describe "toPgIdenfier" $

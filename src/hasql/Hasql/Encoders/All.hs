@@ -2,18 +2,20 @@
 -- A DSL for declaration of query parameter encoders.
 module Hasql.Encoders.All where
 
-import qualified Data.Aeson                 as Aeson
-import qualified Data.ByteString.Lazy       as LazyByteString
-import qualified Data.IP                    as Iproute
-import qualified Hasql.Encoders.Array       as Array
-import qualified Hasql.Encoders.Params      as Params
-import qualified Hasql.Encoders.Value       as Value
-import qualified Hasql.PostgresTypeInfo     as PTI
-import           Hasql.Prelude              hiding (bool)
-import qualified Hasql.Prelude              as Prelude
-import qualified PostgreSQL.Binary.Encoding as A
-import qualified PostgreSQL.Binary.Range    as R
-import qualified TextBuilder                as C
+import Data.Aeson qualified as Aeson
+import Data.ByteString.Lazy qualified as LazyByteString
+import Data.IP qualified as Iproute
+import PostgreSQL.Binary.Encoding qualified as A
+import PostgreSQL.Binary.Range qualified as R
+import TextBuilder qualified as C
+
+import Hasql.Prelude hiding (bool)
+
+import Hasql.Encoders.Array qualified as Array
+import Hasql.Encoders.Params qualified as Params
+import Hasql.Encoders.Value qualified as Value
+import Hasql.PostgresTypeInfo qualified as PTI
+import Hasql.Prelude qualified as Prelude
 
 -- * Parameters Product Encoder
 
@@ -382,7 +384,7 @@ unknown = Value (Value.unsafePTIWithShow PTI.textUnknown (const A.bytea_strict))
 array :: Array a -> Value a
 array (Array (Array.Array valueOID arrayOID arrayEncoder renderer)) =
   let encoder env input = A.array (PTI.oidWord32 valueOID) (arrayEncoder env input)
-   in Value (Value.Value arrayOID arrayOID encoder renderer)
+  in  Value (Value.Value arrayOID arrayOID encoder renderer)
 
 -- |
 -- Lift a composite encoder into a value encoder.
@@ -497,10 +499,10 @@ field = \case
   Nullable (Value (Value.Value elementOID _ encode print)) ->
     Composite
       ( \val idt -> case val of
-          Nothing  -> A.nullField (PTI.oidWord32 elementOID)
+          Nothing -> A.nullField (PTI.oidWord32 elementOID)
           Just val -> A.field (PTI.oidWord32 elementOID) (encode idt val)
       )
       ( \case
-          Nothing  -> ["NULL"]
+          Nothing -> ["NULL"]
           Just val -> [print val]
       )

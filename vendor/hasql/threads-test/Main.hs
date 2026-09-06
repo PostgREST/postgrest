@@ -1,12 +1,14 @@
 module Main where
 
+import Prelude
+
+import qualified Main.Statements as Statements
+
 import qualified Hasql.Connection
 import qualified Hasql.Connection.Setting
 import qualified Hasql.Connection.Setting.Connection
 import qualified Hasql.Connection.Setting.Connection.Param
 import qualified Hasql.Session
-import qualified Main.Statements                           as Statements
-import           Prelude
 
 main :: IO ()
 main =
@@ -21,11 +23,11 @@ main =
             connectionSettings =
               [ Hasql.Connection.Setting.connection
                   ( Hasql.Connection.Setting.Connection.params
-                      [ Hasql.Connection.Setting.Connection.Param.host "localhost",
-                        Hasql.Connection.Setting.Connection.Param.port 5432,
-                        Hasql.Connection.Setting.Connection.Param.user "postgres",
-                        Hasql.Connection.Setting.Connection.Param.password "postgres",
-                        Hasql.Connection.Setting.Connection.Param.dbname "postgres"
+                      [ Hasql.Connection.Setting.Connection.Param.host "localhost"
+                      , Hasql.Connection.Setting.Connection.Param.port 5432
+                      , Hasql.Connection.Setting.Connection.Param.user "postgres"
+                      , Hasql.Connection.Setting.Connection.Param.password "postgres"
+                      , Hasql.Connection.Setting.Connection.Param.dbname "postgres"
                       ]
                   )
               ]

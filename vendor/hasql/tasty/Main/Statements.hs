@@ -1,8 +1,9 @@
 module Main.Statements where
 
-import qualified Hasql.Decoders  as HD
+import Main.Prelude
+
+import qualified Hasql.Decoders as HD
 import qualified Hasql.Statement as HQ
-import           Main.Prelude
 
 plain :: ByteString -> HQ.Statement () ()
 plain sql =
@@ -10,18 +11,18 @@ plain sql =
 
 dropType :: ByteString -> HQ.Statement () ()
 dropType name =
-  plain
-    $ "drop type if exists "
-    <> name
+  plain $
+    "drop type if exists "
+      <> name
 
 createEnum :: ByteString -> [ByteString] -> HQ.Statement () ()
 createEnum name values =
-  plain
-    $ "create type "
-    <> name
-    <> " as enum ("
-    <> mconcat (intersperse ", " (map (\x -> "'" <> x <> "'") values))
-    <> ")"
+  plain $
+    "create type "
+      <> name
+      <> " as enum ("
+      <> mconcat (intersperse ", " (map (\x -> "'" <> x <> "'") values))
+      <> ")"
 
 selectList :: HQ.Statement () ([] (Int64, Int64))
 selectList =

@@ -10,15 +10,16 @@
 -- * Row-by-row fetching.
 module Hasql.Decoders.Results where
 
-import qualified Hasql.Decoders.Result as Result
-import           Hasql.Errors
-import qualified Hasql.LibPq14         as LibPQ
-import           Hasql.Prelude         hiding (many, maybe)
-import qualified Hasql.Prelude         as Prelude
+import Hasql.Errors
+import Hasql.Prelude hiding (many, maybe)
+
+import Hasql.Decoders.Result qualified as Result
+import Hasql.LibPq14 qualified as LibPQ
+import Hasql.Prelude qualified as Prelude
 
 newtype Results a
   = Results (ReaderT (Bool, LibPQ.Connection) (ExceptT CommandError IO) a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Applicative, Functor, Monad)
 
 instance Filterable Results where
   {-# INLINE mapMaybe #-}

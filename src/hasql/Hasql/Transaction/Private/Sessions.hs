@@ -1,9 +1,10 @@
 module Hasql.Transaction.Private.Sessions where
 
-import           Hasql.Session
-import           Hasql.Transaction.Config
-import           Hasql.Transaction.Private.Prelude
-import qualified Hasql.Transaction.Private.Statements as Statements
+import Hasql.Session
+import Hasql.Transaction.Config
+import Hasql.Transaction.Private.Prelude
+
+import Hasql.Transaction.Private.Statements qualified as Statements
 
 {-
 We may want to
@@ -31,14 +32,15 @@ tryTransaction level mode retryOnError body = do
 
 commitOrAbort :: Bool -> Session ()
 commitOrAbort commit =
-  if commit
-    then statement () Statements.commitTransaction
-    else statement () Statements.abortTransaction
+  if commit then
+    statement () Statements.commitTransaction
+  else
+    statement () Statements.abortTransaction
 
 handleTransactionError :: SessionError -> Bool -> Session a -> Session a
 handleTransactionError error retryOnError onTransactionError = case error of
   QueryError _ _ clientError -> onCommandError clientError
-  PipelineError clientError  -> onCommandError clientError
+  PipelineError clientError -> onCommandError clientError
   where
     retryOrThrow = if retryOnError then onTransactionError else throwError error
     onCommandError = \case
@@ -46,5 +48,5 @@ handleTransactionError error retryOnError onTransactionError = case error of
         case code of
           "40001" -> retryOrThrow
           "40P01" -> retryOrThrow
-          _       -> throwError error
+          _ -> throwError error
       _ -> throwError error

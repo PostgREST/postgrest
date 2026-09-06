@@ -1,7 +1,8 @@
 module Hasql.Pool.SessionErrorDestructors where
 
-import           Hasql.Pool.Prelude
-import qualified Hasql.Session      as Session
+import Hasql.Pool.Prelude
+
+import Hasql.Session qualified as Session
 
 reset :: (Maybe ByteString -> x) -> x -> Session.SessionError -> x
 reset onReset onNoReset = \case

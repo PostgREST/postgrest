@@ -1,7 +1,8 @@
 module Hasql.Connection.Config.ConnectionString.Params where
 
-import qualified Data.Map.Strict as Map
-import           Hasql.Prelude
+import Data.Map.Strict qualified as Map
+
+import Hasql.Prelude
 
 type Params = Map.Map ByteString ByteString
 
