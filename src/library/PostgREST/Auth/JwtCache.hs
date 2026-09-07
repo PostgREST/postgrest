@@ -108,6 +108,7 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
       SC.cacheIO
         ( SC.CacheConfig
             maxSize
+            copy
             (parseAndDecodeClaims key)
             (lift . observationHandler . JwtCacheLookup) -- lookup metrics
             (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
