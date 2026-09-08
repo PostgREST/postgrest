@@ -1,38 +1,37 @@
-{ buildToolbox
-, cabal-install
-, cachix
-, checkedShellScript
-, curl
-, devCabalOptions
-, entr
-, fd
-, graphviz
-, hsie
-, nix
-, stdenv
-, tests
-, treefmtNix
-, haskellPackages
-, ctags
-, openssl
+{
+  buildToolbox,
+  cabal-install,
+  cachix,
+  checkedShellScript,
+  curl,
+  devCabalOptions,
+  entr,
+  fd,
+  graphviz,
+  hsie,
+  nix,
+  stdenv,
+  tests,
+  treefmtNix,
+  haskellPackages,
+  ctags,
+  openssl,
 }:
 let
   watch =
     checkedShellScript
       {
         name = "postgrest-watch";
-        docs =
-          ''
-            Watch the project for changes and reinvoke the given command.
+        docs = ''
+          Watch the project for changes and reinvoke the given command.
 
-            Example:
-              postgrest-watch postgrest-test-io
-          '';
-        args =
-          [
-            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
-            "ARG_LEFTOVERS([command arguments])"
-          ];
+          Example:
+            postgrest-watch postgrest-test-io
+        '';
+        args = [
+          "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+          "ARG_LEFTOVERS([command arguments])"
+        ];
         positionalCompletion = "_command";
         redirectTixFiles = false; # will be done by sub-command
         workingDir = "/";
@@ -52,10 +51,9 @@ let
 
           Requires authentication with `cachix authtoken ...`.
         '';
-        args =
-          [
-            "ARG_OPTIONAL_SINGLE([system], , [System], [${stdenv.system}])"
-          ];
+        args = [
+          "ARG_OPTIONAL_SINGLE([system], , [System], [${stdenv.system}])"
+        ];
         workingDir = "/";
       }
       ''
@@ -68,14 +66,13 @@ let
     checkedShellScript
       {
         name = "postgrest-check";
-        docs =
-          ''
-            Run most checks that will also run on CI, but only against the
-            latest PostgreSQL version.
+        docs = ''
+          Run most checks that will also run on CI, but only against the
+          latest PostgreSQL version.
 
-            This currently excludes the memory and spec-idempotence tests,
-            as those are particularly expensive.
-          '';
+          This currently excludes the memory and spec-idempotence tests,
+          as those are particularly expensive.
+        '';
         workingDir = "/";
       }
       ''
@@ -248,8 +245,7 @@ let
         LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c32
       '';
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-dev";
   tools = {
     inherit
@@ -263,6 +259,7 @@ buildToolbox
       genJwt
       genSecret
       pushCachix
-      watch;
+      watch
+      ;
   };
 }

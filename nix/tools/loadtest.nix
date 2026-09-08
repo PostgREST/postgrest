@@ -1,14 +1,15 @@
-{ buildToolbox
-, checkedShellScript
-, git
-, jq
-, libfaketime
-, python3
-, python3Packages
-, runCommand
-, vegeta
-, withTools
-, writers
+{
+  buildToolbox,
+  checkedShellScript,
+  git,
+  jq,
+  libfaketime,
+  python3,
+  python3Packages,
+  runCommand,
+  vegeta,
+  withTools,
+  writers,
 }:
 let
   runner =
@@ -124,25 +125,23 @@ let
     checkedShellScript
       {
         inherit name;
-        docs =
-          ''
-            Run the vegeta loadtest against every target branch and HEAD:
-            - once on the every <target-#> branch
-            - once in the current worktree
+        docs = ''
+          Run the vegeta loadtest against every target branch and HEAD:
+          - once on the every <target-#> branch
+          - once in the current worktree
 
-            Note that the Nix tooling is always taken from the HEAD branch, while the PostgREST binary is taken from the target branch.
-            For a discussion on why this is set up like this, see https://github.com/PostgREST/postgrest/pull/5013#discussion_r3431508441.
-          '';
+          Note that the Nix tooling is always taken from the HEAD branch, while the PostgREST binary is taken from the target branch.
+          For a discussion on why this is set up like this, see https://github.com/PostgREST/postgrest/pull/5013#discussion_r3431508441.
+        '';
         args = [
           "ARG_POSITIONAL_INF([target], [Commit-ish reference to compare with], 1)"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
         ];
-        positionalCompletion =
-          ''
-            if test "$prev" == "${name}"; then
-              __gitcomp_nl "$(__git_refs)"
-            fi
-          '';
+        positionalCompletion = ''
+          if test "$prev" == "${name}"; then
+            __gitcomp_nl "$(__git_refs)"
+          fi
+        '';
         workingDir = "/";
       }
       ''
@@ -219,7 +218,10 @@ let
   toMarkdown =
     writers.writePython3 "postgrest-loadtest-to-markdown"
       {
-        libraries = [ python3Packages.pandas python3Packages.tabulate ];
+        libraries = [
+          python3Packages.pandas
+          python3Packages.tabulate
+        ];
       }
       ''
         import sys
@@ -251,7 +253,6 @@ let
             colalign=('left',)
           )
       '';
-
 
   report =
     checkedShellScript
@@ -301,14 +302,21 @@ let
         ${libfaketime}/bin/faketime '2000-01-01 00:00:00' python3 ${./generate_targets.py} "$out"
       '';
 
-  mergeMonitorResults =
-    writers.writePython3 "postgrest-merge-monitor-results"
-      {
-        libraries = [ python3Packages.pandas python3Packages.tabulate ];
-      }
-      (builtins.readFile ./merge_monitor_result.py);
+  mergeMonitorResults = writers.writePython3 "postgrest-merge-monitor-results" {
+    libraries = [
+      python3Packages.pandas
+      python3Packages.tabulate
+    ];
+  } (builtins.readFile ./merge_monitor_result.py);
 in
 buildToolbox {
   name = "postgrest-loadtest";
-  tools = { inherit loadtest loadtestAgainst report report-load; };
+  tools = {
+    inherit
+      loadtest
+      loadtestAgainst
+      report
+      report-load
+      ;
+  };
 }

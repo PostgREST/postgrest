@@ -1,7 +1,8 @@
-{ buildToolbox
-, checkedShellScript
-, commitlint
-, writeText
+{
+  buildToolbox,
+  checkedShellScript,
+  commitlint,
+  writeText,
 }:
 let
   # Rules format: [<severity>, <"always"/"never">, <value>]
@@ -53,8 +54,7 @@ let
         ${commitlint}/bin/commitlint --config ${commitlintConfig} --from "$_arg_from" --to "$_arg_to"
       '';
 in
-buildToolbox
-{
+buildToolbox {
   name = "postgrest-commitlint";
   tools = { inherit commitCheck; };
 }
