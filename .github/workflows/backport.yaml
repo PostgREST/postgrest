@@ -46,7 +46,7 @@ jobs:
           allow-unsafe-pr-checkout: true
           ref: ${{ github.event.pull_request.head.sha }}
           token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: false
+          persist-credentials: true
 
       # Backport action that creates the PR with given settings
       - name: Create backport PR
