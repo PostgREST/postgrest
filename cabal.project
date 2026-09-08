@@ -1,7 +1,8 @@
 packages: postgrest.cabal
 tests: true
 allow-newer:
-  hasql:postgresql-libpq
+  , fuzzyset:text
+  , hasql:postgresql-libpq
 
 -- https://github.com/martijnbastiaan/doctest-parallel/blob/main/example/README.md#cabalproject
 write-ghc-environment-files: always
