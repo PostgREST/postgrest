@@ -12,9 +12,6 @@ module PostgREST.Logger
   , LoggerState
   ) where
 
-import           Control.AutoUpdate                (defaultUpdateSettings,
-                                                    mkAutoUpdate,
-                                                    updateAction)
 import           Control.Debounce
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.Text.Encoding                as T
@@ -23,8 +20,7 @@ import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Statement                   as SQL
 
-import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
-                  getZonedTime)
+import Data.Time (defaultTimeLocale, formatTime, getZonedTime)
 
 import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
@@ -45,15 +41,12 @@ import           PostgREST.Config.PgVersion (pgvName)
 import qualified PostgREST.Error            as Error
 import           Protolude
 
-data LoggerState = LoggerState
-  { stateGetZTime               :: IO ZonedTime  -- ^ Time with time zone used for logs
-  , stateLogDebouncePoolTimeout :: MVar (IO ())  -- ^ Logs with a debounce
+newtype LoggerState = LoggerState
+  { stateLogDebouncePoolTimeout :: MVar (IO ())  -- ^ Logs with a debounce
   }
 
 init :: IO LoggerState
-init = do
-  zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
-  LoggerState zTime <$> newEmptyMVar
+init = LoggerState  <$> newEmptyMVar
 
 logWithDebounce :: LoggerState -> IO () -> IO ()
 logWithDebounce loggerState action = do
@@ -99,50 +92,50 @@ observationLogger loggerState logLevel obs = case obs of
   o@(PoolAcqTimeoutObs _) -> do
     when (logLevel >= LogError) $ do
       logWithDebounce loggerState $
-        logWithZTime loggerState $ observationMessage o
+        logWithZTime $ observationMessage o
   o@(QueryErrorCodeHighObs _) -> do
     when (logLevel >= LogError) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@SchemaCacheEmptyObs ->
     when (logLevel >= LogError) $ do
-    logWithZTime loggerState $ observationMessage o
+    logWithZTime $ observationMessage o
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   QueryObs gq status -> do
     when (shouldLogResponse logLevel status) $
-      logMainQ loggerState gq
+      logMainQ  gq
   o@PoolRequest ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@PoolFlushed ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@JwtCacheEviction ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@(JwtCacheLookup _) ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o@(WarpServerObs _) ->
     when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
+      logWithZTime $ observationMessage o
   o ->
-    logWithZTime loggerState $ observationMessage o
+    logWithZTime $ observationMessage o
 
-logWithZTime :: LoggerState -> Text -> IO ()
-logWithZTime loggerState txt = do
-  zTime <- stateGetZTime loggerState
+logWithZTime :: Text -> IO ()
+logWithZTime txt = do
+  zTime <- getZonedTime
   hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
 
-logMainQ :: LoggerState -> MainQuery -> IO ()
-logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
+logMainQ :: MainQuery -> IO ()
+logMainQ MainQuery{mqOpenAPI=(x, y, z),..} =
   let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
-      logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' $ T.decodeUtf8 q in
+      logQ q = when (q /= mempty) $ logWithZTime $ showOnSingleLine '\n' $ T.decodeUtf8 q in
   mapM_ logQ snipts
 
 -- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
