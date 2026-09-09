@@ -12,8 +12,6 @@ module PostgREST.Logger
   , LoggerState
   ) where
 
-import           Control.AutoUpdate                (defaultUpdateSettings,
-                                                    mkAutoUpdate, updateAction)
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
@@ -44,8 +42,7 @@ import qualified PostgREST.Error            as Error
 import           Protolude
 
 data LoggerState = LoggerState
-  { stateGetZTime               :: IO ZonedTime  -- ^ Time with time zone used for logs
-  , stateLogDebouncePoolTimeout :: IO ()         -- ^ Logs with a debounce
+  { stateLogDebouncePoolTimeout :: IO ()         -- ^ Logs with a debounce
   , getLogLevel                 :: IO LogLevel   -- ^ Get LogLevel from Config
   }
 
@@ -53,10 +50,9 @@ init :: IO LogLevel -> IO LoggerState
 init getLogLvl = mdo
   let
     oneSecond = 1_000_000
-    loggerState = LoggerState zTime debouncePoolTimeout getLogLvl
-  zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
+    loggerState = LoggerState debouncePoolTimeout getLogLvl
   debouncePoolTimeout <- makeDebouncer $
-    logWithZTime loggerState (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
+    logWithZTime (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
   pure loggerState
 
 shouldLogResponse :: LogLevel -> Status -> Bool
@@ -77,44 +73,44 @@ observationLogger loggerState obs = do
         stateLogDebouncePoolTimeout loggerState
     o@(QueryErrorCodeHighObs _) -> do
       when (logLevel >= LogError) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@SchemaCacheEmptyObs ->
       when (logLevel >= LogError) $ do
-      logWithZTime loggerState $ observationMessages o
+      logWithZTime $ observationMessages o
     o@(HasqlPoolObs _) -> do
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@(QueryObs _ status) -> do
       when (shouldLogResponse logLevel status) $
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@PoolRequest ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@PoolRequestFullfilled ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     ResponseObs maybeRole req status contentLen ->
       when (shouldLogResponse logLevel status) $ do
-        zTime <- stateGetZTime loggerState
+        zTime <- getZonedTime
         putStr $ apacheFormat maybeRole (BS.pack $ formatZonedTime zTime) req status contentLen -- putStr prints to stdout
     o@PoolFlushed ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@JwtCacheEviction ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@(JwtCacheLookup _) ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o@(WarpServerObs _) ->
       when (logLevel >= LogDebug) $ do
-        logWithZTime loggerState $ observationMessages o
+        logWithZTime $ observationMessages o
     o ->
-      logWithZTime loggerState $ observationMessages o
+      logWithZTime $ observationMessages o
 
-logWithZTime :: LoggerState -> [Text] -> IO ()
-logWithZTime loggerState txts = do
-  zTime <- stateGetZTime loggerState
+logWithZTime :: [Text] -> IO ()
+logWithZTime txts = do
+  zTime <- getZonedTime
   let prefix = toS (formatZonedTime zTime) <> ": "
   traverse_ (hPutStrLn stderr . (prefix <>)) txts
 
