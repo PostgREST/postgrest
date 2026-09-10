@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.18] - 2026-09-10
+
 ### Changes
 
 - Fix sporadic "PGRST303 JWT issued at future" errors by @steve-chavez in #5196
