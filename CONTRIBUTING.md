@@ -35,6 +35,8 @@ For questions on how to use PostgREST, please use
 We have a fully nix-based development environment with many tools for a smooth development workflow available.
 Check the [development docs](https://github.com/PostgREST/postgrest/blob/main/nix/README.md) on how to set it up and use it.
 
+* Before submitting a PR, make sure an open Github Issue exists related to it and the proposed change is approved by the maintainers. If the PR is related to something trivial (e.g. correcting spelling mistakes, docs improvement etc), then a Github Issue is not necessary.
+
 * All contributions must pass the tests before being merged. When
   you create a pull request your code will automatically be tested.
 
