@@ -100,7 +100,7 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
             notCachingErrors (readTVar maxSizeTVar) key
 
     notCachingErrors :: STM Int -> JwkSet -> IO (SC.Cache (ExceptT Error IO) ByteString JSON.Object)
-    notCachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize
+    notCachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize copy
             (parseAndDecodeClaims key)
             (lift . observationHandler . JwtCacheLookup) -- lookup metrics
             (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics

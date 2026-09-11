@@ -58,6 +58,9 @@ data Cache m k v = (MonadIO m, Hashable k) => Cache (ListNode k v False) (CacheC
 
 data CacheConfig m k v = CacheConfig {
         maxSize          :: STM Int,
+        prepareKey       :: k -> k,
+        -- ^ Prepare a key for storage, for example by copying a slice.
+        -- Must preserve equality and hashing. Evaluated only on insertion.
         load             :: k -> m v,
         requestListener  :: Bool -> m (),
         evictionListener :: k -> v -> m (),
@@ -198,11 +201,12 @@ cached (Cache head@ListNode{prevNextPtrPtr=neck, elem=Head{..}} CacheConfig{..})
                 writeTVar prevNextPtr nextEntry
 
         newLinkedEntry v = do
+            let !storedKey = prepareKey k
             oldNeckNextPtr <- readTVar neck
             newNeckNextPtr <- newTVar (Some head)
             newNeck <- ListNode newNeckNextPtr <$>
                 newTVar oldNeckNextPtr <*>
-                (Entry <$> newTVar False <*> pure k <*> pure v)
+                (Entry <$> newTVar False <*> pure storedKey <*> pure v)
             -- update pointers
             writeTVar oldNeckNextPtr (Some newNeck)
             writeTVar neck newNeckNextPtr
