@@ -1,0 +1,23 @@
+name: Configure Bot
+
+description: Fetch and configure PostgREST CI Bot's git identity
+
+inputs:
+  app-slug:
+    description: Name of PostgREST CI Bot
+  authToken:
+    description: Github Token to make authenticated requests
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Git identity of PostgREST CI Bot
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.authToken }}
+        CI_BOT_NAME: ${{ inputs.app-slug }}
+      run: |
+        CI_BOT_ID="$(gh api "/users/${CI_BOT_NAME}[bot]" --jq .id)"
+        git config user.name "${CI_BOT_NAME}[bot]"
+        git config user.email \
+          "${CI_BOT_ID}+${CI_BOT_NAME}[bot]@users.noreply.github.com"
