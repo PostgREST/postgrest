@@ -37,8 +37,8 @@ commitOrAbort commit =
 
 handleTransactionError :: SessionError -> Bool -> Session a -> Session a
 handleTransactionError error retryOnError onTransactionError = case error of
-  QueryError _ _ clientError -> onCommandError clientError
-  PipelineError clientError  -> onCommandError clientError
+  QueryError _ _ clientError _ -> onCommandError clientError
+  PipelineError clientError _  -> onCommandError clientError
   where
     retryOrThrow = if retryOnError then onTransactionError else throwError error
     onCommandError = \case

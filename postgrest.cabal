@@ -100,6 +100,7 @@ library hasql
                       Hasql.Statement
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
+                      Hasql.LibPq14.Notices
   other-modules:      Hasql.Commands
                       Hasql.Connection.Config
                       Hasql.Connection.Config.ConnectionString

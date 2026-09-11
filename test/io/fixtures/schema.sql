@@ -212,6 +212,25 @@ create or replace function one_sec_timeout() returns void as $$
   select pg_sleep(3);
 $$ language sql set statement_timeout = '1s';
 
+create or replace function raise_warnings_then_exception() returns void
+language plpgsql as $$
+begin
+  raise warning 'first warning';
+  raise warning 'second warning' using
+    errcode = 'XX999',
+    detail = 'extra detail',
+    hint = 'a hint';
+  raise exception 'the real error';
+end;
+$$;
+
+create or replace function raise_warning_only() returns void
+language plpgsql as $$
+begin
+  raise warning 'harmless warning';
+end;
+$$;
+
 create or replace function four_sec_timeout() returns void as $$
   select pg_sleep(3);
 $$ language sql set statement_timeout = '4s';

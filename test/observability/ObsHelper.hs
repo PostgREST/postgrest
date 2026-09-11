@@ -70,6 +70,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbExtraSearchPath         = []
   , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]
   , configDbMaxRows                 = Nothing
+  , configDbWarningsEnabled         = True
   , configDbPlanEnabled             = False
   , configDbPoolSize                = 10
   , configDbPoolAcquisitionTimeout  = 10

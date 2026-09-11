@@ -54,15 +54,15 @@ usePool appState@AppState{stateObserver=observer, ..} sess = do
         when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
           observer $ ExitDBFatalError ServerAuthError err
           killApp appState
-      err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
+      err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr) _)) ->
         handleResultError err tpl resultErr
-      err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr))) ->
+      err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr) _)) ->
         -- Passing the empty template will not work for schema cache queries, see TODO further below.
         handleResultError err mempty resultErr
-      err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
+      err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _) _)) ->
         -- An error on the client-side, usually indicates problems with connection
         observer $ QueryErrorCodeHighObs err
-      SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _))  -> pure ()
+      SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _) _)  -> pure ()
       )
 
     return res
