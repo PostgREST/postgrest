@@ -124,6 +124,13 @@ All notable changes to this project will be documented in this file. From versio
   + Supporting this required caching `pg_timezone_names`, which was expensive.
   + Ensure your requests always have a valid timezone.
 
+## [14.18] - 2026-09-10
+
+### Changes
+
+- Fix sporadic "PGRST303 JWT issued at future" errors by @steve-chavez in #5196
+- Fix wrong time appearing on logs after long idle periods by @taimoorzaeem in #5213
+
 ## [14.17] - 2026-08-13
 
 ### Fixed
