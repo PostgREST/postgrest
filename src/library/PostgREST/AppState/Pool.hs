@@ -42,9 +42,9 @@ usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool appState@AppState{stateObserver=observer, ..} sess = do
     observer PoolRequest
 
-    res <- SQL.use statePool sess
-
-    observer PoolRequestFullfilled
+    res <- SQL.use statePool $ do
+      liftIO $ observer PoolRequestFullfilled
+      sess
 
     whenLeft res (\case
       SQL.AcquisitionTimeoutUsageError ->
