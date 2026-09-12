@@ -1,0 +1,44 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  bump-version:
+    name: Bump version
+    runs-on: ubuntu-24.04
+    steps:
+
+      # This actions creates the github token using the postgrest app secrets
+      - name: Create Github App Token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.POSTGREST_CI_APP_ID }}
+          private-key: ${{ secrets.POSTGREST_CI_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: release.release.bin
+
+      - name: Configure Git identity
+        uses: ./.github/actions/configure-bot
+        with:
+          app-slug: ${{ steps.app-token.outputs.app-slug }}
+          authToken: ${{ steps.app-token.outputs.token }}
+
+      - name: Push bump version commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: postgrest-release --skip-confirmation
