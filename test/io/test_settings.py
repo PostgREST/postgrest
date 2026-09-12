@@ -3,7 +3,7 @@
 import signal
 import time
 
-from config import CONFIGSDIR, SECRET
+from config import SIGUSR2DIR, SECRET
 from util import (
     Thread,
     jwtauthheader,
@@ -20,7 +20,7 @@ from postgrest import (
 
 def test_app_settings_reload(tmp_path, defaultenv):
     "App settings should be reloaded from file when PostgREST is sent SIGUSR2."
-    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    config = (SIGUSR2DIR / "app-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
     uri = "/rpc/get_guc_value?name=app.settings.name_var"

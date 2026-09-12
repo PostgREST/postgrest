@@ -6,7 +6,7 @@ import time
 import pytest
 import requests
 
-from config import SECRET
+from config import SIGUSR2DIR, SECRET
 from util import (
     jwtauthheader,
     relativeSeconds,
@@ -21,6 +21,8 @@ from postgrest import (
     run,
     set_statement_timeout,
     wait_until_exit,
+    sleep_until_postgrest_config_reload,
+    sleep_until_postgrest_scache_reload,
 )
 
 
@@ -619,3 +621,88 @@ def test_options_request_logs_but_cors_preflight_does_not(defaultenv):
         r'- - postgrest_test_anonymous \[.+\] "OPTIONS /projects HTTP/1.1" 200 \d+ "" "python-requests/.+"',
         output[0],
     )
+
+
+def test_log_when_pool_is_released_during_schema_cache_reload(defaultenv):
+    "Following observations should be logged when schema cache is reloaded"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": "debug",
+    }
+
+    with run(env=env, no_startup_stdout=False) as postgrest:
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
+
+        output = drain_stdout(postgrest)
+
+        pool_flushed_obs = "Database connection pool flushed"
+        schema_cache_queried_in_obs = r"Schema cache queried in \d+\.\d+ milliseconds"
+        schema_cache_loaded_obs = r"Schema cache loaded \d+ Relations, \d+ Relationships, \d+ RPCs, \d+ Domain Representations, \d+ Media Type Handlers"
+        schema_cache_loaded_in_obs = r"Schema cache loaded in \d+\.\d+ milliseconds"
+
+        assert any(pool_flushed_obs in line for line in output)
+        assert any(re.search(schema_cache_queried_in_obs, line) for line in output)
+        assert any(re.search(schema_cache_loaded_obs, line) for line in output)
+        assert any(re.search(schema_cache_loaded_in_obs, line) for line in output)
+
+
+def test_log_when_pool_is_released_during_schema_cache_reload_after_retries(
+    tmp_path, defaultenv
+):
+    "Following observations should be logged when schema cache is reloaded after retrying on bad config"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": "debug",
+    }
+
+    config = (SIGUSR2DIR / "db-schemas.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    with run(configfile, env=env, no_startup_stdout=False) as postgrest:
+
+        configfile.write_text(
+            config.replace('db-schemas = "public"', 'db-schemas = "bad_schema"')
+        )
+
+        # reload config
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+
+        # reload schema cache to verify that the config reload actually happened
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
+
+        output = drain_stdout(postgrest)
+
+        schema_cache_error_obs = "Failed to load the schema cache using db-schemas="
+        assert any(schema_cache_error_obs in line for line in output)
+
+        configfile.write_text(
+            configfile.read_text().replace(
+                'db-schemas = "bad_schema"', 'db-schemas = "public"'
+            )
+        )
+
+        # reload config
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+
+        # reload schema cache to verify that the config reload actually happened
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
+
+        output = drain_stdout(postgrest)
+
+        pool_flushed_obs = "Database connection pool flushed"
+        schema_cache_queried_in_obs = r"Schema cache queried in \d+\.\d+ milliseconds"
+        schema_cache_loaded_obs = r"Schema cache loaded \d+ Relations, \d+ Relationships, \d+ RPCs, \d+ Domain Representations, \d+ Media Type Handlers"
+        schema_cache_loaded_in_obs = r"Schema cache loaded in \d+\.\d+ milliseconds"
+
+        assert any(pool_flushed_obs in line for line in output)
+        assert any(re.search(schema_cache_queried_in_obs, line) for line in output)
+        assert any(re.search(schema_cache_loaded_obs, line) for line in output)
+        assert any(re.search(schema_cache_loaded_in_obs, line) for line in output)

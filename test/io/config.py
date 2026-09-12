@@ -6,6 +6,7 @@ import yaml
 
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
 CONFIGSDIR = BASEDIR / "configs"
+SIGUSR2DIR = CONFIGSDIR / "sigusr2-settings"
 FIXTURES = yaml.load(
     (BASEDIR / "fixtures/fixtures.yaml").read_text(), Loader=yaml.Loader
 )
