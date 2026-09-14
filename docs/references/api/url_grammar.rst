@@ -77,3 +77,16 @@ Here ``Quote:"`` and ``Backslash:\`` are percent-encoded values. Note that ``%5C
 
    Some HTTP libraries might encode URLs automatically(e.g. :code:`axios`). In these cases you should use double quotes
    :code:`""` directly instead of :code:`%22`.
+
+.. _limitations:
+
+Limitations
+-----------
+
+PostgREST URL grammar does not support selecting a string literal i.e. the following query is invalid:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/users?select=username,status:'Active User'&active=is.true"
+
+Alternatively, the above can be implemented using `Generated Columns <https://www.postgresql.org/docs/current/ddl-generated-columns.html>`_, :ref:`computed_cols` or Database Views.
