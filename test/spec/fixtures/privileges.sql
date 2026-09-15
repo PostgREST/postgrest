@@ -10,6 +10,7 @@ GRANT USAGE ON SCHEMA
     , test
     , v1
     , v2
+    , "SCHEMA_v3"
 TO postgrest_test_anonymous;
 
 -- Schema test objects
@@ -21,6 +22,7 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA
     , test
     , v1
     , v2
+    , "SCHEMA_v3"
 TO postgrest_test_anonymous;
 
 REVOKE ALL PRIVILEGES ON TABLE
