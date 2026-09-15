@@ -44,6 +44,7 @@ import Feature.Query.JsonOperatorSpec qualified
 import Feature.Query.MultipleSchemaSpec qualified
 import Feature.Query.NullsStripSpec qualified
 import Feature.Query.PgSafeUpdateSpec qualified
+import Feature.Query.PipelineModeSpec qualified
 import Feature.Query.PlanSpec qualified
 import Feature.Query.PostGISSpec qualified
 import Feature.Query.Preferences.HandlingSpec qualified
@@ -144,6 +145,7 @@ main = do
               , ("Feature.Query.JsonOperatorSpec", Feature.Query.JsonOperatorSpec.spec actualPgVersion)
               , ("Feature.Query.NullsStripSpec", Feature.Query.NullsStripSpec.spec)
               , ("Feature.Query.PgSafeUpdateSpec.disabledSpec", Feature.Query.PgSafeUpdateSpec.disabledSpec)
+              , ("Feature.Query.PipelineModeSpec", Feature.Query.PipelineModeSpec.spec)
               , ("Feature.Query.PlanSpec.disabledSpec", Feature.Query.PlanSpec.disabledSpec)
               , ("Feature.Query.PlanSpec.spec", Feature.Query.PlanSpec.spec)
               , ("Feature.Query.Preferences.HandlingSpec", Feature.Query.Preferences.HandlingSpec.spec)
