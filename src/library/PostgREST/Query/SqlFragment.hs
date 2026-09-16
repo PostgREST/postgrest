@@ -639,7 +639,7 @@ handlerF rout = \case
 
 schemaDescription :: Text -> SQL.Snippet
 schemaDescription schema =
-  "SELECT pg_catalog.obj_description(" <> encoded <> "::regnamespace, 'pg_namespace')"
+  "SELECT pg_catalog.obj_description(quote_ident(" <> encoded <> ")::regnamespace, 'pg_namespace')"
   where
     encoded = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 schema
 
@@ -654,14 +654,13 @@ accessibleTables schema =
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND c.relnamespace = |]
+  AND c.relnamespace = quote_ident(|]
     )
     <> encodedSchema
-    <> "::regnamespace "
     <> SQL.sql
       ( encodeUtf8
           [trimming|
-  AND (
+  )::regnamespace AND (
     pg_has_role(c.relowner, 'USAGE')
     or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
     or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
@@ -673,7 +672,7 @@ accessibleTables schema =
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
 accessibleFuncs :: PgVersion -> Text -> SQL.Snippet
-accessibleFuncs pgVer schema = baseFuncSqlQuery pgVer <> "AND p.pronamespace = " <> encodedSchema <> "::regnamespace"
+accessibleFuncs pgVer schema = baseFuncSqlQuery pgVer <> "AND p.pronamespace = quote_ident(" <> encodedSchema <> ")::regnamespace"
   where
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
