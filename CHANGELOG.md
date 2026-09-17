@@ -8,16 +8,16 @@ All notable changes to this project will be documented in this file. From versio
 
 - Fix response on root endpoint when schema name is in mixed case by @taimoorzaeem in #5158
 
+#### Performance
+
+- Reduce JWT cache memory usage by @mkleczek in #5229
+
 ## [16.3] - 2026-09-11
 
 ### Changes
 
 - Fix sporadic "PGRST303 JWT issued at future" errors by @steve-chavez in #5196
 - Fix wrong time appearing on logs after long idle periods by @taimoorzaeem in #5213
-
-#### Performance
-
-- Reduce JWT cache memory usage by @mkleczek in #5229
 
 ## [16.2] - 2026-08-21
 
