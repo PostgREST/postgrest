@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file. From versio
 
 - Reduce JWT cache memory usage by @mkleczek in #5229
 
+#### Removed
+
+- Remove deprecated JSPath DSL syntax for `jwt-role-claim-key` config by @taimoorzaeem in #5192
+
 ## [16.3] - 2026-09-11
 
 ### Changes
