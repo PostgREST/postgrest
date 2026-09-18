@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -15,7 +16,6 @@ module PostgREST.MainTx
 where
 
 import Control.Lens ((^?))
-import Control.Monad.Extra (whenJust)
 import Protolude hiding (Handler)
 
 import Data.Aeson.Lens qualified as L
@@ -52,13 +52,13 @@ import PostgREST.SchemaCache.Table (TablesMap)
 
 import Hasql.Decoders qualified as HD
 import Hasql.DynamicStatements.Statement qualified as SQL
-import Hasql.Session qualified as SQL (Session)
-import Hasql.Transaction qualified as SQL
-import Hasql.Transaction.Sessions qualified as SQL
+import Hasql.Encoders qualified as HE
+import Hasql.Pipeline qualified as P
+import Hasql.Session qualified as SQL (Session, pipeline, sql, statement)
+import Hasql.Statement (Statement (..))
+import Hasql.Transaction.Sessions qualified as SQL (IsolationLevel (..), Mode (..))
 import PostgREST.Error qualified as Error
 import PostgREST.SchemaCache qualified as SchemaCache
-
-type DbHandler = ExceptT Error SQL.Transaction
 
 data MainTx
   = DbTx (SQL.Session (Either Error DbResult))
@@ -90,27 +90,175 @@ data ResultSet
   -- ^ the number of rows inserted (Only used for upserts)
   }
 
+-- | The result set a query that matched no row yields.
+emptyResultSet :: Maybe Int64 -> ResultSet
+emptyResultSet tableTotal = RSStandard tableTotal 0 mempty mempty Nothing Nothing Nothing
+
+-- | Statement transport. A 'SQL.Session' sends one statement and waits for its
+-- result before sending the next. 'P.Pipeline' sends them all and reads all the
+-- results back with one round trip. No result can be seen mid-batch.
+class Applicative t => Issues t where
+  issue :: Statement () a -> t a
+
+instance Issues SQL.Session where
+  issue = SQL.statement ()
+
+instance Issues P.Pipeline where
+  issue = P.statement ()
+
+-- | A transaction-control statement. libpq rejects the simple query protocol
+-- inside a pipeline, so these cannot go through 'SQL.sql' -- they have to be
+-- extended-protocol statements like every other one. They are marked
+-- non-preparable: a utility statement has no plan worth reusing, and it keeps the
+-- batch off the prepared-statement path whatever db-prepared-statements says.
+control :: ByteString -> Statement () ()
+control statementSql = Statement statementSql HE.noParams HD.noResult False
+
+-- | Mirrors the BEGIN that hasql transaction issues verbatim.
+beginStmt :: SQL.IsolationLevel -> SQL.Mode -> Statement () ()
+beginStmt isoLvl mode = control $ "BEGIN " <> isolation <> " " <> access
+  where
+    isolation = case isoLvl of
+      SQL.ReadCommitted -> "ISOLATION LEVEL READ COMMITTED"
+      SQL.RepeatableRead -> "ISOLATION LEVEL REPEATABLE READ"
+      SQL.Serializable -> "ISOLATION LEVEL SERIALIZABLE"
+    access = case mode of
+      SQL.Write -> "READ WRITE"
+      SQL.Read -> "READ ONLY"
+
+-- | How the transaction ends. 'TxAbort' carries whether deferred constraints are
+-- checked first, which is what still surfaces a constraint violation on a request
+-- that asked not to commit.
+data TxEnd
+  = TxCommit
+  | TxAbort Bool
+
+terminate :: Issues t => TxEnd -> t ()
+terminate TxCommit = issue $ control "COMMIT"
+terminate (TxAbort checkDeferred) =
+  when checkDeferred (issue $ control "SET CONSTRAINTS ALL IMMEDIATE") *> issue (control "ABORT")
+
+-- | The point at which a requested rollback takes effect, decides whether deferred
+-- constraints are checked before the abort.
+data ResultStep
+  = FailWhen (ResultSet -> Maybe Error)
+  | MaybeRollback
+
+-- | Interprets a plan's steps: the request's error if any, and how the transaction ends
+-- A failed check aborts, which is what 'SQL.condemn' used to do at each of these places
+applySteps :: Bool -> [ResultStep] -> ResultSet -> (Maybe Error, TxEnd)
+applySteps wantRollback steps resultSet = go TxCommit steps
+  where
+    go end [] = (Nothing, end)
+    go end (MaybeRollback : rest)
+      | wantRollback = go (TxAbort True) rest
+      | otherwise = go end rest
+    go end (FailWhen failsWhen : rest) = case failsWhen resultSet of
+      Just err -> (Just err, abort end)
+      Nothing -> go end rest
+    abort (TxAbort checkDeferred) = TxAbort checkDeferred
+    abort TxCommit = TxAbort False
+
+-- | The steps a plan applies after its main statement, in order. A check is only
+-- included when the request can actually trip it, so a request with default
+-- preferences carries none -- which is what lets its terminator ride along in the
+-- pipeline.
+resultSteps :: DbActionPlan -> ApiRequest -> [ResultStep]
+resultSteps (MayUseDb _) _ = []
+resultSteps (DbCrud True _) _ = [MaybeRollback]
+resultSteps (DbCrud _ plan) ApiRequest{iPreferences = Preferences{..}} = case plan of
+  WrappedReadPlan{pMedia} -> singular pMedia ++ [MaybeRollback]
+  MutateReadPlan{pMedia, mrMutation} -> case mrMutation of
+    MutationCreate -> singular pMedia ++ [MaybeRollback]
+    MutationUpdate -> singular pMedia ++ maxAffected ++ [MaybeRollback]
+    MutationSingleUpsert -> [FailWhen matchingPk, MaybeRollback]
+    MutationDelete -> singular pMedia ++ maxAffected ++ [MaybeRollback]
+  CallReadPlan{pMedia} -> MaybeRollback : singular pMedia ++ maxAffected
+  where
+    -- Fail a response if a single JSON object was requested and not exactly one
+    -- was found.
+    singular mediaType
+      | elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] = [FailWhen notSingular]
+      | otherwise = []
+    notSingular RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal /= 1 = Just . Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
+      | otherwise = Nothing
+
+    maxAffected = case (preferMaxAffected, preferHandling) of
+      (Just (PreferMaxAffected n), Just Strict) -> [FailWhen $ exceedsMaxAffected n]
+      _ -> []
+    exceedsMaxAffected n RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal > n = Just . Error.ApiRequestErr . Error.MaxAffectedViolationError $ toInteger queryTotal
+      | otherwise = Nothing
+
+    -- Makes sure the querystring pk matches the payload pk
+    -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
+    -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
+    -- If this condition is not satisfied then nothing is inserted,
+    -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
+    matchingPk RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal /= 1 = Just $ Error.ApiRequestErr Error.PutMatchingPkError
+      | otherwise = Nothing
+
+-- | Whether the request asked for the transaction to be rolled back.
+rollbackRequested :: AppConfig -> ApiRequest -> Bool
+rollbackRequested AppConfig{configDbTxRollbackAll} ApiRequest{iPreferences = Preferences{..}} =
+  shouldRollback || (configDbTxRollbackAll && not shouldCommit)
+  where
+    shouldCommit = preferTransaction == Just Commit
+    shouldRollback = preferTransaction == Just Rollback
+
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
 mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
-mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
-  DbTx $ SQL.transactionNoRetry isoLvl txMode $ runExceptT dbHandler
+mainTx genQ conf@AppConfig{configDbPipelineMode} AuthResult{authRole} apiReq (Db plan) sCache =
+  DbTx . rollbackOnError $ if configDbPipelineMode then pipelined else sequential
   where
-    isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan
-    dbHandler = do
-      lift $
-        SQL.statement mempty $
-          SQL.dynamicallyParameterized
-            mqTxVars
-            HD.noResult
-            configDbPreparedStatements
-      lift $ whenJust mqPreReq $ \q ->
-        SQL.statement mempty $
-          SQL.dynamicallyParameterized
-            q
-            HD.noResult
-            configDbPreparedStatements
-      actionResult genQ plan conf apiReq sCache
+    begin = beginStmt (planIsoLvl conf authRole plan) txMode
+    steps = resultSteps plan apiReq
+    wantRollback = rollbackRequested conf apiReq
+
+    body :: Issues t => t (Either Error DbResult, TxEnd)
+    body = dbBody genQ plan conf apiReq sCache steps wantRollback
+
+    -- The terminator can share the batch whenever the choice between COMMIT and
+    -- ABORT cannot depend on a result, which is exactly when no check inspects the
+    -- result set. That is what puts an ordinary request on a single round trip; a
+    -- PUT, singular JSON, and a strict max-affected preference pay a second one.
+    -- READ ONLY does not widen this. A read-only transaction still admits effects
+    -- whose visibility depends on the terminator -- NOTIFY is permitted in one and
+    -- delivered only on COMMIT, and so is a write to a temporary table already on
+    -- the connection -- so a failed check must abort there too, exactly as
+    -- upstream's SQL.condemn did.
+    terminatorIsStatic = not (any inspectsResult steps)
+    inspectsResult (FailWhen _) = True
+    inspectsResult MaybeRollback = False
+
+    pipelined
+      | terminatorIsStatic =
+          SQL.pipeline $
+            issue begin *> (fst <$> body) <* terminate staticEnd
+      | otherwise = do
+          (res, end) <- SQL.pipeline $ issue begin *> body
+          terminate end
+          pure res
+      where
+        -- Read from applySteps like the dynamic path does, so the two cannot disagree:
+        -- a plan with no MaybeRollback step commits even when a rollback was requested.
+        -- Being static means no FailWhen present, so the result set here is never inspected.
+        staticEnd = snd $ applySteps wantRollback steps (emptyResultSet Nothing)
+
+    sequential = do
+      issue begin
+      (res, end) <- body
+      terminate end
+      pure res
+
+-- | Cleans up after a failed statement. An error inside a pipeline for BEGIN..COMMIT
+-- leaves the session in an aborted transaction. Postgres treats ROLLBACK with no transaction
+-- in progress as a no-op, so this is equally safe on a path that never opened one.
+rollbackOnError :: SQL.Session a -> SQL.Session a
+rollbackOnError session = session `catchError` \err -> SQL.sql "ROLLBACK" >> throwError err
 
 planTxMode :: DbActionPlan -> SQL.Mode
 planTxMode (DbCrud _ x) = pTxMode x
@@ -123,26 +271,53 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
-actionResult :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction DbResult
-actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
-  explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
-  optionalRollback conf apiReq
-  pure $ DbPlanResult (pMedia plan) explRes
-actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
-  resultSet@RSStandard{rsTableTotal = tableTotal} <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
-  failNotSingular pMedia resultSet
-  optionalRollback conf apiReq
-  explainTotal <-
-    lift . fmap join $
-      traverse
-        ( \snip ->
-            SQL.statement mempty $ SQL.dynamicallyParameterized snip decodeExplain configDbPreparedStatements
-        )
-        mqExplain
+-- | Every statement the request needs, as one Applicative chain: the transaction
+-- variables, the optional pre-request, then the plan's own queries. It yields the
+-- request's outcome together with how the transaction must end, both derived from
+-- the result set without a further round trip.
+dbBody
+  :: Issues t
+  => MainQuery
+  -> DbActionPlan
+  -> AppConfig
+  -> ApiRequest
+  -> SchemaCache
+  -> [ResultStep]
+  -> Bool
+  -> t (Either Error DbResult, TxEnd)
+dbBody MainQuery{..} actPlan AppConfig{..} ApiRequest{iPreferences = Preferences{..}} sCache steps wantRollback =
+  issue (dynStmt mqTxVars HD.noResult)
+    *> traverse_ (\q -> issue $ dynStmt q HD.noResult) mqPreReq
+    *> planBody
+  where
+    dynStmt snippet decoder =
+      SQL.dynamicallyParameterized snippet decoder configDbPreparedStatements
 
-  pure $
-    DbCrudResult
-      plan
+    outcome resultSet res = case applySteps wantRollback steps resultSet of
+      (Just err, end) -> (Left err, end)
+      (Nothing, end) -> (Right res, end)
+
+    planBody = case actPlan of
+      -- EXPLAIN yields the plan text rather than a result set, and has no check to
+      -- run against one.
+      DbCrud True plan ->
+        (\explRes -> outcome (emptyResultSet Nothing) $ DbPlanResult (pMedia plan) explRes)
+          <$> issue (dynStmt mqMain planRow)
+      DbCrud _ plan@WrappedReadPlan{} ->
+        (\resultSet explainTotal -> outcome resultSet . DbCrudResult plan $ counted explainTotal resultSet)
+          <$> issue (dynStmt mqMain (HD.singleRow $ standardRow True))
+          <*> (join <$> traverse (\snippet -> issue $ dynStmt snippet decodeExplain) mqExplain)
+      DbCrud _ plan@MutateReadPlan{} ->
+        (\resultSet -> outcome resultSet $ DbCrudResult plan resultSet)
+          <$> issue (dynStmt mqMain $ rowOr (emptyResultSet Nothing) False)
+      DbCrud _ plan@CallReadPlan{} ->
+        (\resultSet -> outcome resultSet $ DbCrudResult plan resultSet)
+          <$> issue (dynStmt mqMain $ rowOr (emptyResultSet (Just 0)) True)
+      MayUseDb plan -> openApiBody plan
+
+    rowOr dflt noLocation = fromMaybe dflt <$> HD.rowMaybe (standardRow noLocation)
+
+    counted explainTotal resultSet@RSStandard{rsTableTotal = tableTotal} =
       resultSet
         { rsTableTotal = case preferCount of
             Just PlannedCount -> explainTotal
@@ -153,112 +328,44 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
                 tableTotal
             _ -> tableTotal
         }
-  where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
 
     decodeExplain :: HD.Result (Maybe Int64)
     decodeExplain =
       let row = HD.singleRow $ column HD.bytea
       in  (^? L.nth 0 . L.key "Plan" . L.key "Plan Rows" . L._Integral) <$> row
-actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
-  resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-  failMutation resultSet
-  optionalRollback conf apiReq
-  pure $ DbCrudResult plan resultSet
-  where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
-    failMutation resultSet = case mrMutation of
-      MutationCreate -> do
-        failNotSingular pMedia resultSet
-      MutationUpdate -> do
-        failNotSingular pMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
-      MutationSingleUpsert -> do
-        failPut resultSet
-      MutationDelete -> do
-        failNotSingular pMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
-    decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
-actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
-  resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-  optionalRollback conf apiReq
-  failNotSingular pMedia resultSet
-  failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
-  pure $ DbCrudResult plan resultSet
-  where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
-    decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
-actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema = tSchema}) AppConfig{..} _ sCache =
-  mainActionQuery
-  where
-    mainActionQuery = lift $
-      case configOpenApiMode of
-        OAFollowPriv -> do
-          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ decodeAccessibleIdentifiers configDbPreparedStatements
-          accFuncs <- SQL.statement mempty $ SQL.dynamicallyParameterized funcsQ SchemaCache.decodeFuncs configDbPreparedStatements
-          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements
-          let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
 
-          pure $ MaybeDbResult plan (Just (tbls, accFuncs, schDesc))
-        OAIgnorePriv -> do
-          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements)
+    -- The three privilege queries are independent of each other, so they batch
+    -- together into the same round trip as the rest of the request.
+    openApiBody plan@InspectPlan{ipSchema = tSchema} = case configOpenApiMode of
+      OAFollowPriv ->
+        ( \tableAccess accFuncs schDesc ->
+            let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
+            in  inspected plan $ Just (tbls, accFuncs, schDesc)
+        )
+          <$> issue (dynStmt tblsQ decodeAccessibleIdentifiers)
+          <*> issue (dynStmt funcsQ SchemaCache.decodeFuncs)
+          <*> issue (dynStmt schQ decodeSchemaDesc)
+      OAIgnorePriv ->
+        (\schDesc -> inspected plan $ Just (inSchema $ SchemaCache.dbTables sCache, inSchema $ SchemaCache.dbRoutines sCache, schDesc))
+          <$> issue (dynStmt schQ decodeSchemaDesc)
+      OADisabled ->
+        pure $ inspected plan Nothing
+      where
+        (tblsQ, funcsQ, schQ) = mqOpenAPI
+        inspected p = outcome (emptyResultSet Nothing) . MaybeDbResult p
+        inSchema :: HM.HashMap QualifiedIdentifier v -> HM.HashMap QualifiedIdentifier v
+        inSchema = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema)
 
-          let
-            tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbTables sCache)
-            routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbRoutines sCache)
+decodeSchemaDesc :: HD.Result (Maybe Text)
+decodeSchemaDesc = join <$> HD.rowMaybe (nullableColumn HD.text)
 
-          pure $ MaybeDbResult plan (Just (tbls, routs, schDesc))
-        OADisabled ->
-          pure $ MaybeDbResult plan Nothing
-
-    decodeSchemaDesc :: HD.Result (Maybe Text)
-    decodeSchemaDesc = join <$> HD.rowMaybe (nullableColumn HD.text)
-
-    decodeAccessibleIdentifiers :: HD.Result (S.Set QualifiedIdentifier)
-    decodeAccessibleIdentifiers =
-      let row =
-            QualifiedIdentifier
-              <$> column HD.text
-              <*> column HD.text
-      in  S.fromList <$> HD.rowList row
-
--- Makes sure the querystring pk matches the payload pk
--- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
--- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
--- If this condition is not satisfied then nothing is inserted,
--- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-failPut :: ResultSet -> DbHandler ()
-failPut RSStandard{rsQueryTotal = queryTotal} =
-  when (queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestErr Error.PutMatchingPkError
-
--- |
--- Fail a response if a single JSON object was requested and not exactly one
--- was found.
-failNotSingular :: MediaType -> ResultSet -> DbHandler ()
-failNotSingular mediaType RSStandard{rsQueryTotal = queryTotal} =
-  when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
-
-failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
-failExceedsMaxAffectedPref (Nothing, _) _ = pure ()
-failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal = queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
-  lift SQL.condemn
-  throwError $ Error.ApiRequestErr . Error.MaxAffectedViolationError $ toInteger queryTotal
-
--- | Set a transaction to roll back if requested
-optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
-optionalRollback AppConfig{..} ApiRequest{iPreferences = Preferences{..}} = do
-  lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
-    SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
-    SQL.condemn
-  where
-    shouldCommit =
-      preferTransaction == Just Commit
-    shouldRollback =
-      preferTransaction == Just Rollback
+decodeAccessibleIdentifiers :: HD.Result (S.Set QualifiedIdentifier)
+decodeAccessibleIdentifiers =
+  let row =
+        QualifiedIdentifier
+          <$> column HD.text
+          <*> column HD.text
+  in  S.fromList <$> HD.rowList row
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result BS.ByteString

@@ -377,6 +377,7 @@ test-suite spec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.NullsStripSpec
                       Feature.Query.PgSafeUpdateSpec
+                      Feature.Query.PipelineModeSpec
                       Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
                       Feature.Query.Preferences.HandlingSpec
