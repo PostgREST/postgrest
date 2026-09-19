@@ -39,7 +39,7 @@ concurrency:
 jobs:
   coverage:
     name: Coverage
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -81,7 +81,7 @@ jobs:
         # Latest version is tested via `coverage` above.
         pgVersion: [pg-14, pg-15, pg-16, pg-17, oriole-18, pg-18]
     name: ${{ matrix.pgVersion }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -118,7 +118,7 @@ jobs:
 
   memory:
     name: Memory
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -141,7 +141,7 @@ jobs:
       matrix:
         kind: ['mixed', 'jwt-cache']
     name: Loadtest
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
