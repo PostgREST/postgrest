@@ -4,8 +4,8 @@ import Prelude
 
 import Hasql.Statement
 
-import qualified Hasql.Decoders as D
-import qualified Hasql.Encoders as E
+import Hasql.Decoders qualified as D
+import Hasql.Encoders qualified as E
 
 selectSleep :: Statement Double ()
 selectSleep =

@@ -2,9 +2,9 @@ module Main.Connection where
 
 import Main.Prelude
 
-import qualified Hasql.TestingKit.Constants as Constants
+import Hasql.TestingKit.Constants qualified as Constants
 
-import qualified Hasql.Connection as HC
+import Hasql.Connection qualified as HC
 
 with :: (HC.Connection -> IO a) -> IO (Either HC.ConnectionError a)
 with handler =

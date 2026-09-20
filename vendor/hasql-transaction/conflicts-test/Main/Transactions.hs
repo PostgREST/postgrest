@@ -2,7 +2,7 @@ module Main.Transactions where
 
 import Prelude
 
-import qualified Main.Statements as A
+import Main.Statements qualified as A
 
 import Hasql.Transaction
 
