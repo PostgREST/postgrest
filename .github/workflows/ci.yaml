@@ -11,21 +11,21 @@ permissions: {}
 jobs:
   check:
     name: Check
-    uses: ./.github/workflows/check.yaml
+    uses: $/.github/workflows/check.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 
   docs:
     name: Docs
-    uses: ./.github/workflows/docs.yaml
+    uses: $/.github/workflows/docs.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 
   test:
     name: Test
-    uses: ./.github/workflows/test.yaml
+    uses: $/.github/workflows/test.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -33,7 +33,7 @@ jobs:
 
   build:
     name: Build
-    uses: ./.github/workflows/build.yaml
+    uses: $/.github/workflows/build.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 

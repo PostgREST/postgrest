@@ -10,11 +10,12 @@
 
 # And a more normal scenario where non-expiring JWTs are picked
 # from an array
-import time
 import argparse
 import random
-import jwcrypto.jwt as jwt
+import time
 from pathlib import Path
+
+from jwcrypto import jwt
 
 URL = "http://postgrest"
 

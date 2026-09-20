@@ -4,7 +4,6 @@ import re
 
 import pytest
 import requests
-
 from postgrest import run
 
 
