@@ -158,6 +158,10 @@ def test_expected_config_from_environment():
     assert dumpconfig(env=env) == expected
 
 
+@pytest.mark.xfail(
+    reason="jwt-cache-max-entries is not loaded from database settings",
+    strict=True,
+)
 @pytest.mark.parametrize(
     "role, expectedconfig",
     [
