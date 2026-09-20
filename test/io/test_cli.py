@@ -92,7 +92,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 @pytest.mark.parametrize(
     "args,env,use_defaultenv,expect",
-    map(itemgetter("args", "env", "use_defaultenv", "expect"), FIXTURES["cli"]),
+    list(map(itemgetter("args", "env", "use_defaultenv", "expect"), FIXTURES["cli"])),
     ids=map(itemgetter("name"), FIXTURES["cli"]),
 )
 def test_cli(args, env, use_defaultenv, expect, defaultenv):
