@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. From versio
 ### Changes
 
 - Fix response on root endpoint when schema name is in mixed case by @taimoorzaeem in #5158
+- Fix config `jwt-cache-max-entries` not loaded from the database by @mkleczek in #5269
 
 #### Performance
 
