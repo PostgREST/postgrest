@@ -1,8 +1,9 @@
 # Monitor a process pid with psutil and emits a CSV.
 import sys
 import time
-import psutil
+
 import pandas as pd
+import psutil
 
 KEY = "Elapsed seconds"
 BASE_METRICS = ["CPU (%)", "Real (MB)"]

@@ -33,6 +33,12 @@ in
   programs.ruff-check.enable = true;
   programs.zizmor.enable = true;
 
+  # actionlint does not support the new self-repository syntax, yet.
+  settings.formatter.actionlint.options = [
+    ''--ignore=specifying action "\$/.+" in invalid format because ref is missing.''
+    ''-ignore=reusable workflow call "\$/.+" at "uses" is not following the format''
+  ];
+
   programs.fourmolu.ghcOpts = [
     "BangPatterns"
   ];

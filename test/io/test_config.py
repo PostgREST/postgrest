@@ -1,20 +1,20 @@
 "Test PostgREST configuration related behavior"
 
 import time
-import pytest
 from operator import attrgetter
 
+import pytest
 from config import BASEDIR, FIXTURES, SECRET
-from util import (
-    Thread,
-    authheader,
-    jwtauthheader,
-)
 from postgrest import (
     PostgrestTimedOut,
     freeport,
     run,
     sleep_until_postgrest_config_reload,
+)
+from util import (
+    Thread,
+    authheader,
+    jwtauthheader,
 )
 
 
@@ -34,7 +34,7 @@ def test_pool_size(defaultenv, metapostgrest):
             def sleep(i=i):
                 response = postgrest.session.get("/rpc/sleep?seconds=0.5")
                 assert response.text == ""
-                assert response.status_code == 204, "thread {}".format(i)
+                assert response.status_code == 204, f"thread {i}"
 
             t = Thread(target=sleep)
             t.start()
@@ -199,16 +199,14 @@ def test_so_reuseport_defaults_to_false(defaultenv):
         port=port,
         host=host,
         admin_port=admin_port,
+    ), pytest.raises(PostgrestTimedOut), run(
+        env={**defaultenv},
+        port=port,
+        host=host,
+        admin_port=freeport(used_ports=[port, admin_port]),
+        wait_max_seconds=1,
     ):
-        with pytest.raises(PostgrestTimedOut):
-            with run(
-                env={**defaultenv},
-                port=port,
-                host=host,
-                admin_port=freeport(used_ports=[port, admin_port]),
-                wait_max_seconds=1,
-            ):
-                pass
+        pass
 
 
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
@@ -323,7 +321,7 @@ def test_deprecated_role_claim_key_warning(roleclaimkey, defaultenv):
                 "/rpc/update_role_claim_key_and_reload",
                 data={"new_key": ".again.deprecated.syntax"},
             )
-            response.status_code == 204
+            assert response.status_code == 204
             sleep_until_postgrest_config_reload()
 
             output = postgrest.read_stdout(nlines=15)
@@ -339,7 +337,7 @@ def test_deprecated_role_claim_key_warning(roleclaimkey, defaultenv):
                 "/rpc/update_role_claim_key_and_reload",
                 data={"new_key": "$.again.deprecated.syntax"},
             )
-            response.status_code == 204
+            assert response.status_code == 204
             sleep_until_postgrest_config_reload()
 
             output = postgrest.read_stdout(nlines=15)

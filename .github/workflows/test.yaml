@@ -46,11 +46,8 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests.coverage.bin tests.testDoctests.bin tests.testSpecIdempotence.bin cabalTools.update.bin
@@ -88,11 +85,8 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests.testSpec.bin tests.testObservability.bin tests.testIO.bin tests.testBigSchema.bin withTools.${{ matrix.pgVersion }}.bin cabalTools.update.bin
@@ -120,11 +114,8 @@ jobs:
     name: Memory
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests.testMemory.bin cabalTools.update.bin
@@ -143,14 +134,11 @@ jobs:
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          fetch-depth: 0
           tools: loadtest.loadtestAgainst.bin loadtest.report.bin loadtest.report-load.bin cabalTools.update.bin
 
       - run: postgrest-cabal-update
@@ -206,14 +194,11 @@ jobs:
     name: Flake Check
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          fetch-depth: 0
       - name: Run flake check
         run: |
           nix flake check

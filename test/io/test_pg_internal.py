@@ -1,5 +1,5 @@
-from util import psql_as_superuser
 from postgrest import run
+from util import psql_as_superuser
 
 
 def test_listener_query_is_visible_in_pg_stat_activity(defaultenv):

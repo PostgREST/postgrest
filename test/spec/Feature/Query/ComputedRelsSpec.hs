@@ -171,7 +171,7 @@ spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
       `shouldRespondWith` 204
 
   it "works with self joins" $
-    get "/web_content?select=name,child_web_content(name),parent_web_content(name)&id=in.(0,1)"
+    get "/web_content?select=name,child_web_content(name),parent_web_content(name)&id=in.(0,1)&order=name.desc"
       `shouldRespondWith` [json|[
         {"name":"tardis","child_web_content":[{"name":"fezz"}, {"name":"foo"}, {"name":"bar"}],"parent_web_content":{"name":"wat"}},
         {"name":"fezz","child_web_content":[{"name":"wut"}],"parent_web_content":{"name":"tardis"}}

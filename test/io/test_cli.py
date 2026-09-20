@@ -1,11 +1,11 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from operator import attrgetter
 import signal
 import subprocess
+from operator import attrgetter
+
 import pytest
 import yaml
-
 from config import (
     CONFIGSDIR,
     FIXTURES,

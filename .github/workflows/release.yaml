@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     name: Build
-    uses: ./.github/workflows/build.yaml
+    uses: $/.github/workflows/build.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 

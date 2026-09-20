@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # PostgREST documentation build configuration file, created by
 # sphinx-quickstart on Sun Oct  9 16:53:00 2016.

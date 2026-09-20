@@ -46,11 +46,8 @@ jobs:
     name: Nix - ${{ matrix.name }} static
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
@@ -82,13 +79,11 @@ jobs:
     name: Nix - MacOS
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
       - name: Install nix-build-uncached
         run: nix-env -f default.nix -iA nix-build-uncached
 
@@ -143,20 +138,20 @@ jobs:
           stack-no-global: true
           stack-setup-ghc: true
       - name: Cache .stack
-        uses: ./.github/actions/cache-on-main
+        uses: $/.github/actions/cache-on-main
         with:
           path: .stack
           prefix: ${{ matrix.vm }}${{ matrix.vm && '-' }}stack
           suffix: ${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
       - name: Cache .stack-work
-        uses: ./.github/actions/cache-on-main
+        uses: $/.github/actions/cache-on-main
         with:
           path: .stack-work
           save-prs: true
           prefix: ${{ matrix.vm }}${{ matrix.vm && '-' }}stack-work-${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
           suffix: ${{ hashFiles('main/**/*.hs', 'src/**/*.hs') }}
       - name: Build with Stack
-        uses: ./.github/actions/run-anywhere
+        uses: $/.github/actions/run-anywhere
         with:
           vm: ${{ matrix.vm }}
           envs: STACK_ROOT
@@ -189,7 +184,7 @@ jobs:
         with:
           ghc-version: ${{ matrix.ghc }}
       - name: Cache .cabal
-        uses: ./.github/actions/cache-on-main
+        uses: $/.github/actions/cache-on-main
         with:
           path: |
             ~/.cabal/packages
@@ -197,7 +192,7 @@ jobs:
           prefix: cabal-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
           suffix: ${{ hashFiles('postgrest.cabal', 'cabal.project') }}
       - name: Cache dist-newstyle
-        uses: ./.github/actions/cache-on-main
+        uses: $/.github/actions/cache-on-main
         with:
           path: dist-newstyle
           save-prs: true

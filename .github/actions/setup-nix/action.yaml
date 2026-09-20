@@ -5,6 +5,9 @@ description: Installs nix, sets up cachix and installs a subset of tooling.
 inputs:
   authToken:
     description: Token to pass to cachix
+  fetch-depth:
+    description: fetch-depth to pass to checkout
+    default: 1
   tools:
     description: Tools to install with nix-env -iA <tools>
 
@@ -21,6 +24,10 @@ runs:
         name: postgrest
         authToken: ${{ inputs.authToken }}
         skipPush: ${{ inputs.authToken == '' }}
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: ${{ inputs.fetch-depth }}
     - if: ${{ inputs.tools }}
       env:
         TOOLS: ${{ inputs.tools }}

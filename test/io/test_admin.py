@@ -4,8 +4,8 @@ import os
 import re
 import signal
 import time
-import pytest
 
+import pytest
 from config import FIXTURES
 from postgrest import (
     freeport,

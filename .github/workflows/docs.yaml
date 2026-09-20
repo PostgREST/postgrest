@@ -30,11 +30,8 @@ jobs:
     name: Build
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
     - name: Setup Nix Environment
-      uses: ./.github/actions/setup-nix
+      uses: $/.github/actions/setup-nix
       with:
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs.build.bin
@@ -46,11 +43,8 @@ jobs:
     name: Spellcheck
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
     - name: Setup Nix Environment
-      uses: ./.github/actions/setup-nix
+      uses: $/.github/actions/setup-nix
       with:
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs.spellcheck.bin docs.dictcheck.bin
