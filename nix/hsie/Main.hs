@@ -1,10 +1,7 @@
+{-# LANGUAGE GHC2021 #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Haskell Imports and Exports tool
@@ -31,19 +28,19 @@ import GHC.Utils.Outputable (showSDocUnsafe)
 import System.Directory.Recursive (getFilesRecursive)
 import System.Exit (exitFailure)
 
-import qualified Data.Aeson as JSON
-import qualified Data.ByteString.Lazy.Char8 as LBS8
-import qualified Data.Csv as Csv
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Dot
-import qualified GHC
-import qualified GHC.Paths
-import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
-import qualified Options.Applicative as O
-import qualified System.FilePath as FP
+import Data.Aeson qualified as JSON
+import Data.ByteString.Lazy.Char8 qualified as LBS8
+import Data.Csv qualified as Csv
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
+import Dot qualified
+import GHC qualified
+import GHC.Paths qualified
+import Language.Haskell.GHC.ExactPrint.Parsers qualified as ExactPrint
+import Options.Applicative qualified as O
+import System.FilePath qualified as FP
 
 -- TYPES
 
