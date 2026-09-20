@@ -35,6 +35,7 @@ in
 
   programs.fourmolu.ghcOpts = [
     "BangPatterns"
+    "ImportQualifiedPost"
   ];
 
   settings.formatter.hlint = {
