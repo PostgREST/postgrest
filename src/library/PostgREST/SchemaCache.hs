@@ -44,6 +44,7 @@ import PostgREST.Catalog.Identifiers
   , escapeIdent
   , isAnyElement
   )
+import PostgREST.Catalog.Query (baseTypesCte)
 import PostgREST.Catalog.Relationship
   ( Cardinality (..)
   , Junction (..)
@@ -74,7 +75,7 @@ import PostgREST.Catalog.Table
   )
 import PostgREST.Config (AppConfig (..), LogLevel (..))
 import PostgREST.Config.Database (toIsolationLevel)
-import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
+import PostgREST.Config.PgVersion (PgVersion)
 
 import Hasql.Decoders qualified as HD
 import Hasql.Encoders qualified as HE
@@ -371,33 +372,6 @@ allFunctions pgVer = SQL.Statement (funcsSqlQuery pgVer) params decodeFuncs
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text)
         <> (configDbHoistedTxSettings >$< arrayParam HE.text)
-
-baseTypesCte :: PgVersion -> Text
-baseTypesCte pgVer
-  | pgVer >= pgVersion170 =
-      [trimming|
-      base_types AS (
-        SELECT t.oid, bt.typnamespace AS base_namespace, bt.oid AS base_type
-        FROM pg_type t
-        JOIN pg_type bt ON bt.oid = pg_basetype(t.oid)
-      )
-    |]
-  | otherwise =
-      [trimming|
-      base_types AS (
-        WITH RECURSIVE recurse AS (
-          SELECT oid, typbasetype, typnamespace AS base_namespace,
-            COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
-          FROM pg_type
-          UNION
-          SELECT t.oid, b.typbasetype, b.typnamespace AS base_namespace,
-            COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
-          FROM recurse t
-          JOIN pg_type b ON t.typbasetype = b.oid
-        )
-        SELECT oid, base_namespace, base_type FROM recurse WHERE typbasetype = 0
-      )
-    |]
 
 funcsSqlQuery :: PgVersion -> SqlQuery
 funcsSqlQuery pgVer =
