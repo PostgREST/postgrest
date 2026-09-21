@@ -42,6 +42,38 @@ import Data.Text qualified as T
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
+import PostgREST.Catalog.Identifiers
+  ( FieldName
+  , QualifiedIdentifier (..)
+  , Schema
+  )
+import PostgREST.Catalog.Relationship
+  ( Cardinality (..)
+  , Junction (..)
+  , Relationship (..)
+  , RelationshipsMap
+  , relIsToOne
+  )
+import PostgREST.Catalog.Representations
+  ( DataRepresentation (..)
+  , RepresentationsMap
+  )
+import PostgREST.Catalog.Routine
+  ( MediaHandler (..)
+  , Routine (..)
+  , RoutineMap
+  , RoutineParam (..)
+  , funcReturnsScalar
+  , funcReturnsSetOfScalar
+  , funcReturnsSingle
+  )
+import PostgREST.Catalog.Table
+  ( Column (..)
+  , Table (..)
+  , TablesMap
+  , tableColumnsList
+  , tablePKCols
+  )
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error
   ( ApiRequestError (..)
@@ -62,50 +94,18 @@ import PostgREST.RangeQuery
   , restrictRange
   )
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers
-  ( FieldName
-  , QualifiedIdentifier (..)
-  , Schema
-  )
-import PostgREST.SchemaCache.Relationship
-  ( Cardinality (..)
-  , Junction (..)
-  , Relationship (..)
-  , RelationshipsMap
-  , relIsToOne
-  )
-import PostgREST.SchemaCache.Representations
-  ( DataRepresentation (..)
-  , RepresentationsMap
-  )
-import PostgREST.SchemaCache.Routine
-  ( MediaHandler (..)
-  , Routine (..)
-  , RoutineMap
-  , RoutineParam (..)
-  , funcReturnsScalar
-  , funcReturnsSetOfScalar
-  , funcReturnsSingle
-  )
-import PostgREST.SchemaCache.Table
-  ( Column (..)
-  , Table (..)
-  , TablesMap
-  , tableColumnsList
-  , tablePKCols
-  )
 
 import Hasql.Transaction.Sessions qualified as SQL
 import PostgREST.ApiRequest.QueryParams qualified as QueryParams
+import PostgREST.Catalog.Routine qualified as Routine
 import PostgREST.MediaType qualified as MediaType
-import PostgREST.SchemaCache.Routine qualified as Routine
 
 -- $setup
 -- Setup for doctests
 -- >>> :set -XDuplicateRecordFields
 -- >>> import Data.Ranged.Ranges (fullRange)
 -- >>> import Data.Tree (Tree (..))
--- >>> import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+-- >>> import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 -- >>> import PostgREST.ApiRequest.Types
 -- >>> import PostgREST.Plan.CallPlan
 -- >>> import PostgREST.Plan.MutatePlan

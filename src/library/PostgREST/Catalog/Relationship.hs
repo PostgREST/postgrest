@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module PostgREST.SchemaCache.Relationship
+module PostgREST.Catalog.Relationship
   ( Cardinality (..)
   , KeyDep (..)
   , Relationship (..)
@@ -16,7 +16,7 @@ import Protolude
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( FieldName
   , QualifiedIdentifier
   , Schema

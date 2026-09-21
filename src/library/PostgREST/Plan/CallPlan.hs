@@ -15,11 +15,11 @@ import Data.Aeson qualified as JSON
 import Data.ByteString.Lazy qualified as LBS
 import Data.HashMap.Strict qualified as HM
 
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( FieldName
   , QualifiedIdentifier
   )
-import PostgREST.SchemaCache.Routine
+import PostgREST.Catalog.Routine
   ( Routine (..)
   , RoutineParam (..)
   )

@@ -94,6 +94,7 @@ import PostgREST.ApiRequest.Types
   , SimpleOperator (..)
   , SingleVal
   )
+import PostgREST.Catalog.Identifiers (FieldName)
 import PostgREST.Error (QPError (..))
 import PostgREST.RangeQuery
   ( NonnegRange
@@ -103,7 +104,6 @@ import PostgREST.RangeQuery
   , rangeOffset
   , restrictRange
   )
-import PostgREST.SchemaCache.Identifiers (FieldName)
 
 -- $setup
 -- >>> import qualified Text.ParserCombinators.Parsec as P

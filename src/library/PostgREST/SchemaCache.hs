@@ -37,17 +37,14 @@ import Data.HashMap.Strict.InsOrd qualified as HMI
 import Data.Set qualified as S
 import Data.Text qualified as T
 
-import PostgREST.Config (AppConfig (..), LogLevel (..))
-import PostgREST.Config.Database (toIsolationLevel)
-import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( QualifiedIdentifier (..)
   , RelIdentifier (..)
   , Schema
   , escapeIdent
   , isAnyElement
   )
-import PostgREST.SchemaCache.Relationship
+import PostgREST.Catalog.Relationship
   ( Cardinality (..)
   , Junction (..)
   , KeyDep (..)
@@ -55,11 +52,11 @@ import PostgREST.SchemaCache.Relationship
   , RelationshipsMap
   , ViewKeyDependency (..)
   )
-import PostgREST.SchemaCache.Representations
+import PostgREST.Catalog.Representations
   ( DataRepresentation (..)
   , RepresentationsMap
   )
-import PostgREST.SchemaCache.Routine
+import PostgREST.Catalog.Routine
   ( FuncVolatility (..)
   , MediaHandler (..)
   , MediaHandlerMap
@@ -69,12 +66,15 @@ import PostgREST.SchemaCache.Routine
   , RoutineMap
   , RoutineParam (..)
   )
-import PostgREST.SchemaCache.Table
+import PostgREST.Catalog.Table
   ( Column (..)
   , ColumnMap
   , Table (..)
   , TablesMap
   )
+import PostgREST.Config (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database (toIsolationLevel)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
 
 import Hasql.Decoders qualified as HD
 import Hasql.Encoders qualified as HE

@@ -193,11 +193,11 @@ library
                       PostgREST.Config.Proxy
                       PostgREST.Cors
                       PostgREST.SchemaCache
-                      PostgREST.SchemaCache.Identifiers
-                      PostgREST.SchemaCache.Routine
-                      PostgREST.SchemaCache.Relationship
-                      PostgREST.SchemaCache.Representations
-                      PostgREST.SchemaCache.Table
+                      PostgREST.Catalog.Identifiers
+                      PostgREST.Catalog.Routine
+                      PostgREST.Catalog.Relationship
+                      PostgREST.Catalog.Representations
+                      PostgREST.Catalog.Table
                       PostgREST.Error
                       PostgREST.Error.Types
                       PostgREST.Logger

@@ -46,7 +46,7 @@ import Protolude
 import Data.ByteString.Lazy qualified as LBS
 import Data.Set qualified as S
 
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( FieldName
   , QualifiedIdentifier (..)
   , Schema

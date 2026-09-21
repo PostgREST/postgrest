@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module PostgREST.SchemaCache.Representations
+module PostgREST.Catalog.Representations
   ( DataRepresentation (..)
   , RepresentationsMap
   )

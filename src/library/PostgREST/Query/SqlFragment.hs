@@ -77,6 +77,21 @@ import PostgREST.ApiRequest.Types
   , QuantOperator (..)
   , SimpleOperator (..)
   )
+import PostgREST.Catalog.Identifiers
+  ( FieldName
+  , QualifiedIdentifier (..)
+  , RelIdentifier (..)
+  , escapeIdent
+  , trimNullChars
+  )
+import PostgREST.Catalog.Routine
+  ( MediaHandler (..)
+  , Routine (..)
+  , funcReturnsScalar
+  , funcReturnsSetOfScalar
+  , funcReturnsSingle
+  , funcReturnsSingleComposite
+  )
 import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
 import PostgREST.MediaType
   ( MTVndPlanFormat (..)
@@ -99,21 +114,6 @@ import PostgREST.RangeQuery
   , allRange
   , rangeLimit
   , rangeOffset
-  )
-import PostgREST.SchemaCache.Identifiers
-  ( FieldName
-  , QualifiedIdentifier (..)
-  , RelIdentifier (..)
-  , escapeIdent
-  , trimNullChars
-  )
-import PostgREST.SchemaCache.Routine
-  ( MediaHandler (..)
-  , Routine (..)
-  , funcReturnsScalar
-  , funcReturnsSetOfScalar
-  , funcReturnsSingle
-  , funcReturnsSingleComposite
   )
 
 import Hasql.DynamicStatements.Snippet qualified as SQL

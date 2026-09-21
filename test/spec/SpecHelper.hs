@@ -29,6 +29,7 @@ import Jose.Jwa qualified as JWT
 import Jose.Jws qualified as JWT
 import Jose.Jwt qualified as JWT
 
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Config
   ( AppConfig (..)
   , LogLevel (..)
@@ -37,7 +38,6 @@ import PostgREST.Config
   , defaultRoleJSPathKey
   , parseSecret
   )
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->

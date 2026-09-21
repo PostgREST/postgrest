@@ -31,9 +31,9 @@ import Data.Vector qualified as V
 
 import PostgREST.ApiRequest.QueryParams (QueryParams (..))
 import PostgREST.ApiRequest.Types
+import PostgREST.Catalog.Identifiers (FieldName)
 import PostgREST.Error (ApiRequestError (..))
 import PostgREST.MediaType (MediaType (..))
-import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import PostgREST.MediaType qualified as MediaType
 

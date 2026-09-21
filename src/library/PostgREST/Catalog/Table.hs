@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module PostgREST.SchemaCache.Table
+module PostgREST.Catalog.Table
   ( Column (..)
   , Table (..)
   , tableColumnsList
@@ -15,7 +15,7 @@ import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 import Data.HashMap.Strict.InsOrd qualified as HMI
 
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( FieldName
   , QualifiedIdentifier (..)
   , Schema
