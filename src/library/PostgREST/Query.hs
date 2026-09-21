@@ -27,6 +27,7 @@ import PostgREST.Plan
   )
 
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
+import PostgREST.Catalog.Query qualified as CatalogQuery
 import PostgREST.Query.PreQuery qualified as PreQuery
 import PostgREST.Query.QueryBuilder qualified as QueryBuilder
 import PostgREST.Query.SqlFragment qualified as SqlFragment
@@ -61,4 +62,4 @@ mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange = 
         DbCrud _ CallReadPlan{..} ->
           genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
         MayUseDb InspectPlan{ipSchema = tSchema} ->
-          genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs pgVer tSchema, SqlFragment.schemaDescription tSchema) mempty
+          genQ mempty (CatalogQuery.accessibleTables tSchema, CatalogQuery.accessibleFuncs pgVer tSchema, SqlFragment.schemaDescription tSchema) mempty

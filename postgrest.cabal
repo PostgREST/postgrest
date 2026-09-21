@@ -194,6 +194,7 @@ library
                       PostgREST.Cors
                       PostgREST.SchemaCache
                       PostgREST.Catalog.Identifiers
+                      PostgREST.Catalog.Query
                       PostgREST.Catalog.Routine
                       PostgREST.Catalog.Relationship
                       PostgREST.Catalog.Representations
