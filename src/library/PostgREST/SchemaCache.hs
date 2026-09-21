@@ -41,8 +41,7 @@ import PostgREST.Config (AppConfig (..), LogLevel (..))
 import PostgREST.Config.Database (toIsolationLevel)
 import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
 import PostgREST.SchemaCache.Identifiers
-  ( FieldName
-  , QualifiedIdentifier (..)
+  ( QualifiedIdentifier (..)
   , RelIdentifier (..)
   , Schema
   , escapeIdent
@@ -51,8 +50,10 @@ import PostgREST.SchemaCache.Identifiers
 import PostgREST.SchemaCache.Relationship
   ( Cardinality (..)
   , Junction (..)
+  , KeyDep (..)
   , Relationship (..)
   , RelationshipsMap
+  , ViewKeyDependency (..)
   )
 import PostgREST.SchemaCache.Representations
   ( DataRepresentation (..)
@@ -116,47 +117,6 @@ showSummary (SchemaCache tbls rels routs reps mediaHdlrs _) =
     , show (HM.size reps) <> " Domain Representations"
     , show (HM.size mediaHdlrs) <> " Media Type Handlers"
     ]
-
--- | A view foreign key or primary key dependency detected on its source table
--- Each column of the key could be referenced multiple times in the view, e.g.
---
--- create view projects_view as
--- select
---   id as id_1,
---   id as id_2,
---   id as id_3,
---   name
--- from projects
---
--- In this case, the keyDepCols mapping maps projects.id to all three of the columns:
---
--- [('id', ['id_1', 'id_2', 'id_3'])]
---
--- Depending on key type, we can then choose how to handle this case. Primary keys
--- can arbitrarily choose one of the columns, but for foreign keys we need to create
--- relationships for each possible mutations.
---
--- Previously, we stored a (FieldName, FieldName) tuple only, but then we had no
--- way to make a difference between a multi-column-key and a single-column-key with multiple
--- references in the view. Or even worse in the multi-column-key-multi-reference case...
-data ViewKeyDependency = ViewKeyDependency
-  { keyDepTable :: QualifiedIdentifier
-  , keyDepView :: QualifiedIdentifier
-  , keyDepCons :: Text
-  , keyDepType :: KeyDep
-  , keyDepCols :: [(FieldName, [FieldName])]
-  -- ^ First element is the table column, second is a list of view columns
-  }
-  deriving (Eq)
-
-data KeyDep
-  = -- | PK dependency
-    PKDep
-  | -- | FK dependency
-    FKDep
-  | -- | FK reference dependency
-    FKDepRef
-  deriving (Eq, Generic, Hashable)
 
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
