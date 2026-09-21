@@ -16,6 +16,8 @@ import PostgREST.ApiRequest.Types
   , JoinType
   , NodeName
   )
+import PostgREST.Catalog.Identifiers (FieldName, QualifiedIdentifier)
+import PostgREST.Catalog.Relationship (Relationship)
 import PostgREST.Plan.Types
   ( CoercibleLogicTree
   , CoercibleOrderTerm
@@ -24,8 +26,6 @@ import PostgREST.Plan.Types
   , SpreadType (..)
   )
 import PostgREST.RangeQuery (NonnegRange)
-import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier)
-import PostgREST.SchemaCache.Relationship (Relationship)
 
 type ReadPlanTree = Tree ReadPlan
 

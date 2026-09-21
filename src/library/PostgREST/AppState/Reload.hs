@@ -35,6 +35,7 @@ import Database.PostgreSQL.LibPQ qualified as LibPQ
 import PostgREST.AppState.Pool (flushPool, usePool)
 import PostgREST.AppState.Types
 import PostgREST.Auth.JwtCache (update)
+import PostgREST.Catalog.Identifiers (quoteQi)
 import PostgREST.Config (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database
   ( queryDbSettings
@@ -48,7 +49,6 @@ import PostgREST.SchemaCache
   , querySchemaCache
   , showSummary
   )
-import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.TimeIt (timeItT)
 
 import Hasql.Connection qualified as SQL

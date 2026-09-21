@@ -33,6 +33,9 @@ import PostgREST.ApiRequest.Preferences
   )
 import PostgREST.ApiRequest.QueryParams (QueryParams (..))
 import PostgREST.ApiRequest.Types (InvokeMethod (..), Mutation (..))
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..), Schema)
+import PostgREST.Catalog.Routine (FuncVolatility (..), Routine (..))
+import PostgREST.Catalog.Table (Table (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.MainTx (DbResult (..), ResultSet (..))
 import PostgREST.MediaType (MediaType (..))
@@ -44,15 +47,12 @@ import PostgREST.Plan
 import PostgREST.Plan.MutatePlan (MutatePlan (..))
 import PostgREST.Response.GucHeader (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
-import PostgREST.SchemaCache.Routine (FuncVolatility (..), Routine (..))
-import PostgREST.SchemaCache.Table (Table (..))
 
+import PostgREST.Catalog.Routine qualified as Routine
 import PostgREST.Error qualified as Error
 import PostgREST.MediaType qualified as MediaType
 import PostgREST.RangeQuery qualified as RangeQuery
 import PostgREST.Response.OpenAPI qualified as OpenAPI
-import PostgREST.SchemaCache.Routine qualified as Routine
 
 data PgrstResponse = PgrstResponse
   { pgrstStatus :: HTTP.Status

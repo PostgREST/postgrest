@@ -14,6 +14,7 @@ where
 import Protolude
 
 import PostgREST.ApiRequest.Preferences
+import PostgREST.Catalog.Routine (MediaHandler (..), Routine)
 import PostgREST.MediaType (MTVndPlanFormat (..), MediaType (..))
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan as MTPlan
@@ -21,7 +22,6 @@ import PostgREST.Plan.ReadPlan
 import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
 import PostgREST.RangeQuery (NonnegRange)
-import PostgREST.SchemaCache.Routine (MediaHandler (..), Routine)
 
 import Hasql.DynamicStatements.Snippet qualified as SQL
 

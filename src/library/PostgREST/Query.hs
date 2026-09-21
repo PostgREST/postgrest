@@ -16,6 +16,7 @@ import Protolude hiding (Handler)
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences (Preferences (..), shouldExplainCount)
 import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion)
 import PostgREST.Plan
@@ -24,7 +25,6 @@ import PostgREST.Plan
   , DbActionPlan (..)
   , InspectPlan (..)
   )
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 import PostgREST.Query.PreQuery qualified as PreQuery

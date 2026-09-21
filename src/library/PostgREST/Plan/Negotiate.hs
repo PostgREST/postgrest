@@ -16,18 +16,18 @@ import Data.HashMap.Strict qualified as HM
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
-import PostgREST.Config (AppConfig (..))
-import PostgREST.Error (ApiRequestError (..))
-import PostgREST.MediaType (MediaType (..))
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( QualifiedIdentifier (..)
   , RelIdentifier (..)
   )
-import PostgREST.SchemaCache.Routine
+import PostgREST.Catalog.Routine
   ( MediaHandler (..)
   , MediaHandlerMap
   , ResolvedHandler
   )
+import PostgREST.Config (AppConfig (..))
+import PostgREST.Error (ApiRequestError (..))
+import PostgREST.MediaType (MediaType (..))
 
 import PostgREST.MediaType qualified as MediaType
 

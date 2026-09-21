@@ -8,8 +8,8 @@ import Protolude
 import Data.ByteString.Lazy qualified as LBS
 
 import PostgREST.ApiRequest.Preferences (PreferResolution)
+import PostgREST.Catalog.Identifiers (FieldName, QualifiedIdentifier)
 import PostgREST.Plan.Types (CoercibleField, CoercibleLogicTree)
-import PostgREST.SchemaCache.Identifiers (FieldName, QualifiedIdentifier)
 
 data MutatePlan
   = Insert

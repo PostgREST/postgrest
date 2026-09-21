@@ -22,6 +22,23 @@ import Data.HashMap.Strict qualified as HM
 import Data.HashSet.InsOrd qualified as Set
 import Data.Text qualified as T
 
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Relationship
+  ( Cardinality (..)
+  , Relationship (..)
+  , RelationshipsMap
+  )
+import PostgREST.Catalog.Routine
+  ( FuncVolatility (..)
+  , Routine (..)
+  , RoutineParam (..)
+  )
+import PostgREST.Catalog.Table
+  ( Column (..)
+  , Table (..)
+  , TablesMap
+  , tableColumnsList
+  )
 import PostgREST.Config
   ( AppConfig (..)
   , Proxy (..)
@@ -31,23 +48,6 @@ import PostgREST.Config
 import PostgREST.MediaType
 import PostgREST.Network (escapeHostName)
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship
-  ( Cardinality (..)
-  , Relationship (..)
-  , RelationshipsMap
-  )
-import PostgREST.SchemaCache.Routine
-  ( FuncVolatility (..)
-  , Routine (..)
-  , RoutineParam (..)
-  )
-import PostgREST.SchemaCache.Table
-  ( Column (..)
-  , Table (..)
-  , TablesMap
-  , tableColumnsList
-  )
 
 encode :: (Text, Text) -> AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
 encode versions conf sCache tables procs schemaDescription =

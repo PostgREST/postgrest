@@ -42,6 +42,11 @@ import PostgREST.ApiRequest.Types
   , RequestBody
   , Resource (..)
   )
+import PostgREST.Catalog.Identifiers
+  ( FieldName
+  , QualifiedIdentifier (..)
+  , Schema
+  )
 import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
 import PostgREST.Error (ApiRequestError (..), RangeError (..))
 import PostgREST.MediaType (MediaType (..))
@@ -51,11 +56,6 @@ import PostgREST.RangeQuery
   , convertToLimitZeroRange
   , hasLimitZero
   , rangeRequested
-  )
-import PostgREST.SchemaCache.Identifiers
-  ( FieldName
-  , QualifiedIdentifier (..)
-  , Schema
   )
 
 import PostgREST.ApiRequest.Preferences qualified as Preferences

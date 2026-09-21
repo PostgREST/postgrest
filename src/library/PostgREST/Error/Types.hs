@@ -19,11 +19,11 @@ where
 
 import Protolude
 
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Relationship (Relationship (..), RelationshipsMap)
+import PostgREST.Catalog.Routine (Routine (..))
 import PostgREST.MediaType (MediaType (..))
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship (Relationship (..), RelationshipsMap)
-import PostgREST.SchemaCache.Routine (Routine (..))
 
 import Hasql.Pool qualified as SQL
 

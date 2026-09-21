@@ -20,6 +20,8 @@ import Data.HashMap.Strict qualified as HM
 import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences (PreferTimezone (..), Preferences (..))
 import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Routine (Routine (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Plan (CrudPlan (..), DbActionPlan (..))
 import PostgREST.Query.SqlFragment
@@ -30,8 +32,6 @@ import PostgREST.Query.SqlFragment
   , setConfigWithConstantNameJSON
   , setConfigWithDynamicName
   )
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Routine (Routine (..))
 
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 

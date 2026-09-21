@@ -34,6 +34,9 @@ import PostgREST.ApiRequest.Preferences
   )
 import PostgREST.ApiRequest.Types (Mutation (..))
 import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Routine (Routine (..), RoutineMap)
+import PostgREST.Catalog.Table (TablesMap)
 import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
 import PostgREST.Error (Error)
 import PostgREST.MediaType (MediaType (..))
@@ -46,9 +49,6 @@ import PostgREST.Plan
   )
 import PostgREST.Query (MainQuery (..))
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Routine (Routine (..), RoutineMap)
-import PostgREST.SchemaCache.Table (TablesMap)
 
 import Hasql.Decoders qualified as HD
 import Hasql.DynamicStatements.Statement qualified as SQL

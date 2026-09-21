@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PostgREST.SchemaCache.Routine
+module PostgREST.Catalog.Routine
   ( PgType (..)
   , Routine (..)
   , RoutineParam (..)
@@ -26,7 +26,7 @@ import Protolude
 import Data.Aeson qualified as JSON
 import Data.HashMap.Strict qualified as HM
 
-import PostgREST.SchemaCache.Identifiers
+import PostgREST.Catalog.Identifiers
   ( QualifiedIdentifier (..)
   , RelIdentifier (..)
   , Schema

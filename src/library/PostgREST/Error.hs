@@ -39,18 +39,18 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Network.HTTP.Types.Status qualified as HTTP
 
-import PostgREST.Config (Verbosity (..))
-import PostgREST.Error.Types
-import PostgREST.MediaType (MediaType (..))
-import PostgREST.SchemaCache (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
-import PostgREST.SchemaCache.Relationship
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..), Schema)
+import PostgREST.Catalog.Relationship
   ( Cardinality (..)
   , Junction (..)
   , Relationship (..)
   , RelationshipsMap
   )
-import PostgREST.SchemaCache.Routine (Routine (..), RoutineParam (..))
+import PostgREST.Catalog.Routine (Routine (..), RoutineParam (..))
+import PostgREST.Config (Verbosity (..))
+import PostgREST.Error.Types
+import PostgREST.MediaType (MediaType (..))
+import PostgREST.SchemaCache (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
 
 import Hasql.Pool qualified as SQL
 import Hasql.Session qualified as SQL
@@ -58,9 +58,9 @@ import PostgREST.MediaType qualified as MediaType
 
 -- $setup
 -- >>> import qualified Data.HashMap.Strict as HM
--- >>> import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
--- >>> import PostgREST.SchemaCache.Relationship (Relationship (..))
--- >>> import PostgREST.SchemaCache.Routine (Routine (..), RoutineParam (..))
+-- >>> import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+-- >>> import PostgREST.Catalog.Relationship (Relationship (..))
+-- >>> import PostgREST.Catalog.Routine (Routine (..), RoutineParam (..))
 
 -- | Encode Error to ByteString
 errorPayload :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> LByteString

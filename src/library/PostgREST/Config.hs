@@ -58,6 +58,7 @@ import Data.Text.Encoding qualified as T
 import Jose.Jwa qualified as JWT
 import Jose.Jwk qualified as JWT
 
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..), toQi)
 import PostgREST.Config.Database (RoleIsolationLvl, RoleSettings)
 import PostgREST.Config.DeprecatedJSPath
   ( DeprecatedJSPath
@@ -75,7 +76,6 @@ import PostgREST.Config.Proxy
   , isMalformedProxyUri
   , toURI
   )
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), toQi)
 import PostgREST.Version (prettyVersion)
 
 import Hasql.Connection.Setting qualified as SQL

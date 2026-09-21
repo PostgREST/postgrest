@@ -28,7 +28,7 @@ import PostgREST.ApiRequest.Types
   , OrderDirection
   , OrderNulls
   )
-import PostgREST.SchemaCache.Identifiers (FieldName)
+import PostgREST.Catalog.Identifiers (FieldName)
 
 type TransformerProc = Text
 

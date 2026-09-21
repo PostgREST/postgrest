@@ -29,18 +29,18 @@ import Data.Set qualified as S
 
 import PostgREST.ApiRequest.Preferences (PreferResolution (..))
 import PostgREST.ApiRequest.Types
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Relationship
+  ( Cardinality (..)
+  , Junction (..)
+  , Relationship (..)
+  )
+import PostgREST.Catalog.Routine (RoutineParam (..))
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Relationship
-  ( Cardinality (..)
-  , Junction (..)
-  , Relationship (..)
-  )
-import PostgREST.SchemaCache.Routine (RoutineParam (..))
 
 import Hasql.DynamicStatements.Snippet qualified as SQL
 import Hasql.Encoders qualified as HE

@@ -10,9 +10,9 @@ import Text.Heredoc
 
 import Data.ByteString.Lazy qualified as BL (empty)
 
+import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion, pgVersion180)
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import SpecHelper
 
 spec :: PgVersion -> SpecWithConfig

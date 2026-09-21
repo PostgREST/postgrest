@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module PostgREST.SchemaCache.Identifiers
+module PostgREST.Catalog.Identifiers
   ( FieldName
   , QualifiedIdentifier (..)
   , RelIdentifier (..)
