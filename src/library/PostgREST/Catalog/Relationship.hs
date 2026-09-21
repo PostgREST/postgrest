@@ -2,6 +2,8 @@
 
 module PostgREST.Catalog.Relationship
   ( Cardinality (..)
+  , addViewM2OAndO2ORels
+  , addViewPrimaryKeys
   , KeyDep (..)
   , Relationship (..)
   , Junction (..)
@@ -11,6 +13,7 @@ module PostgREST.Catalog.Relationship
   )
 where
 
+import Control.Arrow ((&&&))
 import Protolude
 
 import Data.Aeson qualified as JSON
@@ -18,9 +21,10 @@ import Data.HashMap.Strict qualified as HM
 
 import PostgREST.Catalog.Identifiers
   ( FieldName
-  , QualifiedIdentifier
+  , QualifiedIdentifier (..)
   , Schema
   )
+import PostgREST.Catalog.Table (Table (..), TablesMap)
 
 -- | A view foreign key or primary key dependency detected on its source table
 -- Each column of the key could be referenced multiple times in the view, e.g.
@@ -118,3 +122,76 @@ relIsToOne rel = case rel of
   Relationship{relCardinality = O2O{}} -> True
   ComputedRelationship{relToOne = True} -> True
   _ -> False
+
+addViewPrimaryKeys :: TablesMap -> [ViewKeyDependency] -> TablesMap
+addViewPrimaryKeys tabs keyDeps =
+  ( \tbl@Table{tableSchema, tableName, tableIsView} ->
+      if tableIsView then
+        tbl{tablePKCols = findViewPKCols tableSchema tableName}
+      else
+        tbl
+  )
+    <$> tabs
+  where
+    findViewPKCols sch vw =
+      concatMap (\ViewKeyDependency{keyDepCols} -> takeFirstPK keyDepCols) $
+        fold $
+          HM.lookup (PKDep, QualifiedIdentifier sch vw) indexedDeps
+    takeFirstPK :: [(FieldName, [FieldName])] -> [FieldName]
+    takeFirstPK = mapMaybe (headMay . snd)
+    indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
+
+addViewM2OAndO2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
+addViewM2OAndO2ORels keyDeps rels =
+  rels ++ concatMap viewRels rels
+  where
+    isM2O card = case card of M2O _ _ -> True; _ -> False
+    isO2O card = case card of O2O _ _ False -> True; _ -> False
+    viewRels Relationship{relTable, relForeignTable, relCardinality = card}
+      | isM2O card || isO2O card =
+          let
+            cons = relCons card
+            relCols = relColumns card
+            buildCard cns cls = if isM2O card then M2O cns cls else O2O cns cls False
+            viewTableRels = fold $ HM.lookup (relTable, (cons, FKDep)) indexedKeyDeps
+            tableViewRels = fold $ HM.lookup (relForeignTable, (cons, FKDepRef)) indexedKeyDeps
+          in
+            [ Relationship
+                (keyDepView vwTbl)
+                relForeignTable
+                False
+                (buildCard cons $ zipWith (\(_, vCol) (_, fCol) -> (vCol, fCol)) keyDepColsVwTbl relCols)
+                True
+                False
+            | vwTbl <- viewTableRels
+            , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
+            ]
+              ++ [ Relationship
+                     relTable
+                     (keyDepView tblVw)
+                     False
+                     (buildCard cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols keyDepColsTblVw)
+                     False
+                     True
+                 | tblVw <- tableViewRels
+                 , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
+                 ]
+              ++ [ let
+                     vw1 = keyDepView vwTbl
+                     vw2 = keyDepView tblVw
+                   in
+                     Relationship
+                       vw1
+                       vw2
+                       (vw1 == vw2)
+                       (buildCard cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) keyDepColsVwTbl keyDepColsTblVw)
+                       True
+                       True
+                 | vwTbl <- viewTableRels
+                 , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
+                 , tblVw <- tableViewRels
+                 , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
+                 ]
+    viewRels _ = []
+    expandKeyDepCols kdc = zip (fst <$> kdc) <$> traverse snd kdc
+    indexedKeyDeps = HM.fromListWith (<>) $ fmap ((keyDepTable &&& keyDepCons &&& keyDepType) &&& pure) keyDeps

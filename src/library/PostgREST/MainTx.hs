@@ -55,6 +55,7 @@ import Hasql.DynamicStatements.Statement qualified as SQL
 import Hasql.Session qualified as SQL (Session)
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
+import PostgREST.Catalog.Decoders qualified as Decoders
 import PostgREST.Error qualified as Error
 import PostgREST.SchemaCache qualified as SchemaCache
 
@@ -195,7 +196,7 @@ actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@Inspect
       case configOpenApiMode of
         OAFollowPriv -> do
           tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ decodeAccessibleIdentifiers configDbPreparedStatements
-          accFuncs <- SQL.statement mempty $ SQL.dynamicallyParameterized funcsQ SchemaCache.decodeFuncs configDbPreparedStatements
+          accFuncs <- SQL.statement mempty $ SQL.dynamicallyParameterized funcsQ Decoders.decodeFuncs configDbPreparedStatements
           schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements
           let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
 

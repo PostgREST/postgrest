@@ -193,6 +193,7 @@ library
                       PostgREST.Config.Proxy
                       PostgREST.Cors
                       PostgREST.SchemaCache
+                      PostgREST.Catalog.Decoders
                       PostgREST.Catalog.Identifiers
                       PostgREST.Catalog.Query
                       PostgREST.Catalog.Routine
