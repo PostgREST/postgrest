@@ -210,9 +210,9 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd = invMethod, cr
 actionResponse (DbPlanResult media plan) ctxApiRequest _ _ _ =
   let body = LBS.fromStrict plan
   in  Right $ PgrstResponse HTTP.status200 (contentLengthHeader body : contentTypeHeaders media ctxApiRequest) body
-actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly = headersOnly} body) ApiRequest{..} versions conf sCache =
+actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly = headersOnly} body) ApiRequest{..} versions conf _ =
   let
-    rsBody = maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body
+    rsBody = maybe mempty (\(relationships, x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf relationships x y z) body
     cLHeader = if headersOnly then mempty else [contentLengthHeader rsBody]
   in
     Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader iSchema iNegotiatedByProfile)) rsBody

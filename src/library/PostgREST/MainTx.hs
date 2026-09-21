@@ -35,6 +35,7 @@ import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types (Mutation (..))
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Catalog.Relationship (RelationshipsMap)
 import PostgREST.Catalog.Routine (Routine (..), RoutineMap)
 import PostgREST.Catalog.Table (TablesMap)
 import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
@@ -55,9 +56,10 @@ import Hasql.DynamicStatements.Statement qualified as SQL
 import Hasql.Session qualified as SQL (Session)
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
-import PostgREST.Catalog.Decoders qualified as Decoders
+import PostgREST.Catalog.Decoders qualified as CatalogDecoders
+import PostgREST.Catalog.Query qualified as CatalogQuery
+import PostgREST.Catalog.Relationship qualified as CatalogRelationship
 import PostgREST.Error qualified as Error
-import PostgREST.SchemaCache qualified as SchemaCache
 
 type DbHandler = ExceptT Error SQL.Transaction
 
@@ -68,7 +70,7 @@ data MainTx
 data DbResult
   = DbCrudResult CrudPlan ResultSet
   | DbPlanResult MediaType BS.ByteString
-  | MaybeDbResult InspectPlan (Maybe (TablesMap, RoutineMap, Maybe Text))
+  | MaybeDbResult InspectPlan (Maybe (RelationshipsMap, TablesMap, RoutineMap, Maybe Text))
   | NoDbResult InfoPlan
 
 -- | Standard result set format used for the mqMain query
@@ -189,26 +191,39 @@ actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} a
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
     decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
-actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema = tSchema}) AppConfig{..} _ sCache =
+actionResult MainQuery{mqOpenAPI = (pgVer, tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema = tSchema}) AppConfig{..} _ _ =
   mainActionQuery
   where
     mainActionQuery = lift $
       case configOpenApiMode of
         OAFollowPriv -> do
           tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ decodeAccessibleIdentifiers configDbPreparedStatements
-          accFuncs <- SQL.statement mempty $ SQL.dynamicallyParameterized funcsQ Decoders.decodeFuncs configDbPreparedStatements
+          accFuncs <- SQL.statement mempty $ SQL.dynamicallyParameterized funcsQ CatalogDecoders.decodeFuncs configDbPreparedStatements
+          -- need the empty search_path to return fully qualified type names
+          SQL.sql "set local schema ''"
+          allTbls <- SQL.statement AppConfig{..} $ CatalogQuery.allTables pgVer configDbPreparedStatements
+          relationships <- CatalogDecoders.relationshipsMap <$> SQL.statement mempty CatalogQuery.allM2OandO2ORels
+          viewDeps <- SQL.statement AppConfig{..} CatalogQuery.allViewsKeyDependencies
           schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements
-          let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
+          let
+            tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ CatalogRelationship.addViewPrimaryKeys allTbls viewDeps
+            relationships' = CatalogDecoders.relationshipsMapByTableSchema $ CatalogRelationship.addViewM2OAndO2ORels viewDeps (concat $ HM.elems relationships)
 
-          pure $ MaybeDbResult plan (Just (tbls, accFuncs, schDesc))
+          pure $ MaybeDbResult plan (Just (relationships', tbls, accFuncs, schDesc))
         OAIgnorePriv -> do
+          SQL.sql "set local schema ''"
+          allTbls <- SQL.statement AppConfig{..} $ CatalogQuery.allTables pgVer configDbPreparedStatements
+          allFuncs <- SQL.statement AppConfig{..} $ CatalogQuery.allFunctions pgVer configDbPreparedStatements
+          relationships <- CatalogDecoders.relationshipsMap <$> SQL.statement mempty CatalogQuery.allM2OandO2ORels
+          viewDeps <- SQL.statement AppConfig{..} CatalogQuery.allViewsKeyDependencies
           schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements)
 
           let
-            tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbTables sCache)
-            routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) (SchemaCache.dbRoutines sCache)
+            tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) $ CatalogRelationship.addViewPrimaryKeys allTbls viewDeps
+            routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch == tSchema) allFuncs
+            relationships' = CatalogDecoders.relationshipsMapByTableSchema $ CatalogRelationship.addViewM2OAndO2ORels viewDeps (concat $ HM.elems relationships)
 
-          pure $ MaybeDbResult plan (Just (tbls, routs, schDesc))
+          pure $ MaybeDbResult plan (Just (relationships', tbls, routs, schDesc))
         OADisabled ->
           pure $ MaybeDbResult plan Nothing
 
@@ -276,7 +291,8 @@ arrayColumn = column . HD.listArray . HD.nonNullable
 
 standardRow :: Bool -> HD.Row ResultSet
 standardRow noLocation =
-  RSStandard <$> nullableColumn HD.int8
+  RSStandard
+    <$> nullableColumn HD.int8
     <*> column HD.int8
     <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea)
     <*> (fromMaybe mempty <$> nullableColumn HD.bytea)

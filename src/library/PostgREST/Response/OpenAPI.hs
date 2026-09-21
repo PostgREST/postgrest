@@ -47,14 +47,13 @@ import PostgREST.Config
   )
 import PostgREST.MediaType
 import PostgREST.Network (escapeHostName)
-import PostgREST.SchemaCache (SchemaCache (..))
 
-encode :: (Text, Text) -> AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
-encode versions conf sCache tables procs schemaDescription =
+encode :: (Text, Text) -> AppConfig -> RelationshipsMap -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
+encode versions conf relationships tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
       versions
-      (dbRelationships sCache)
+      relationships
       (concat $ HM.elems procs)
       (snd <$> HM.toList tables)
       (proxyUri conf)

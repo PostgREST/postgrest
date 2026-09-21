@@ -198,7 +198,7 @@ observationMessages = \case
     pure $ "Received a config reload message on the " <> show channel <> " channel"
   DBListenerConnectionCleanupFail ex ->
     pure $ "Failed during listener connection cleanup: " <> showOnSingleLine '\t' (show ex)
-  (QueryObs MainQuery{mqOpenAPI = (x, y, z), ..} _) ->
+  (QueryObs MainQuery{mqOpenAPI = (_, x, y, z), ..} _) ->
     let snipts = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
     in  showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->

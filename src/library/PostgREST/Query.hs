@@ -41,13 +41,13 @@ data MainQuery = MainQuery
   -- ^ the pre-request function that runs if enabled
   -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
   , mqMain :: SQL.Snippet
-  , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
+  , mqOpenAPI :: (PgVersion, SQL.Snippet, SQL.Snippet, SQL.Snippet)
   , mqExplain :: Maybe SQL.Snippet
   -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
   }
 
 mainQuery :: PgVersion -> ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery _ (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
+mainQuery pgVer (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (pgVer, mempty, mempty, mempty) mempty
 mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange = range, iPreferences = Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq)
   in  case plan of
@@ -55,11 +55,11 @@ mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange = 
           let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
           in  genQ
                 (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows range pMedia wrHandler)
-                (mempty, mempty, mempty)
+                (pgVer, mempty, mempty, mempty)
                 (if shouldExplainCount preferCount then Just (Statements.postExplain countQuery) else Nothing)
         DbCrud _ MutateReadPlan{..} ->
-          genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
+          genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (pgVer, mempty, mempty, mempty) mempty
         DbCrud _ CallReadPlan{..} ->
-          genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
+          genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (pgVer, mempty, mempty, mempty) mempty
         MayUseDb InspectPlan{ipSchema = tSchema} ->
-          genQ mempty (CatalogQuery.accessibleTables tSchema, CatalogQuery.accessibleFuncs pgVer tSchema, SqlFragment.schemaDescription tSchema) mempty
+          genQ mempty (pgVer, CatalogQuery.accessibleTables tSchema, CatalogQuery.accessibleFuncs pgVer tSchema, SqlFragment.schemaDescription tSchema) mempty
