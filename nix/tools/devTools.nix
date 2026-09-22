@@ -7,6 +7,7 @@
   devCabalOptions,
   entr,
   fd,
+  gawk,
   graphviz,
   hsie,
   nix,
@@ -142,6 +143,31 @@ let
         ${hsieMinimalImports} graph-symbols | ${graphviz}/bin/dot -Tpng -o "$_arg_outfile"
       '';
 
+  timedCurl =
+    checkedShellScript
+      {
+        name = "postgrest-time-curl";
+        docs = "Report total and average elapsed time for repeated curl requests.";
+        args = [
+          "ARG_POSITIONAL_SINGLE([url], [URL to request], [http://localhost:3000/])"
+          "ARG_OPTIONAL_SINGLE([runs], [n], [Number of requests], [10])"
+        ];
+      }
+      ''
+        for ((i = 0; i < "$_arg_runs"; i++)); do
+          ${curl}/bin/curl -sS -o /dev/null -w '%{time_total}\n' "$_arg_url"
+        done | ${gawk}/bin/awk '
+          { total += $1; count++ }
+          END {
+            if (count) {
+              print sprintf("Runs:    %d", count)
+              print sprintf("Total:   %s s", total)
+              print sprintf("Average: %s s", total / count)
+            }
+          }
+        '
+      '';
+
   parallelCurl =
     checkedShellScript
       {
@@ -250,6 +276,7 @@ buildToolbox {
   tools = {
     inherit
       check
+      timedCurl
       dumpMinimalImports
       hsieGraphModules
       hsieGraphSymbols
