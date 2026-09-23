@@ -467,29 +467,6 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: update_role_claim_key_and_reload
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdIsoLvl: null
-      pdName: update_role_claim_key_and_reload
-      pdParams:
-      - ppName: new_key
-        ppReq: true
-        ppType: text
-        ppTypeMaxLength: text
-        ppVar: false
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
 - - qiName: reset_db_schemas_config
     qiSchema: public
   - - pdDescription: null
