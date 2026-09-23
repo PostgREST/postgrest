@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix response on root endpoint when schema name is in mixed case by @taimoorzaeem in #5158
 - Fix config `jwt-cache-max-entries` not loaded from the database by @mkleczek in #5269
 - Reduce JWT cache memory usage by @mkleczek in #5229
+- Remove deprecated JSPath DSL syntax for `jwt-role-claim-key` config by @taimoorzaeem in #5192
 
 ## [16.3] - 2026-09-11
 
