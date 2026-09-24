@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [16.4] - 2026-09-24
+
 ### Changes
 
 - Fix response on root endpoint when schema name is in mixed case by @taimoorzaeem in #5158
