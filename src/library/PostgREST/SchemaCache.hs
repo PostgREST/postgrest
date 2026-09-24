@@ -16,6 +16,7 @@ module PostgREST.SchemaCache
   ( SchemaCache (..)
   , TablesFuzzyIndex
   , querySchemaCache
+  , schemaCacheQueries
   , showSummary
   , decodeFuncs
   , QueryTimings (..)
@@ -124,6 +125,20 @@ type SqlQuery = ByteString
 
 maxDbTablesForFuzzySearch :: Int
 maxDbTablesForFuzzySearch = 500
+
+-- keep this in the order they're executed on querySchemaCache for accurate logging
+schemaCacheQueries :: PgVersion -> AppConfig -> [SqlQuery]
+schemaCacheQueries pgVer AppConfig{configDbPreparedStatements} =
+  [ statementSql $ allTables pgVer configDbPreparedStatements
+  , statementSql allViewsKeyDependencies
+  , statementSql allM2OandO2ORels
+  , statementSql $ allFunctions pgVer configDbPreparedStatements
+  , statementSql allComputedRels
+  , statementSql dataRepresentations
+  , statementSql mediaHandlers
+  ]
+  where
+    statementSql (SQL.Statement sql _ _ _) = sql
 
 querySchemaCache :: PgVersion -> AppConfig -> SQL.Transaction (SchemaCache, Maybe QueryTimings)
 querySchemaCache pgVer conf@AppConfig{..} = do

@@ -796,7 +796,7 @@ log-query
   **In-Database** `n/a`
   =============== =================================
 
-  Logs the SQL query for the corresponding request at the current :ref:`log-level`. See :ref:`sql_query_logs`.
+  Logs SQL queries for requests and schema cache loads at the current :ref:`log-level`. See :ref:`sql_query_logs`.
 
 .. _openapi-mode:
 

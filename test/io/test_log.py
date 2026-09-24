@@ -198,6 +198,37 @@ def test_log_query(level, defaultenv):
             assert len(pre_reqs) == 1
 
 
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+@pytest.mark.parametrize("log_query", ["false", "true"])
+def test_schema_cache_log_query(level, log_query, defaultenv):
+    "Schema cache SQL queries follow log-query and log-level"
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": level,
+        "PGRST_LOG_QUERY": log_query,
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for=None) as postgrest:
+        output = drain_stdout(postgrest)
+
+    # recognizable parts of the schema cache queries
+    markers = [
+        "columns_agg AS",
+        "transform_json as",
+        "pks_uniques_cols AS",
+        "AS proc_schema",
+        "computed_rels as",
+        "c.castsource::regtype::text",
+        "media_types as",
+    ]
+    should_log = log_query == "true" and level in {"info", "debug"}
+    expected_count = 1 if should_log else 0
+    queries = [line for line in output if re.match(r".+: (?:WITH|SELECT) ", line, re.I)]
+    for marker in markers:
+        actual_count = sum(marker in line for line in queries)
+        assert actual_count == expected_count, marker
+
+
 def test_log_lacks_role_with_empty_anon_role(defaultenv):
     "Requests are logged without a role when db-anon-role is empty."
 
