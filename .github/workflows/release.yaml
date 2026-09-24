@@ -119,7 +119,7 @@ jobs:
 
   docker:
     name: Docker Hub
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     needs:
       - github
     if: |
@@ -182,7 +182,7 @@ jobs:
 
   ghcr:
     name: GitHub Container Registry
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     needs:
       - github
     permissions:
