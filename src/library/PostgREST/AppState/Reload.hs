@@ -47,6 +47,7 @@ import PostgREST.Observation (Observation (..))
 import PostgREST.SchemaCache
   ( SchemaCache (..)
   , querySchemaCache
+  , schemaCacheQueries
   , showSummary
   )
 import PostgREST.TimeIt (timeItT)
@@ -111,6 +112,9 @@ retryingSchemaCacheLoad appState@AppState{stateObserver = observer} =
       pgVer <- getPgVersion appState
       (resultTime, result) <-
         timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
+      when configLogQuery $
+        observer $
+          SchemaCacheQueryObs (schemaCacheQueries pgVer conf)
       case result of
         Left e -> do
           markSchemaCachePending appState

@@ -19,7 +19,7 @@ import Options.Applicative qualified as O
 import PostgREST.AppState (AppState)
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Observation (Observation (..))
-import PostgREST.SchemaCache (querySchemaCache)
+import PostgREST.SchemaCache (querySchemaCache, schemaCacheQueries)
 import PostgREST.Version (prettyVersion)
 
 import Hasql.Transaction.Sessions qualified as SQL
@@ -68,6 +68,9 @@ dumpSchema appState = do
   pgVer <- AppState.getPgVersion appState
   result <-
     AppState.usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
+  when configLogQuery $
+    AppState.getObserver appState $
+      SchemaCacheQueryObs (schemaCacheQueries pgVer conf)
   case result of
     Left e -> do
       let observer = AppState.getObserver appState

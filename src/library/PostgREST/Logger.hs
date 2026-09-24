@@ -88,6 +88,10 @@ observationLogger loggerState obs = do
       when (shouldLogResponse logLevel status) $
         logWithZTime $
           observationMessages o
+    o@(SchemaCacheQueryObs _) ->
+      when (logLevel >= LogInfo) $
+        logWithZTime $
+          observationMessages o
     o@PoolRequest ->
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
@@ -201,6 +205,9 @@ observationMessages = \case
   (QueryObs MainQuery{mqOpenAPI = (x, y, z), ..} _) ->
     let snipts = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
     in  showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
+  SchemaCacheQueryObs queries ->
+    -- Queries are formatted with newlines for readability in SchemaCache.hs so we need to join them so each query appears on a single log line
+    showOnSingleLine '\n' . T.decodeUtf8 <$> queries
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
     [ "WARNING: " <> warningMsg
     , "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
