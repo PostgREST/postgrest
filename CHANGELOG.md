@@ -6,9 +6,14 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Changes
 
+- Reduce JWT cache memory usage by @mkleczek in #5229
+
+## [16.4] - 2026-09-24
+
+### Changes
+
 - Fix response on root endpoint when schema name is in mixed case by @taimoorzaeem in #5158
 - Fix config `jwt-cache-max-entries` not loaded from the database by @mkleczek in #5269
-- Reduce JWT cache memory usage by @mkleczek in #5229
 
 ## [16.3] - 2026-09-11
 
