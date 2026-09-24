@@ -25,7 +25,7 @@ def test_db_schema_notify_reload(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"\\"public\\", \\"public\\""'
+        assert response.text == '"\\"public\\",\\"$user\\", public"'
 
         # change db-schemas config on the db and reload config and cache with notify
         postgrest.session.post(
@@ -35,7 +35,7 @@ def test_db_schema_notify_reload(defaultenv):
         sleep_until_postgrest_full_reload()
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"\\"v1\\", \\"public\\""'
+        assert response.text == '"\\"v1\\",\\"$user\\", public"'
 
         # reset db-schemas config on the db
         response = postgrest.session.post("/rpc/reset_db_schema_config")
@@ -51,7 +51,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
     with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"\\"public\\", \\"public\\""'
+        assert response.text == '"\\"public\\",\\"$user\\", public"'
 
         # change setting
         configfile.write_text(
@@ -67,7 +67,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
         sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"\\"v1\\", \\"public\\""'
+        assert response.text == '"\\"v1\\",\\"$user\\", public"'
 
 
 def test_invalid_role_claim_key_notify_reload(defaultenv):

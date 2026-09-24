@@ -31,6 +31,7 @@ import PostgREST.Query.SqlFragment
   , setConfigWithConstantName
   , setConfigWithConstantNameJSON
   , setConfigWithDynamicName
+  , unknownEncoder
   )
 
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
@@ -59,7 +60,7 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
     funcSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> funcSettings
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath)
-      in  setConfigWithConstantName ("search_path", schemas)
+      in  "set_config('search_path', " <> unknownEncoder schemas <> "::text || ',' || current_setting('search_path'), true)" -- we append the current search_path to add the default schemas. postgres is lenient, so duplicates are allowed
     funcSettings = case dbActPlan of
       DbCrud _ CallReadPlan{crProc} -> pdFuncSettings crProc
       _ -> mempty

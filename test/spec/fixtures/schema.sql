@@ -167,7 +167,7 @@ CREATE FUNCTION anti_id(test.items) RETURNS bigint
 
 SET search_path = public, pg_catalog;
 
-CREATE FUNCTION always_false(test.items) RETURNS boolean
+CREATE FUNCTION private.always_false(test.items) RETURNS boolean
     LANGUAGE sql IMMUTABLE
     AS $$ SELECT false $$;
 
