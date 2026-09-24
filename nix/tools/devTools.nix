@@ -78,6 +78,7 @@ let
       }
       ''
         ${treefmtNix.wrapper}/bin/treefmt
+        ${hsie} check-aliases src/library src/executable
         ${tests}/bin/postgrest-test-spec
         ${tests}/bin/postgrest-test-observability
         ${tests}/bin/postgrest-test-doctests
