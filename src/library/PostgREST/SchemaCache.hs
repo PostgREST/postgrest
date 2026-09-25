@@ -384,19 +384,19 @@ funcsSqlQuery pgVer =
     SELECT
       oid,
       array_agg((
-        COALESCE(name, ''), -- name
-        type::regtype::text, -- type
+        COALESCE(name, ''), /* name */
+        type::regtype::text, /* type */
         CASE type
           WHEN 'bit'::regtype THEN 'bit varying'
           WHEN 'bit[]'::regtype THEN 'bit varying[]'
           WHEN 'character'::regtype THEN 'character varying'
           WHEN 'character[]'::regtype THEN 'character varying[]'
           ELSE type::regtype::text
-        END, -- convert types that ignore the length and accept any value till maximum size
-        idx <= (pronargs - pronargdefaults), -- is_required
-        COALESCE(mode = 'v', FALSE) -- is_variadic
+        END, /* convert types that ignore the length and accept any value till maximum size */
+        idx <= (pronargs - pronargdefaults), /* is_required */
+        COALESCE(mode = 'v', FALSE) /* is_variadic */
       ) ORDER BY idx) AS args,
-      CASE COUNT(*) - COUNT(name) -- number of unnamed arguments
+      CASE COUNT(*) - COUNT(name) /* number of unnamed arguments */
         WHEN 0 THEN true
         WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype, 'xml'::regtype)
         ELSE false
@@ -404,7 +404,7 @@ funcsSqlQuery pgVer =
     FROM pg_proc,
          unnest(proargnames, proargtypes, proargmodes)
            WITH ORDINALITY AS _ (name, type, mode, idx)
-    WHERE type IS NOT NULL -- only input arguments
+    WHERE type IS NOT NULL /* only input arguments */
     GROUP BY oid
   )
   SELECT
@@ -416,7 +416,7 @@ funcsSqlQuery pgVer =
     COALESCE(comp.relname, t.typname) AS name,
     p.proretset AS rettype_is_setof,
     (t.typtype = 'c'
-     -- if any TABLE, INOUT or OUT arguments present, treat as composite
+     /* if any TABLE, INOUT or OUT arguments present, treat as composite */
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
     bt.oid <> bt.base_type as rettype_is_composite_alias,
@@ -587,7 +587,7 @@ tablesSqlQuery pgVer =
           c.oid AS relid,
           a.attname::name AS column_name,
           d.description AS description,
-          -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
+          /* typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column */
           CASE
             WHEN (t.typbasetype != 0) AND (ad.adbin IS NULL) THEN pg_get_expr(t.typdefaultbin, 0)
             WHEN a.attidentity  = 'd' THEN format('nextval(%L)', seq.objid::regclass)
@@ -679,9 +679,9 @@ tablesSqlQuery pgVer =
       c.relkind IN ('r','p')
       OR (
         c.relkind in ('v','f')
-        -- The function `pg_relation_is_updateable` returns a bitmask where 8
-        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
-        -- it's possible to insert into the relation.
+        /* The function `pg_relation_is_updateable` returns a bitmask where 8
+           corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
+           it's possible to insert into the relation. */
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
       )
     ) AS insertable,
@@ -689,7 +689,7 @@ tablesSqlQuery pgVer =
       c.relkind IN ('r','p')
       OR (
         c.relkind in ('v','f')
-        -- CMD_UPDATE
+        /* CMD_UPDATE */
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
       )
     ) AS updatable,
@@ -697,7 +697,7 @@ tablesSqlQuery pgVer =
       c.relkind IN ('r','p')
       OR (
         c.relkind in ('v','f')
-        -- CMD_DELETE
+        /* CMD_DELETE */
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
       )
     ) AS deletable,
@@ -824,7 +824,7 @@ allViewsKeyDependencies =
         [trimming|
       with recursive
       pks_fks as (
-        -- pk + fk referencing col
+        /* pk + fk referencing col */
         select
           contype::text as contype,
           conname,
@@ -836,7 +836,7 @@ allViewsKeyDependencies =
         left join lateral unnest(conkey) with ordinality as _(col, ord) on true
         where contype IN ('p', 'f')
         union
-        -- fk referenced col
+        /* fk referenced col */
         select
           concat(contype, '_ref') as contype,
           conname,
@@ -863,8 +863,8 @@ allViewsKeyDependencies =
       transform_json as (
         select
           view_id, view_schema_id, view_schema, view_name,
-          -- the following formatting is without indentation on purpose
-          -- to allow simple diffs, with less whitespace noise
+          /* the following formatting is without indentation on purpose
+             to allow simple diffs, with less whitespace noise */
           replace(
             replace(
             replace(
@@ -885,57 +885,57 @@ allViewsKeyDependencies =
             replace(
             replace(
               view_definition::text,
-            -- This conversion to json is heavily optimized for performance.
-            -- The general idea is to use as few regexp_replace() calls as possible.
-            -- Simple replace() is a lot faster, so we jump through some hoops
-            -- to be able to use regexp_replace() only once.
-            -- This has been tested against a huge schema with 250+ different views.
-            -- The unit tests do NOT reflect all possible inputs. Be careful when changing this!
-            -- -----------------------------------------------
-            -- pattern           | replacement         | flags
-            -- -----------------------------------------------
-            -- `<>` in pg_node_tree is the same as `null` in JSON, but due to very poor performance of json_typeof
-            -- we need to make this an empty array here to prevent json_array_elements from throwing an error
-            -- when the targetList is null.
-            -- We'll need to put it first, to make the node protection below work for node lists that start with
-            -- null: `(<> ...`, too. This is the case for coldefexprs, when the first column does not have a default value.
+            /* This conversion to json is heavily optimized for performance.
+               The general idea is to use as few regexp_replace() calls as possible.
+               Simple replace() is a lot faster, so we jump through some hoops
+               to be able to use regexp_replace() only once.
+               This has been tested against a huge schema with 250+ different views.
+               The unit tests do NOT reflect all possible inputs. Be careful when changing this!
+               -----------------------------------------------
+               pattern           | replacement         | flags
+               -----------------------------------------------
+               `<>` in pg_node_tree is the same as `null` in JSON, but due to very poor performance of json_typeof
+               we need to make this an empty array here to prevent json_array_elements from throwing an error
+               when the targetList is null.
+               We'll need to put it first, to make the node protection below work for node lists that start with
+               null: `(<> ...`, too. This is the case for coldefexprs, when the first column does not have a default value. */
                '<>'              , '()'
-            -- `,` is not part of the pg_node_tree format, but used in the regex.
-            -- This removes all `,` that might be part of column names.
+            /* `,` is not part of the pg_node_tree format, but used in the regex.
+               This removes all `,` that might be part of column names. */
             ), ','               , ''
-            -- The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
-            -- We remove the escaped ones, which might be part of column names again.
+            /* The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
+               We remove the escaped ones, which might be part of column names again. */
             ), E'\\{'            , ''
             ), E'\\}'            , ''
-            -- The fields we need are formatted as json manually to protect them from the regex.
+            /* The fields we need are formatted as json manually to protect them from the regex. */
             ), ' :targetList '   , ',"targetList":'
             ), ' :resno '        , ',"resno":'
             ), ' :resorigtbl '   , ',"resorigtbl":'
             ), ' :resorigcol '   , ',"resorigcol":'
-            -- Make the regex also match the node type, e.g. `{QUERY ...`, to remove it in one pass.
+            /* Make the regex also match the node type, e.g. `{QUERY ...`, to remove it in one pass. */
             ), '{'               , '{ :'
-            -- Protect node lists, which start with `({` or `((` from the greedy regex.
-            -- The extra `{` is removed again later.
+            /* Protect node lists, which start with `({` or `((` from the greedy regex.
+               The extra `{` is removed again later. */
             ), '(('              , '{(('
             ), '({'              , '{({'
-            -- This regex removes all unused fields to avoid the need to format all of them correctly.
-            -- This leads to a smaller json result as well.
-            -- Removal stops at `,` for used fields (see above) and `}` for the end of the current node.
-            -- Nesting can't be parsed correctly with a regex, so we stop at `{` as well and
-            -- add an empty key for the following node.
+            /* This regex removes all unused fields to avoid the need to format all of them correctly.
+               This leads to a smaller json result as well.
+               Removal stops at `,` for used fields (see above) and `}` for the end of the current node.
+               Nesting can't be parsed correctly with a regex, so we stop at `{` as well and
+               add an empty key for the following node. */
             ), ' :[^}{,]+'       , ',"":'              , 'g'
-            -- For performance, the regex also added those empty keys when hitting a `,` or `}`.
-            -- Those are removed next.
+            /* For performance, the regex also added those empty keys when hitting a `,` or `}`.
+               Those are removed next. */
             ), ',"":}'           , '}'
             ), ',"":,'           , ','
-            -- This reverses the "node list protection" from above.
+            /* This reverses the "node list protection" from above. */
             ), '{('              , '('
-            -- Every key above has been added with a `,` so far. The first key in an object doesn't need it.
+            /* Every key above has been added with a `,` so far. The first key in an object doesn't need it. */
             ), '{,'              , '{'
-            -- pg_node_tree has `()` around lists, but JSON uses `[]`
+            /* pg_node_tree has `()` around lists, but JSON uses `[]` */
             ), '('               , '['
             ), ')'               , ']'
-            -- pg_node_tree has ` ` between list items, but JSON uses `,`
+            /* pg_node_tree has ` ` between list items, but JSON uses `,` */
             ), ' '             , ','
           )::json as view_definition
         from views
@@ -954,8 +954,8 @@ allViewsKeyDependencies =
           (entry->>'resorigcol')::int as resorigcol
         from target_entries
       ),
-      -- CYCLE detection according to PG docs: https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-CYCLE
-      -- Can be replaced with CYCLE clause once PG v13 is EOL.
+      /* CYCLE detection according to PG docs: https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-CYCLE
+         Can be replaced with CYCLE clause once PG v13 is EOL. */
       recursion(view_id, view_schema_id, view_schema, view_name, view_column, resorigtbl, resorigcol, is_cycle, path) as(
         select
           r.*,
@@ -1009,7 +1009,7 @@ allViewsKeyDependencies =
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rep.resorigcol
       join pg_namespace sch on sch.oid = tbl.relnamespace
       group by sch.nspname, tbl.relname, rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype, pks_fks.ncol
-      -- make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs
+      /* make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs */
       having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
 
