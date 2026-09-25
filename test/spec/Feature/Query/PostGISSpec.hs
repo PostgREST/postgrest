@@ -10,7 +10,7 @@ import PostgREST.Config (AppConfig (..))
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "extensions"]}) $
+spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["extensions"]}) $
   describe "PostGIS features" $
     context "GeoJSON output" $ do
       it "works for a table that has a geometry column" $

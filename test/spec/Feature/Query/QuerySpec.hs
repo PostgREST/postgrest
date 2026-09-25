@@ -1626,8 +1626,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
           { matchHeaders = [matchContentTypeJson]
           }
 
-  it "cannot use ltree(in public schema) extension operators if no extra search path added" $
-    get "/ltree_sample?path=cd.Top.Science.Astronomy" `shouldRespondWith` 400
+  it "can use ltree(in public schema) extension operators if no extra search path added" $
+    get "/ltree_sample?path=cd.Top.Science.Astronomy" `shouldRespondWith` 200
 
   context "VIEW that has a source FK based on a UNIQUE key" $
     it "can be embedded" $
@@ -1901,11 +1901,11 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
       get "/datarep_todos?select=id,name&label_color=ilike.#*100"
         `shouldRespondWith` ( if actualPgVersion < pgVersion190 then
                                 [json|
-            {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
+            {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: color ~~* unknown"}
           |]
                               else
                                 [json|
-            {"code":"42883","details":"No operator of that name accepts the given argument types.","hint":"You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
+            {"code":"42883","details":"No operator of that name accepts the given argument types.","hint":"You might need to add explicit type casts.","message":"operator does not exist: color ~~* unknown"}
           |]
                             )
           { matchStatus = 404

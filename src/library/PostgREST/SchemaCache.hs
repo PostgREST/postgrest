@@ -848,6 +848,19 @@ allViewsKeyDependencies =
         left join lateral unnest(confkey) with ordinality as _(col, ord) on true
         where contype='f'
       ),
+      -- We void the search_path earlier in the transaction, so we fetch the
+      -- search_path from pg_settings. Additionally, we also filter the 'user'
+      -- variable schema to avoid error when casting to regnamespace. We use
+      -- the search_path to get relationships between views.
+      search_path_setting as (
+        select array_agg(quote_ident(sp_schema)::regnamespace) as sp_schemas
+        from (
+          select trim(unnest(string_to_array(reset_val, ','))) as sp_schema
+          from pg_settings
+          where name = 'search_path'
+        ) s
+        where sp_schema <> '"$$user"'
+      ),
       views as (
         select
           c.oid          as view_id,
@@ -858,7 +871,12 @@ allViewsKeyDependencies =
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where c.relkind in ('v', 'm') and c.relnamespace = ANY($$1::regnamespace[] || $$2::regnamespace[])
+        where c.relkind in ('v', 'm')
+          and c.relnamespace = ANY(
+              $$1::regnamespace[] ||
+              $$2::regnamespace[] ||
+              (select sp_schemas::regnamespace[] from search_path_setting)
+            )
       ),
       transform_json as (
         select

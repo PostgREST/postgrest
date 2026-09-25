@@ -82,7 +82,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           `shouldBe` Just
             [aesonQQ|
             {
-              "search_path": "\"test\""
+              "search_path": "\"test\",public,test"
             }
           |]
 
