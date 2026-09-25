@@ -19,7 +19,7 @@ baseTypesCte :: PgVersion -> Text
 baseTypesCte pgVer
   | pgVer >= pgVersion170 =
       [trimming|
-      -- Get base types using pg_basetype() (PG 17+)
+      /* Get base types using pg_basetype() (PG 17+) */
       base_types AS (
         SELECT
           t.oid,
@@ -31,7 +31,7 @@ baseTypesCte pgVer
     |]
   | otherwise =
       [trimming|
-      -- Recursively get the base types of domains (PG < 17)
+      /* Recursively get the base types of domains (PG < 17) */
       base_types AS (
         WITH RECURSIVE
         recurse AS (
@@ -105,7 +105,7 @@ baseFuncSqlQuery pgVer =
     SELECT
       oid,
       array_agg((
-        COALESCE(name, ''), -- name
+        COALESCE(name, ''), /* name */
         type::regtype::text,
         CASE type
           WHEN 'bit'::regtype THEN 'bit varying'
