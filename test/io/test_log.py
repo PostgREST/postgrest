@@ -3,16 +3,10 @@
 import re
 import signal
 import time
+
 import pytest
 import requests
-
 from config import SECRET
-from util import (
-    jwtauthheader,
-    relativeSeconds,
-    drain_stdout,
-    match_log,
-)
 from postgrest import (
     Admin,
     freeport,
@@ -21,6 +15,12 @@ from postgrest import (
     run,
     set_statement_timeout,
     wait_until_exit,
+)
+from util import (
+    drain_stdout,
+    jwtauthheader,
+    match_log,
+    relativeSeconds,
 )
 
 
@@ -157,15 +157,7 @@ def test_log_query(level, defaultenv):
             assert not root_tables
             assert not root_procs
             assert not root_descr
-        elif level == "info":
-            assert len(set_configs) == 5
-            assert len(project_queries) == 3
-            assert len(project_counts) == 2
-            assert len(infinite_queries) == 1
-            assert len(root_tables) == 1
-            assert len(root_procs) == 1
-            assert len(root_descr) == 1
-        elif level == "debug":
+        elif level == "info" or level == "debug":
             assert len(set_configs) == 5
             assert len(project_queries) == 3
             assert len(project_counts) == 2
@@ -188,13 +180,9 @@ def test_log_query(level, defaultenv):
         pre_request_regx = r'.+: select "do_nothing"()'
         pre_reqs = [line for line in output if re.match(pre_request_regx, line)]
 
-        if level == "crit":
+        if level == "crit" or level in {"error", "warn"}:
             assert not pre_reqs
-        elif level in {"error", "warn"}:
-            assert not pre_reqs
-        elif level == "info":
-            assert len(pre_reqs) == 1
-        elif level == "debug":
+        elif level == "info" or level == "debug":
             assert len(pre_reqs) == 1
 
 
@@ -227,7 +215,7 @@ def test_log_postgrest_version(defaultenv):
 
         output = postgrest.read_stdout(nlines=1)
 
-        assert "Starting PostgREST %s..." % version in output[0]
+        assert f"Starting PostgREST {version}..." in output[0]
 
 
 @pytest.mark.parametrize(

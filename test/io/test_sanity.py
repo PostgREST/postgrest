@@ -1,7 +1,7 @@
 "Sanity checks for the PostgREST black box testing infrastructure."
 
 import pytest
-
+import requests
 from postgrest import freeport, run
 
 
@@ -20,6 +20,7 @@ def test_plain_get(defaultenv):
 
 def test_no_pool_connection_available(defaultenv):
     "no_pool_connection_available option is functional"
-    with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
-        with pytest.raises(Exception):
-            postgrest.session.get("/projects", timeout=1)
+    with run(
+        env=defaultenv, no_pool_connection_available=True
+    ) as postgrest, pytest.raises(requests.ReadTimeout):
+        postgrest.session.get("/projects", timeout=1)

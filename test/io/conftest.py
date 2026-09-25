@@ -1,7 +1,8 @@
 import os
+
 import pytest
-from syrupy.extensions.json import SingleFileSnapshotExtension
 from postgrest import run
+from syrupy.extensions.json import SingleFileSnapshotExtension
 
 
 @pytest.fixture

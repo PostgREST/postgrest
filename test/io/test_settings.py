@@ -4,17 +4,17 @@ import signal
 import time
 
 from config import CONFIGSDIR, SECRET
-from util import (
-    Thread,
-    jwtauthheader,
-    parse_server_timings_header,
-)
 from postgrest import (
     reset_statement_timeout,
     run,
     set_statement_timeout,
     sleep_until_postgrest_config_reload,
     sleep_until_postgrest_scache_reload,
+)
+from util import (
+    Thread,
+    jwtauthheader,
+    parse_server_timings_header,
 )
 
 
@@ -241,7 +241,7 @@ def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
 
             def sleep(i=i):
                 response = postgrest.session.get("/rpc/sleep?seconds=1")
-                assert response.status_code == 500, "thread {}".format(i)
+                assert response.status_code == 500, f"thread {i}"
                 data = response.json()
                 assert data["message"] == "canceling statement due to statement timeout"
 

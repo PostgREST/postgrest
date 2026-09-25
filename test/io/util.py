@@ -1,8 +1,9 @@
 import re
-import threading
-import jwt
 import subprocess
+import threading
 from datetime import datetime, timedelta, timezone
+
+import jwt
 
 
 class Thread(threading.Thread):
@@ -10,16 +11,16 @@ class Thread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         self._exception = None
-        super(Thread, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def run(self):
         try:
-            super(Thread, self).run()
-        except Exception as e:
+            super().run()
+        except Exception as e:  # noqa: BLE001
             self._exception = e
 
     def join(self):
-        super(Thread, self).join()
+        super().join()
         if self._exception is not None:
             raise self._exception
 

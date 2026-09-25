@@ -2,19 +2,19 @@
 
 import signal
 import time
+
 import pytest
 import requests
-
 from config import CONFIGSDIR, SECRET
-from util import (
-    jwtauthheader,
-    psql_as_superuser,
-)
 from postgrest import (
     run,
     sleep_until_postgrest_config_reload,
     sleep_until_postgrest_full_reload,
     sleep_until_postgrest_scache_reload,
+)
+from util import (
+    jwtauthheader,
+    psql_as_superuser,
 )
 
 

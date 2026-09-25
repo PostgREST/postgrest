@@ -1,7 +1,7 @@
 import time
 
-from util import Thread
 from postgrest import run
+from util import Thread
 
 
 def test_graceful_shutdown_waits_for_in_flight_request(defaultenv):

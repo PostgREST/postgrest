@@ -22,11 +22,8 @@ jobs:
     name: Lint & Style
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: hsie.bin treefmtNix.wrapper
@@ -40,14 +37,11 @@ jobs:
     name: Commit
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 100  # fetch history (last 100 commits) instead of default shallow clone history, this is deemed enough for a PR history
       - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          fetch-depth: 100  # fetch history (last 100 commits) instead of default shallow clone history, this is deemed enough for a PR history
           tools: gitTools.commitCheck.bin
       - name: Run commitlint (check locally with `nix-shell --run postgrest-commitlint`)
         env:
