@@ -148,6 +148,7 @@ baseCfg =
         , configDbExtraSearchPath = []
         , configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"]
         , configDbMaxRows = Nothing
+        , configDbPipelineMode = False
         , configDbPlanEnabled = False
         , configDbPoolSize = 10
         , configDbPoolAcquisitionTimeout = 10

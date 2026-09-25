@@ -94,6 +94,7 @@ data AppConfig = AppConfig
   , configDbExtraSearchPath :: [Text]
   , configDbHoistedTxSettings :: [Text]
   , configDbMaxRows :: Maybe Integer
+  , configDbPipelineMode :: Bool
   , configDbPlanEnabled :: Bool
   , configDbPoolSize :: Int
   , configDbPoolAcquisitionTimeout :: Int
@@ -185,6 +186,7 @@ toText conf =
             , ("db-extra-search-path", q . T.intercalate "," . configDbExtraSearchPath)
             , ("db-hoisted-tx-settings", q . T.intercalate "," . configDbHoistedTxSettings)
             , ("db-max-rows", maybe "\"\"" show . configDbMaxRows)
+            , ("db-pipeline-mode", T.toLower . show . configDbPipelineMode)
             , ("db-plan-enabled", T.toLower . show . configDbPlanEnabled)
             , ("db-pool", show . configDbPoolSize)
             , ("db-pool-acquisition-timeout", show . configDbPoolAcquisitionTimeout)
@@ -303,6 +305,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> optWithAlias
       (optInt "db-max-rows")
       (optInt "max-rows")
+    <*> (fromMaybe False <$> optBool "db-pipeline-mode")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
     <*> (fromMaybe 10 <$> optInt "db-pool")
     <*> (fromMaybe 10 <$> optInt "db-pool-acquisition-timeout")
@@ -774,6 +777,11 @@ exampleConfigFile =
     , ""
     , "## Stored proc to exec immediately after auth"
     , "# db-pre-request = \"stored_proc_name\""
+    , ""
+    , "## Send a request's statements to the database in a single round trip instead of one at a time."
+    , "## The gain grows with the client-database round-trip time; on a co-located database it is small."
+    , "## Disabling reverts to the pre-pipelining behaviour."
+    , "db-pipeline-mode = false"
     , ""
     , "## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler."
     , "## When disabled, statements will be parametrized but won't be prepared."
