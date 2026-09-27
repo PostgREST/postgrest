@@ -1,8 +1,4 @@
-module Hasql.Transaction.Private.Prelude
-  ( module Exports
-  , tryError
-  )
-where
+module Hasql.Transaction.Private.Prelude (module Exports) where
 
 import Control.Applicative as Exports
 import Control.Arrow as Exports
@@ -169,7 +165,3 @@ import Prelude as Exports hiding
   , sum
   , (.)
   )
-
-tryError :: (MonadError e m) => m a -> m (Either e a)
-tryError m =
-  catchError (fmap Right m) (return . Left)

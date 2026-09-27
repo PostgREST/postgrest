@@ -1,9 +1,7 @@
 module Hasql.Prelude
   ( module Exports
   , LazyByteString
-  , ByteStringBuilder
   , LazyText
-  , TextBuilder
   , forMToZero_
   , forMFromZero_
   , strictCons
@@ -254,22 +252,14 @@ import Prelude as Exports hiding
   , (.)
   )
 
-import Data.ByteString.Builder qualified
 import Data.ByteString.Lazy qualified
 import Data.Text.Lazy qualified
-import Data.Text.Lazy.Builder qualified
 
 type LazyByteString =
   Data.ByteString.Lazy.ByteString
 
-type ByteStringBuilder =
-  Data.ByteString.Builder.Builder
-
 type LazyText =
   Data.Text.Lazy.Text
-
-type TextBuilder =
-  Data.Text.Lazy.Builder.Builder
 
 {-# INLINE forMToZero_ #-}
 forMToZero_ :: (Applicative m) => Int -> (Int -> m a) -> m ()

@@ -35,11 +35,6 @@ checkConnectionStatus c =
       LibPQ.ConnectionOk -> return Nothing
       _ -> fmap Just (LibPQ.errorMessage c)
 
-{-# INLINE checkServerVersion #-}
-checkServerVersion :: LibPQ.Connection -> IO (Maybe Int)
-checkServerVersion c =
-  fmap (mfilter (< 80200) . Just) (LibPQ.serverVersion c)
-
 {-# INLINE getIntegerDatetimes #-}
 getIntegerDatetimes :: LibPQ.Connection -> IO Bool
 getIntegerDatetimes c =
