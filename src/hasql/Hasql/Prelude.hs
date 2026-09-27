@@ -3,7 +3,6 @@ module Hasql.Prelude
   , LazyByteString
   , LazyText
   , forMToZero_
-  , forMFromZero_
   , strictCons
   )
 where
@@ -89,7 +88,6 @@ import Control.Monad.Trans.Writer.Strict as Exports
   )
 import Data.Bifunctor as Exports
 import Data.Bits as Exports
-import Data.Bool as Exports
 import Data.ByteString as Exports (ByteString)
 import Data.Char as Exports
 import Data.Coerce as Exports
@@ -155,19 +153,15 @@ import Data.Profunctor.Unsafe as Exports
 import Data.Proxy as Exports
 import Data.Ratio as Exports
 import Data.STRef as Exports
-import Data.Scientific as Exports (Scientific)
 import Data.Semigroup as Exports hiding
   ( First (..)
   , Last (..)
   )
 import Data.String as Exports
 import Data.Text as Exports (Text)
-import Data.Time as Exports
 import Data.Traversable as Exports
 import Data.Tuple as Exports
-import Data.UUID as Exports (UUID)
 import Data.Unique as Exports
-import Data.Vector as Exports (Vector)
 import Data.Version as Exports
 import Data.Void as Exports
 import Data.Word as Exports
@@ -265,11 +259,6 @@ type LazyText =
 forMToZero_ :: (Applicative m) => Int -> (Int -> m a) -> m ()
 forMToZero_ !startN f =
   ($ pred startN) $ fix $ \loop' !n -> when (n >= 0) $ f n *> loop' (pred n)
-
-{-# INLINE forMFromZero_ #-}
-forMFromZero_ :: (Applicative m) => Int -> (Int -> m a) -> m ()
-forMFromZero_ !endN f =
-  ($ 0) $ fix $ \loop' !n -> when (n < endN) $ f n *> loop' (succ n)
 
 {-# INLINE strictCons #-}
 strictCons :: a -> [a] -> [a]
