@@ -5,11 +5,11 @@ module Hasql.Connection.Setting
   )
 where
 
+import Data.Text.Encoding qualified
+
 import Hasql.Prelude
 
 import Hasql.Connection.Config qualified as Config
-import Hasql.Connection.Config.ConnectionString qualified as Config.ConnectionString
-import Hasql.Connection.Setting.Connection qualified as Connection
 
 -- | Setting of a client handle.
 newtype Setting = Setting (Config.Config -> Config.Config)
@@ -18,9 +18,9 @@ instance Config.Updates Setting where
   update (Setting update) = update
 
 -- | Connection details like address of the remote service and authentication info.
-connection :: Connection.Connection -> Setting
+connection :: Text -> Setting
 connection =
-  Setting . Config.setConnectionString . Config.ConnectionString.construct
+  Setting . Config.setConnectionString . Data.Text.Encoding.encodeUtf8
 
 -- | Whether prepared statements are allowed.
 --

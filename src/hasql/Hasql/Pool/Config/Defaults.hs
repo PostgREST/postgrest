@@ -4,7 +4,6 @@ import Hasql.Pool.Observation (Observation)
 import Hasql.Pool.Prelude
 
 import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Connection.Setting.Connection qualified as Connection.Setting.Connection
 import Hasql.Session qualified as Session
 
 -- |
@@ -30,9 +29,7 @@ idlenessTimeout = 60 * 10
 -- |
 -- > "postgresql://postgres:postgres@localhost:5432/postgres"
 staticConnectionSettings :: [Connection.Setting.Setting]
-staticConnectionSettings =
-  [ Connection.Setting.connection (Connection.Setting.Connection.string "postgresql://postgres:postgres@localhost:5432/postgres")
-  ]
+staticConnectionSettings = [Connection.Setting.connection "postgresql://postgres:postgres@localhost:5432/postgres"]
 
 -- |
 -- > pure "postgresql://postgres:postgres@localhost:5432/postgres"

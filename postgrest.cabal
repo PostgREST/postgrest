@@ -48,8 +48,6 @@ library hasql
   hs-source-dirs:     src/hasql
   exposed-modules:    Hasql.Connection
                       Hasql.Connection.Setting
-                      Hasql.Connection.Setting.Connection
-                      Hasql.Connection.Setting.Connection.Param
                       Hasql.Decoders
                       Hasql.DynamicStatements.Session
                       Hasql.DynamicStatements.Snippet
@@ -68,8 +66,6 @@ library hasql
                       Hasql.Transaction.Sessions
   other-modules:      Hasql.Commands
                       Hasql.Connection.Config
-                      Hasql.Connection.Config.ConnectionString
-                      Hasql.Connection.Config.ConnectionString.Params
                       Hasql.Connection.Core
                       Hasql.Decoders.All
                       Hasql.Decoders.Array

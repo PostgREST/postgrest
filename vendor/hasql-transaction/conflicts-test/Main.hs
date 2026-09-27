@@ -8,8 +8,6 @@ import Main.Transactions qualified as E
 
 import Hasql.Connection qualified as A
 import Hasql.Connection.Setting qualified as H
-import Hasql.Connection.Setting.Connection qualified as I
-import Hasql.Connection.Setting.Connection.Param qualified as J
 import Hasql.Session qualified as B
 import Hasql.Transaction qualified as C
 import Hasql.Transaction.Sessions qualified as G
@@ -25,16 +23,7 @@ main =
           either (fail . show) return =<< A.acquire connectionSettings
           where
             connectionSettings =
-              [ H.connection
-                  ( I.params
-                      [ J.host "localhost"
-                      , J.port 5432
-                      , J.user "postgres"
-                      , J.password "postgres"
-                      , J.dbname "postgres"
-                      ]
-                  )
-              ]
+              [H.connection "postgresql://postgres:postgres@localhost:5432/postgres"]
     release (connection1, connection2) =
       do
         transaction connection1 E.dropSchema

@@ -12,7 +12,6 @@ import Hasql.Pool
 
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Connection.Setting.Connection qualified as Connection.Setting.Connection
 import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
 import Hasql.Pool.Config qualified as Config
