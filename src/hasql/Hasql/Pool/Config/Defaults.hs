@@ -32,11 +32,6 @@ staticConnectionSettings :: [Connection.Setting.Setting]
 staticConnectionSettings = [Connection.Setting.connection "postgresql://postgres:postgres@localhost:5432/postgres"]
 
 -- |
--- > pure "postgresql://postgres:postgres@localhost:5432/postgres"
-dynamicConnectionSettings :: IO [Connection.Setting.Setting]
-dynamicConnectionSettings = pure staticConnectionSettings
-
--- |
 -- > const (pure ())
 observationHandler :: Observation -> IO ()
 observationHandler = const (pure ())
