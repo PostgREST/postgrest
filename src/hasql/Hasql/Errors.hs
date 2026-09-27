@@ -13,10 +13,6 @@ data SessionError
       -- ^ Parameters rendered as human-readable SQL literals.
       CommandError
       -- ^ Error details.
-  | -- | Error during the execution of a pipeline.
-    PipelineError
-      CommandError
-      -- ^ Error details.
   deriving (Show)
 
 instance Exception SessionError

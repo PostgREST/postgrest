@@ -104,20 +104,3 @@ test-suite threads-test
   build-depends:
     hasql,
     rerebase,
-
-test-suite hspec
-  import: test
-  type: exitcode-stdio-1.0
-  hs-source-dirs: hspec
-  main-is: Main.hs
-  other-modules:
-    Hasql.ConnectionSpec
-    Hasql.PipelineSpec
-
-  build-tool-depends: hspec-discover:hspec-discover
-  build-depends:
-    hasql,
-    hasql:testing-kit,
-    hspec,
-    rerebase >=1 && <2,
-    testcontainers-postgresql >=0.0.1 && <0.1,
