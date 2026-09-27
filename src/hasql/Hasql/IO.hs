@@ -5,7 +5,6 @@ module Hasql.IO where
 import Hasql.Errors
 import Hasql.Prelude
 
-import Hasql.Commands qualified as Commands
 import Hasql.Decoders.Result qualified as ResultDecoders
 import Hasql.Decoders.Results qualified as ResultsDecoders
 import Hasql.Encoders.Params qualified as ParamsEncoders
@@ -48,7 +47,7 @@ getIntegerDatetimes c =
 {-# INLINE initConnection #-}
 initConnection :: LibPQ.Connection -> IO ()
 initConnection c =
-  void $ LibPQ.exec c (Commands.asBytes (Commands.setEncodersToUTF8 <> Commands.setMinClientMessagesToWarning))
+  void $ LibPQ.exec c "SET client_encoding = 'UTF8'; SET client_min_messages TO WARNING;"
 
 {-# INLINE getResults #-}
 getResults :: LibPQ.Connection -> Bool -> ResultsDecoders.Results a -> IO (Either CommandError a)
