@@ -6,16 +6,15 @@ import enum
 import os
 import pathlib
 import socket
+import string
 import subprocess
 import tempfile
 import time
-import string
 import urllib.parse
 
 import requests
 import requests_unixsocket
-
-from config import POSTGREST_BIN, NGINX_BIN, hpctixfile
+from config import NGINX_BIN, POSTGREST_BIN, hpctixfile
 
 
 def sleep_until_postgrest_scache_reload():
@@ -48,14 +47,14 @@ class PostgrestSession(requests_unixsocket.Session):
     "HTTP client session directed at a PostgREST endpoint."
 
     def __init__(self, baseurl, *args, **kwargs):
-        super(PostgrestSession, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.baseurl = baseurl
 
     def request(self, method, url, *args, **kwargs):
         # Not using urllib.parse.urljoin to compose the url, as it doesn't play
         # well with our 'http+unix://' unix domain socket urls.
         fullurl = self.baseurl + url
-        return super(PostgrestSession, self).request(method, fullurl, *args, **kwargs)
+        return super().request(method, fullurl, *args, **kwargs)
 
 
 @dataclasses.dataclass

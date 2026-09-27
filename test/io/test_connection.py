@@ -4,19 +4,19 @@ import os
 import re
 import signal
 import time
-import pytest
 
+import pytest
 from config import SECRET
-from util import (
-    Thread,
-    jwtauthheader,
-    drain_stdout,
-)
 from postgrest import (
     Admin,
     run,
     run_pgproxy,
     wait_until_exit,
+)
+from util import (
+    Thread,
+    drain_stdout,
+    jwtauthheader,
 )
 
 
@@ -58,10 +58,8 @@ def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, default
 
     with run(env=env[dburi_type]) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        version = '"%s"' % response.headers["Server"].replace(
-            "postgrest/", "PostgREST "
-        )
-        assert response.text == version
+        version = response.headers["Server"].replace("postgrest/", "PostgREST ")
+        assert response.text == f'"{version}"'
 
 
 def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
@@ -76,10 +74,8 @@ def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        version = '"%s"' % response.headers["Server"].replace(
-            "postgrest/", "PostgREST "
-        )
-        assert response.text == version
+        version = response.headers["Server"].replace("postgrest/", "PostgREST ")
+        assert response.text == f'"{version}"'
 
 
 def test_fail_with_invalid_dbname_and_automatic_recovery_disabled(defaultenv):

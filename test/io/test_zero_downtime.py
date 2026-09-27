@@ -1,11 +1,11 @@
 import time
 
-from util import Thread
 from postgrest import (
     freeport,
     run,
     wait_until_exit,
 )
+from util import Thread
 
 
 def test_so_reuseport_zero_downtime_handover(defaultenv):
@@ -48,7 +48,7 @@ def test_so_reuseport_zero_downtime_handover(defaultenv):
                     assert response.status_code == 200
                 except Exception as exc:
                     failures.append(exc)
-                    break
+                    raise
                 time.sleep(0.2)
 
         requester = Thread(target=continuously_request)
