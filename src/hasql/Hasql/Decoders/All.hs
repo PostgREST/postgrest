@@ -42,9 +42,6 @@ noResult = Result (Results.single Result.noResult)
 singleRow :: Row a -> Result a
 singleRow (Row row) = Result (Results.single (Result.single row))
 
-refineResult :: (a -> Either Text b) -> Result a -> Result b
-refineResult refiner (Result results) = Result (Results.refine refiner results)
-
 -- ** Multi-row traversers
 
 -- |
@@ -155,12 +152,6 @@ text = Value (Value.decoder (const A.text_strict))
 {-# INLINEABLE bytea #-}
 bytea :: Value ByteString
 bytea = Value (Value.decoder (const A.bytea_strict))
-
--- |
--- Refine a value decoder, lifting the possible error to the session level.
-{-# INLINEABLE refine #-}
-refine :: (a -> Either Text b) -> Value a -> Value b
-refine fn (Value v) = Value (Value.refine fn v)
 
 -- |
 -- Lift an 'Array' decoder to a 'Value' decoder.

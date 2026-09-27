@@ -33,7 +33,6 @@ module Hasql.Decoders
   , array
   , listArray
   , composite
-  , refine
 
     -- * Array
   , Array
