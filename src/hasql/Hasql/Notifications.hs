@@ -6,10 +6,7 @@
 --
 --  For more information check the [PostgreSQL documentation](https://www.postgresql.org/docs/current/libpq-notify.html).
 module Hasql.Notifications
-  ( notifyPool
-  , notify
-  , listen
-  , unlisten
+  ( listen
   , waitForNotifications
   , PgIdentifier
   , toPgIdentifier
@@ -25,7 +22,6 @@ import Control.Concurrent (threadDelay, threadWaitRead)
 import Control.Exception (Exception, throw)
 import Control.Monad (forever, unless, void, when)
 import Data.ByteString.Char8 (ByteString)
-import Data.Functor.Contravariant (contramap)
 import Data.Text (Text)
 import Prelude
 
@@ -34,13 +30,6 @@ import Data.Text.Encoding qualified as T
 import Database.PostgreSQL.LibPQ qualified as PQ
 
 import Hasql.Connection (Connection, withLibPQConnection)
-import Hasql.Pool (Pool, UsageError, use)
-import Hasql.Session (run, sql, statement)
-
-import Hasql.Decoders qualified as HD
-import Hasql.Encoders qualified as HE
-import Hasql.Session qualified as S
-import Hasql.Statement qualified as HST
 
 -- | A wrapped text that represents a properly escaped and quoted PostgreSQL identifier
 newtype PgIdentifier = PgIdentifier Text deriving (Show)
@@ -64,33 +53,6 @@ toPgIdentifier x =
   where
     strictlyReplaceQuotes :: Text -> Text
     strictlyReplaceQuotes = T.replace "\"" ("\"\"" :: Text)
-
--- | Given a Hasql Pool, a channel and a message sends a notify command to the database
-notifyPool
-  :: Pool
-  -- ^ Pool from which the connection will be used to issue a NOTIFY command.
-  -> Text
-  -- ^ Channel where to send the notification
-  -> Text
-  -- ^ Payload to be sent with the notification
-  -> IO (Either UsageError ())
-notifyPool pool channel mesg =
-  use pool (statement (channel, mesg) callStatement)
-  where
-    callStatement = HST.Statement ("SELECT pg_notify" <> "($1, $2)") encoder HD.noResult False
-    encoder = contramap fst (HE.param $ HE.nonNullable HE.text) <> contramap snd (HE.param $ HE.nonNullable HE.text)
-
--- | Given a Hasql Connection, a channel and a message sends a notify command to the database
-notify
-  :: Connection
-  -- ^ Connection to be used to send the NOTIFY command
-  -> PgIdentifier
-  -- ^ Channel where to send the notification
-  -> Text
-  -- ^ Payload to be sent with the notification
-  -> IO (Either S.SessionError ())
-notify con channel mesg =
-  run (sql $ T.encodeUtf8 ("NOTIFY " <> fromPgIdentifier channel <> ", '" <> mesg <> "'")) con
 
 -- |
 --  Given a Hasql Connection and a channel sends a listen command to the database.
@@ -127,18 +89,6 @@ listen con channel =
   void $ withLibPQConnection con execListen
   where
     execListen = executeOrPanic $ T.encodeUtf8 $ "LISTEN " <> fromPgIdentifier channel
-
--- | Given a Hasql Connection and a channel sends a unlisten command to the database
-unlisten
-  :: Connection
-  -- ^ Connection currently registerd by a previous 'listen' call
-  -> PgIdentifier
-  -- ^ Channel this connection will be deregistered from
-  -> IO ()
-unlisten con channel =
-  void $ withLibPQConnection con execUnlisten
-  where
-    execUnlisten = executeOrPanic $ T.encodeUtf8 $ "UNLISTEN " <> fromPgIdentifier channel
 
 executeOrPanic :: ByteString -> PQ.Connection -> IO ()
 executeOrPanic cmd pqCon = do
