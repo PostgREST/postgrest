@@ -164,6 +164,18 @@ main = do
           threadDelay 1_000_000 -- 1s
           res3 <- use countPool $ countConnectionsSession appName
           res3 `shouldBe` Right 0
+    it "Actively times out idle connections (maxIdletime)" $ do
+      withDefaultPool $ \countPool -> do
+        (taggedConnectionSettings, appName) <- tagConnection connectionString
+        -- the lifetime is much longer, so only the idle timeout can terminate the connection
+        withPool defaultPoolSettings{maxIdletime = 0.5} taggedConnectionSettings $ \limitedPool -> do
+          res <- use limitedPool selectOneSession
+          res `shouldBe` Right 1
+          res2 <- use countPool $ countConnectionsSession appName
+          res2 `shouldBe` Right 1
+          threadDelay 1_500_000 -- 1.5s
+          res3 <- use countPool $ countConnectionsSession appName
+          res3 `shouldBe` Right 0
     it "Times out old connections (maxIdletime)" $ do
       -- 0.5s connection idle time
       withPool defaultPoolSettings{poolSize = 1, maxIdletime = 0.5} connectionString $ \pool -> do
