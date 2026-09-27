@@ -6,8 +6,6 @@ import Data.Vector qualified as F
 
 import Hasql.Connection qualified as A
 import Hasql.Connection.Setting qualified as E
-import Hasql.Connection.Setting.Connection qualified as F
-import Hasql.Connection.Setting.Connection.Param qualified as G
 import Hasql.Decoders qualified as D
 import Hasql.Session qualified as B
 import Hasql.Statement qualified as C
@@ -23,16 +21,7 @@ main =
   where
     acquireConnection =
       A.acquire
-        [ E.connection
-            ( F.params
-                [ G.host "localhost"
-                , G.port 5432
-                , G.user "postgres"
-                , G.password "postgres"
-                , G.dbname "postgres"
-                ]
-            )
-        ]
+        [E.connection "postgresql://postgres:postgres@localhost:5432/postgres"]
 
 -- * Sessions
 

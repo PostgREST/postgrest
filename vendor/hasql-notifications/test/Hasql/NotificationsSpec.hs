@@ -10,7 +10,6 @@ import Test.QuickCheck
 
 import Hasql.Connection
 import Hasql.Connection.Setting
-import Hasql.Connection.Setting.Connection
 import Hasql.Notifications
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is

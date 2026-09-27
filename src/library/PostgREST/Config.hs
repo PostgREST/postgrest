@@ -74,7 +74,6 @@ import PostgREST.Config.Proxy
 import PostgREST.Version (prettyVersion)
 
 import Hasql.Connection.Setting qualified as SQL
-import Hasql.Connection.Setting.Connection qualified as SQL
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg = maybe (const True) (==) . configJwtAudience
@@ -690,7 +689,7 @@ addTargetSessionAttrs dbUri = addConnStringOption dbUri "target_session_attrs" "
 
 toConnectionSettings :: (Text -> Text) -> AppConfig -> [SQL.Setting]
 toConnectionSettings transformUri AppConfig{configDbUri, configDbPreparedStatements} =
-  [ SQL.connection $ SQL.string $ transformUri . addFallbackAppName prettyVersion $ configDbUri
+  [ SQL.connection $ transformUri . addFallbackAppName prettyVersion $ configDbUri
   , SQL.usePreparedStatements configDbPreparedStatements
   ]
 
