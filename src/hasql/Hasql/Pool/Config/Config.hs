@@ -13,7 +13,7 @@ data Config = Config
   , acquisitionTimeout :: DiffTime
   , agingTimeout :: DiffTime
   , idlenessTimeout :: DiffTime
-  , connectionSettingsProvider :: IO [Connection.Setting.Setting]
+  , connectionSettings :: [Connection.Setting.Setting]
   , observationHandler :: Observation -> IO ()
   , initSession :: Session.Session ()
   }
@@ -26,7 +26,7 @@ defaults =
     , acquisitionTimeout = Defaults.acquisitionTimeout
     , agingTimeout = Defaults.agingTimeout
     , idlenessTimeout = Defaults.idlenessTimeout
-    , connectionSettingsProvider = Defaults.dynamicConnectionSettings
+    , connectionSettings = Defaults.staticConnectionSettings
     , observationHandler = Defaults.observationHandler
     , initSession = Defaults.initSession
     }

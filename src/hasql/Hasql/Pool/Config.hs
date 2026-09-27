@@ -8,7 +8,6 @@ module Hasql.Pool.Config
   , Setting.agingTimeout
   , Setting.idlenessTimeout
   , Setting.staticConnectionSettings
-  , Setting.dynamicConnectionSettings
   , Setting.observationHandler
   , Setting.initSession
   )

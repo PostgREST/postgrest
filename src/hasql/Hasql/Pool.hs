@@ -44,7 +44,7 @@ entryIsIdle maxIdletime now Entry{..} =
 data Pool = Pool
   { poolSize :: Int
   -- ^ Pool size.
-  , poolFetchConnectionSettings :: IO [Connection.Setting.Setting]
+  , poolConnectionSettings :: [Connection.Setting.Setting]
   -- ^ Connection settings.
   , poolAcquisitionTimeout :: Int
   -- ^ Acquisition timeout, in microseconds.
@@ -105,7 +105,7 @@ acquire config = do
     -- When the pool goes out of scope, stop the manager.
     killThread managerTid
 
-  return $ Pool (Config.size config) (Config.connectionSettingsProvider config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config) (Config.initSession config)
+  return $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config) (Config.initSession config)
   where
     acqTimeoutMicros =
       div (fromIntegral (diffTimeToPicoseconds (Config.acquisitionTimeout config))) 1_000_000
@@ -168,11 +168,10 @@ use Pool{..} sess = do
       ]
   where
     onNewConn reuseVar = do
-      settings <- poolFetchConnectionSettings
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
-      Connection.acquire settings >>= \case
+      Connection.acquire poolConnectionSettings >>= \case
         Left connErr -> do
           poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) connErr))))
           atomically $ modifyTVar' poolCapacity succ

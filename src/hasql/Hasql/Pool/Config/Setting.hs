@@ -57,19 +57,7 @@ idlenessTimeout x =
 -- > "postgresql://postgres:postgres@localhost:5432/postgres"
 staticConnectionSettings :: [Connection.Setting.Setting] -> Setting
 staticConnectionSettings x =
-  Setting (\config -> config{Config.connectionSettingsProvider = pure x})
-
--- | Action providing connection settings.
---
--- Gets used each time a connection gets established by the pool.
--- This may be useful for some authorization models.
---
--- By default it is:
---
--- > pure "postgresql://postgres:postgres@localhost:5432/postgres"
-dynamicConnectionSettings :: IO [Connection.Setting.Setting] -> Setting
-dynamicConnectionSettings x =
-  Setting (\config -> config{Config.connectionSettingsProvider = x})
+  Setting (\config -> config{Config.connectionSettings = x})
 
 -- | Observation handler.
 --
