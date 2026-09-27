@@ -63,8 +63,7 @@ library hasql
                       Hasql.Statement
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
-  other-modules:      Hasql.Commands
-                      Hasql.Connection.Config
+  other-modules:      Hasql.Connection.Config
                       Hasql.Connection.Core
                       Hasql.Decoders.All
                       Hasql.Decoders.Array
