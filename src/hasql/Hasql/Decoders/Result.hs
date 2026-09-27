@@ -1,9 +1,6 @@
 module Hasql.Decoders.Result where
 
 import Data.Attoparsec.ByteString.Char8 qualified as Attoparsec
-import Data.ByteString qualified as ByteString
-import Data.Vector qualified as Vector
-import Data.Vector.Mutable qualified as MutableVector
 
 import Hasql.Errors
 import Hasql.Prelude hiding
@@ -15,7 +12,6 @@ import Hasql.Prelude hiding
 
 import Hasql.Decoders.Row qualified as Row
 import Hasql.LibPq14 qualified as LibPQ
-import Hasql.Prelude qualified as Prelude
 
 newtype Result a
   = Result (ReaderT (Bool, LibPQ.Result) (ExceptT ResultError IO) a)
@@ -35,32 +31,6 @@ pipelineSync =
 noResult :: Result ()
 noResult =
   checkExecStatus [LibPQ.CommandOk, LibPQ.TuplesOk]
-
-{-# INLINE rowsAffected #-}
-rowsAffected :: Result Int64
-rowsAffected =
-  do
-    checkExecStatus [LibPQ.CommandOk]
-    Result
-      $ ReaderT
-      $ \(_, result) ->
-        ExceptT
-          $ LibPQ.cmdTuples result
-          & fmap cmdTuplesReader
-  where
-    cmdTuplesReader =
-      notNothing >=> notEmpty >=> decimal
-      where
-        notNothing =
-          Prelude.maybe (Left (UnexpectedResult "No bytes")) Right
-        notEmpty bytes =
-          if ByteString.null bytes then
-            Left (UnexpectedResult "Empty bytes")
-          else
-            Right bytes
-        decimal bytes =
-          first (\m -> UnexpectedResult ("Decimal parsing failure: " <> fromString m))
-            $ Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) bytes
 
 {-# INLINE checkExecStatus #-}
 checkExecStatus :: [LibPQ.ExecStatus] -> Result ()
@@ -143,62 +113,6 @@ single rowDec =
   where
     rowToInt (LibPQ.Row n) =
       fromIntegral n
-
-{-# INLINE vector #-}
-vector :: Row.Row a -> Result (Vector a)
-vector rowDec =
-  do
-    checkExecStatus [LibPQ.TuplesOk]
-    Result
-      $ ReaderT
-      $ \(integerDatetimes, result) -> ExceptT $ do
-        maxRows <- LibPQ.ntuples result
-        maxCols <- LibPQ.nfields result
-        mvector <- MutableVector.unsafeNew (rowToInt maxRows)
-        failureRef <- newIORef Nothing
-        forMFromZero_ (rowToInt maxRows) $ \rowIndex -> do
-          rowResult <- Row.run rowDec (result, intToRow rowIndex, maxCols, integerDatetimes)
-          case rowResult of
-            Left (!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
-            Right !x -> MutableVector.unsafeWrite mvector rowIndex x
-        readIORef failureRef >>= \case
-          Nothing -> Right <$> Vector.unsafeFreeze mvector
-          Just x -> pure (Left x)
-  where
-    rowToInt (LibPQ.Row n) =
-      fromIntegral n
-    intToRow =
-      LibPQ.Row . fromIntegral
-
-{-# INLINE foldl #-}
-foldl :: (a -> b -> a) -> a -> Row.Row b -> Result a
-foldl step init rowDec =
-  {-# SCC "foldl" #-}
-  do
-    checkExecStatus [LibPQ.TuplesOk]
-    Result
-      $ ReaderT
-      $ \(integerDatetimes, result) ->
-        ExceptT
-          $ {-# SCC "traversal" #-}
-          do
-            maxRows <- LibPQ.ntuples result
-            maxCols <- LibPQ.nfields result
-            accRef <- newIORef init
-            failureRef <- newIORef Nothing
-            forMFromZero_ (rowToInt maxRows) $ \rowIndex -> do
-              rowResult <- Row.run rowDec (result, intToRow rowIndex, maxCols, integerDatetimes)
-              case rowResult of
-                Left (!colIndex, !x) -> writeIORef failureRef (Just (RowError rowIndex colIndex x))
-                Right !x -> modifyIORef' accRef (`step` x)
-            readIORef failureRef >>= \case
-              Nothing -> Right <$> readIORef accRef
-              Just x -> pure (Left x)
-  where
-    rowToInt (LibPQ.Row n) =
-      fromIntegral n
-    intToRow =
-      LibPQ.Row . fromIntegral
 
 {-# INLINE foldr #-}
 foldr :: (b -> a -> a) -> a -> Row.Row b -> Result a

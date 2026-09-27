@@ -23,11 +23,6 @@ decoder =
   {-# SCC "decoder" #-}
   Value
 
-{-# INLINE decoderFn #-}
-decoderFn :: (Bool -> ByteString -> Either Text a) -> Value a
-decoderFn fn =
-  Value $ \integerDatetimes -> A.fn $ fn integerDatetimes
-
 -- |
 -- Refine a value decoder, lifting the possible error to the session level.
 {-# INLINE refine #-}

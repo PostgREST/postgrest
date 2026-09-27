@@ -39,7 +39,6 @@ import Data.Functor as Exports hiding (unzip)
 import Data.Functor.Contravariant as Exports
 import Data.Functor.Identity as Exports
 import Data.IORef as Exports
-import Data.IP as Exports (IPRange)
 import Data.Int as Exports
 import Data.Ix as Exports
 import Data.List as Exports hiding
@@ -79,17 +78,13 @@ import Data.Ord as Exports
 import Data.Proxy as Exports
 import Data.Ratio as Exports
 import Data.STRef as Exports
-import Data.Scientific as Exports (Scientific)
 import Data.Semigroup as Exports
 import Data.Sequence as Exports (Seq)
 import Data.String as Exports
 import Data.Text as Exports (Text)
-import Data.Time as Exports
 import Data.Traversable as Exports
 import Data.Tuple as Exports
-import Data.UUID as Exports (UUID)
 import Data.Unique as Exports
-import Data.Vector as Exports (Vector)
 import Data.Version as Exports
 import Data.Word as Exports
 import Debug.Trace as Exports

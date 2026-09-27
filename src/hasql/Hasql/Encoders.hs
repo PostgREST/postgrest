@@ -16,51 +16,14 @@ module Hasql.Encoders
 
     -- * Value
   , Value
-  , bool
-  , int2
   , int4
-  , int8
-  , float4
-  , float8
-  , numeric
-  , char
   , text
   , bytea
-  , date
-  , timestamp
-  , timestamptz
-  , time
-  , timetz
-  , interval
-  , uuid
-  , inet
-  , macaddr
-  , json
-  , jsonBytes
   , jsonLazyBytes
-  , jsonb
-  , jsonbBytes
   , jsonbLazyBytes
-  , int4range
-  , int8range
-  , numrange
-  , tsrange
-  , tstzrange
-  , daterange
-  , int4multirange
-  , int8multirange
-  , nummultirange
-  , tsmultirange
-  , tstzmultirange
-  , datemultirange
-  , name
-  , oid
-  , enum
-  , unknownEnum
   , unknown
   , array
   , foldableArray
-  , composite
 
     -- * Array
   , Array
@@ -69,7 +32,6 @@ module Hasql.Encoders
 
     -- * Composite
   , Composite
-  , field
   )
 where
 
