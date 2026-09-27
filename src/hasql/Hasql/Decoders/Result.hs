@@ -20,11 +20,6 @@ run :: Result a -> Bool -> LibPQ.Result -> IO (Either ResultError a)
 run (Result reader) idt result =
   runExceptT (runReaderT reader (idt, result))
 
-{-# INLINE pipelineSync #-}
-pipelineSync :: Result ()
-pipelineSync =
-  checkExecStatus [LibPQ.PipelineSync]
-
 {-# INLINE noResult #-}
 noResult :: Result ()
 noResult =

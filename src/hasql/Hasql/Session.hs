@@ -2,7 +2,6 @@ module Hasql.Session
   ( Session
   , sql
   , statement
-  , pipeline
 
     -- * Execution
   , run
