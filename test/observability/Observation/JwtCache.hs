@@ -10,8 +10,15 @@ import Test.Hspec (SpecWith, describe, it)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON (json)
 
+import Jose.Jwa qualified as JWT
+import Jose.Jwk qualified as JWT
+
 import ObsHelper
+import PostgREST.Config (AppConfig (..))
 import PostgREST.Metrics (MetricsState (..))
+
+import PostgREST.AppState qualified as AppState
+import PostgREST.Auth.JwtCache qualified as JwtCache
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do
@@ -132,7 +139,39 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         -- these two should hit the cache
         *> request methodGet "/authors_only" [jwt2] ""
         *> request methodGet "/authors_only" [jwt3] ""
+  it "Should keep cached JWTs when a key is added" $ do
+    expectCounters <- checkState' . specMetrics <$> getState
+
+    let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe12"}|]
+
+    expectCounters
+      [ requests (+ 2)
+      , hits (+ 1)
+      ]
+      $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
+        *> reconfigureKeys [secretKey, otherKey]
+        *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
+
+  it "Should verify cached JWTs again when their key is removed" $ do
+    let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe13"}|]
+
+    request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
+    reconfigureKeys [otherKey]
+    request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
+    reconfigureKeys [secretKey]
+    request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
   where
+    secretKey = JWT.SymmetricJwk generateSecret Nothing (Just JWT.Sig) (Just $ JWT.Signed JWT.HS256)
+    otherKey = JWT.SymmetricJwk "another secret with at least 32 characters" Nothing (Just JWT.Sig) (Just $ JWT.Signed JWT.HS256)
+
+    -- reload the config with other keys
+    reconfigureKeys keys = do
+      appState <- specAppState <$> getState
+      liftIO $ do
+        conf <- (\c -> c{configJWKS = Just $ JWT.JwkSet keys}) <$> AppState.getConfig appState
+        AppState.putConfig appState conf
+        JwtCache.update (AppState.getJwtCacheState appState) conf
+
     genToken = authHeaderJWT . generateJWT
     requests = expectCounter @"jwtCacheRequests"
     hits = expectCounter @"jwtCacheHits"
