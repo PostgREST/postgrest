@@ -44,9 +44,6 @@ import PostgREST.Cache.Sieve qualified as SC
 
 data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
 
-class CacheVariant m v where
-  cached :: (MonadError Error n, MonadIO n) => SC.Cache m ByteString v -> ByteString -> n JSON.Object
-
 -- |
 -- Jwt caching can have three different configurations:
 -- * missing JWT Key (no caching and throw error when JWT token present in the request)
@@ -59,18 +56,12 @@ class CacheVariant m v where
 data JwtCache
   = JwtNoJwks
   | JwtNoCache JwkSet
-  | forall m v. (CacheVariant m v) => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
-
-instance CacheVariant IO (Either Error JSON.Object) where
-  cached c = liftIO . SC.cached c >=> liftEither
-
-instance CacheVariant (ExceptT Error IO) JSON.Object where
-  cached c = liftIO . runExceptT . SC.cached c >=> liftEither
+  | JwtCache JwkSet (TVar Int) (SC.Cache (ExceptT Error IO) ByteString JSON.Object)
 
 decode :: (MonadError Error m, MonadIO m) => JwtCache -> ByteString -> m JSON.Object
 decode JwtNoJwks = const $ throwError (JwtErr JwtSecretMissing)
 decode (JwtNoCache key) = parseAndDecodeClaims key
-decode (JwtCache _ _ c) = cached c
+decode (JwtCache _ _ c) = liftIO . runExceptT . SC.cached c >=> liftEither
 
 -- | Reconfigure JWT caching and update JwtCacheState accordingly
 update :: JwtCacheState -> AppConfig -> IO ()
