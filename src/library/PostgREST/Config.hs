@@ -106,6 +106,7 @@ data AppConfig = AppConfig
     configFilePath :: Maybe FilePath,
     configJWKS :: Maybe JwkSet,
     configJwtAudience :: Maybe Text,
+    configJwtIssuer :: Maybe Text,
     configJwtRoleClaimKey :: JSPath,
     configJwtSecret :: Maybe BS.ByteString,
     configJwtSecretIsBase64 :: Bool,
@@ -194,6 +195,7 @@ toText conf =
               ("db-tx-end", q . showTxEnd),
               ("db-uri", q . configDbUri),
               ("jwt-aud", q . fromMaybe mempty . configJwtAudience),
+              ("jwt-iss", q . fromMaybe mempty . configJwtIssuer),
               ("jwt-role-claim-key", q . dumpJSPath . configJwtRoleClaimKey),
               ("jwt-secret", q . T.decodeUtf8 . showJwtSecret),
               ("jwt-secret-is-base64", T.toLower . show . configJwtSecretIsBase64),
@@ -322,6 +324,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> pure optPath
     <*> pure Nothing
     <*> optStringOrURI "jwt-aud"
+    <*> optStringOrURI "jwt-iss"
     <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
     <*> (fmap encodeUtf8 <$> optString "jwt-secret")
     <*> ( fromMaybe False
@@ -486,7 +489,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           if isURI (T.unpack s) then
             return $ Just s
           else
-            fail "jwt-aud should be a string or a valid URI"
+            fail $ toS k <> " should be a string or a valid URI"
 
     optInt :: (Integral i, Read i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
@@ -784,6 +787,9 @@ exampleConfigFile =
       "db-uri = \"postgresql://\"",
       "",
       "# jwt-aud = \"your_audience_claim\"",
+      "",
+      "## Issuer the JWT iss claim must match",
+      "# jwt-iss = \"https://your.identity.provider\"",
       "",
       "## Jspath to the role claim key",
       "jwt-role-claim-key = \".role\"",

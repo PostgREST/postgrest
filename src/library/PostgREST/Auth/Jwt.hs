@@ -53,21 +53,22 @@ decodeClaims :: (MonadError Error m) => JWT.JwtContent -> m JSON.Object
 decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 
-validateClaims :: (MonadError Error m) => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
-validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
+validateClaims :: (MonadError Error m) => UTCTime -> (Text -> Bool) -> Maybe Text -> JSON.Object -> m ()
+validateClaims time audMatches issuer claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches issuer claims)
 
 data ValidAud = VAString Text | VAArray [Text] deriving (Generic)
 
 instance JSON.FromJSON ValidAud where
   parseJSON = JSON.genericParseJSON JSON.defaultOptions{JSON.sumEncoding = JSON.UntaggedValue}
 
-checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
-checkForErrors time audMatches =
+checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> Maybe Text -> JSON.Object -> m JwtClaimsError
+checkForErrors time audMatches issuer =
   mconcat
     [ claim "exp" ExpClaimNotNumber $ inThePast JWTExpired,
       claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid,
       claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture,
-      claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience
+      claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience,
+      maybe mempty checkIssuer issuer
     ]
   where
     allowedSkewSeconds = 30 :: Int64
@@ -91,6 +92,10 @@ checkForErrors time audMatches =
         mempty
 
     claim key parseError checkParsed = maybe (pure parseError) (maybe mempty checkParsed) . parseMaybe (.:? key)
+
+    -- unlike the other claims, iss is required once an issuer is configured
+    checkIssuer expected =
+      maybe (pure IssClaimNotString) (checkValue (/= Just expected) JWTIssuerMismatch) . parseMaybe (.:? "iss")
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
@@ -150,9 +155,9 @@ decodeWithKey keys token = case jwsHeader of
       _ -> Nothing
 
 parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> Maybe JSON.Object -> m AuthResult
-parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time maybeClaims = do
+parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole, configJwtIssuer} time maybeClaims = do
   -- anonymous requests have no claims to validate
-  traverse_ (validateClaims time (audMatchesCfg cfg)) maybeClaims
+  traverse_ (validateClaims time (audMatchesCfg cfg) configJwtIssuer) maybeClaims
   let mclaims = fromMaybe KM.empty maybeClaims
   -- role defaults to anon if not specified in jwt
   role <-
