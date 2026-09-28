@@ -13,7 +13,7 @@ data SessionError
       -- ^ Parameters rendered as human-readable SQL literals.
       CommandError
       -- ^ Error details.
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance Exception SessionError
 
@@ -28,7 +28,7 @@ data CommandError
   | -- |
     -- Some error with a command result.
     ResultError ResultError
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- |
 -- An error with a command result.
@@ -60,7 +60,7 @@ data ResultError
   | -- |
     -- An unexpected amount of rows.
     UnexpectedAmountOfRows Int
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- |
 -- An error during the decoding of a specific row.
@@ -75,4 +75,4 @@ data RowError
     -- Appears when a wrong value parser is used.
     -- Comes with the error details.
     ValueError Text
-  deriving (Show)
+  deriving (Eq, Show)

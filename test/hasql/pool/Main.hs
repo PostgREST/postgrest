@@ -1,11 +1,11 @@
 module Main where
 
-import Control.Concurrent.Async (race)
+import Data.Functor.Contravariant (contramap)
+import Data.Time (diffUTCTime, getCurrentTime)
+import Protolude
 import Test.Hspec
-import Prelude
 
 import Data.Text qualified as Text
-import System.Environment qualified
 import System.Random.Stateful qualified as Random
 
 import Hasql.Pool
@@ -20,9 +20,10 @@ import Hasql.Statement qualified as Statement
 
 main :: IO ()
 main = do
-  connectionString <- getConnectionString
+  -- libpq reads the connection parameters from the PG* variables
+  let connectionString = ""
   let
-    withPool poolSize acqTimeout maxLifetime maxIdletime connectionString =
+    withPool poolSize acqTimeout maxLifetime maxIdletime connString =
       bracket
         ( acquire
             ( Config.settings
@@ -32,7 +33,7 @@ main = do
                   Config.idlenessTimeout maxIdletime,
                   Config.staticConnectionSettings
                     [ Connection.Setting.connection
-                        (Connection.Setting.Connection.string connectionString)
+                        connString
                     ]
                 ]
             )
@@ -78,10 +79,10 @@ main = do
     it "Getting and setting session variables works" $ withDefaultPool $ \pool -> do
       res <- use pool $ getSettingSession "testing.foo"
       res `shouldBe` Right Nothing
-      res <- use pool $ do
+      res2 <- use pool $ do
         setSettingSession "testing.foo" "hello world"
         getSettingSession "testing.foo"
-      res `shouldBe` Right (Just "hello world")
+      res2 `shouldBe` Right (Just "hello world")
     it "Session variables stay set when a connection gets reused" $ withPool 1 10 1_800 1_800 connectionString $ \pool -> do
       res <- use pool $ setSettingSession "testing.foo" "hello world"
       res `shouldBe` Right ()
@@ -91,8 +92,8 @@ main = do
       res <- use pool $ setSettingSession "testing.foo" "hello world"
       res `shouldBe` Right ()
       release pool
-      res <- use pool $ getSettingSession "testing.foo"
-      res `shouldBe` Right Nothing
+      res2 <- use pool $ getSettingSession "testing.foo"
+      res2 `shouldBe` Right Nothing
     it "Times out connection acquisition" $
       -- 1ms timeout
       -- 1ms timeout
@@ -164,24 +165,6 @@ main = do
         threadDelay 1_000_000 -- 1s
         res4 <- use pool $ getSettingSession "testing.foo"
         res4 `shouldBe` Right Nothing
-
-getConnectionString :: IO Text
-getConnectionString =
-  Text.unwords
-    . catMaybes
-    <$> sequence
-      [ setting "host" $ defaultEnv "POSTGRES_HOST" "localhost",
-        setting "port" $ defaultEnv "POSTGRES_PORT" "5432",
-        setting "user" $ defaultEnv "POSTGRES_USER" "postgres",
-        setting "password" $ defaultEnv "POSTGRES_PASSWORD" "postgres",
-        setting "dbname" $ defaultEnv "POSTGRES_DBNAME" "postgres"
-      ]
-  where
-    maybeEnv env = fmap Text.pack <$> System.Environment.lookupEnv env
-    defaultEnv env val = Just . fromMaybe val <$> maybeEnv env
-    setting label getEnv = do
-      val <- getEnv
-      return $ (\v -> label <> "=" <> v) <$> val
 
 tagConnection :: Text -> IO (Text, Text)
 tagConnection connectionString = do

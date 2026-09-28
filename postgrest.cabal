@@ -403,6 +403,21 @@ test-suite observability
                       -- https://github.com/PostgREST/postgrest/issues/387
                       -with-rtsopts=-K33K
 
+test-suite hasql-pool
+  import:             defaults-and-shared
+  type:               exitcode-stdio-1.0
+  default-extensions: LambdaCase
+  hs-source-dirs:     test/hasql/pool
+  main-is:            Main.hs
+  build-depends:      base              >= 4.9 && < 4.22
+                    , postgrest:hasql
+                    , hspec             >= 2.3 && < 2.12
+                    , protolude         >= 0.3.1 && < 0.4
+                    , random            >= 1.2 && < 1.4
+                    , text              >= 1.2.2 && < 2.2
+                    , time              >= 1.6 && < 1.15
+  ghc-options:        -threaded -O0 -fwrite-ide-info
+
 test-suite doctests
   import:             defaults-and-shared
   type:               exitcode-stdio-1.0
