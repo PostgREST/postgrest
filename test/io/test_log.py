@@ -125,9 +125,7 @@ def test_log_query(level, defaultenv):
         root_tables_regx = r".+: SELECT   n.nspname AS table_schema, .+ FROM pg_class c .+ ORDER BY table_schema, table_name"
         root_procs_regx = r".+: WITH.+base_types AS.+pn\.nspname AS proc_schema.+FROM pg_proc p.+p\.pronamespace = quote_ident\(\$1\)::regnamespace"
         root_descr_regx = r".+: SELECT pg_catalog\.obj_description\(quote_ident\(\$1\)::regnamespace, 'pg_namespace'\)"
-        set_config_regx = (
-            r".+: select set_config\('search_path', \$1, true\), set_config\("
-        )
+        set_config_regx = r".+: select set_config\('search_path', \$1::text \|\| ',' \|\| current_setting\('search_path'\), true\), set_config\("
 
         output = drain_stdout(postgrest)
 

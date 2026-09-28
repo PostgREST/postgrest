@@ -298,7 +298,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
-    <*> (maybe ["public"] splitOnCommasEmptyable <$> optStringEmptyable "db-extra-search-path")
+    <*> (maybe [] splitOnCommasEmptyable <$> optStringEmptyable "db-extra-search-path")
     <*> (maybe defaultHoistedAllowList splitOnCommas <$> optString "db-hoisted-tx-settings")
     <*> optWithAlias
       (optInt "db-max-rows")
@@ -749,7 +749,7 @@ exampleConfigFile =
     , "## db-pre-config = \"postgrest.pre_config\""
     , ""
     , "## Extra schemas to add to the search_path of every request"
-    , "db-extra-search-path = \"public\""
+    , "db-extra-search-path = \"\""
     , ""
     , "## Limit rows in response"
     , "# db-max-rows = 1000"

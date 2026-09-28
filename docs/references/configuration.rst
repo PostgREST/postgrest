@@ -370,7 +370,7 @@ db-extra-search-path
 
   =============== ==========================
   **Type**        String
-  **Default**     public
+  **Default**     `n/a`
   **Reloadable**  Y
   **Environment** PGRST_DB_EXTRA_SEARCH_PATH
   **In-Database** pgrst.db_extra_search_path

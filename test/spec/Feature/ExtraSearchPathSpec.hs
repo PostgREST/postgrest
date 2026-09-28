@@ -10,7 +10,7 @@ import PostgREST.Config (AppConfig (..))
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"]}) $ describe "extra search path" $ do
+spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["extensions", "EXTRA \"@/\\#~_-"]}) $ describe "extra search path" $ do
   it "finds the ltree <@ operator on the public schema" $
     request methodGet "/ltree_sample?path=cd.Top.Science.Astronomy" [] ""
       `shouldRespondWith` [json|[
@@ -70,5 +70,5 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
         { matchHeaders = [matchContentTypeJson]
         }
 
-  it "can detect fk relations through multiple views recursively when middle views are in extra search path" $
+  it "can detect fk relations through multiple views recursively when middle views are in db-extra-search-path or the pg search_path setting" $
     get "/consumers_extra_view?select=*,orders_view(*)" `shouldRespondWith` 200
