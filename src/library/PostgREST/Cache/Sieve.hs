@@ -15,7 +15,6 @@ module PostgREST.Cache.Sieve
   ( Cache
   , CacheConfig (..)
   , Discard (..)
-  , alwaysValid
   , cache
   , cacheIO
   , cached
@@ -71,9 +70,6 @@ data CacheConfig m k v = CacheConfig
     -- any, in the transaction that looks it up
     validator :: k -> m (v -> STM (Maybe (Discard m v)))
   }
-
-alwaysValid :: (Applicative m) => k -> m (v -> STM (Maybe (Discard m v)))
-alwaysValid = pure $ pure $ pure $ pure empty
 
 cacheIO :: (Hashable k, MonadIO m) => CacheConfig m k v -> IO (Cache m k v)
 cacheIO = atomically . cache
