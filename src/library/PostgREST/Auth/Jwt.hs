@@ -26,6 +26,7 @@ import Jose.Jwk (Jwk, JwkSet)
 import Protolude hiding (first)
 
 import Data.Aeson qualified as JSON
+import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64.URL qualified as B64URL
 import Data.ByteString.Internal qualified as BS
@@ -148,9 +149,11 @@ decodeWithKey keys token = case jwsHeader of
             Just jws
       _ -> Nothing
 
-parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JSON.Object -> m AuthResult
-parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims = do
-  validateClaims time (audMatchesCfg cfg) mclaims
+parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> Maybe JSON.Object -> m AuthResult
+parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time maybeClaims = do
+  -- anonymous requests have no claims to validate
+  traverse_ (validateClaims time (audMatchesCfg cfg)) maybeClaims
+  let mclaims = fromMaybe KM.empty maybeClaims
   -- role defaults to anon if not specified in jwt
   role <-
     liftEither . maybeToRight (JwtErr JwtTokenRequired) $

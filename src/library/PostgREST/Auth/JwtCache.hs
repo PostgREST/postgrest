@@ -29,7 +29,6 @@ import Jose.Jwk (Jwk, JwkSet (..))
 import Protolude
 
 import Data.Aeson qualified as JSON
-import Data.Aeson.KeyMap qualified as KM
 
 import PostgREST.Auth.Jwt (parseAndDecodeClaims)
 import PostgREST.Cache.Sieve (Discard (..))
@@ -108,5 +107,5 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
             (const . liftIO $ (\current (_, verifiedWith) -> pure $ if maybe False (`elem` keys current) verifiedWith then Nothing else Just (Refresh pass)) <$> readTVarIO key)
         )
 
-lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> Maybe ByteString -> m JSON.Object
-lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
+lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> ByteString -> m JSON.Object
+lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= (`decode` k)
