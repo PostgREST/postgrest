@@ -133,7 +133,7 @@ All releases are published on `PostgREST's GitHub release page <https://github.c
 Deprecation policy
 ~~~~~~~~~~~~~~~~~~
 
-- A supported feature will be deprecated for at least one MAJOR release before it is removed.
+- A supported feature will remain deprecated for at least one but no more than two MAJOR releases before it is removed.
 - Deprecations only apply to the API and configuration options.
 - Use of deprecated features will raise a deprecation warning to provide users with notice and a migration path before removal.
 - Exceptions may be made for security vulnerabilities, cases where maintaining compatibility would impose significant maintenance burden or experimental/undocumented functionality.
