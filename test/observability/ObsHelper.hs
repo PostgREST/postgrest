@@ -94,6 +94,7 @@ baseCfg =
           configFilePath = Nothing,
           configJWKS = rightToMaybe $ parseSecret secret,
           configJwtAudience = Nothing,
+          configJwtIssuer = Nothing,
           configJwtRoleClaimKey = defaultRoleJSPathKey,
           configJwtSecret = Just secret,
           configJwtSecretIsBase64 = False,

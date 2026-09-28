@@ -46,6 +46,11 @@ cli:
     use_defaultenv: true
     env:
       PGRST_JWT_AUD: 'http://%%localhorst.invalid'
+  - name: invalid jwt-iss
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_JWT_ISS: 'http://%%localhorst.invalid'
   - name: invalid log-level
     expect: error
     use_defaultenv: true

@@ -661,11 +661,13 @@ instance ErrorBody JwtError where
     JWTNotYetValid -> "JWT not yet valid"
     JWTIssuedAtFuture -> "JWT issued at future"
     JWTNotInAudience -> "JWT not in audience"
+    JWTIssuerMismatch -> "JWT issuer does not match"
     ParsingClaimsFailed -> "Parsing claims failed"
     ExpClaimNotNumber -> "The JWT 'exp' claim must be a number"
     NbfClaimNotNumber -> "The JWT 'nbf' claim must be a number"
     IatClaimNotNumber -> "The JWT 'iat' claim must be a number"
     AudClaimNotStringOrArray -> "The JWT 'aud' claim must be a string or an array of strings"
+    IssClaimNotString -> "The JWT 'iss' claim must be a string"
 
   details (JwtDecodeErr jde) = case jde of
     KeyError dets -> Just $ JSON.String dets
