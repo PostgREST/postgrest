@@ -47,6 +47,20 @@ let
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability -- "''${_arg_leftovers[@]}"
       '';
 
+  testHasql =
+    checkedShellScript
+      {
+        name = "postgrest-test-hasql";
+        docs = "Run the test suites of the hasql libraries.";
+        args = [ "ARG_LEFTOVERS([hspec arguments])" ];
+        workingDir = "/";
+        withEnv = postgrest.env;
+      }
+      ''
+        ${withTools.withPg} \
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-pool -- "''${_arg_leftovers[@]}"
+      '';
+
   testDoctests =
     checkedShellScript
       {
@@ -170,7 +184,7 @@ let
             rm -rf coverage/*
 
             # build once before running all the tests
-            ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability
+            ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability test:hasql-pool
 
             (
               trap 'echo Found dead code: Check file list above.' ERR ;
@@ -198,12 +212,16 @@ let
               ${withTools.withPg} -f test/observability/fixtures/load.sql \
               ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:observability
 
+            HPCTIXFILE="$tmpdir"/hasql-pool.tix \
+              ${withTools.withPg} \
+              ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-pool
+
             # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
             # collect all the tix files
             ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
               "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix \
-              "$tmpdir"/observability.tix
+              "$tmpdir"/observability.tix "$tmpdir"/hasql-pool.tix
 
             # prepare the overlay
             ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
@@ -270,6 +288,7 @@ buildToolbox {
     inherit
       testSpec
       testObservability
+      testHasql
       testDoctests
       testSpecIdempotence
       testIO
