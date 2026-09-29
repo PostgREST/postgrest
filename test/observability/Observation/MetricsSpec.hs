@@ -6,9 +6,9 @@ module Observation.MetricsSpec where
 
 import Data.List (lookup)
 import Network.Wai (Application)
-import Prometheus (getCounter, getVectorWith)
+import Prometheus (Info (..), SampleGroup (..), getCounter, getVectorWith)
 import Protolude
-import Test.Hspec (SpecWith, describe, it)
+import Test.Hspec (SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (getState)
 
 import ObsHelper
@@ -25,6 +25,22 @@ import PostgREST.AppState qualified as AppState
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do
+  it "Should sample the metrics of the AppState" $ do
+    SpecState{specAppState = appState} <- getState
+    names <- liftIO $ fmap (\(SampleGroup info _ _) -> metricName info) <$> AppState.sampleMetrics appState
+    -- a vector is only sampled once it has a label, e.g. after a schema cache load
+    liftIO $
+      filter (/= "pgrst_schema_cache_loads_total") names
+        `shouldBe` [ "pgrst_db_pool_timeouts_total"
+                   , "pgrst_db_pool_available"
+                   , "pgrst_db_pool_waiting"
+                   , "pgrst_db_pool_max"
+                   , "pgrst_schema_cache_query_time_seconds"
+                   , "pgrst_jwt_cache_requests_total"
+                   , "pgrst_jwt_cache_hits_total"
+                   , "pgrst_jwt_cache_evictions_total"
+                   ]
+
   it "Should update pgrst_schema_cache_loads_total[SUCCESS]" $ do
     SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
