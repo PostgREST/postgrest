@@ -84,16 +84,7 @@ import PostgREST.Unix qualified as Unix (installSignalHandlers)
 
 run :: AppState -> Weak ThreadId -> IO ()
 run appState mainThreadIdRef = do
-  conf <- AppState.getConfig appState
-
-  -- Emit deprecation warning here for deprecated config. This is done
-  -- here because we can only log observations once AppState is initialized.
-  -- We can't log it right after reading the config because we dont' have
-  -- the observer available at that time.
-  -- TODO: Remove before next major
-  case configJwtRoleClaimKey conf of
-    Left djsp -> observer $ DeprecatedJSPathSyntaxObs djsp
-    Right _ -> pure ()
+  conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
   mainSocketRef <- newIORef Nothing
   let
@@ -113,7 +104,7 @@ run appState mainThreadIdRef = do
     -- Kick off and wait for the initial SchemaCache load before creating the
     -- main API socket.
     AppState.schemaCacheLoader appState
-    if configServerReusePort conf then
+    if configServerReusePort then
       AppState.waitForSchemaCacheLoaded appState
     else
       AppState.waitForSchemaCacheInit appState
