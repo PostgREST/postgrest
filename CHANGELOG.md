@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. From versio
 
 - Add schema cache query logging on `log-query=true` and `log-level=info|debug` by @steve-chavez in #5285
 - Reduce JWT cache memory usage by @mkleczek in #5229
+- Remove deprecated JSPath DSL syntax for `jwt-role-claim-key` config by @taimoorzaeem in #5192
 
 ## [16.4] - 2026-09-24
 
