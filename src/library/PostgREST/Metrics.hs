@@ -10,12 +10,14 @@ module PostgREST.Metrics
   , MetricsState (..)
   , connectionCounts
   , observationMetrics
+  , registerMetrics
   , metricsToText
   )
 where
 
 import Control.Arrow ((&&&))
 import Data.Bitraversable (bisequenceA)
+import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.Tuple.Extra (both)
 import Data.UUID (UUID)
 import GHC.Stats (getRTSStatsEnabled)
@@ -42,22 +44,34 @@ data MetricsState
   , jwtCacheRequests :: Counter
   , jwtCacheHits :: Counter
   , jwtCacheEvictions :: Counter
+  , metricsSamples :: IO [SampleGroup]
+  -- ^ The current samples of the metrics above
   }
 
+-- | Create the metrics. They are not registered, so several can be created in
+-- a process; they are exported once their samples are registered, see
+-- 'registerMetrics'.
 init :: Int -> IO MetricsState
 init configDbPoolSize = do
-  whenM getRTSStatsEnabled $ void $ register PMG.ghcMetrics
+  samplers <- newIORef []
+  let
+    create :: Metric s -> IO s
+    create metric = do
+      (value, sample) <- construct metric
+      modifyIORef' samplers (<> [sample])
+      pure value
   metricState <-
     MetricsState
-      <$> register (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
-      <*> register (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
-      <*> register (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
-      <*> register (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
-      <*> register (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
-      <*> register (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
-      <*> register (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups"))
-      <*> register (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits"))
-      <*> register (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
+      <$> create (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
+      <*> create (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
+      <*> create (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
+      <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
+      <*> create (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
+      <*> create (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
+      <*> create (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups"))
+      <*> create (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits"))
+      <*> create (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
+      <*> (fmap concat . sequence <$> readIORef samplers)
   setGauge (poolMaxSize metricState) (fromIntegral configDbPoolSize)
   pure metricState
   where
@@ -96,6 +110,14 @@ observationMetrics MetricsState{..} obs = case obs of
   JwtCacheEviction -> incCounter jwtCacheEvictions
   _ ->
     pure ()
+
+-- | Register the GHC runtime metrics and the given samples (e.g. of an
+-- AppState's metrics), to be exported by 'metricsToText'. Called once per
+-- process.
+registerMetrics :: IO [SampleGroup] -> IO ()
+registerMetrics samples = do
+  whenM getRTSStatsEnabled $ void $ register PMG.ghcMetrics
+  void . register $ Metric (pure ((), samples))
 
 metricsToText :: IO LBS.ByteString
 metricsToText = exportMetricsAsText
