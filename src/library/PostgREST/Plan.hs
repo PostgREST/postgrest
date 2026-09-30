@@ -213,24 +213,22 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
       _ -> DbCrud False pl
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
-wrappedReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Preferences{..}, ..} headersOnly = do
+wrappedReadPlan identifier conf sCache apiRequest@ApiRequest{..} headersOnly = do
   qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly qi
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
-mutateReadPlan mutation apiRequest@ApiRequest{iPreferences = Preferences{..}, ..} identifier conf sCache = do
+mutateReadPlan mutation apiRequest@ApiRequest{..} identifier conf sCache = do
   qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
   mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CrudPlan
-callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Preferences{preferHandling, invalidPrefs, preferMaxAffected}, ..} invMethod = do
+callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Preferences{preferHandling, preferMaxAffected}, ..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv -> iColumns
@@ -251,7 +249,6 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Prefere
       (Inv, Routine.Volatile) -> SQL.Write
     cPlan = callPlan proc apiRequest paramKeys args rPlan
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestErr $ InvalidPreferences invalidPrefs else Right ()
   failMaxAffectedRpcReturnsSingle (preferMaxAffected, preferHandling) proc
   return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod identifier
   where
