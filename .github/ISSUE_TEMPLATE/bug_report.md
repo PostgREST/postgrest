@@ -18,6 +18,7 @@ send the server a SIGUSR1 signal or restart it (http://postgrest.org/en/stable/a
 * PostgreSQL version: (if using docker, specify the image)
 * PostgREST version: (if using docker, specify the image)
 * Operating system:
+* Cloud Environment: (if applicable, e.g. AWS, Supabase etc)
 
 ### Description of issue
 
