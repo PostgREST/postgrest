@@ -109,6 +109,14 @@ userApiRequest conf prefs req reqBody = do
   qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act
+  case act of
+    ActDb ActSchemaRead{} -> pure () -- root doesn't apply preferences
+    ActDb _ ->
+      when (Preferences.preferHandling prefs == Just Preferences.Strict && not (null $ Preferences.invalidPrefs prefs)) $
+        Left $
+          InvalidPreferences $
+            Preferences.invalidPrefs prefs
+    _ -> pure () -- the *Info (OPTIONS) requests don't apply preferences
   return $
     ApiRequest
       { iAction = act
