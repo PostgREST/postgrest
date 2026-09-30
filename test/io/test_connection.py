@@ -118,7 +118,6 @@ def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaul
         assert exitCode == 1
 
 
-@pytest.mark.xfail(reason="requests fail on pool connections the database closed", strict=True)
 def test_replace_pool_connections_closed_by_the_database(defaultenv):
     "Pooled connections the database closed (e.g. on a restart) are replaced instead of failing requests"
 
