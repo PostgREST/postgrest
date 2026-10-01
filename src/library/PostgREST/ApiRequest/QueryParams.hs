@@ -127,12 +127,6 @@ data QueryParams
   -- ^ &select parameter used to shape the response
   , qsFilters :: [(EmbedPath, Filter)]
   -- ^ Filters on the result from e.g. &id=e.10
-  , qsFiltersRoot :: [Filter]
-  -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
-  , qsFiltersNotRoot :: [(EmbedPath, Filter)]
-  -- ^ Subset of the filters that do not apply on the root table
-  , qsFilterFields :: S.Set FieldName
-  -- ^ Set of fields that filters apply to
   , qsOnConflict :: Maybe [FieldName]
   -- ^ &on_conflict parameter used to upsert on specific unique keys
   }
@@ -166,19 +160,13 @@ parse isRpcRead qs = do
   rCols <- pRequestColumns columns
   rSel <- pRequestSelect select
   (rFlts, params) <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
-  (rFltsRoot, rFltsNotRoot) <- pure $ L.partition hasRootFilter rFlts
   rOnConflict <- pRequestOnConflict `traverse` onConflict
 
-  let
-    rFltsFields = S.fromList (fst <$> filters)
-    params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
-    rFltsRoot' = snd <$> rFltsRoot
+  let params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
 
-  return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
+  return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rOnConflict
   where
-    hasRootFilter, hasOp :: (EmbedPath, Filter) -> Bool
-    hasRootFilter ([], _) = True
-    hasRootFilter _ = False
+    hasOp :: (EmbedPath, Filter) -> Bool
     hasOp (_, Filter (_, _) (NoOpExpr _)) = False
     hasOp _ = True
 

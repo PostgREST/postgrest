@@ -901,6 +901,12 @@ findTable qi@QualifiedIdentifier{..} sc@SchemaCache{dbTables} =
     Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName sc
     Just _ -> Right qi
 
+rootFilters :: [(EmbedPath, Filter)] -> [Filter]
+rootFilters filters = [flt | ([], flt) <- filters]
+
+embeddedFilters :: [(EmbedPath, Filter)] -> [(EmbedPath, Filter)]
+embeddedFilters = filter (not . null . fst)
+
 addFilters :: ResolverContext -> ApiRequest -> Bool -> ReadPlanTree -> Either Error ReadPlanTree
 addFilters ctx ApiRequest{..} useTargetNames rReq =
   foldr addFilterToNode (Right rReq) flts
@@ -910,7 +916,7 @@ addFilters ctx ApiRequest{..} useTargetNames rReq =
       case iAction of
         ActDb (ActRelationRead _ _) -> qsFilters
         ActDb (ActRoutine _ _) -> qsFilters
-        _ -> qsFiltersNotRoot
+        _ -> embeddedFilters qsFilters
 
     addFilterToNode :: (EmbedPath, Filter) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addFilterToNode =
@@ -1114,14 +1120,15 @@ mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} SchemaCach
       mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
       if null qsLogic
-        && qsFilterFields == S.fromList pkCols
+        && null (embeddedFilters qsFilters)
+        && S.fromList [fld | Filter (fld, _) _ <- rootFlts] == S.fromList pkCols
         && not (null (S.fromList pkCols))
         && all
           ( \case
-              Filter _ (OpExpr False (OpQuant OpEqual Nothing _)) -> True
+              Filter (_, []) (OpExpr False (OpQuant OpEqual Nothing _)) -> True
               _ -> False
           )
-          qsFiltersRoot
+          rootFlts
       then
         mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
       else
@@ -1141,7 +1148,8 @@ mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} SchemaCach
     tbl = fromJust $ HM.lookup qi dbTables
     pkCols = maybe mempty tablePKCols (Just tbl)
     logic = map (resolveLogicTree ctx . snd) qsLogic
-    combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
+    rootFlts = rootFilters qsFilters
+    combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic rootFlts
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
