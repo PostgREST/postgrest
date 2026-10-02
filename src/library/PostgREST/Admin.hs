@@ -45,19 +45,20 @@ runAdmin appState maybeAdminSocket checkMainAppLive settings = do
 admin :: AppState.AppState -> IO Bool -> Wai.Application
 admin appState checkMainAppLive req respond = do
   isMainAppLive <- checkMainAppLive
-  isLoaded <- AppState.isLoaded appState
-  isPending <- AppState.isPending appState
 
   case Wai.pathInfo req of
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppLive then HTTP.status200 else HTTP.status500) [] mempty
-    ["ready"] ->
+    ["ready"] -> do
+      -- only readiness depends on the database, which might need a pool connection
+      isLoaded <- AppState.isLoaded appState
+      isPending <- AppState.isPending appState
       let status
             | isPending = HTTP.status503
             | not isMainAppLive = HTTP.status500
             | isLoaded = HTTP.status200
             | otherwise = HTTP.status500
-      in  respond $ Wai.responseLBS status [] mempty
+      respond $ Wai.responseLBS status [] mempty
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)

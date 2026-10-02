@@ -107,7 +107,6 @@ def test_admin_live_good(defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.xfail(reason="admin endpoints wait for a pool connection", strict=True)
 @pytest.mark.parametrize("path", ["/live", "/metrics"])
 def test_admin_does_not_wait_for_a_pool_connection(path, defaultenv):
     "Should respond without a pool connection on endpoints that don't need the database"
