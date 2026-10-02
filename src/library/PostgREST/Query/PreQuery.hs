@@ -17,7 +17,7 @@ import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.HashMap.Strict qualified as HM
 
-import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.ApiRequest (ApiRequest (..), RequestValues (..))
 import PostgREST.ApiRequest.Preferences (PreferTimezone (..), Preferences (..))
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
@@ -36,8 +36,8 @@ import PostgREST.Query.SqlFragment
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
 
 -- sets transaction variables
-txVarQuery :: DbActionPlan -> AppConfig -> AuthResult -> ApiRequest -> SQL.Snippet
-txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
+txVarQuery :: DbActionPlan -> AppConfig -> AuthResult -> ApiRequest -> RequestValues -> SQL.Snippet
+txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} RequestValues{..} =
   -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
   -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
   "select "
@@ -45,10 +45,10 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
       ", "
       (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql)
   where
-    methodSql = setConfigWithConstantName ("request.method", iMethod)
-    pathSql = setConfigWithConstantName ("request.path", iPath)
-    headersSql = setConfigWithConstantNameJSON "request.headers" iHeaders
-    cookiesSql = setConfigWithConstantNameJSON "request.cookies" iCookies
+    methodSql = setConfigWithConstantName ("request.method", vMethod)
+    pathSql = setConfigWithConstantName ("request.path", vPath)
+    headersSql = setConfigWithConstantNameJSON "request.headers" vHeaders
+    cookiesSql = setConfigWithConstantNameJSON "request.cookies" vCookies
     claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
       where
         claims = authClaims & KM.insert "role" (JSON.String $ decodeUtf8 authRole) -- insert "role" to claims as well

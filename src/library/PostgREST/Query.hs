@@ -13,7 +13,7 @@ where
 
 import Protolude hiding (Handler)
 
-import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.ApiRequest (ApiRequest (..), RequestValues (..))
 import PostgREST.ApiRequest.Preferences (Preferences (..), shouldExplainCount)
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
@@ -46,10 +46,10 @@ data MainQuery = MainQuery
   -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
   }
 
-mainQuery :: PgVersion -> ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery _ (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
-mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iTopLevelRange = range, iPreferences = Preferences{..}} authRes preReq =
-  let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq)
+mainQuery :: PgVersion -> ActionPlan -> AppConfig -> ApiRequest -> RequestValues -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
+mainQuery _ (NoDb _) _ _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
+mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} requestValues@RequestValues{vTopLevelRange = range} authRes preReq =
+  let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq requestValues) (PreQuery.preReqQuery <$> preReq)
   in  case plan of
         DbCrud _ WrappedReadPlan{..} ->
           let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan

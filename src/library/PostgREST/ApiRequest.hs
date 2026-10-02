@@ -6,6 +6,7 @@
 -- Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 module PostgREST.ApiRequest
   ( ApiRequest (..)
+  , RequestValues (..)
   , userApiRequest
   , userPreferences
   , userBearerAuth
@@ -73,35 +74,39 @@ data ApiRequest = ApiRequest
   -- ^ Action on the resource
   , iRange :: HM.HashMap Text NonnegRange
   -- ^ Requested range of rows within response
-  , iTopLevelRange :: NonnegRange
-  -- ^ Requested range of rows from the top level
-  , iPayload :: Maybe Payload
-  -- ^ Data sent by client and used for mutation actions
   , iPreferences :: Preferences.Preferences
   -- ^ Prefer header values
   , iQueryParams :: QueryParams.QueryParams
   , iColumns :: S.Set FieldName
   -- ^ parsed columns from &columns parameter and payload
-  , iHeaders :: [(ByteString, ByteString)]
-  -- ^ HTTP request headers
-  , iCookies :: [(ByteString, ByteString)]
-  -- ^ Request Cookies
-  , iPath :: ByteString
-  -- ^ Raw request path
-  , iMethod :: ByteString
-  -- ^ Raw request method
   , iSchema :: Schema
   -- ^ The request schema. Can vary depending on profile headers.
-  , iNegotiatedByProfile :: Bool
-  -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
   , iAcceptMediaType :: [MediaType]
   -- ^ The resolved media types in the Accept, considering quality(q) factors
   , iContentMediaType :: MediaType
   -- ^ The media type in the Content-Type header
   }
 
+--  values of the request, non-structural parts (parts that don't decide the final query shape)
+data RequestValues = RequestValues
+  { vPayload :: Maybe Payload
+  -- ^ Data sent by client and used for mutation actions
+  , vTopLevelRange :: NonnegRange
+  -- ^ Requested range of rows from the top level
+  , vHeaders :: [(ByteString, ByteString)]
+  -- ^ HTTP request headers
+  , vCookies :: [(ByteString, ByteString)]
+  -- ^ Request cookies
+  , vPath :: ByteString
+  -- ^ Raw request path
+  , vMethod :: ByteString
+  -- ^ Raw request method
+  , vNegotiatedByProfile :: Bool
+  -- ^ Whether the schema was chosen according to the profile specification
+  }
+
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError (ApiRequest, RequestValues)
 userApiRequest conf prefs req reqBody = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
@@ -117,24 +122,27 @@ userApiRequest conf prefs req reqBody = do
           InvalidPreferences $
             Preferences.invalidPrefs prefs
     _ -> pure () -- the *Info (OPTIONS) requests don't apply preferences
-  return $
-    ApiRequest
-      { iAction = act
-      , iRange = ranges
-      , iTopLevelRange = topLevelRange
-      , iPayload = payload
-      , iPreferences = prefs
-      , iQueryParams = qPrms
-      , iColumns = columns
-      , iHeaders = iHdrs
-      , iCookies = iCkies
-      , iPath = rawPathInfo req
-      , iMethod = method
-      , iSchema = schema
-      , iNegotiatedByProfile = negotiatedByProfile
-      , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-      , iContentMediaType = contentMediaType
-      }
+  return
+    ( ApiRequest
+        { iAction = act
+        , iRange = ranges
+        , iPreferences = prefs
+        , iQueryParams = qPrms
+        , iColumns = columns
+        , iSchema = schema
+        , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
+        , iContentMediaType = contentMediaType
+        }
+    , RequestValues
+        { vPayload = payload
+        , vTopLevelRange = topLevelRange
+        , vHeaders = iHdrs
+        , vCookies = iCkies
+        , vPath = rawPathInfo req
+        , vMethod = method
+        , vNegotiatedByProfile = negotiatedByProfile
+        }
+    )
   where
     method = requestMethod req
     hdrs = requestHeaders req
