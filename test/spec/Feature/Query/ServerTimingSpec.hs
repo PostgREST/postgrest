@@ -118,3 +118,46 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
             { matchStatus = 200
             , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
             }
+
+    context "responds with Server-Timing header on errors" $ do
+      it "has the timings of the steps run up to a JWT error" $
+        request
+          methodGet
+          "/organizations"
+          [authHeaderJWT "invalid"]
+          ""
+          `shouldRespondWith` ResponseMatcher
+            { matchStatus = 401
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders =
+                matchServerTimingHasTiming "jwt"
+                  : map matchServerTimingHasNoTiming ["parse", "plan", "transaction", "response"]
+            }
+
+      it "has the timings of the steps run up to a parse error" $
+        request
+          methodGet
+          "/organizations?id=invalid"
+          []
+          ""
+          `shouldRespondWith` ResponseMatcher
+            { matchStatus = 400
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders =
+                map matchServerTimingHasTiming ["jwt", "parse"]
+                  <> map matchServerTimingHasNoTiming ["plan", "transaction", "response"]
+            }
+
+      it "has the timings of the steps run up to a database error" $
+        request
+          methodGet
+          "/organizations?id=eq.invalid"
+          []
+          ""
+          `shouldRespondWith` ResponseMatcher
+            { matchStatus = 400
+            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
+            , matchHeaders =
+                map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction"]
+                  <> [matchServerTimingHasNoTiming "response"]
+            }

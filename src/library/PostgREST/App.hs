@@ -177,7 +177,10 @@ postgrest appState =
             postgrestResponse appState appConf maybeSchemaCache ctx authResult req
 
           AppState.getObserver appState $ genResponseObs (getLast authRole) req response
-          pure response
+
+          -- the timings of the steps run so far, also on errors
+          timings <- recordedTimings ctxTimer
+          pure $ Wai.mapResponseHeaders (++ maybeToList (serverTimingHeader timings)) response
 
       response <-
         if configServerTimingEnabled then
@@ -266,12 +269,11 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache RequestCtx{ctxTim
 
   let warnHdrMsgs = if shouldShowWarnings then Just (legacyWarnMsg, legacyWarnHint) else Nothing
 
-  timings <- liftIO $ recordedTimings ctxTimer
-  return $ toWaiResponse timings warnHdrMsgs resp
+  return $ toWaiResponse warnHdrMsgs resp
   where
-    toWaiResponse :: [(Metric, Double)] -> Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timings warnMsgs (Response.PgrstResponse st hdrs bod) =
-      Wai.responseLBS st (hdrs ++ maybeToList (serverTimingHeader timings) ++ warningHeaders warnMsgs ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
+    toWaiResponse :: Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse warnMsgs (Response.PgrstResponse st hdrs bod) =
+      Wai.responseLBS st (hdrs ++ warningHeaders warnMsgs ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
     varyHeader :: HTTP.Header
     varyHeader = (hVary, "Accept, Prefer, Range")

@@ -343,6 +343,7 @@ This header communicates metrics of the different phases in the request-response
 - On the ``plan`` stage, the :ref:`schema_cache` is used to generate the :ref:`main_query` of the transaction.
 - The ``transaction`` stage corresponds to the database transaction. See :ref:`transactions`.
 - The ``response`` stage is where the response status and headers are computed.
+- On errors, the header has the durations of the stages run up to the error, including the failing one.
 
 .. note::
 

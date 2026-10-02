@@ -462,6 +462,33 @@ def test_server_timing_transaction_duration_with_role_statement_timeout(
         assert 2000 <= response_dur < 3000
 
 
+def test_server_timing_transaction_duration_with_statement_timeout_error(
+    defaultenv, metapostgrest
+):
+    "server-timing transaction duration should be sent when the statement times out"
+
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 1000)  # 1 second
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_SERVER_TIMING_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=2")
+
+        assert response.status_code == 500
+
+        response_dur = parse_server_timings_header(response.headers["Server-Timing"])[
+            "transaction"
+        ]
+
+        assert 1000 <= response_dur < 2000
+
+
 def test_work_mem_in_role_settings(defaultenv):
     "Should work when setting work_mem on a role. See https://github.com/PostgREST/postgrest/issues/4955"
 
