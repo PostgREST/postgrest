@@ -56,7 +56,7 @@ import Network.Wai qualified as Wai
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Header qualified as WaiHeader
 
-import PostgREST.ApiRequest (ApiRequest (..))
+import PostgREST.ApiRequest (ApiRequest (..), RequestValues (..))
 import PostgREST.AppState (AppState)
 import PostgREST.AppState.Reload (runListener)
 import PostgREST.Auth.Types (AuthResult (..))
@@ -208,8 +208,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   body <- liftIO $ Wai.strictRequestBody req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan) <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (parseTime, (apiReq@ApiRequest{..}, requestValues@RequestValues{..})) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (planTime, plan) <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq requestValues sCache
 
   let
     warnings = Plan.legacyWarnings plan
@@ -220,10 +220,10 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   liftIO $
     when shouldShowWarnings $
       observer $
-        LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
+        LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) vMethod (vPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in RequestValues for consistency
   pgVer <- liftIO $ AppState.getPgVersion appState
   let
-    mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
+    mainQ = Query.mainQuery pgVer plan conf apiReq requestValues authResult configDbPreRequest
     tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
     obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
@@ -242,7 +242,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   (respTime, resp) <- withTiming conf $ do
     let
-      response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
+      response = Response.actionResponse txResult apiReq requestValues (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
       status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
