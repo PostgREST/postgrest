@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Changes
+
+- Fix admin `/live` and `/metrics` waiting for a pool connection when `db-channel-enabled` is false by @mkleczek
+
 ## [16.4] - 2026-09-24
 
 ### Changes
