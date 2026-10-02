@@ -88,6 +88,17 @@ matchServerTimingHasTiming metric = MatchHeader $ \headers _body ->
         Just $ "missing metric: " <> metric <> "\n"
     Nothing -> Just "missing Server-Timing header\n"
 
+-- | Matches Server-Timing header doesn't have a metric with the given name
+matchServerTimingHasNoTiming :: String -> MatchHeader
+matchServerTimingHasNoTiming metric = MatchHeader $ \headers _body ->
+  case lookup "Server-Timing" headers of
+    Just hdr ->
+      if hdr =~ ("(^|, )" <> metric <> ";") then
+        Just $ "unexpected metric: " <> metric <> "\n"
+      else
+        Nothing
+    Nothing -> Just "missing Server-Timing header\n"
+
 parseServerTimingHeader :: [Header] -> M.Map BS.ByteString Double
 parseServerTimingHeader [] = M.empty
 parseServerTimingHeader (h : hs) =
