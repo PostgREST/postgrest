@@ -20,7 +20,8 @@ import PostgREST.Observation.JwtCache (JwtCacheObservation (..))
 data JwtCacheMetrics = JwtCacheMetrics
   { jwtCacheRequests :: Counter,
     jwtCacheHits :: Counter,
-    jwtCacheEvictions :: Counter
+    jwtCacheEvictions :: Counter,
+    jwtCacheThrashing :: Counter
   }
 
 init :: IO (JwtCacheMetrics, MetricsModule)
@@ -30,10 +31,12 @@ init = do
       <$> create (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups"))
       <*> create (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits"))
       <*> create (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
+      <*> create (counter (Info "pgrst_jwt_cache_thrashing_total" "The total number of JWT cache misses of recently evicted entries"))
   pure (metrics, MetricsModule (onObservation metrics) samples)
   where
     onObservation JwtCacheMetrics{..} = \case
       JwtCacheObs (JwtCacheLookup True) -> incCounter jwtCacheRequests *> incCounter jwtCacheHits
       JwtCacheObs (JwtCacheLookup False) -> incCounter jwtCacheRequests
       JwtCacheObs JwtCacheEviction -> incCounter jwtCacheEvictions
+      JwtCacheObs JwtCacheThrashing -> incCounter jwtCacheThrashing
       _ -> pure ()
