@@ -106,6 +106,8 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
             (const . const $ lift $ observationHandler $ JwtCacheObs JwtCacheEviction) -- evictions metrics
             alwaysValid -- no invalidation for now
         )
+        -- thrashing metrics
+        >>= (atomically . SC.trackThrashing maxSize (lift . observationHandler $ JwtCacheObs JwtCacheThrashing))
 
 lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> Maybe ByteString -> m JSON.Object
 lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode

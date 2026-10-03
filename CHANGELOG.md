@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix admin `/live` and `/metrics` waiting for a pool connection when `db-channel-enabled` is false by @mkleczek
 - Log GHC RTS flags at startup on `log-level=debug` by @steve-chavez in #5222
 - Fix idle pool connections not being released after `db-pool-max-idletime` by @mkleczek in #3902
+- Add `pgrst_jwt_cache_thrashing_total` metric to tell when the JWT cache is too small by @mkleczek in #5323
 
 ## [16.4] - 2026-09-24
 

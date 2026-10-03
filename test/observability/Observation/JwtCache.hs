@@ -74,7 +74,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     expectCounters
       [ requests (+ 6),
         hits (+ 0),
-        evictions (+ 4)
+        evictions (+ 4),
+        thrashing (+ 3)
       ]
       $ request methodGet "/authors_only" [jwt1] ""
         *> request methodGet "/authors_only" [jwt2] ""
@@ -94,7 +95,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     expectCounters
       [ requests (+ 6),
         hits (+ 3),
-        evictions (+ 1)
+        evictions (+ 1),
+        thrashing (+ 0)
       ]
       $ request methodGet "/authors_only" [jwt1] ""
         *> request methodGet "/authors_only" [jwt2] ""
@@ -138,3 +140,4 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     requests = expectCounter @"jwtCacheRequests"
     hits = expectCounter @"jwtCacheHits"
     evictions = expectCounter @"jwtCacheEvictions"
+    thrashing = expectCounter @"jwtCacheThrashing"
