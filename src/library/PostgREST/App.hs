@@ -64,9 +64,8 @@ import PostgREST.Config (AppConfig (..))
 import PostgREST.Error (Error)
 import PostgREST.Network (resolveSocketToAddress)
 import PostgREST.Observation (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..), serverTimingHeader)
+import PostgREST.Response.Performance (Metric (..), NoTimer (..), Timer (..), newServerTimer, serverTimingHeader, timed)
 import PostgREST.SchemaCache (SchemaCache (..))
-import PostgREST.TimeIt (timeItT)
 import PostgREST.Unix (createAndBindDomainSocket)
 import PostgREST.Version (docsVersion, prettyVersion)
 
@@ -159,21 +158,35 @@ postgrest appState =
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
       maybeSchemaCache <- AppState.getSchemaCache appState
 
-      let handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
+      let
+        handleError = fmap (either (Error.errorResponseFor configClientErrorVerbosity) identity)
 
-      -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
-      -- has to be before runExceptT to make sure role is not lost on error
-      (response, authRole) <- runWriterT . handleError . runExceptT $ do
-        (jwtTime, authResult@AuthResult{..}) <-
-          withTiming appConf $
-            Auth.getAuthResult appState $
-              ApiRequest.userBearerAuth req
+        -- GHC specialises this for each Timer, so timing costs nothing when disabled
+        respondWith :: (Timer t) => RequestCtx t -> IO Wai.Response
+        respondWith ctx@RequestCtx{ctxTimer} = do
+          -- writer to save authRole (uses `tell` for this and `getLast` to obtain it)
+          -- has to be before runExceptT to make sure role is not lost on error
+          (response, authRole) <- runWriterT . handleError . runExceptT $ do
+            authResult@AuthResult{..} <-
+              timed ctxTimer Jwt $
+                Auth.getAuthResult appState $
+                  ApiRequest.userBearerAuth req
 
-        tell $ pure authRole
+            tell $ pure authRole
 
-        postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req
+            postgrestResponse appState appConf maybeSchemaCache ctx authResult req
 
-      AppState.getObserver appState $ genResponseObs (getLast authRole) req response
+          AppState.getObserver appState $ genResponseObs (getLast authRole) req response
+
+          -- the timings of the steps run so far, also on errors
+          timings <- recordedTimings ctxTimer
+          pure $ Wai.mapResponseHeaders (++ maybeToList (serverTimingHeader timings)) response
+
+      response <-
+        if configServerTimingEnabled then
+          newServerTimer >>= respondWith . RequestCtx
+        else
+          respondWith $ RequestCtx NoTimer
 
       delay <- AppState.getNextDelay appState
       respond $ addRetryHint delay response
@@ -184,16 +197,21 @@ postgrest appState =
     genResponseObs user req resp =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
+-- | The state of a request shared by its steps
+newtype RequestCtx t = RequestCtx
+  { ctxTimer :: t
+  }
+
 postgrestResponse
-  :: (MonadError Error m, MonadIO m)
+  :: (MonadError Error m, MonadIO m, Timer t)
   => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
-  -> Maybe Double
+  -> RequestCtx t
   -> AuthResult
   -> Wai.Request
   -> m Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache RequestCtx{ctxTimer} authResult@AuthResult{..} req = do
   let observer = AppState.getObserver appState
 
   sCache <-
@@ -208,8 +226,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   body <- liftIO $ Wai.strictRequestBody req
 
-  (parseTime, (apiReq@ApiRequest{..}, requestValues@RequestValues{..})) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan) <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq requestValues sCache
+  (apiReq@ApiRequest{..}, requestValues@RequestValues{..}) <- timed ctxTimer Parse $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  plan <- timed ctxTimer Plan $ liftEither $ Plan.actionPlan iAction conf apiReq requestValues sCache
 
   let
     warnings = Plan.legacyWarnings plan
@@ -227,7 +245,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
     tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
     obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming conf $ do
+  txResult <- timed ctxTimer Transaction $ do
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx dbSession -> do
@@ -240,7 +258,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         liftIO $ whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
-  (respTime, resp) <- withTiming conf $ do
+  resp <- timed ctxTimer Response $ do
     let
       response = Response.actionResponse txResult apiReq requestValues (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
       status' = either Error.status Response.pgrstStatus response
@@ -251,14 +269,11 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   let warnHdrMsgs = if shouldShowWarnings then Just (legacyWarnMsg, legacyWarnHint) else Nothing
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) warnHdrMsgs resp
+  return $ toWaiResponse warnHdrMsgs resp
   where
-    toWaiResponse :: ServerTiming -> Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing warnMsgs (Response.PgrstResponse st hdrs bod) =
-      Wai.responseLBS st (hdrs ++ serverTimingHeaders timing ++ warningHeaders warnMsgs ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
-
-    serverTimingHeaders :: ServerTiming -> [HTTP.Header]
-    serverTimingHeaders timing = [serverTimingHeader timing | configServerTimingEnabled]
+    toWaiResponse :: Maybe (Text, Text) -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse warnMsgs (Response.PgrstResponse st hdrs bod) =
+      Wai.responseLBS st (hdrs ++ warningHeaders warnMsgs ++ [varyHeader | not $ varyHeaderPresent hdrs]) bod
 
     varyHeader :: HTTP.Header
     varyHeader = (hVary, "Accept, Prefer, Range")
@@ -274,15 +289,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         pgrstVer = "PostgRESTv" <> BS.filter (/= ' ') prettyVersion
       in
         [(hWarning, "299 " <> pgrstVer <> " \"" <> encodeUtf8 warnMsg <> "\"")]
-
-withTiming :: (MonadError e m, MonadIO m) => AppConfig -> m a -> m (Maybe Double, a)
-withTiming AppConfig{configServerTimingEnabled} f =
-  if configServerTimingEnabled then do
-    (t, r) <- timeItT f
-    pure (Just t, r)
-  else do
-    r <- f
-    pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do
