@@ -39,7 +39,7 @@ import Data.List qualified as L
 import Data.Set qualified as S
 import Data.Text qualified as T
 
-import PostgREST.ApiRequest (ApiRequest (..), RequestValues (..))
+import PostgREST.ApiRequest (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
 import PostgREST.Catalog.Identifiers
@@ -188,23 +188,23 @@ readPlanWarning :: ReadPlan -> Maybe (Text, Text)
 readPlanWarning ReadPlan{relName, relAlias = Just alias, relIsLegacyTargetNameMatch = True} = Just (relName, alias)
 readPlanWarning _ = Nothing
 
-actionPlan :: Action -> AppConfig -> ApiRequest -> RequestValues -> SchemaCache -> Either Error ActionPlan
-actionPlan act conf apiReq requestValues sCache = case act of
-  ActDb dbAct -> Db <$> dbActionPlan dbAct conf apiReq requestValues sCache
+actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
+actionPlan act conf apiReq sCache = case act of
+  ActDb dbAct -> Db <$> dbActionPlan dbAct conf apiReq sCache
   ActRelationInfo ident -> pure . NoDb $ RelInfoPlan ident
   ActRoutineInfo ident inv ->
-    let crPln = callReadPlan ident conf sCache apiReq requestValues inv
+    let crPln = callReadPlan ident conf sCache apiReq inv
     in  NoDb . RoutineInfoPlan . crProc <$> crPln
   ActSchemaInfo -> pure $ NoDb SchemaInfoPlan
 
-dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> RequestValues -> SchemaCache -> Either Error DbActionPlan
-dbActionPlan dbAct conf apiReq requestValues sCache = case dbAct of
+dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error DbActionPlan
+dbActionPlan dbAct conf apiReq sCache = case dbAct of
   ActRelationRead identifier headersOnly ->
     toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
   ActRelationMut identifier mut ->
-    toDbActPlan <$> mutateReadPlan mut apiReq requestValues identifier conf sCache
+    toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
   ActRoutine identifier invMethod ->
-    toDbActPlan <$> callReadPlan identifier conf sCache apiReq requestValues invMethod
+    toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
   ActSchemaRead tSchema headersOnly ->
     MayUseDb <$> inspectPlan apiReq headersOnly tSchema
   where
@@ -219,16 +219,16 @@ wrappedReadPlan identifier conf sCache apiRequest@ApiRequest{..} headersOnly = d
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly qi
 
-mutateReadPlan :: Mutation -> ApiRequest -> RequestValues -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
-mutateReadPlan mutation apiRequest@ApiRequest{..} requestValues identifier conf sCache = do
+mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
+mutateReadPlan mutation apiRequest@ApiRequest{..} identifier conf sCache = do
   qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
-  mPlan <- mutatePlan mutation qi apiRequest requestValues sCache rPlan
+  mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
 
-callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> RequestValues -> InvokeMethod -> Either Error CrudPlan
-callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Preferences{preferHandling, preferMaxAffected}, ..} RequestValues{vPayload} invMethod = do
+callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CrudPlan
+callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Preferences{preferHandling, preferMaxAffected}, ..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv -> iColumns
@@ -238,16 +238,12 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences = Prefere
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let
-    args = case (invMethod, iContentMediaType) of
-      (InvRead _, _) -> DirectArgs $ toRpcParams proc qsParams'
-      (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams proc . payArray) vPayload
-      (Inv, _) -> JsonArgs $ payRaw <$> vPayload
     txMode = case (invMethod, pdVolatility) of
       (InvRead _, _) -> SQL.Read
       (Inv, Routine.Stable) -> SQL.Read
       (Inv, Routine.Immutable) -> SQL.Read
       (Inv, Routine.Volatile) -> SQL.Write
-    cPlan = callPlan proc apiRequest paramKeys args rPlan
+    cPlan = callPlan proc apiRequest paramKeys rPlan
   (handler, mediaType) <- mapLeft ApiRequestErr $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   failMaxAffectedRpcReturnsSingle (preferMaxAffected, preferHandling) proc
   return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod identifier
@@ -1111,13 +1107,13 @@ updateNode useTargetNames f (targetNodeName : remainingPath, a) (Right (Node roo
       | useTargetNames = Nothing
       | otherwise = (\(Node rp _) -> fromMaybe mempty $ readPlanWarning rp) . updateLegacyAttrs <$> findNode True
 
-mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> RequestValues -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} RequestValues{vPayload} SchemaCache{dbTables, dbRepresentations} readReq =
+mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
+mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns combinedLogic returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
       if null qsLogic
         && null (embeddedFilters qsFilters)
@@ -1130,7 +1126,7 @@ mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} RequestVal
           )
           rootFlts
       then
-        mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
+        mapRight (\typedColumns -> Insert qi typedColumns (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
       else
         Left $ ApiRequestErr InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
@@ -1150,7 +1146,6 @@ mutatePlan mutation qi ApiRequest{iPreferences = Preferences{..}, ..} RequestVal
     logic = map (resolveLogicTree ctx . snd) qsLogic
     rootFlts = rootFilters qsFilters
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic rootFlts
-    body = payRaw <$> vPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
@@ -1159,12 +1154,11 @@ resolveOrError ctx table field = case resolveTableFieldName table field Nothing 
   CoercibleField{cfIRType = ""} -> Left $ SchemaCacheErr $ ColumnNotFound (tableName table) field
   cf -> Right $ withJsonParse ctx cf
 
-callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan
-callPlan proc ApiRequest{} paramKeys args readReq =
+callPlan :: Routine -> ApiRequest -> S.Set FieldName -> ReadPlanTree -> CallPlan
+callPlan proc ApiRequest{} paramKeys readReq =
   FunctionCall
     { funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
     , funCParams = callParams
-    , funCArgs = args
     , funCScalar = funcReturnsScalar proc
     , funCSetOfScalar = funcReturnsSetOfScalar proc
     , funCFilterFields = getFilterFieldNames readReq
