@@ -49,7 +49,6 @@ library hasql
   exposed-modules:    Hasql.Connection
                       Hasql.Connection.Setting
                       Hasql.Decoders
-                      Hasql.DynamicStatements.Session
                       Hasql.DynamicStatements.Snippet
                       Hasql.DynamicStatements.Statement
                       Hasql.Encoders
