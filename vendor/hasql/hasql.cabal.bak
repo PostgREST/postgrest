@@ -105,30 +105,6 @@ test-suite threads-test
     hasql,
     rerebase,
 
-benchmark benchmarks
-  import: executable
-  type: exitcode-stdio-1.0
-  hs-source-dirs: benchmarks
-  main-is: Main.hs
-  build-depends:
-    criterion >=1.6 && <2,
-    hasql,
-    rerebase <2,
-
-test-suite profiling
-  import: base
-  type: exitcode-stdio-1.0
-  hs-source-dirs: profiling
-  main-is: Main.hs
-  ghc-options:
-    -O2
-    -threaded
-    -rtsopts
-
-  build-depends:
-    hasql,
-    rerebase >=1 && <2,
-
 test-suite hspec
   import: test
   type: exitcode-stdio-1.0
