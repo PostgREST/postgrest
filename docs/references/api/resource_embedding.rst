@@ -862,6 +862,21 @@ Response:
     }
    }
 
+.. note::
+
+  Selecting a related object right after doing an insert may give unexpected results if said object was modified in a trigger.
+  For example, let's say there's an ``AFTER INSERT`` trigger on ``films`` that inserts a new record to ``technical_specs``.
+  Doing the same ``POST`` request as above, but selecting ``select=title,technical_spec(*)`` instead, it would return:
+
+  .. code-block:: json
+
+     {
+      "title": "127 hours",
+      "techinal_specs": null
+     }
+
+  Since PostgREST does the insertion and selection in a single query, the join is done before the changes are made to the related table, that's why ``technical_specs`` is empty.
+
 .. _nested_embedding:
 
 Nested Embedding
