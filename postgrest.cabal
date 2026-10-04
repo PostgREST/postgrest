@@ -182,8 +182,13 @@ library
                       PostgREST.MainTx
                       PostgREST.MediaType
                       PostgREST.Metrics
+                      PostgREST.Metrics.JwtCache
+                      PostgREST.Metrics.Pool
+                      PostgREST.Metrics.SchemaCache
+                      PostgREST.Metrics.Types
                       PostgREST.Network
                       PostgREST.Observation
+                      PostgREST.Observation.JwtCache
                       PostgREST.Plan
                       PostgREST.Plan.CallPlan
                       PostgREST.Plan.MutatePlan
