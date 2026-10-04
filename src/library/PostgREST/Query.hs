@@ -15,18 +15,22 @@ import Protolude hiding (Handler)
 
 import PostgREST.ApiRequest (ApiRequest (..), RequestValues (..))
 import PostgREST.ApiRequest.Preferences (Preferences (..), shouldExplainCount)
+import PostgREST.ApiRequest.Types (InvokeMethod (..), Payload (..))
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion)
+import PostgREST.MediaType (MediaType (..))
 import PostgREST.Plan
   ( ActionPlan (..)
   , CrudPlan (..)
   , DbActionPlan (..)
   , InspectPlan (..)
   )
+import PostgREST.Plan.CallPlan (CallArgs (..), toRpcParams)
 
 import Hasql.DynamicStatements.Snippet qualified as SQL hiding (sql)
+import PostgREST.ApiRequest.QueryParams qualified as QueryParams
 import PostgREST.Catalog.Query qualified as CatalogQuery
 import PostgREST.Query.PreQuery qualified as PreQuery
 import PostgREST.Query.QueryBuilder qualified as QueryBuilder
@@ -58,8 +62,12 @@ mainQuery pgVer (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Pr
                 (mempty, mempty, mempty)
                 (if shouldExplainCount preferCount then Just (Statements.postExplain countQuery) else Nothing)
         DbCrud _ MutateReadPlan{..} ->
-          genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
+          genQ (Statements.mainWrite mrReadPlan mrMutatePlan (payRaw <$> vPayload requestValues) pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
         DbCrud _ CallReadPlan{..} ->
-          genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
+          let args = case (crInvMthd, iContentMediaType apiReq) of
+                (InvRead _, _) -> DirectArgs $ toRpcParams crProc $ QueryParams.qsParams $ iQueryParams apiReq
+                (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams crProc . payArray) $ vPayload requestValues
+                (Inv, _) -> JsonArgs $ payRaw <$> vPayload requestValues
+          in  genQ (Statements.mainCall crProc crCallPlan args crReadPlan preferCount configDbMaxRows range pMedia crHandler) (mempty, mempty, mempty) mempty
         MayUseDb InspectPlan{ipSchema = tSchema} ->
           genQ mempty (CatalogQuery.accessibleTables tSchema, CatalogQuery.accessibleFuncs pgVer tSchema, SqlFragment.schemaDescription tSchema) mempty

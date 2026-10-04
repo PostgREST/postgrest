@@ -128,8 +128,8 @@ getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
       JsonEmbed{rsEmbedMode = JsonArray} ->
         correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
-mutatePlanToQuery :: MutatePlan -> SQL.Snippet
-mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
+mutatePlanToQuery :: MutatePlan -> Maybe RequestBody -> SQL.Snippet
+mutatePlanToQuery (Insert mainQi iCols onConflict putConditions returnings _ applyDefaults) body =
   "INSERT INTO "
     <> fromQi mainQi
     <> (if null iCols then " " else "(" <> cols <> ") ")
@@ -159,7 +159,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
   where
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
     mergeDups = case onConflict of Just (MergeDuplicates, _) -> True; _ -> False
-mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
+mutatePlanToQuery (Update mainQi uCols logicForest returnings applyDefaults) body
   | null uCols =
       -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
       -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -180,7 +180,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults
     mainTbl = fromQi mainQi
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
-mutatePlanToQuery (Delete mainQi logicForest returnings) =
+mutatePlanToQuery (Delete mainQi logicForest returnings) _ =
   "DELETE FROM "
     <> fromQi mainQi
     <> " "
@@ -190,8 +190,8 @@ mutatePlanToQuery (Delete mainQi logicForest returnings) =
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
 
-callPlanToQuery :: CallPlan -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar filterFields returnings) =
+callPlanToQuery :: CallPlan -> CallArgs -> SQL.Snippet
+callPlanToQuery (FunctionCall qi params returnsScalar returnsSetOfScalar filterFields returnings) arguments =
   "SELECT "
     <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.pgrst_scalar" else returnedColumns)
     <> " "

@@ -14,6 +14,7 @@ where
 import Protolude
 
 import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types (RequestBody)
 import PostgREST.Catalog.Routine (MediaHandler (..), Routine)
 import PostgREST.MediaType (MTVndPlanFormat (..), MediaType (..))
 import PostgREST.Plan.CallPlan
@@ -28,12 +29,13 @@ import Hasql.DynamicStatements.Snippet qualified as SQL
 mainWrite
   :: ReadPlanTree
   -> MutatePlan
+  -> Maybe RequestBody
   -> MediaType
   -> MediaHandler
   -> Maybe PreferRepresentation
   -> Maybe PreferResolution
   -> SQL.Snippet
-mainWrite rPlan mtplan mt handler rep resolution = mtSnippet mt snippet
+mainWrite rPlan mtplan body mt handler rep resolution = mtSnippet mt snippet
   where
     checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
     pgrstInsertedF = checkUpsert "nullif(current_setting('pgrst.inserted', true),'')::int"
@@ -81,7 +83,7 @@ mainWrite rPlan mtplan mt handler rep resolution = mtSnippet mt snippet
       | otherwise = selectQuery
 
     selectQuery = readPlanToQuery rPlan
-    mutateQuery = mutatePlanToQuery mtplan
+    mutateQuery = mutatePlanToQuery mtplan body
     (isPut, isInsert, pkCols) = case mtplan of
       MTPlan.Insert{MTPlan.where_, insPkCols} -> ((not . null) where_, True, insPkCols)
       _ -> (False, False, mempty)
@@ -135,6 +137,7 @@ mainRead rPlan countQuery pCount maxRows range mt handler = mtSnippet mt snippet
 mainCall
   :: Routine
   -> CallPlan
+  -> CallArgs
   -> ReadPlanTree
   -> Maybe PreferCount
   -> Maybe Integer
@@ -142,7 +145,7 @@ mainCall
   -> MediaType
   -> MediaHandler
   -> SQL.Snippet
-mainCall rout cPlan rPlan pCount maxRows range mt handler = mtSnippet mt snippet
+mainCall rout cPlan args rPlan pCount maxRows range mt handler = mtSnippet mt snippet
   where
     snippet =
       "WITH "
@@ -170,7 +173,7 @@ mainCall rout cPlan rPlan pCount maxRows range mt handler = mtSnippet mt snippet
 
     (countCTEF, countResultF) = countF countQuery pageCountSelect (shouldCount pCount) maxRows range
     selectQuery = readPlanToQuery rPlan
-    callProcQuery = callPlanToQuery cPlan
+    callProcQuery = callPlanToQuery cPlan args
     countQuery = readPlanToCountQuery rPlan
     pageCountSelect = pageCountSelectF (Just rout)
 

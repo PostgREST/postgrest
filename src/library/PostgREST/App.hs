@@ -227,7 +227,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache RequestCtx{ctxTim
   body <- liftIO $ Wai.strictRequestBody req
 
   (apiReq@ApiRequest{..}, requestValues@RequestValues{..}) <- timed ctxTimer Parse $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  plan <- timed ctxTimer Plan $ liftEither $ Plan.actionPlan iAction conf apiReq requestValues sCache
+  plan <- timed ctxTimer Plan $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let
     warnings = Plan.legacyWarnings plan

@@ -27,7 +27,6 @@ import PostgREST.Catalog.Routine
 data CallPlan = FunctionCall
   { funCQi :: QualifiedIdentifier
   , funCParams :: CallParams
-  , funCArgs :: CallArgs
   , funCScalar :: Bool
   , funCSetOfScalar :: Bool
   , funCFilterFields :: Set FieldName
