@@ -5,7 +5,6 @@ import Hasql.Pool.Prelude
 
 import Hasql.Connection.Setting qualified as Connection.Setting
 import Hasql.Pool.Config.Defaults qualified as Defaults
-import Hasql.Session qualified as Session
 
 -- | Configuration for Hasql connection pool.
 data Config = Config
@@ -15,7 +14,6 @@ data Config = Config
   , idlenessTimeout :: DiffTime
   , connectionSettings :: [Connection.Setting.Setting]
   , observationHandler :: Observation -> IO ()
-  , initSession :: Session.Session ()
   }
 
 -- | Reasonable defaults, which can be built upon.
@@ -28,5 +26,4 @@ defaults =
     , idlenessTimeout = Defaults.idlenessTimeout
     , connectionSettings = Defaults.staticConnectionSettings
     , observationHandler = Defaults.observationHandler
-    , initSession = Defaults.initSession
     }

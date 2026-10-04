@@ -9,7 +9,6 @@ module Hasql.Pool.Config
   , Setting.idlenessTimeout
   , Setting.staticConnectionSettings
   , Setting.observationHandler
-  , Setting.initSession
   )
 where
 

@@ -4,7 +4,6 @@ import Hasql.Pool.Observation (Observation)
 import Hasql.Pool.Prelude
 
 import Hasql.Connection.Setting qualified as Connection.Setting
-import Hasql.Session qualified as Session
 
 -- |
 -- 3 connections.
@@ -35,8 +34,3 @@ staticConnectionSettings = [Connection.Setting.connection "postgresql://postgres
 -- > const (pure ())
 observationHandler :: Observation -> IO ()
 observationHandler = const (pure ())
-
--- |
--- > pure ()
-initSession :: Session.Session ()
-initSession = pure ()
