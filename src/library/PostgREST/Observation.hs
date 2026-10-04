@@ -18,6 +18,7 @@ import Protolude hiding (toList)
 import Network.Wai qualified as Wai
 
 import PostgREST.Config.PgVersion
+import PostgREST.Observation.JwtCache (JwtCacheObservation)
 import PostgREST.Query (MainQuery)
 import PostgREST.SchemaCache (QueryTimings)
 
@@ -63,8 +64,7 @@ data Observation
   | PoolRequest
   | PoolRequestFullfilled
   | PoolFlushed
-  | JwtCacheLookup Bool
-  | JwtCacheEviction
+  | JwtCacheObs JwtCacheObservation
   | TerminationUnixSignalObs Text
   | WarpServerObs Text
   deriving (Generic)
