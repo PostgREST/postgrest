@@ -3,10 +3,12 @@
 module PostgREST.Unix
   ( installSignalHandlers
   , createAndBindDomainSocket
+  , raiseOpenFilesLimit
   )
 where
 
 #ifndef mingw32_HOST_OS
+import qualified System.Posix.Resource as Resource
 import qualified System.Posix.Signals as Signals
 #endif
 import Data.String (String)
@@ -33,6 +35,22 @@ installSignalHandlers observer interrupt usr1 usr2 = do
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
 #else
 installSignalHandlers _ _ _ _ = pass
+#endif
+
+-- | Raise the soft limit of open files to the hard limit.
+-- Each connection takes a file descriptor, and container runtimes set a soft
+-- limit of 1024. That soft limit only protects programs using select(), which
+-- can't handle file descriptors from 1024 on, and PostgREST doesn't use it, see
+-- https://0pointer.net/blog/file-descriptor-limits.html. The soft limit is kept
+-- if the system rejects the hard one (e.g. an unlimited hard limit on macOS).
+raiseOpenFilesLimit :: IO ()
+#ifndef mingw32_HOST_OS
+raiseOpenFilesLimit =
+  void . try @IOException $ do
+    limits <- Resource.getResourceLimit Resource.ResourceOpenFiles
+    Resource.setResourceLimit Resource.ResourceOpenFiles limits{Resource.softLimit = Resource.hardLimit limits}
+#else
+raiseOpenFilesLimit = pass
 #endif
 
 -- | Create a unix domain socket and bind it to the given path.
