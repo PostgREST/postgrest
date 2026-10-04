@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add the `Server-Timing` header to error responses by @mkleczek in #5294
 - Log GHC RTS flags at startup on `log-level=debug` by @steve-chavez in #5222
 - Fix idle pool connections not being released after `db-pool-max-idletime` by @mkleczek in #3902
+- Add `process_open_fds` and `process_max_fds` metrics by @mkleczek
 
 ## [16.5] - 2026-10-18
 
