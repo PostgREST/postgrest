@@ -23,9 +23,7 @@ import Hasql.Encoders qualified as Encoders
 -- @
 --
 -- Having a decoder you can lift it into 'Hasql.Statement.Statement' using
--- 'Hasql.DynamicStatements.Statement.dynamicallyParameterized' or directly execute it in
--- 'Hasql.Session.Session' using
--- 'Hasql.DynamicStatements.Session.dynamicallyParameterizedStatement'.
+-- 'Hasql.DynamicStatements.Statement.dynamicallyParameterized'.
 newtype Snippet = Snippet (Seq SnippetChunk)
 
 data SnippetChunk
