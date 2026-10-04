@@ -99,8 +99,7 @@ library hasql
                       Hasql.Transaction.Private.Sessions
                       Hasql.Transaction.Private.Statements
                       Hasql.Transaction.Private.Transaction
-  build-depends:      attoparsec                >= 0.10 && < 0.15
-                    , base                      >= 4.14 && < 5
+  build-depends:      base                      >= 4.14 && < 5
                     , bytestring                >= 0.10.8.2 && < 0.13
                     , bytestring-strict-builder >= 0.4.5.1 && < 0.5
                     , bytestring-tree-builder   >= 0.2.7.8 && < 0.3

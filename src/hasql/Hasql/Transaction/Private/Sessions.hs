@@ -44,7 +44,7 @@ handleTransactionError error retryOnError onTransactionError = case error of
   where
     retryOrThrow = if retryOnError then onTransactionError else throwError error
     onCommandError = \case
-      ResultError (ServerError code _ _ _ _) ->
+      ResultError (ServerError code _ _ _) ->
         case code of
           "40001" -> retryOrThrow
           "40P01" -> retryOrThrow
