@@ -2,6 +2,7 @@
 
 import os
 import re
+import resource as unix
 import signal
 import time
 import pytest
@@ -315,3 +316,23 @@ def test_positive_pool_metric(defaultenv):
                 ).group(1)
             )
             assert metrics >= 0
+
+
+@pytest.mark.skipif(
+    not hasattr(unix, "prlimit"),
+    reason="reading the limits of another process needs prlimit",
+)
+@pytest.mark.xfail(reason="the soft limit is not raised yet", strict=True)
+def test_raises_open_files_soft_limit(defaultenv):
+    "PostgREST raises its soft limit of open files to the hard limit on startup"
+
+    soft, hard = unix.getrlimit(unix.RLIMIT_NOFILE)
+    # PostgREST inherits the limits: lower the soft one, so that there is
+    # something to raise (256 is still enough to start PostgREST)
+    unix.setrlimit(unix.RLIMIT_NOFILE, (min(soft, 256), hard))
+    try:
+        with run(env=defaultenv) as postgrest:
+            limits = unix.prlimit(postgrest.process.pid, unix.RLIMIT_NOFILE)
+            assert limits == (hard, hard)
+    finally:
+        unix.setrlimit(unix.RLIMIT_NOFILE, (soft, hard))
