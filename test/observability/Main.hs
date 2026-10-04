@@ -73,4 +73,4 @@ main = do
       describe "Feature.SchemaCacheSpec" Observation.SchemaCacheSpec.spec
   where
     loadSCache pool pgVersion conf =
-      either (panic . show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
+      either (panic . show) fst <$> P.use pool (HT.transactionNoRetry HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)

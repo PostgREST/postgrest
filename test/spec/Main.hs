@@ -185,4 +185,4 @@ main = do
     describe "Feature.Query.PgSafeUpdateSpec.spec" $ Feature.Query.PgSafeUpdateSpec.spec withConfig
   where
     loadSCache pool pgVersion conf =
-      either (panic . show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
+      either (panic . show) fst <$> P.use pool (HT.transactionNoRetry HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
