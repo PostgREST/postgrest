@@ -13,11 +13,13 @@ import Test.Hspec.Wai (getState)
 
 import ObsHelper
 import PostgREST.Config (AppConfig (configDbPoolSize, configDbSchemas))
-import PostgREST.Metrics
+import PostgREST.Metrics (MetricsState (..))
+import PostgREST.Metrics.Pool
   ( ConnStats (..)
-  , MetricsState (..)
+  , PoolMetrics (..)
   , connectionCounts
   )
+import PostgREST.Metrics.SchemaCache (SchemaCacheMetrics (..))
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
@@ -48,7 +50,7 @@ spec = describe "Server started with metrics enabled" $ do
                    ]
 
   it "Should update pgrst_schema_cache_loads_total[SUCCESS]" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -61,7 +63,7 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
   it "Should update pgrst_schema_cache_loads_total[ERROR]" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -81,7 +83,7 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (2 * sec) "SchemaCacheLoadedObs" $ \x -> [o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
   it "Should debounce schema cache loads" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -108,7 +110,7 @@ spec = describe "Server started with metrics enabled" $ do
         threadDelay $ 1 * sec
 
   it "Should track wait completed when there is pool contention" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -140,7 +142,7 @@ spec = describe "Server started with metrics enabled" $ do
   -- then it signals the worker to release the connection
   -- and finally verifies that in use connection counter is back to original value
   it "Should track in use connections" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -170,7 +172,7 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
 
   it "Should track in use connections correctly after session exception" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
