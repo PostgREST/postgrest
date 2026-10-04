@@ -458,7 +458,7 @@ pgrstParseErrorHint err = case err of
 instance ErrorHeaders PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
-  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
+  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _))))) =
     case parseRaisePGRST m d of
       Right (_, r) -> map intoHeader (M.toList $ getHeaders r)
       Left e -> headers e
@@ -499,35 +499,35 @@ instance ErrorBody SQL.UsageError where
 
 instance ErrorBody SQL.CommandError where
   -- Special error raised with code PGRST, to allow full response control
-  code (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
+  code (SQL.ResultError (SQL.ServerError "PGRST" m d _)) =
     case parseRaisePGRST m d of
       Right (r, _) -> getCode r
       Left e -> code e
-  code (SQL.ResultError (SQL.ServerError c _ _ _ _)) = T.decodeUtf8 c
+  code (SQL.ResultError (SQL.ServerError c _ _ _)) = T.decodeUtf8 c
   code (SQL.ResultError _) = "PGRSTX00" -- Internal Error
   code (SQL.ClientError _) = "PGRST001"
 
-  message (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
+  message (SQL.ResultError (SQL.ServerError "PGRST" m d _)) =
     case parseRaisePGRST m d of
       Right (r, _) -> getMessage r
       Left e -> message e
-  message (SQL.ResultError (SQL.ServerError _ m _ _ _)) = T.decodeUtf8 m
+  message (SQL.ResultError (SQL.ServerError _ m _ _)) = T.decodeUtf8 m
   message (SQL.ResultError resultError) = show resultError -- We never really return this error, because we kill pgrst thread early in App.hs
   message (SQL.ClientError _) = "Database client error. Retrying the connection."
 
-  details (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
+  details (SQL.ResultError (SQL.ServerError "PGRST" m d _)) =
     case parseRaisePGRST m d of
       Right (r, _) -> JSON.String <$> getDetails r
       Left e -> details e
-  details (SQL.ResultError (SQL.ServerError _ _ d _ _)) = JSON.String . T.decodeUtf8 <$> d
+  details (SQL.ResultError (SQL.ServerError _ _ d _)) = JSON.String . T.decodeUtf8 <$> d
   details (SQL.ClientError d) = JSON.String . T.decodeUtf8 <$> d
   details _ = Nothing
 
-  hint (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
+  hint (SQL.ResultError (SQL.ServerError "PGRST" m d _)) =
     case parseRaisePGRST m d of
       Right (r, _) -> JSON.String <$> getHint r
       Left e -> hint e
-  hint (SQL.ResultError (SQL.ServerError _ _ _ h _)) = JSON.String . T.decodeUtf8 <$> h
+  hint (SQL.ResultError (SQL.ServerError _ _ _ h)) = JSON.String . T.decodeUtf8 <$> h
   hint _ = Nothing
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
@@ -541,7 +541,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
 mapSQLtoHTTP :: Bool -> SQL.ResultError -> HTTP.Status
 mapSQLtoHTTP authed rError =
   case rError of
-    (SQL.ServerError c m d _ _) ->
+    (SQL.ServerError c m d _) ->
       case BS.unpack c of
         '0' : '8' : _ -> HTTP.status503 -- pg connection err
         '0' : '9' : _ -> HTTP.status500 -- triggered action exception

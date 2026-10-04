@@ -87,7 +87,7 @@ usePool appState@AppState{stateObserver = observer, ..} sess = do
         -- Check for a syntax error (42601 is the pg code) only for queries that don't have `WITH pgrst_source` as prefix.
         -- This would mean the error is on our schema cache queries, so we treat it as fatal.
         -- TODO have a better way to mark this as a schema cache query
-        SQL.ServerError "42601" _ _ _ _ ->
+        SQL.ServerError "42601" _ _ _ ->
           unless ("WITH pgrst_source" `BS.isPrefixOf` tpl) $ do
             observer $ ExitDBFatalError ServerPgrstBug err
             killApp appState
@@ -95,12 +95,12 @@ usePool appState@AppState{stateObserver = observer, ..} sess = do
         -- This would mean that a connection pooler in transaction mode is being used
         -- while prepared statements are enabled in the PostgREST configuration,
         -- both of which are incompatible with each other.
-        SQL.ServerError "42P05" _ _ _ _ -> do
+        SQL.ServerError "42P05" _ _ _ -> do
           observer $ ExitDBFatalError ServerError42P05 err
           killApp appState
         -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
         -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
-        SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _ -> do
+        SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ -> do
           observer $ ExitDBFatalError ServerError08P01 err
           killApp appState
         SQL.ServerError{} ->

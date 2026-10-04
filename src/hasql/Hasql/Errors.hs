@@ -54,9 +54,6 @@ data ResultError
       -- This is intended to differ from detail in that it offers advice
       -- (potentially inappropriate) rather than hard facts. Might run to
       -- multiple lines.
-      (Maybe Int)
-      -- ^ __Position__. Error cursor position as an index into the original
-      -- statement string. Positions are measured in characters not bytes.
   | -- |
     -- The database returned an unexpected result.
     -- Indicates an improper statement or a schema mismatch.

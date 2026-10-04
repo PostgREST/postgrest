@@ -1,7 +1,5 @@
 module Hasql.Decoders.Result where
 
-import Data.Attoparsec.ByteString.Char8 qualified as Attoparsec
-
 import Hasql.Errors
 import Hasql.Prelude hiding
   ( init
@@ -64,16 +62,7 @@ serverError =
         LibPQ.resultErrorField result LibPQ.DiagMessageDetail
       hint <-
         LibPQ.resultErrorField result LibPQ.DiagMessageHint
-      position <-
-        parsePosition <$> LibPQ.resultErrorField result LibPQ.DiagStatementPosition
-      pure $ Left $ ServerError code message detail hint position
-  where
-    parsePosition = \case
-      Nothing -> Nothing
-      Just pos ->
-        case Attoparsec.parseOnly (Attoparsec.decimal <* Attoparsec.endOfInput) pos of
-          Right pos' -> Just pos'
-          _ -> Nothing
+      pure $ Left $ ServerError code message detail hint
 
 {-# INLINE maybe #-}
 maybe :: Row.Row a -> Result (Maybe a)
