@@ -2,6 +2,7 @@
 
 import os
 import re
+import resource
 import signal
 import time
 import pytest
@@ -166,6 +167,25 @@ def test_admin_metrics_exclude_ghc_runtime_metrics_by_default(defaultenv):
         assert response.status_code == 200
         assert "ghc_gcs_total" not in response.text
         assert "ghc_allocated_bytes_total" not in response.text
+
+
+@pytest.mark.xfail(
+    reason="the file descriptor metrics are not exported yet", strict=True
+)
+def test_admin_metrics_include_process_fds(defaultenv):
+    "Should get the open and maximum file descriptors of the process from the admin endpoint"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        open_fds = re.search(r"^process_open_fds (\d+)$", response.text, re.MULTILINE)
+        max_fds = re.search(r"^process_max_fds (\d+)$", response.text, re.MULTILINE)
+        assert open_fds and max_fds
+        assert 0 < int(open_fds.group(1)) <= int(max_fds.group(1))
+        # the maximum is the soft limit of open files
+        if hasattr(resource, "prlimit"):
+            soft, _ = resource.prlimit(postgrest.process.pid, resource.RLIMIT_NOFILE)
+            assert int(max_fds.group(1)) == soft
 
 
 def test_admin_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
