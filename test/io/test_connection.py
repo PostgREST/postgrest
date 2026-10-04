@@ -11,6 +11,7 @@ from util import (
     Thread,
     jwtauthheader,
     drain_stdout,
+    psql_as_superuser,
 )
 from postgrest import (
     Admin,
@@ -115,6 +116,32 @@ def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaul
 
         exitCode = wait_until_exit(postgrest)
         assert exitCode == 1
+
+
+@pytest.mark.xfail(reason="requests fail on pool connections the database closed", strict=True)
+def test_replace_pool_connections_closed_by_the_database(defaultenv):
+    "Pooled connections the database closed (e.g. on a restart) are replaced instead of failing requests"
+
+    # without the listener, only the pool connects to the database
+    env = {**defaultenv, "PGRST_DB_POOL": "4", "PGRST_DB_CHANNEL_ENABLED": "false"}
+
+    with run(env=env) as postgrest:
+        # fill the pool with idle connections
+        threads = [
+            Thread(target=lambda: postgrest.session.get("/rpc/sleep?seconds=0.3"))
+            for _ in range(4)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        psql_as_superuser(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name LIKE 'PostgREST%'"
+        )
+
+        statuses = [postgrest.session.get("/projects").status_code for _ in range(8)]
+        assert statuses == [200] * 8
 
 
 def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
