@@ -107,6 +107,31 @@ def test_admin_live_good(defaultenv):
         assert response.status_code == 200
 
 
+@pytest.mark.xfail(reason="admin endpoints wait for a pool connection", strict=True)
+@pytest.mark.parametrize("path", ["/live", "/metrics"])
+def test_admin_does_not_wait_for_a_pool_connection(path, defaultenv):
+    "Should respond without a pool connection on endpoints that don't need the database"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CHANNEL_ENABLED": "false",
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "3",
+    }
+
+    with run(env=env, no_pool_connection_available=True) as postgrest:
+        response = postgrest.admin.get(path)
+        assert response.status_code == 200
+
+        response = postgrest.admin.get("/metrics")
+        timeouts = float(
+            re.search(
+                r"^pgrst_db_pool_timeouts_total (\S+)$", response.text, re.MULTILINE
+            ).group(1)
+        )
+        assert timeouts == 0
+
+
 def test_admin_live_dependent_on_main_app(defaultenv):
     "Should get a failure from the admin live endpoint if the main app also fails"
 
