@@ -4,10 +4,12 @@ import Protolude
 import System.IO (BufferMode (..), hSetBuffering)
 
 import PostgREST.CLI qualified as CLI
+import PostgREST.Unix qualified as Unix
 
 main :: IO ()
 main = do
   setBuffering
+  Unix.raiseOpenFilesLimit
   opts <- CLI.readCLIShowHelp
   CLI.main opts
 

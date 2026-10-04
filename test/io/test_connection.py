@@ -322,7 +322,6 @@ def test_positive_pool_metric(defaultenv):
     not hasattr(resource, "prlimit"),
     reason="reading the limits of another process needs prlimit",
 )
-@pytest.mark.xfail(reason="the soft limit is not raised yet", strict=True)
 def test_raises_open_files_soft_limit(defaultenv):
     "PostgREST raises its soft limit of open files to the hard limit on startup"
 
