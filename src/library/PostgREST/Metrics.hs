@@ -27,6 +27,7 @@ import PostgREST.Observation
 
 import PostgREST.Metrics.JwtCache qualified as JwtCache
 import PostgREST.Metrics.Pool qualified as Pool
+import PostgREST.Metrics.Process qualified as Process
 import PostgREST.Metrics.SchemaCache qualified as SchemaCache
 
 -- | The metrics of an AppState
@@ -62,12 +63,13 @@ observationMetrics = moduleObserve . metricsModule
 metricsSamples :: MetricsState -> IO [SampleGroup]
 metricsSamples = moduleSamples . metricsModule
 
--- | Register the GHC runtime metrics and the given samples (e.g. of an
--- AppState's metrics), to be exported by 'metricsToText'. Called once per
--- process.
+-- | Register the GHC runtime metrics, the metrics of the process and the given
+-- samples (e.g. of an AppState's metrics), to be exported by 'metricsToText'.
+-- Called once per process.
 registerMetrics :: IO [SampleGroup] -> IO ()
 registerMetrics samples = do
   whenM getRTSStatsEnabled $ void $ register PMG.ghcMetrics
+  void . register $ Metric (pure ((), Process.fdSamples))
   void . register $ Metric (pure ((), samples))
 
 metricsToText :: IO LBS.ByteString
