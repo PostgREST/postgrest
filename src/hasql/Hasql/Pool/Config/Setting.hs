@@ -6,7 +6,6 @@ import Hasql.Pool.Prelude
 
 import Hasql.Connection.Setting qualified as Connection.Setting
 import Hasql.Pool.Config.Config qualified as Config
-import Hasql.Session qualified as Session
 
 apply :: Setting -> Config -> Config
 apply (Setting run) = run
@@ -72,11 +71,3 @@ staticConnectionSettings x =
 observationHandler :: (Observation -> IO ()) -> Setting
 observationHandler x =
   Setting (\config -> config{Config.observationHandler = x})
-
--- | Initial session.
---
--- Gets executed on every connection upon acquisition.
--- Lets you specify the connection-wide settings.
-initSession :: Session.Session () -> Setting
-initSession x =
-  Setting (\config -> config{Config.initSession = x})

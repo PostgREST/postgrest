@@ -65,8 +65,6 @@ data Pool = Pool
   -- ^ To stop the manager thread via garbage collection.
   , poolObserver :: Observation -> IO ()
   -- ^ Action for reporting the observations.
-  , poolInitSession :: Session.Session ()
-  -- ^ Initial session to execute upon every established connection.
   }
 
 -- | Create a connection-pool.
@@ -105,7 +103,7 @@ acquire config = do
     -- When the pool goes out of scope, stop the manager.
     killThread managerTid
 
-  return $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config) (Config.initSession config)
+  return $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config)
   where
     acqTimeoutMicros =
       div (fromIntegral (diffTimeToPicoseconds (Config.acquisitionTimeout config))) 1_000_000
@@ -177,19 +175,8 @@ use Pool{..} sess = do
           atomically $ modifyTVar' poolCapacity succ
           return $ Left $ ConnectionUsageError connErr
         Right connection -> do
-          Session.run poolInitSession connection >>= \case
-            Left err -> do
-              Connection.release connection
-              ErrorsDestruction.reset
-                ( \details -> do
-                    poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
-                )
-                (poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (InitializationErrorTerminationReason err))))
-                err
-              return $ Left $ SessionUsageError err
-            Right () -> do
-              poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-              onLiveConn reuseVar (Entry connection now now uuid)
+          poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
+          onLiveConn reuseVar (Entry connection now now uuid)
 
     onConn reuseVar entry = do
       now <- getMonotonicTimeNSec
