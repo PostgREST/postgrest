@@ -26,9 +26,9 @@ instance (Monoid a) => Monoid (Transaction a) where
 -- |
 -- Execute the transaction using the provided isolation level and mode.
 {-# INLINE run #-}
-run :: Transaction a -> IsolationLevel -> Mode -> Bool -> B.Session a
-run (Transaction session) isolation mode retryOnError =
-  D.inRetryingTransaction isolation mode retryOnError (runStateT session True)
+run :: Transaction a -> IsolationLevel -> Mode -> B.Session a
+run (Transaction session) isolation mode =
+  D.tryTransaction isolation mode (runStateT session True)
 
 -- |
 -- Possibly a multi-statement query,
