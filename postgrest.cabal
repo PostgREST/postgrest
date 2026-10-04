@@ -207,6 +207,7 @@ library
                       PostgREST.Metrics
                       PostgREST.Metrics.JwtCache
                       PostgREST.Metrics.Pool
+                      PostgREST.Metrics.Process
                       PostgREST.Metrics.SchemaCache
                       PostgREST.Metrics.Types
                       PostgREST.Network

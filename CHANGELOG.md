@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. From versio
 - Reduce JWT cache memory usage by @mkleczek in #5229
 - Remove deprecated JSPath DSL syntax for `jwt-role-claim-key` config by @taimoorzaeem in #5192
 - Add the `Server-Timing` header to error responses by @mkleczek in #5294
+- Add `process_open_fds` and `process_max_fds` metrics by @mkleczek
 
 ## [16.4] - 2026-09-24
 

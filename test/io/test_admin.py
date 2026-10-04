@@ -169,9 +169,6 @@ def test_admin_metrics_exclude_ghc_runtime_metrics_by_default(defaultenv):
         assert "ghc_allocated_bytes_total" not in response.text
 
 
-@pytest.mark.xfail(
-    reason="the file descriptor metrics are not exported yet", strict=True
-)
 def test_admin_metrics_include_process_fds(defaultenv):
     "Should get the open and maximum file descriptors of the process from the admin endpoint"
 
