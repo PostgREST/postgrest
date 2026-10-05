@@ -220,7 +220,6 @@ data Filter
 
 data OpExpr
   = OpExpr Bool Operation
-  | NoOpExpr Text
   deriving (Eq, Show)
 
 data OpQuantifier = QuantAny | QuantAll

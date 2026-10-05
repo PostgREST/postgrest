@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 -- |
 -- Module      : PostgREST.ApiRequest.QueryParams
 -- Description : Parser for PostgREST Query parameters
@@ -159,17 +157,11 @@ parse isRpcRead qs = do
   rLogic <- pRequestLogicTree `traverse` logic
   rCols <- pRequestColumns columns
   rSel <- pRequestSelect select
-  (rFlts, params) <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
+  (params, rFlts) <- partitionEithers <$> pRequestFilter isRpcRead `traverse` filters
   rOnConflict <- pRequestOnConflict `traverse` onConflict
 
-  let params' = mapMaybe (\case (_, Filter (fld, _) (NoOpExpr v)) -> Just (fld, v); _ -> Nothing) params
-
-  return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rOnConflict
+  return $ QueryParams canonical params ranges rOrd rLogic rCols rSel rFlts rOnConflict
   where
-    hasOp :: (EmbedPath, Filter) -> Bool
-    hasOp (_, Filter (_, _) (NoOpExpr _)) = False
-    hasOp _ = True
-
     logic = filter (endingIn ["and", "or"] . fst) nonemptyParams
     select = fromMaybe "*" $ lookupParam "select"
     onConflict = lookupParam "on_conflict"
@@ -257,25 +249,26 @@ pRequestOnConflict oncStr =
 -- Parse `id=eq.1`(id, eq.1) into (EmbedPath, Filter)
 --
 -- >>> pRequestFilter False ("id", "eq.1")
--- Right ([],Filter {field = ("id",[]), opExpr = OpExpr False (OpQuant OpEqual Nothing "1")})
+-- Right (Right ([],Filter {field = ("id",[]), opExpr = OpExpr False (OpQuant OpEqual Nothing "1")}))
 --
 -- >>> pRequestFilter False ("id", "val")
 -- Left (QPError "\"failed to parse filter (val)\" (line 1, column 1)" "unexpected \"v\" expecting \"not\" or operator (eq, gt, ...)")
 --
 -- >>> pRequestFilter True ("id", "val")
--- Right ([],Filter {field = ("id",[]), opExpr = NoOpExpr "val"})
-pRequestFilter :: Bool -> (Text, Text) -> Either QPError (EmbedPath, Filter)
-pRequestFilter isRpcRead (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
+-- Right (Left ("id","val"))
+pRequestFilter :: Bool -> (Text, Text) -> Either QPError (Either (Text, Text) (EmbedPath, Filter))
+pRequestFilter isRpcRead (k, v) = do
+  (path, fld) <- mapError $ P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
+  oper <- mapError $ P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+  pure $ case oper of
+    Left value -> Left (fst fld, value)
+    Right expr -> Right (path, Filter fld expr)
   where
-    treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
-    oper = P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     parseFlt =
       if isRpcRead then
-        pOpExpr pSingleVal <|> pure (NoOpExpr v)
+        Right <$> pOpExpr pSingleVal <|> pure (Left v)
       else
-        pOpExpr pSingleVal
-    path = fst <$> treePath
-    fld = snd <$> treePath
+        Right <$> pOpExpr pSingleVal
 
 pRequestOrder :: (Text, Text) -> Either QPError (EmbedPath, [OrderTerm])
 pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
