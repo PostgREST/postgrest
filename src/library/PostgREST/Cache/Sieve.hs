@@ -70,11 +70,13 @@ data CacheConfig m k v = CacheConfig
   , load :: k -> m v
   , requestListener :: Bool -> m ()
   , evictionListener :: k -> v -> m ()
-  , validator :: m (k -> v -> Maybe (Discard m v))
+  , validator :: k -> m (v -> STM (Maybe (Discard m v)))
+  -- ^ Run once per lookup of the key; checks the cached value of the key, if
+  -- any, in the transaction that looks it up
   }
 
-alwaysValid :: (Applicative m) => m (k -> v -> Maybe (Discard m v))
-alwaysValid = pure (const . const Nothing)
+alwaysValid :: (Applicative m) => k -> m (v -> STM (Maybe (Discard m v)))
+alwaysValid = pure $ pure $ pure $ pure empty
 
 cacheIO :: (Hashable k, MonadIO m) => CacheConfig m k v -> IO (Cache m k v)
 cacheIO = atomically . cache
@@ -89,7 +91,7 @@ cache cacheConfig = mdo
 
 cached :: Cache m k v -> k -> m v
 cached (Cache head@ListNode{prevNextPtrPtr = neck, elem = Head{..}} CacheConfig{..}) k = do
-  checkValid <- validator
+  checkValid <- validator k
   tryMaybe
     -- Fast path: lookup value, update stats and return the value if found and valid
     ((liftIO . atomically) (lookup checkValid) >>= notify (requestListener . isJust) >>= validate)
@@ -125,13 +127,13 @@ cached (Cache head@ListNode{prevNextPtrPtr = neck, elem = Head{..}} CacheConfig{
             -- found
             -- check entry validity
             ( \e@ListNode{elem = Entry{visited, entryValue}} ->
-                maybe
-                  -- entry valid
-                  (mark visited True $> (Just $ Right entryValue, F.Leave))
-                  -- entry invalid
-                  -- remove it
-                  ((removeEntry e $>) . (,F.Remove) . Just . Left)
-                  (checkValid k entryValue)
+                checkValid entryValue
+                  >>= maybe
+                    -- entry valid
+                    (mark visited True $> (Just $ Right entryValue, F.Leave))
+                    -- entry invalid
+                    -- remove it
+                    ((removeEntry e $>) . (,F.Remove) . Just . Left)
             )
 
     mark t b = whenM ((/= b) <$> readTVar t) (writeTVar t b)

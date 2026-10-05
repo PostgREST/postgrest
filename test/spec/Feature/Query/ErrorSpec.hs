@@ -127,6 +127,19 @@ spec withConfig = do
             { matchStatus = 401
             }
 
+      it "error on jwt with an algorithm none of the keys can verify" $ do
+        -- {"alg":"RS256"}.{}.sig, while the key is symmetric
+        let auth = authHeaderJWT "eyJhbGciOiJSUzI1NiJ9.e30.c2ln"
+        request methodGet "/authors_only" [auth] ""
+          `shouldRespondWith` [json|{
+            "code":"PGRST301",
+            "details":"No suitable key was found to decode the JWT",
+            "hint":null,
+            "message":"No suitable key or wrong key type"
+          }|]
+            { matchStatus = 401
+            }
+
       it "when role does not exist" $ do
         let
           jwtPayload = [json|{ "role": "not existing" }|]
