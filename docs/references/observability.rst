@@ -279,6 +279,30 @@ Other available GHC runtime metrics include:
 - ``ghc_gc_cpu_seconds_total``
 - ``ghc_elapsed_seconds_total``
 
+Process Metrics
+---------------
+
+Metrics about the PostgREST process, named like those of other Prometheus exporters. Every connection to the database
+or from a client takes a file descriptor, so new connections fail once ``process_open_fds`` reaches ``process_max_fds``.
+
+process_open_fds
+~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+The number of open file descriptors.
+
+process_max_fds
+~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+The maximum number of open file descriptors, the soft limit of open files.
+
 Traces
 ======
 
