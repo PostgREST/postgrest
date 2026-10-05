@@ -12,11 +12,12 @@ import Test.Hspec.Wai.JSON (json)
 
 import ObsHelper
 import PostgREST.Metrics (MetricsState (..))
+import PostgREST.Metrics.JwtCache (JwtCacheMetrics (..))
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do
   it "Should not have JWT in cache" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe1"}|]
 
@@ -27,7 +28,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
 
   it "Should have JWT in cache" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe2"}|]
 
@@ -39,7 +40,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
 
   it "Should not cache invalid JWTs" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let auth = authHeaderJWT "some random bytes"
 
@@ -51,7 +52,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
 
   it "Should cache expired JWTs" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let auth = genToken [json|{"exp": 1, "role": "postgrest_test_author", "id": "jdoe2"}|]
 
@@ -63,7 +64,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
 
   it "Should evict entries from the JWT cache (jwt cache max is 2)" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let
       jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe3"}|]
@@ -83,7 +84,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         *> request methodGet "/authors_only" [jwt3] ""
 
   it "Should not evict entries from the JWT cache in FIFO order" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let
       jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe6"}|]
@@ -110,7 +111,7 @@ spec = describe "Server started with JWT and metrics enabled" $ do
   -- The test case was added based on coverage report
   -- showing this scenario was not covered by previous tests
   it "Should evict entries even though all were hit" $ do
-    expectCounters <- checkState' . specMetrics <$> getState
+    expectCounters <- checkState' . jwtCacheMetrics . specMetrics <$> getState
 
     let
       jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe9"}|]

@@ -205,6 +205,10 @@ library
                       PostgREST.Logger.Apache
                       PostgREST.MediaType
                       PostgREST.Metrics
+                      PostgREST.Metrics.JwtCache
+                      PostgREST.Metrics.Pool
+                      PostgREST.Metrics.SchemaCache
+                      PostgREST.Metrics.Types
                       PostgREST.Network
                       PostgREST.Observation
                       PostgREST.Query

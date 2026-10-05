@@ -14,6 +14,7 @@ module PostgREST.AppState
   , init
   , initWithPool
   , killApp
+  , sampleMetrics
   , putConfig -- For tests TODO refactoring
   , putSchemaCache
   , putPgVersion
@@ -32,6 +33,7 @@ where
 import Control.Concurrent.STM (newEmptyTMVarIO)
 import Data.IORef (IORef, newIORef, readIORef)
 import Data.Time.Clock (getCurrentTime)
+import Prometheus (SampleGroup)
 import Protolude
 
 import PostgREST.AppState.Pool (destroy, initPool, usePool)
@@ -67,7 +69,9 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool confRef loggerState metricsState observer appKiller
+  appState <- initWithPool pool confRef loggerState metricsState observer appKiller
+  Metrics.registerMetrics $ sampleMetrics appState
+  pure appState
 
 initWithPool :: SQL.Pool -> IORef AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO () -> IO AppState
 initWithPool pool confRef loggerState metricsState observer appKiller = mdo
@@ -110,6 +114,10 @@ isPending x = do
   scacheLoaded <- isSchemaCacheLoaded x
   connEstablished <- isConnEstablished x
   return $ not scacheLoaded || not connEstablished
+
+-- | The current samples of the metrics of the AppState
+sampleMetrics :: AppState -> IO [SampleGroup]
+sampleMetrics = Metrics.metricsSamples . stateMetrics
 
 newSchemaCacheStatus :: IO SchemaCacheStatus
 newSchemaCacheStatus = SchemaCacheStatus <$> newEmptyTMVarIO

@@ -6,18 +6,20 @@ module Observation.MetricsSpec where
 
 import Data.List (lookup)
 import Network.Wai (Application)
-import Prometheus (getCounter, getVectorWith)
+import Prometheus (Info (..), SampleGroup (..), getCounter, getVectorWith)
 import Protolude
-import Test.Hspec (SpecWith, describe, it)
+import Test.Hspec (SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (getState)
 
 import ObsHelper
 import PostgREST.Config (AppConfig (configDbSchemas))
-import PostgREST.Metrics
+import PostgREST.Metrics (MetricsState (..))
+import PostgREST.Metrics.Pool
   ( ConnStats (..)
-  , MetricsState (..)
+  , PoolMetrics (..)
   , connectionCounts
   )
+import PostgREST.Metrics.SchemaCache (SchemaCacheMetrics (..))
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
@@ -25,8 +27,24 @@ import PostgREST.AppState qualified as AppState
 
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do
+  it "Should sample the metrics of the AppState" $ do
+    SpecState{specAppState = appState} <- getState
+    names <- liftIO $ fmap (\(SampleGroup info _ _) -> metricName info) <$> AppState.sampleMetrics appState
+    -- a vector is only sampled once it has a label, e.g. after a schema cache load
+    liftIO $
+      filter (/= "pgrst_schema_cache_loads_total") names
+        `shouldBe` [ "pgrst_db_pool_timeouts_total"
+                   , "pgrst_db_pool_available"
+                   , "pgrst_db_pool_waiting"
+                   , "pgrst_db_pool_max"
+                   , "pgrst_schema_cache_query_time_seconds"
+                   , "pgrst_jwt_cache_requests_total"
+                   , "pgrst_jwt_cache_hits_total"
+                   , "pgrst_jwt_cache_evictions_total"
+                   ]
+
   it "Should update pgrst_schema_cache_loads_total[SUCCESS]" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -39,7 +57,7 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "SchemaCacheLoadedObs" $ \x -> [o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
   it "Should update pgrst_schema_cache_loads_total[ERROR]" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -59,7 +77,7 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (2 * sec) "SchemaCacheLoadedObs" $ \x -> [o | o@(SchemaCacheLoadedObs{}) <- pure x]
 
   it "Should debounce schema cache loads" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{schemaCacheMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
@@ -93,7 +111,7 @@ spec = describe "Server started with metrics enabled" $ do
   -- then it signals the worker to release the connection
   -- and finally verifies that in use connection counter is back to original value
   it "Should track in use connections" $ do
-    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
     let waitFor = waitForObs specObsChan
 
     liftIO
