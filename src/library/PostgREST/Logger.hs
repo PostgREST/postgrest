@@ -71,6 +71,10 @@ observationLogger :: LoggerState -> ObservationHandler
 observationLogger loggerState obs = do
   logLevel <- getLogLevel loggerState -- We need to do the IO action to read the "log-level" config value because it can be reloaded
   case obs of
+    o@(RTSFlagsObs _) ->
+      when (logLevel >= LogDebug) $
+        logWithZTime $
+          observationMessages o
     PoolAcqTimeoutObs -> do
       when (logLevel >= LogError) $
         stateLogDebouncePoolTimeout loggerState
@@ -143,6 +147,8 @@ observationMessages = \case
     pure $ "Admin server crashed unexpectedly: " <> (showOnSingleLine '\t' . show) ex
   AppStartObs ver ->
     pure $ "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
+  RTSFlagsObs flags ->
+    pure $ show flags
   AppServerAddressObs address ->
     pure $ "API server listening on " <> address
   DBConnectedObs ver ->

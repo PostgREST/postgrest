@@ -32,6 +32,7 @@ where
 import Control.Concurrent.STM (newEmptyTMVarIO)
 import Data.IORef (IORef, newIORef, readIORef)
 import Data.Time.Clock (getCurrentTime)
+import GHC.RTS.Flags (getRTSFlags)
 import Protolude
 
 import PostgREST.AppState.Pool (destroy, initPool, usePool)
@@ -65,6 +66,7 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
   let observer = liftA2 (>>) (Logger.observationLogger loggerState) (Metrics.observationMetrics metricsState)
 
   observer $ AppStartObs prettyVersion
+  observer . RTSFlagsObs =<< getRTSFlags
 
   pool <- initPool conf observer
   initWithPool pool confRef loggerState metricsState observer appKiller

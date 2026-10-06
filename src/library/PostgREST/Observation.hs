@@ -11,6 +11,7 @@ module PostgREST.Observation
   )
 where
 
+import GHC.RTS.Flags (RTSFlags)
 import Network.HTTP.Types.Status (Status)
 import Protolude hiding (toList)
 
@@ -28,6 +29,7 @@ data Observation
   = AdminStartObs Text
   | AdminServerCrashedObs SomeException
   | AppStartObs ByteString
+  | RTSFlagsObs RTSFlags
   | AppServerAddressObs Text
   | ExitUnsupportedPgVersion PgVersion PgVersion
   | ExitDBNoRecoveryObs
