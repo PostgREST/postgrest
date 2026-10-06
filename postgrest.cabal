@@ -84,6 +84,7 @@ library hasql
                       Hasql.Pool.Observation
                       Hasql.Session
                       Hasql.Statement
+                      Hasql.StatementRunner
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
   other-modules:      Hasql.Connection.Config
@@ -323,6 +324,7 @@ test-suite spec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.NullsStripSpec
                       Feature.Query.PgSafeUpdateSpec
+                      Feature.Query.PipelineModeSpec
                       Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
                       Feature.Query.Preferences.HandlingSpec
