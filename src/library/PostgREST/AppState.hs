@@ -37,7 +37,7 @@ import GHC.RTS.Flags (getRTSFlags)
 import Prometheus (SampleGroup)
 import Protolude
 
-import PostgREST.AppState.Pool (destroy, initPool, usePool)
+import PostgREST.AppState.Pool (debounceAcqTimeouts, destroy, initPool, usePool)
 import PostgREST.AppState.Reload
   ( isSchemaCacheLoaded
   , readInDbConfig
@@ -65,7 +65,8 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
   confRef <- newIORef conf
   loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
   metricsState <- Metrics.init configDbPoolSize
-  let observer = liftA2 (>>) (Logger.observationLogger loggerState) (Metrics.observationMetrics metricsState)
+  logger <- debounceAcqTimeouts $ Logger.observationLogger loggerState
+  let observer = liftA2 (>>) logger (Metrics.observationMetrics metricsState)
 
   observer $ AppStartObs prettyVersion
   observer . RTSFlagsObs =<< getRTSFlags
