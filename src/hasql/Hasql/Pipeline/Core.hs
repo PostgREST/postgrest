@@ -154,7 +154,12 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
         runPrepared = runExceptT do
           (key, keyRecv) <- ExceptT resolvePreparedStatementKey
           queryRecv <- ExceptT (sendQuery key)
-          pure (keyRecv *> queryRecv)
+          -- Run both recv actions and combine their Either results on the
+          -- inner Either monad (Left-biased): a Parse-time ServerError on
+          -- keyRecv wins over the Execute's PGRES_PIPELINE_ABORTED sentinel
+          -- on queryRecv. So we capture the original error in the pipeline
+          -- instead of subsequent PGRES_PIPELINE_ABORTED errors masking it.
+          pure (liftA2 (*>) keyRecv queryRecv)
           where
             (oidList, valueAndFormatList) =
               Encoders.Params.compilePreparedStatementData encoder integerDatetimes params
@@ -172,11 +177,21 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
                     else
                       (False,) . Left . commandToSessionError . ClientError <$> Pq.errorMessage connection
                   where
-                    recv =
-                      fmap (first commandToSessionError)
-                        $ (<*)
-                        <$> Decoders.Results.run (Decoders.Results.single Decoders.Result.noResult) connection integerDatetimes
-                        <*> Decoders.Results.run Decoders.Results.dropRemainders connection integerDatetimes
+                    -- The key was registered at send time, but the server
+                    -- only creates the statement if this Parse succeeds. If
+                    -- it fails, or is skipped because an earlier statement
+                    -- aborted the pipeline (PGRES_PIPELINE_ABORTED), drop
+                    -- the key so later uses re-prepare it instead of hitting
+                    -- "prepared statement does not exist".
+                    recv = do
+                      result <-
+                        fmap (first commandToSessionError)
+                          $ (<*)
+                          <$> Decoders.Results.run (Decoders.Results.single Decoders.Result.noResult) connection integerDatetimes
+                          <*> Decoders.Results.run Decoders.Results.dropRemainders connection integerDatetimes
+                      when (isLeft result)
+                        $ PreparedStatementRegistry.delete localKey registry
+                      pure result
                 onOldRemoteKey key =
                   pure (Right (key, pure (Right ())))
 

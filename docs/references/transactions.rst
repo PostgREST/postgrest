@@ -12,6 +12,8 @@ After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` r
   -- <Main Query>
   END; -- <Transaction End>
 
+All the queries in the transaction are executed in pipeline mode by default. See :ref:`db-pipeline-mode`.
+
 .. _access_mode:
 
 Access Mode

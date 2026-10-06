@@ -2,6 +2,7 @@ module Hasql.PreparedStatementRegistry
   ( PreparedStatementRegistry
   , new
   , update
+  , delete
   , reset
   , LocalKey (..)
   )
@@ -10,7 +11,7 @@ where
 import ByteString.StrictBuilder qualified as B
 import Data.HashTable.IO qualified as A
 
-import Hasql.Prelude hiding (lookup, reset)
+import Hasql.Prelude hiding (delete, lookup, reset)
 
 import Hasql.LibPq14 qualified as Pq
 
@@ -44,6 +45,14 @@ update localKey onNewRemoteKey onOldRemoteKey (PreparedStatementRegistry table c
               B.builderBytes . B.asciiIntegral $ n
     old =
       onOldRemoteKey
+
+-- |
+-- Forget a local key, so that the next use re-prepares it under a fresh
+-- remote key. Used when the server never actually created the statement,
+-- e.g. its Parse was skipped because an earlier pipeline statement failed.
+delete :: LocalKey -> PreparedStatementRegistry -> IO ()
+delete localKey (PreparedStatementRegistry table _) =
+  A.delete table localKey
 
 reset :: PreparedStatementRegistry -> IO ()
 reset (PreparedStatementRegistry table counter) = do
