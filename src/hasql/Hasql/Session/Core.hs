@@ -11,6 +11,7 @@ import Hasql.Encoders.All qualified as Encoders
 import Hasql.Encoders.Params qualified as Encoders.Params
 import Hasql.IO qualified as IO
 import Hasql.LibPq14 qualified as Pq
+import Hasql.Pipeline.Core qualified as Pipeline
 import Hasql.PreparedStatementRegistry qualified as PreparedStatementRegistry
 import Hasql.Statement qualified as Statement
 
@@ -72,3 +73,11 @@ statement input (Statement.Statement template (Encoders.Params paramsEncoder) (D
           r1 <- IO.sendParametricStatement pqConnection integerDatetimes registry template paramsEncoder (usePreparedStatements && preparable) input
           r2 <- IO.getResults pqConnection integerDatetimes decoder
           return $ r1 *> r2
+
+-- |
+-- Execute a pipeline.
+pipeline :: Pipeline.Pipeline result -> Session result
+pipeline pipeline' =
+  Session $ ReaderT \(Connection.Connection usePreparedStatements pqConnectionRef integerDatetimes registry) ->
+    ExceptT $ withMVar pqConnectionRef \pqConnection ->
+      Pipeline.run pipeline' usePreparedStatements pqConnection registry integerDatetimes
