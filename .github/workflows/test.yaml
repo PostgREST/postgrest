@@ -164,7 +164,11 @@ jobs:
           else
             latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
           fi
-          postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
+          if [ -n "$latest_tag" ]; then
+            postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
+          else
+            postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH"
+          fi
 
       - name: Report P50
         # This step checks whether any red cross indicators (:x:) are present in the step summary.

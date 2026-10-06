@@ -36,19 +36,6 @@ decodeExecStatus = \case
   (#const PGRES_PIPELINE_ABORTED) -> Just PipelineAbort
   _ -> Nothing
 
-data PipelineStatus
-  = PipelineOn
-  | PipelineOff
-  | PipelineAborted
-  deriving (Eq, Show)
-
-decodePipelineStatus :: CInt -> Maybe PipelineStatus
-decodePipelineStatus = \case
-  (#const PQ_PIPELINE_ON) -> Just PipelineOn
-  (#const PQ_PIPELINE_OFF) -> Just PipelineOff
-  (#const PQ_PIPELINE_ABORTED) -> Just PipelineAborted
-  _ -> Nothing
-
 decodeBool :: CInt -> Maybe Bool
 decodeBool = \case
   0 -> Just False

@@ -178,7 +178,7 @@ resultSteps (DbCrud _ plan) ApiRequest{iPreferences = Preferences{..}} = case pl
     -- Fail a response if a single JSON object was requested and not exactly one
     -- was found.
     singular mediaType
-      | elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] = [FailWhen notSingular]
+      | mediaType `elem` [MTVndSingularJSON True, MTVndSingularJSON False] = [FailWhen notSingular]
       | otherwise = []
     notSingular RSStandard{rsQueryTotal = queryTotal}
       | queryTotal /= 1 = Just . Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
