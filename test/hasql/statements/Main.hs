@@ -11,6 +11,7 @@ import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Setting
 import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
+import Hasql.Pipeline qualified as Pipeline
 import Hasql.Session qualified as Session
 import Hasql.Statement qualified as Statement
 import Hasql.Transaction qualified as Transaction
@@ -108,6 +109,23 @@ main = hspec $ do
       runQuery conn "SELECT 2" `shouldReturn` Right 2
       preparedStatements conn `shouldReturn` Right ["SELECT 1", "SELECT 2"]
 
+    it "does not cache statements skipped by an aborted pipeline" $ \conn -> do
+      -- "SELECT 1 / 0" aborts the pipeline, so the server skips the Parse of
+      -- "SELECT 2". If hasql still cached "SELECT 2", using it afterwards would
+      -- fail with 26000 "prepared statement does not exist".
+      result <-
+        run
+          ( Session.pipeline $
+              (,)
+                <$> Pipeline.statement () (int4Query "SELECT 1 / 0")
+                <*> Pipeline.statement () (int4Query "SELECT 2")
+          )
+          conn
+      result `shouldSatisfy` isLeft
+      runQuery conn "SELECT 2" `shouldReturn` Right 2
+      run (Session.pipeline (Pipeline.statement () (int4Query "SELECT 2"))) conn `shouldReturn` Right 2
+      preparedStatements conn `shouldReturn` Right ["SELECT 1 / 0", "SELECT 2"]
+
     it "prepares the TCL commands when rolling back a failed transaction" $ \conn -> do
       result <-
         run
@@ -186,13 +204,13 @@ main = hspec $ do
         runQuery conn "SELECT 1" `shouldReturn` Right 1
   where
     run session conn = first (show :: Session.SessionError -> Text) <$> Session.run session conn
-    query sql =
-      Session.statement () $
-        Statement.Statement
-          sql
-          mempty
-          (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
-          True
+    int4Query sql =
+      Statement.Statement
+        sql
+        mempty
+        (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
+        True
+    query = Session.statement () . int4Query
     runQuery conn sql = run (query sql) conn
     isSyntaxError = \case
       Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "42601" _ _ _))) -> True

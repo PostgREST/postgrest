@@ -418,6 +418,23 @@ db-max-rows
 
   A hard limit to the number of rows PostgREST will fetch from a view, table, or function. Limits payload size for accidental or malicious requests.
 
+.. _db-pipeline-mode:
+
+db-pipeline-mode
+----------------
+
+  =============== ==========================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_PIPELINE_MODE
+  **In-Database** n/a
+  =============== ==========================
+
+  When enabled, all the queries of a :ref:`transaction <transactions>` are sent to the database in `pipeline mode <https://www.postgresql.org/docs/current/libpq-pipeline-mode.html>`_. This increases performance since it eliminates the network round-trip waiting between queries.
+
+  When disabled, the queries go back to being executed sequentially, waiting for each result before sending the next query.
+
 .. _db-plan-enabled:
 
 db-plan-enabled

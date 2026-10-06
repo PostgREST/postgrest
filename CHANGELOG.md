@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. From versio
   + `ES256` is ~9x faster, `ES384` and `ES512` are ~7.5x faster according to our benchmarks.
 - Fix leaking of table names by removing `hint` from `PGRST205` error by @taimoorzaeem in #5408
 - Fix transaction staying aborted on COMMIT failure by @steve-chavez in #5391
+- Execute all the queries of a transaction in pipeline mode, configurable with `db-pipeline-mode` by @QuChen88 in #5253
 
 ### Migration to v18
 
