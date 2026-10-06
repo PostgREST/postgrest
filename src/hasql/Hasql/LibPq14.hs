@@ -3,27 +3,21 @@ module Hasql.LibPq14
 
     -- * Updated and new types
   , Mappings.ExecStatus (..)
-  , Mappings.PipelineStatus (..)
 
     -- * Updated and new procedures
   , resultStatus
-  , pipelineStatus
   , enterPipelineMode
   , exitPipelineMode
   , pipelineSync
-  , sendFlushRequest
   )
 where
 
 import Database.PostgreSQL.LibPQ as Base hiding
   ( ExecStatus (..)
-  , PipelineStatus (..)
   , enterPipelineMode
   , exitPipelineMode
-  , pipelineStatus
   , pipelineSync
   , resultStatus
-  , sendFlushRequest
   )
 
 import Database.PostgreSQL.LibPQ.Internal qualified as BaseInternal
@@ -42,12 +36,6 @@ resultStatus result = do
   ffiStatus <- withForeignPtr (unsafeCoerce result) Ffi.resultStatus
   decodeProcedureResult "resultStatus" Mappings.decodeExecStatus ffiStatus
 
-pipelineStatus
-  :: Connection
-  -> IO Mappings.PipelineStatus
-pipelineStatus =
-  parameterlessProcedure "pipelineStatus" Ffi.pipelineStatus Mappings.decodePipelineStatus
-
 enterPipelineMode
   :: Connection
   -> IO Bool
@@ -65,12 +53,6 @@ pipelineSync
   -> IO Bool
 pipelineSync =
   parameterlessProcedure "pipelineSync" Ffi.pipelineSync Mappings.decodeBool
-
-sendFlushRequest
-  :: Connection
-  -> IO Bool
-sendFlushRequest =
-  parameterlessProcedure "sendFlushRequest" Ffi.sendFlushRequest Mappings.decodeBool
 
 parameterlessProcedure
   :: (Show a)

@@ -1627,7 +1627,7 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
           }
 
   it "cannot use ltree(in public schema) extension operators if no extra search path added" $
-    get "/ltree_sample?path=cd.Top.Science.Astronomy" `shouldRespondWith` 400
+    get "/ltree_sample?select=path&path=cd.Top.Science.Astronomy" `shouldRespondWith` 404
 
   context "VIEW that has a source FK based on a UNIQUE key" $
     it "can be embedded" $
