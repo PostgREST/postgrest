@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- |
 -- Module      : PostgREST.Observation
 -- Description : This module holds an Observation type which is the core of Observability for PostgREST.
@@ -8,17 +10,19 @@ module PostgREST.Observation
   ( Observation (..)
   , ObsFatalError (..)
   , ObservationHandler
+  , IsObservation (..)
   )
 where
 
 import GHC.RTS.Flags (RTSFlags)
-import Network.HTTP.Types.Status (Status)
+import Network.HTTP.Types.Status (Status, status400, status500)
 import Protolude hiding (toList)
 
 import Network.Wai qualified as Wai
 
+import PostgREST.Config (LogLevel (..))
 import PostgREST.Config.PgVersion
-import PostgREST.Observation.JwtCache (JwtCacheObservation)
+import PostgREST.Observation.JwtCache (JwtCacheObservation (..))
 import PostgREST.Query (MainQuery)
 import PostgREST.SchemaCache (QueryTimings)
 
@@ -72,3 +76,57 @@ data Observation
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
 
 type ObservationHandler = Observation -> IO ()
+
+-- | An observation type, giving the log level of each observation
+class IsObservation o where
+  obsLevel :: o -> LogLevel
+
+instance IsObservation Observation where
+  obsLevel = \case
+    AdminStartObs{} -> LogCrit
+    AdminServerCrashedObs{} -> LogCrit
+    AppStartObs{} -> LogCrit
+    RTSFlagsObs{} -> LogDebug
+    AppServerAddressObs{} -> LogCrit
+    ExitUnsupportedPgVersion{} -> LogCrit
+    ExitDBNoRecoveryObs -> LogCrit
+    ExitDBFatalError{} -> LogCrit
+    DBConnectedObs{} -> LogCrit
+    SchemaCacheEmptyObs -> LogError
+    SchemaCacheErrorObs{} -> LogCrit
+    SchemaCacheQueriedObs{} -> LogCrit
+    SchemaCacheLoadedObs{} -> LogCrit
+    ConnectionRetryObs{} -> LogCrit
+    DBListenStart{} -> LogCrit
+    DBListenFail{} -> LogCrit
+    DBListenRetry{} -> LogCrit
+    DBListenBugCallQueryFix -> LogCrit
+    DBListenerGotSCacheMsg{} -> LogCrit
+    DBListenerGotConfigMsg{} -> LogCrit
+    DBListenerConnectionCleanupFail{} -> LogCrit
+    QueryObs _ status -> statusLevel status
+    SchemaCacheQueryObs{} -> LogInfo
+    LegacyTargetNameWarningObs{} -> LogCrit
+    ConfigReadErrorObs{} -> LogCrit
+    ConfigInvalidObs{} -> LogCrit
+    ConfigSucceededObs -> LogCrit
+    QueryRoleSettingsErrorObs{} -> LogCrit
+    QueryErrorCodeHighObs{} -> LogError
+    QueryPgVersionError{} -> LogCrit
+    PoolInit{} -> LogCrit
+    PoolAcqTimeoutObs -> LogError
+    HasqlPoolObs{} -> LogDebug
+    ResponseObs _ _ status _ -> statusLevel status
+    PoolRequest -> LogDebug
+    PoolRequestFullfilled -> LogDebug
+    PoolFlushed -> LogDebug
+    JwtCacheObs{} -> LogDebug
+    TerminationUnixSignalObs{} -> LogCrit
+    WarpServerObs{} -> LogDebug
+
+-- | The log level of the observations about a response
+statusLevel :: Status -> LogLevel
+statusLevel status
+  | status >= status500 = LogError
+  | status >= status400 = LogWarn
+  | otherwise = LogInfo
