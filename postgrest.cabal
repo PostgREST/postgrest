@@ -84,6 +84,7 @@ library hasql
                       Hasql.Pool.Observation
                       Hasql.Session
                       Hasql.Statement
+                      Hasql.StatementRunner
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
   other-modules:      Hasql.Connection.Config
