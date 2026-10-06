@@ -261,6 +261,17 @@ def test_log_postgrest_version(defaultenv):
         assert "Starting PostgREST %s..." % version in output[0]
 
 
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_rts(level, defaultenv):
+    "RTS settings are logged at startup only at debug level."
+    env = {**defaultenv, "PGRST_LOG_LEVEL": level}
+
+    with run(env=env, no_startup_stdout=False) as postgrest:
+        output = drain_stdout(postgrest)
+
+    assert any("RTSFlags {" in line for line in output) == (level == "debug")
+
+
 @pytest.mark.parametrize(
     "host", ["127.0.0.1", "::1", None], ids=["IPv4", "IPv6", "Unix"]
 )
@@ -562,9 +573,10 @@ def test_schema_cache_error_observation(defaultenv):
         # assert exitCode == 1
 
         output = postgrest.read_stdout(nlines=9)
-        assert (
+        assert any(
             "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
-            in output[6]
+            in line
+            for line in output
         )
 
 
