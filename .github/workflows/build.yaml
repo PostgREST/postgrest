@@ -57,7 +57,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic -A postgrestStatic.tests
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: postgrest-linux-static-${{ matrix.artifact }}
           path: result/bin/postgrest
@@ -66,7 +66,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker-${{ matrix.artifact }}.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: postgrest-docker-${{ matrix.artifact }}
           path: postgrest-docker-${{ matrix.artifact }}.tar.gz
@@ -165,7 +165,7 @@ jobs:
             stack build --lock-file error-on-write --local-bin-path result --copy-bins
             strip result/postgrest*
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact }}
           path: |
