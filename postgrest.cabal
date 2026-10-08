@@ -273,7 +273,7 @@ executable postgrest
                     , containers          >= 0.5.7 && < 0.8
                     , postgrest
                     , protolude           >= 0.3.1 && < 0.4
-  ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I0 -qg"
+  ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I0 -qg -A16m"
                       -O2
 
   if flag(dev)
