@@ -1,6 +1,6 @@
 module Main where
 
-import System.Environment (getArgs)
+import Protolude
 import Test.DocTest (mainFromCabal)
 
 main :: IO ()
