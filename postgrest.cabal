@@ -441,11 +441,13 @@ test-suite observability
 test-suite doctests
   type:               exitcode-stdio-1.0
   default-language:   GHC2021
+  default-extensions: NoImplicitPrelude
   hs-source-dirs:     test/doc
   main-is:            Main.hs
   build-depends:      base              >= 4.9 && < 4.22
                     , doctest-parallel  >= 0.4
                     , postgrest
                     , pretty-simple
+                    , protolude         >= 0.3.1 && < 0.4
   ghc-options:        -j -threaded -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
