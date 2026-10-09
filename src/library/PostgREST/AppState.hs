@@ -75,8 +75,9 @@ initWithPool :: SQL.Pool -> IORef AppConfig -> Logger.LoggerState -> Metrics.Met
 initWithPool pool confRef loggerState metricsState observer appKiller = mdo
   conf <- readIORef confRef
   appState <-
-    AppState pool
-      <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
+    AppState
+      <$> newIORef pool
+      <*> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
       <*> newIORef Nothing
       <*> newSchemaCacheStatus
       <*> newIORef False

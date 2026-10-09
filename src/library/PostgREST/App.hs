@@ -94,7 +94,7 @@ run appState mainThreadIdRef = do
     let closeSockets = do
           ensureSocketClosed adminSocket
           ensureSocketClosed =<< readIORef mainSocketRef
-    Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+    Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False False appState)
 
     Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
 
