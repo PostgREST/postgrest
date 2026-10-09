@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Concurrent.Async (race)
+import Control.Concurrent.Async (race, wait, withAsync)
 import Test.Hspec
 import Prelude
 
@@ -9,6 +9,7 @@ import System.Environment qualified
 import System.Random.Stateful qualified as Random
 
 import Hasql.Pool
+import Hasql.Pool.Observation
 
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
@@ -164,6 +165,37 @@ main = do
         threadDelay 1_000_000 -- 1s
         res4 <- use pool $ getSettingSession "testing.foo"
         res4 `shouldBe` Right Nothing
+    it "Replaces idle connections the server closed" $
+      withPool 1 10 1_800 1_800 (connectionString <> " user=postgres") $ \admin -> do
+        (taggedConnectionSettings, appName) <- tagConnection connectionString
+        withPool 2 10 1_800 1_800 taggedConnectionSettings $ \pool -> do
+          use pool selectOneSession `shouldReturn` Right 1
+          -- the server closes the idle connection, as when it shuts down
+          use admin (terminateSession appName) `shouldReturn` Right 1
+          threadDelay 100_000 -- 0.1s
+          use pool selectOneSession `shouldReturn` Right 1
+    it "Doesn't keep connections a server error left broken" $
+      withPool 1 10 1_800 1_800 (connectionString <> " user=postgres") $ \admin -> do
+        (taggedConnectionSettings, appName) <- tagConnection connectionString
+        observations <- newMVar []
+        let config =
+              Config.settings
+                [ Config.size 1
+                , Config.staticConnectionSettings [Connection.Setting.connection (Connection.Setting.Connection.string taggedConnectionSettings)]
+                , Config.observationHandler $ \observation -> modifyMVar_ observations (pure . (observation :))
+                ]
+        bracket (acquire config) release $ \pool -> do
+          withAsync (use pool $ Session.sql "SELECT pg_sleep(2)") $ \sleeper -> do
+            threadDelay 300_000 -- 0.3s
+            -- the server terminates the connection during the session
+            use admin (terminateSession appName) `shouldReturn` Right 1
+            wait sleeper >>= (`shouldSatisfy` isLeft)
+          -- the connection is closed instead of returned to the pool
+          latest <- take 1 <$> readMVar observations
+          latest `shouldSatisfy` \case
+            [ConnectionObservation _ (TerminatedConnectionStatus _)] -> True
+            _ -> False
+          use pool selectOneSession `shouldReturn` Right 1
 
 getConnectionString :: IO Text
 getConnectionString =
@@ -188,6 +220,14 @@ tagConnection connectionString = do
   tag <- Random.uniformWord32 Random.globalStdGen
   let appName = "hasql-pool-test-" <> show tag
   return (connectionString <> " application_name=" <> Text.pack appName, Text.pack appName)
+
+terminateSession :: Text -> Session.Session Int64
+terminateSession appName = do
+  Session.statement appName statement
+  where
+    statement = Statement.Statement "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE application_name = $1" encoder decoder True
+    encoder = Encoders.param (Encoders.nonNullable Encoders.text)
+    decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable Decoders.int8))
 
 selectOneSession :: Session.Session Int64
 selectOneSession =
