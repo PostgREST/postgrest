@@ -16,6 +16,8 @@
 module PostgREST.App
   ( postgrest
   , run
+  , ServeHooks (..)
+  , serve
   )
 where
 
@@ -63,7 +65,7 @@ import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error (Error)
 import PostgREST.Network (resolveSocketToAddress)
-import PostgREST.Observation (Observation (..))
+import PostgREST.Observation (Observation (..), ObservationHandler)
 import PostgREST.Response.Performance (Metric (..), NoTimer (..), Timer (..), newServerTimer, serverTimingHeader, timed)
 import PostgREST.SchemaCache (SchemaCache (..))
 import PostgREST.Unix (createAndBindDomainSocket)
@@ -81,12 +83,54 @@ import PostgREST.Query qualified as Query
 import PostgREST.Response qualified as Response
 import PostgREST.Unix qualified as Unix (installSignalHandlers)
 
-run :: AppState -> Weak ThreadId -> IO ()
-run appState mainThreadIdRef = do
+run :: AppState -> IO ()
+run appState = do
   conf@AppConfig{configServerReusePort} <- AppState.getConfig appState
 
+  serve conf $
+    ServeHooks
+      { hooksObserver = observer
+      , hooksReloadSchemaCaches = AppState.schemaCacheLoader appState
+      , hooksReloadConfigs = AppState.readInDbConfig False appState
+      , hooksAdminApp = Admin.admin appState
+      , hooksBeforeBind = do
+          runListener appState
+
+          -- Kick off and wait for the initial SchemaCache load before creating the
+          -- main API socket.
+          AppState.schemaCacheLoader appState
+          if configServerReusePort then
+            AppState.waitForSchemaCacheLoaded appState
+          else
+            AppState.waitForSchemaCacheInit appState
+      , hooksApp = postgrest appState
+      }
+  where
+    observer = AppState.getObserver appState
+
+-- | What an application needs to be served
+data ServeHooks = ServeHooks
+  { hooksObserver :: ObservationHandler
+  , hooksReloadSchemaCaches :: IO ()
+  -- ^ on SIGUSR1
+  , hooksReloadConfigs :: IO ()
+  -- ^ on SIGUSR2
+  , hooksAdminApp :: IO Bool -> Wai.Application
+  -- ^ the admin application, given a check whether the main application is live
+  , hooksBeforeBind :: IO ()
+  -- ^ runs before the main socket is bound
+  , hooksApp :: Wai.Application
+  }
+
+-- | Serve an application with the main and admin sockets, the signal handlers and Warp.
+-- The calling thread is the main one: the admin server reports whether it's running, and a
+-- crash of the admin server kills it.
+serve :: AppConfig -> ServeHooks -> IO ()
+serve conf ServeHooks{..} = do
+  mainThreadIdRef <- mkWeakThreadId =<< myThreadId
   mainSocketRef <- newIORef Nothing
   let
+    killMainThread = deRefWeak mainThreadIdRef >>= traverse_ killThread
     setMainSocketRef = atomicWriteIORef mainSocketRef . Just
     clearMainSocketRef = atomicWriteIORef mainSocketRef Nothing
 
@@ -94,22 +138,15 @@ run appState mainThreadIdRef = do
     let closeSockets = do
           ensureSocketClosed adminSocket
           ensureSocketClosed =<< readIORef mainSocketRef
-    Unix.installSignalHandlers observer closeSockets (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
+    Unix.installSignalHandlers observer closeSockets hooksReloadSchemaCaches hooksReloadConfigs
 
-    Admin.runAdmin appState adminSocket (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef) (serverSettings conf)
+    Admin.runAdmin observer killMainThread conf adminSocket (serverSettings conf) $
+      hooksAdminApp (checkMainAppLive (readIORef mainSocketRef) mainThreadIdRef)
 
-    runListener appState
-
-    -- Kick off and wait for the initial SchemaCache load before creating the
-    -- main API socket.
-    AppState.schemaCacheLoader appState
-    if configServerReusePort then
-      AppState.waitForSchemaCacheLoaded appState
-    else
-      AppState.waitForSchemaCacheInit appState
+    hooksBeforeBind
 
     bracket (initServerSocket conf) NS.close $ \mainSocket -> do
-      let app = postgrest appState
+      let app = hooksApp
 
       address <- resolveSocketToAddress mainSocket
 
@@ -122,7 +159,7 @@ run appState mainThreadIdRef = do
       Warp.runSettingsSocket appServerSettings mainSocket app
         `finally` clearMainSocketRef
   where
-    observer = AppState.getObserver appState
+    observer = hooksObserver
 
     ensureSocketClosed = foldMap NS.close
 
