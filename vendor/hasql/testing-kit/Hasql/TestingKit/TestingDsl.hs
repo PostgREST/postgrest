@@ -24,6 +24,7 @@ import Hasql.TestingKit.Preludes.Base
 import Hasql.TestingKit.Constants qualified as Constants
 
 import Hasql.Connection qualified as Connection
+import Hasql.Pipeline qualified as Pipeline
 import Hasql.Session qualified as Session
 import Hasql.Statement qualified as Statement
 

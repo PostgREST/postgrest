@@ -53,6 +53,7 @@ library hasql
                       Hasql.DynamicStatements.Statement
                       Hasql.Encoders
                       Hasql.Notifications
+                      Hasql.Pipeline
                       Hasql.Pool
                       Hasql.Pool.Config
                       Hasql.Pool.Config.Defaults
@@ -81,6 +82,7 @@ library hasql
                       Hasql.LibPq14
                       Hasql.LibPq14.Ffi
                       Hasql.LibPq14.Mappings
+                      Hasql.Pipeline.Core
                       Hasql.Pool.Config.Config
                       Hasql.Pool.Config.Setting
                       Hasql.Pool.Prelude
@@ -347,6 +349,7 @@ test-suite spec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.NullsStripSpec
                       Feature.Query.PgSafeUpdateSpec
+                      Feature.Query.PipelineModeSpec
                       Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
                       Feature.Query.Preferences.HandlingSpec
