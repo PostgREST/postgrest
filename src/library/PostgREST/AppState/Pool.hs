@@ -25,9 +25,8 @@ import Hasql.Session qualified as SQL
 import PostgREST.Error qualified as Error
 
 -- | Destroy the pool on shutdown.
--- | Differs from flushPool in not emiting PoolFlushed observation.
 destroy :: AppState -> IO ()
-destroy AppState{..} = SQL.release statePool
+destroy appState = SQL.release =<< getPool appState
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool cfg@AppConfig{..} observer = do
@@ -43,10 +42,11 @@ initPool cfg@AppConfig{..} observer = do
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool appState@AppState{stateObserver = observer, ..} sess = do
+usePool appState@AppState{stateObserver = observer} sess = do
   observer PoolRequest
 
-  res <- SQL.use statePool sess
+  pool <- getPool appState
+  res <- SQL.use pool sess
 
   observer PoolRequestFullfilled
 
@@ -108,6 +108,6 @@ usePool appState@AppState{stateObserver = observer, ..} sess = do
 -- use connections freshly established after this call.
 -- | Emits PoolFlushed observation
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = do
-  SQL.release statePool
+flushPool appState@AppState{..} = do
+  destroy appState
   stateObserver PoolFlushed

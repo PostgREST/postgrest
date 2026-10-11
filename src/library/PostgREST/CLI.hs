@@ -53,10 +53,10 @@ runAppCommand conf@AppConfig{..} runCmd = do
     AppState.destroy
     ( \appState -> case runCmd of
         CmdDumpConfig -> do
-          when configDbConfig $ AppState.readInDbConfig True appState
+          when configDbConfig $ AppState.readInDbConfig True True appState
           putStr . Config.toText =<< AppState.getConfig appState
         CmdDumpSchema -> do
-          when configDbConfig $ AppState.readInDbConfig True appState
+          when configDbConfig $ AppState.readInDbConfig True True appState
           putStrLn =<< dumpSchema appState
         CmdRun -> App.run appState mainThreadIdRef
     )

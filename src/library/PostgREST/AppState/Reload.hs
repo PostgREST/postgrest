@@ -32,7 +32,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.Text qualified as T
 import Database.PostgreSQL.LibPQ qualified as LibPQ
 
-import PostgREST.AppState.Pool (flushPool, usePool)
+import PostgREST.AppState.Pool (flushPool, initPool, usePool)
 import PostgREST.AppState.Types
 import PostgREST.Auth.JwtCache (update)
 import PostgREST.Catalog.Identifiers (quoteQi)
@@ -97,18 +97,19 @@ retryingSchemaCacheLoad appState@AppState{stateObserver = observer} =
             return Nothing
           else do
             observer $ DBConnectedObs $ pgvFullName actualPgVersion
-            observer $ PoolInit configDbPoolSize
+            -- observer $ PoolInit configDbPoolSize
             putPgVersion appState actualPgVersion
             return $ Just actualPgVersion
 
     qInDbConfig :: IO ()
     qInDbConfig = do
       AppConfig{..} <- getConfig appState
-      when configDbConfig $ readInDbConfig False appState
+      when configDbConfig $ readInDbConfig False True appState
 
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      observer $ PoolInit configDbPoolSize
       pgVer <- getPgVersion appState
       (resultTime, result) <-
         timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
@@ -129,7 +130,9 @@ retryingSchemaCacheLoad appState@AppState{stateObserver = observer} =
           -- Flush the pool after loading the schema cache to reset any stale session cache entries
           -- We do it after successfully querying the schema cache (because this can fail and during retries we would flush the pool repeatedly unnecessarily)
           -- and after marking sCacheStatus as pending,
-          flushPool appState
+          newPool <- initPool conf observer
+          flushPool appState -- TODO: avoid race condition, the flush should be done after the new pool is set
+          putPool appState newPool
           observer $ SchemaCacheQueriedObs resultTime queryTimings
           observer $ SchemaCacheLoadedObs loadTime summary
           markSchemaCacheLoaded appState
@@ -167,8 +170,8 @@ waitForSchemaCacheLoaded = atomically . (check <=< readTMVar) . getSCStatusTMVar
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
-readInDbConfig :: Bool -> AppState -> IO ()
-readInDbConfig startingUp appState@AppState{stateObserver = observer} = do
+readInDbConfig :: Bool -> Bool -> AppState -> IO ()
+readInDbConfig startingUp skipReload appState@AppState{stateObserver = observer} = do
   oldConf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -211,6 +214,13 @@ readInDbConfig startingUp appState@AppState{stateObserver = observer} = do
         putIsListenerOn appState False
         -- 2. Restart listener
         runListener appState
+
+      -- We verify if any db-pool configuration has changed, so we need to
+      -- flush the pool and start a new one. However, there are places where
+      -- this doesn't need a reload (e.g. the Schema Cache does the reload there)
+      -- so we skip it.
+      unless skipReload $ do
+        pass -- TODO flushPool
 
       if startingUp then
         pass
@@ -300,7 +310,7 @@ retryingListen appState nextDelay hasDbListenerBug = do
       if
         | BS.null msg -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
         | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-        | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False appState
+        | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False False appState
         | otherwise -> pure () -- Do nothing if anything else than an empty message is sent
     cacheReloader =
       schemaCacheLoader appState
