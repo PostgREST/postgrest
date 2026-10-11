@@ -140,42 +140,38 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.twkb"
 -- MTOther "application/vnd.twkb"
 decodeMediaType :: ByteString -> MediaType
-decodeMediaType = decodeMediaType'
+decodeMediaType mt = case (mainType, subType) of
+  ("application", "json") -> MTApplicationJSON
+  ("application", "geo+json") -> MTGeoJSON
+  ("text", "csv") -> MTTextCSV
+  ("text", "plain") -> MTTextPlain
+  ("text", "xml") -> MTTextXML
+  ("application", "openapi+json") -> MTOpenAPI
+  ("application", "x-www-form-urlencoded") -> MTUrlEncoded
+  ("application", "octet-stream") -> MTOctetStream
+  ("application", "vnd.pgrst.plan") -> getPlan PlanText
+  ("application", "vnd.pgrst.plan+text") -> getPlan PlanText
+  ("application", "vnd.pgrst.plan+json") -> getPlan PlanJSON
+  ("application", "vnd.pgrst.object+json") -> MTVndSingularJSON strippedNulls
+  ("application", "vnd.pgrst.object") -> MTVndSingularJSON strippedNulls
+  ("application", "vnd.pgrst.array+json") -> checkArrayNullStrip
+  ("application", "vnd.pgrst.array") -> checkArrayNullStrip
+  ("*", "*") -> MTAny
+  _ -> MTOther $ decodeLatin1 mt
   where
-    decodeMediaType' :: ByteString -> MediaType
-    decodeMediaType' mt' =
-      case (mainType, subType) of
-        ("application", "json") -> MTApplicationJSON
-        ("application", "geo+json") -> MTGeoJSON
-        ("text", "csv") -> MTTextCSV
-        ("text", "plain") -> MTTextPlain
-        ("text", "xml") -> MTTextXML
-        ("application", "openapi+json") -> MTOpenAPI
-        ("application", "x-www-form-urlencoded") -> MTUrlEncoded
-        ("application", "octet-stream") -> MTOctetStream
-        ("application", "vnd.pgrst.plan") -> getPlan PlanText
-        ("application", "vnd.pgrst.plan+text") -> getPlan PlanText
-        ("application", "vnd.pgrst.plan+json") -> getPlan PlanJSON
-        ("application", "vnd.pgrst.object+json") -> MTVndSingularJSON strippedNulls
-        ("application", "vnd.pgrst.object") -> MTVndSingularJSON strippedNulls
-        ("application", "vnd.pgrst.array+json") -> checkArrayNullStrip
-        ("application", "vnd.pgrst.array") -> checkArrayNullStrip
-        ("*", "*") -> MTAny
-        _ -> MTOther $ decodeLatin1 mt'
+    (mainType, subType, params) = case HTTP.parseAccept mt :: Maybe HTTP.MediaType of
+      Just mt' -> (HTTP.mainType mt', HTTP.subType mt', HTTP.parameters mt')
+      Nothing -> (CI.mk mt, "", mempty)
+    getPlan fmt =
+      MTVndPlan mtFor fmt $
+        [PlanAnalyze | inOpts "analyze"]
+          ++ [PlanVerbose | inOpts "verbose"]
+          ++ [PlanSettings | inOpts "settings"]
+          ++ [PlanBuffers | inOpts "buffers"]
+          ++ [PlanWAL | inOpts "wal"]
       where
-        (mainType, subType, params) = case HTTP.parseAccept mt' :: Maybe HTTP.MediaType of
-          Just mt'' -> (HTTP.mainType mt'', HTTP.subType mt'', HTTP.parameters mt'')
-          Nothing -> (CI.mk mt', "", mempty)
-        getPlan fmt =
-          MTVndPlan mtFor fmt $
-            [PlanAnalyze | inOpts "analyze"]
-              ++ [PlanVerbose | inOpts "verbose"]
-              ++ [PlanSettings | inOpts "settings"]
-              ++ [PlanBuffers | inOpts "buffers"]
-              ++ [PlanWAL | inOpts "wal"]
-          where
-            mtFor = decodeMediaType' $ CI.original $ fromMaybe "application/json" (params !? "for")
-            inOpts str = str `elem` opts
-            opts = BS.split '|' $ CI.original $ fromMaybe mempty (params !? "options")
-        strippedNulls = fromMaybe "false" (params !? "nulls") == "stripped"
-        checkArrayNullStrip = if strippedNulls then MTVndArrayJSONStrip else MTApplicationJSON
+        mtFor = decodeMediaType $ CI.original $ fromMaybe "application/json" (params !? "for")
+        inOpts str = str `elem` opts
+        opts = BS.split '|' $ CI.original $ fromMaybe mempty (params !? "options")
+    strippedNulls = fromMaybe "false" (params !? "nulls") == "stripped"
+    checkArrayNullStrip = if strippedNulls then MTVndArrayJSONStrip else MTApplicationJSON
