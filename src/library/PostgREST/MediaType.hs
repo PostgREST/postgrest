@@ -9,19 +9,18 @@ module PostgREST.MediaType
   , toContentType
   , toMime
   , decodeMediaType
-  , tokenizeMediaType
   )
 where
 
-import Data.Map (fromList, (!?))
+import Data.Map ((!?))
 import Data.Text.Encoding (decodeLatin1)
 import Network.HTTP.Types.Header (Header, hContentType)
 import Protolude
 
 import Data.Aeson qualified as JSON
-import Data.ByteString qualified as BS
-import Data.Text qualified as T
-import Text.ParserCombinators.Parsec qualified as P
+import Data.ByteString.Char8 qualified as BS
+import Data.CaseInsensitive qualified as CI
+import Network.HTTP.Media qualified as HTTP
 
 -- $setup
 -- >>> import qualified Text.ParserCombinators.Parsec as P
@@ -110,7 +109,7 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/json"
 -- MTApplicationJSON
 --
--- >>> decodeMediaType "application/vnd.pgrst.plan;"
+-- >>> decodeMediaType "application/vnd.pgrst.plan"
 -- MTVndPlan MTApplicationJSON PlanText []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan;for=application/json"
@@ -119,7 +118,7 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.pgrst.plan ; for=text/xml ; options=analyze"
 -- MTVndPlan MTTextXML PlanText [PlanAnalyze]
 --
--- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
+-- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=text/csv"
 -- MTVndPlan MTTextCSV PlanJSON []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.array+json;nulls=stripped"
@@ -141,11 +140,11 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.twkb"
 -- MTOther "application/vnd.twkb"
 decodeMediaType :: ByteString -> MediaType
-decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
+decodeMediaType = decodeMediaType'
   where
-    decodeMediaType' :: Text -> MediaType
+    decodeMediaType' :: ByteString -> MediaType
     decodeMediaType' mt' =
-      case (T.toLower mainType, T.toLower subType) of
+      case (mainType, subType) of
         ("application", "json") -> MTApplicationJSON
         ("application", "geo+json") -> MTGeoJSON
         ("text", "csv") -> MTTextCSV
@@ -162,13 +161,11 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         ("application", "vnd.pgrst.array+json") -> checkArrayNullStrip
         ("application", "vnd.pgrst.array") -> checkArrayNullStrip
         ("*", "*") -> MTAny
-        _ -> MTOther mt'
+        _ -> MTOther $ decodeLatin1 mt'
       where
-        mediaTypeOrError = P.parse tokenizeMediaType "parsec: tokenizeMediaType failed" $ T.unpack mt'
-        (mainType, subType, params') = case mediaTypeOrError of
-          Right mt'' -> mt''
-          Left _ -> (mt', "", [])
-        params = fromList $ map (first T.toLower) params' -- normalize parameter names to lowercase, per RFC 7321
+        (mainType, subType, params) = case HTTP.parseAccept mt' :: Maybe HTTP.MediaType of
+          Just mt'' -> (HTTP.mainType mt'', HTTP.subType mt'', HTTP.parameters mt'')
+          Nothing -> (CI.mk mt', "", mempty)
         getPlan fmt =
           MTVndPlan mtFor fmt $
             [PlanAnalyze | inOpts "analyze"]
@@ -177,46 +174,8 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
               ++ [PlanBuffers | inOpts "buffers"]
               ++ [PlanWAL | inOpts "wal"]
           where
-            mtFor = decodeMediaType' $ fromMaybe "application/json" (params !? "for")
+            mtFor = decodeMediaType' $ CI.original $ fromMaybe "application/json" (params !? "for")
             inOpts str = str `elem` opts
-            opts = T.splitOn "|" $ fromMaybe mempty (params !? "options")
+            opts = BS.split '|' $ CI.original $ fromMaybe mempty (params !? "options")
         strippedNulls = fromMaybe "false" (params !? "nulls") == "stripped"
         checkArrayNullStrip = if strippedNulls then MTVndArrayJSONStrip else MTApplicationJSON
-
--- | Split a Media Type string into components
--- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan+json;for=\"text/csv\""
--- Right ("application","vnd.pgrst.plan+json",[("for","text/csv")])
---
--- >>> P.parse tokenizeMediaType "" "*/*"
--- Right ("*","*",[])
---
--- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan;wat=\"application/json;text/csv\""
--- Right ("application","vnd.pgrst.plan",[("wat","application/json;text/csv")])
---
--- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan+text; for=\"text/xml\"; options=analyze|verbose|settings|buffers|wal"
--- Right ("application","vnd.pgrst.plan+text",[("for","text/xml"),("options","analyze|verbose|settings|buffers|wal")])
-
--- TODO: Improve mediatype parser as per RFC 2045 https://datatracker.ietf.org/doc/html/rfc2045#section-5.1
-tokenizeMediaType :: P.Parser (Text, Text, [(Text, Text)])
-tokenizeMediaType = do
-  mainType <- P.many1 (P.alphaNum <|> P.oneOf ".*")
-  P.char '/'
-  subType <- P.many1 (P.alphaNum <|> P.oneOf ".*+-")
-  params <- P.many pSemicolonSeparatedKeyVals
-  P.optional $ P.try $ P.spaces *> P.char ';' -- ending semicolon, discard input after that because it has already failed or we have hit EOF
-  return (T.pack mainType, T.pack subType, params)
-  where
-    pSemicolonSeparatedKeyVals :: P.Parser (Text, Text)
-    pSemicolonSeparatedKeyVals = P.try $ P.spaces *> P.char ';' *> P.spaces *> pKeyVal
-      where
-        pKeyVal :: P.Parser (Text, Text)
-        pKeyVal = do
-          key <- P.many1 (P.alphaNum <|> P.oneOf "-")
-          P.spaces
-          P.char '='
-          P.spaces
-          val <- P.try pQuoted <|> P.try pUnQuoted
-          return (T.pack key, T.pack val)
-          where
-            pUnQuoted = P.many1 (P.alphaNum <|> P.oneOf "|-")
-            pQuoted = P.char '\"' *> P.manyTill P.anyChar (P.char '\"')
