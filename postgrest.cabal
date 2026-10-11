@@ -215,6 +215,9 @@ library
                     , configurator-pg           >= 0.2.11 && < 0.3
                     , containers                >= 0.5.7 && < 0.8
                     , cookie                    >= 0.4.2 && < 0.6
+                    -- transitive dependency through at least jose-jwt
+                    -- 2.0.0 starts being heavily vibe-coded, so rejecting that on purpose
+                    , crypton                   < 2
                     , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
