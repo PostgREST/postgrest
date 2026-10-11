@@ -113,10 +113,10 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.pgrst.plan;"
 -- MTVndPlan MTApplicationJSON PlanText []
 --
--- >>> decodeMediaType "application/vnd.pgrst.plan;for=\"application/json\""
+-- >>> decodeMediaType "application/vnd.pgrst.plan;for=application/json"
 -- MTVndPlan MTApplicationJSON PlanText []
 --
--- >>> decodeMediaType "application/vnd.pgrst.plan ; for=\"text/xml\" ; options=analyze"
+-- >>> decodeMediaType "application/vnd.pgrst.plan ; for=text/xml ; options=analyze"
 -- MTVndPlan MTTextXML PlanText [PlanAnalyze]
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
