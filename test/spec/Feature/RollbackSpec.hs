@@ -19,10 +19,10 @@ postItem =
     [("Prefer", "tx=commit"), ("Prefer", "resolution=ignore-duplicates")]
     [json|{"id":0}|]
     `shouldRespondWith` ""
-      { matchStatus = 201
-      , matchHeaders =
-          [ matchHeaderAbsent hContentType
-          , "Content-Length" <:> "0"
+      { matchStatus = 201,
+        matchHeaders =
+          [ matchHeaderAbsent hContentType,
+            "Content-Length" <:> "0"
           ]
       }
 
@@ -34,10 +34,10 @@ deleteItems =
     [("Prefer", "tx=commit")]
     ""
     `shouldRespondWith` ""
-      { matchStatus = 204
-      , matchHeaders =
-          [ matchHeaderAbsent hContentType
-          , matchHeaderAbsent hContentLength
+      { matchStatus = 204,
+        matchHeaders =
+          [ matchHeaderAbsent hContentType,
+            matchHeaderAbsent hContentLength
           ]
       }
 
@@ -107,8 +107,8 @@ shouldRaiseExceptions reqHeaders respHeaders = do
           "code":"23505",
           "message":"duplicate key value violates unique constraint \"deferrable_unique_constraint_col_key\""
         }|]
-        { matchStatus = 409
-        , matchHeaders = respHeaders
+        { matchStatus = 409,
+          matchHeaders = respHeaders
         }
 
   it "raises deferred constraints" $ do
@@ -123,8 +123,8 @@ shouldRaiseExceptions reqHeaders respHeaders = do
           "code":"23505",
           "message":"duplicate key value violates unique constraint \"deferrable_unique_constraint_col_key\""
         }|]
-        { matchStatus = 409
-        , matchHeaders = respHeaders
+        { matchStatus = 409,
+          matchHeaders = respHeaders
         }
 
 shouldPersistMutations reqHeaders respHeaders = do
@@ -135,8 +135,8 @@ shouldPersistMutations reqHeaders respHeaders = do
       reqHeaders
       [json|{"id":0}|]
       `shouldRespondWith` [json|[{"id":0}]|]
-        { matchStatus = 201
-        , matchHeaders = respHeaders
+        { matchStatus = 201,
+          matchHeaders = respHeaders
         }
     get "/items?id=eq.0"
       `shouldRespondWith` [json|[{"id":0}]|]
@@ -149,8 +149,8 @@ shouldPersistMutations reqHeaders respHeaders = do
       reqHeaders
       [json|{"id":0}|]
       `shouldRespondWith` [json|[{"id":0}]|]
-        { matchStatus = 201
-        , matchHeaders = respHeaders
+        { matchStatus = 201,
+          matchHeaders = respHeaders
         }
     get "/items?id=eq.0"
       `shouldRespondWith` [json|[{"id":0}]|]
@@ -193,8 +193,8 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       reqHeaders
       [json|{"id":0}|]
       `shouldRespondWith` [json|[{"id":0}]|]
-        { matchStatus = 201
-        , matchHeaders = respHeaders
+        { matchStatus = 201,
+          matchHeaders = respHeaders
         }
     get "/items?id=eq.0"
       `shouldRespondWith` [json|[]|]
@@ -206,8 +206,8 @@ shouldNotPersistMutations reqHeaders respHeaders = do
       reqHeaders
       [json|{"id":0}|]
       `shouldRespondWith` [json|[{"id":0}]|]
-        { matchStatus = 201
-        , matchHeaders = respHeaders
+        { matchStatus = 201,
+          matchHeaders = respHeaders
         }
     get "/items?id=eq.0"
       `shouldRespondWith` [json|[]|]
@@ -262,8 +262,8 @@ allowed withConfig = withConfig baseCfg $ describe "tx-allow-override = true" $ 
 disallowed :: SpecWithConfig
 disallowed withConfig = withConfig
   ( baseCfg
-      { configDbTxAllowOverride = False
-      , configDbTxRollbackAll = False
+      { configDbTxAllowOverride = False,
+        configDbTxRollbackAll = False
       }
   )
   $ describe "tx-rollback-all = false, tx-allow-override = false"
@@ -286,8 +286,8 @@ disallowed withConfig = withConfig
 forced :: SpecWithConfig
 forced withConfig = withConfig
   ( baseCfg
-      { configDbTxAllowOverride = False
-      , configDbTxRollbackAll = True
+      { configDbTxAllowOverride = False,
+        configDbTxRollbackAll = True
       }
   )
   $ describe "tx-rollback-all = true, tx-allow-override = false"

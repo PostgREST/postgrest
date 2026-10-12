@@ -55,9 +55,9 @@ import PostgREST.RangeQuery qualified as RangeQuery
 import PostgREST.Response.OpenAPI qualified as OpenAPI
 
 data PgrstResponse = PgrstResponse
-  { pgrstStatus :: HTTP.Status
-  , pgrstHeaders :: [HTTP.Header]
-  , pgrstBody :: LBS.ByteString
+  { pgrstStatus :: HTTP.Status,
+    pgrstHeaders :: [HTTP.Header],
+    pgrstBody :: LBS.ByteString
   }
 
 actionResponse :: DbResult -> ApiRequest -> RequestValues -> (Text, Text) -> AppConfig -> SchemaCache -> Either Error.Error PgrstResponse
@@ -68,10 +68,9 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly = headersOn
     prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
 
     headers =
-      [ contentRange
-      ,
-        ( "Content-Location"
-        , "/"
+      [ contentRange,
+        ( "Content-Location",
+          "/"
             <> toUtf8 (qiName identifier)
             <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
         )
@@ -101,14 +100,14 @@ actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation = MutationCreate, pM
             Nothing
           else
             Just
-              ( HTTP.hLocation
-              , "/"
+              ( HTTP.hLocation,
+                "/"
                   <> toUtf8 qiName
                   <> HTTP.renderSimpleQuery True rsLocation
-              )
-        , Just . RangeQuery.contentRangeH 1 0 $
-            if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
-        , prefHeader
+              ),
+          Just . RangeQuery.contentRangeH 1 0 $
+            if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing,
+          prefHeader
         ]
 
     isInsertIfGTZero i =
@@ -199,9 +198,9 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd = invMethod, cr
       if Routine.funcReturnsVoid proc then
         (HTTP.status204, headers, mempty)
       else
-        ( status
-        , headers ++ cLHeader ++ contentTypeHeaders pMedia ctxApiRequest requestValues
-        , if isHeadMethod then mempty else rsOrErrBody
+        ( status,
+          headers ++ cLHeader ++ contentTypeHeaders pMedia ctxApiRequest requestValues,
+          if isHeadMethod then mempty else rsOrErrBody
         )
 
   (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'

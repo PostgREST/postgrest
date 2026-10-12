@@ -8,8 +8,8 @@ import Hasql.Session qualified as Session
 import Hasql.Statement qualified as Statement
 
 data Params = Params
-  { start :: Int64
-  , end :: Int64
+  { start :: Int64,
+    end :: Int64
   }
 
 type Result = [Int64]
@@ -33,8 +33,8 @@ sql =
 encoder :: Encoders.Params Params
 encoder =
   mconcat
-    [ start >$< Encoders.param (Encoders.nonNullable Encoders.int8)
-    , end >$< Encoders.param (Encoders.nonNullable Encoders.int8)
+    [ start >$< Encoders.param (Encoders.nonNullable Encoders.int8),
+      end >$< Encoders.param (Encoders.nonNullable Encoders.int8)
     ]
 
 decoder :: Decoders.Result Result

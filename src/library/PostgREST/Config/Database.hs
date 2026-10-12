@@ -44,31 +44,31 @@ prefix = "pgrst."
 dbSettingsNames :: [Text]
 dbSettingsNames =
   (prefix <>)
-    <$> [ "db_aggregates_enabled"
-        , "client_error_verbosity"
-        , "db_anon_role"
-        , "db_pre_config"
-        , "db_extra_search_path"
-        , "db_max_rows"
-        , "db_plan_enabled"
-        , "db_pre_request"
-        , "db_prepared_statements"
-        , "db_root_spec"
-        , "db_schemas"
-        , "db_tx_end"
-        , "db_hoisted_tx_settings"
-        , "jwt_aud"
-        , "jwt_role_claim_key"
-        , "jwt_secret"
-        , "jwt_secret_is_base64"
-        , "jwt_cache_max_entries"
-        , "openapi_mode"
-        , "openapi_security_active"
-        , "openapi_server_proxy_uri"
-        , "server_cors_allowed_origins"
-        , "server_trace_header"
-        , "server_timing_enabled"
-        , "url_use_legacy_target_names"
+    <$> [ "db_aggregates_enabled",
+          "client_error_verbosity",
+          "db_anon_role",
+          "db_pre_config",
+          "db_extra_search_path",
+          "db_max_rows",
+          "db_plan_enabled",
+          "db_pre_request",
+          "db_prepared_statements",
+          "db_root_spec",
+          "db_schemas",
+          "db_tx_end",
+          "db_hoisted_tx_settings",
+          "jwt_aud",
+          "jwt_role_claim_key",
+          "jwt_secret",
+          "jwt_secret_is_base64",
+          "jwt_cache_max_entries",
+          "openapi_mode",
+          "openapi_security_active",
+          "openapi_server_proxy_uri",
+          "server_cors_allowed_origins",
+          "server_trace_header",
+          "server_timing_enabled",
+          "url_use_legacy_target_names"
         ]
 
 queryPgVersion :: Session PgVersion
@@ -181,8 +181,8 @@ queryRoleSettings pgVer =
         rowsWRoleSettings = [(x, z) | (x, _, z) <- rs]
         rowsWIsolation = [(x, y) | (x, Just y, _) <- rs]
       in
-        ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
-        , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
+        ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings,
+          HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
         )
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]

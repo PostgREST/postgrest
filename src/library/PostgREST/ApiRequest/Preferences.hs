@@ -50,15 +50,15 @@ import Network.HTTP.Types.Header qualified as HTTP
 -- | Preferences recognized by the application.
 data Preferences
   = Preferences
-  { preferResolution :: Maybe PreferResolution
-  , preferRepresentation :: Maybe PreferRepresentation
-  , preferCount :: Maybe PreferCount
-  , preferTransaction :: Maybe PreferTransaction
-  , preferMissing :: Maybe PreferMissing
-  , preferHandling :: Maybe PreferHandling
-  , preferTimezone :: Maybe PreferTimezone
-  , preferMaxAffected :: Maybe PreferMaxAffected
-  , invalidPrefs :: [ByteString]
+  { preferResolution :: Maybe PreferResolution,
+    preferRepresentation :: Maybe PreferRepresentation,
+    preferCount :: Maybe PreferCount,
+    preferTransaction :: Maybe PreferTransaction,
+    preferMissing :: Maybe PreferMissing,
+    preferHandling :: Maybe PreferHandling,
+    preferTimezone :: Maybe PreferTimezone,
+    preferMaxAffected :: Maybe PreferMaxAffected,
+    invalidPrefs :: [ByteString]
   }
 
 -- |
@@ -129,15 +129,15 @@ data Preferences
 fromHeaders :: Bool -> [HTTP.Header] -> Preferences
 fromHeaders allowTxDbOverride headers =
   Preferences
-    { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates]
-    , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
-    , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
-    , preferMissing = parsePrefs [ApplyDefaults, ApplyNulls]
-    , preferHandling = parsePrefs [Strict, Lenient]
-    , preferTimezone = PreferTimezone <$> timezonePref
-    , preferMaxAffected = PreferMaxAffected <$> maxAffectedPref
-    , invalidPrefs = filter isUnacceptable prefs
+    { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates],
+      preferRepresentation = parsePrefs [Full, None, HeadersOnly],
+      preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount],
+      preferTransaction = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing,
+      preferMissing = parsePrefs [ApplyDefaults, ApplyNulls],
+      preferHandling = parsePrefs [Strict, Lenient],
+      preferTimezone = PreferTimezone <$> timezonePref,
+      preferMaxAffected = PreferMaxAffected <$> maxAffectedPref,
+      invalidPrefs = filter isUnacceptable prefs
     }
   where
     mapToHeadVal :: (ToHeaderValue a) => [a] -> [ByteString]
@@ -181,14 +181,14 @@ prefAppliedHeader Preferences{preferResolution, preferRepresentation, preferCoun
     combined = BS.intercalate ", " prefsVals
     prefsVals =
       catMaybes
-        [ toHeaderValue <$> preferResolution
-        , toHeaderValue <$> preferMissing
-        , toHeaderValue <$> preferRepresentation
-        , toHeaderValue <$> preferCount
-        , toHeaderValue <$> preferTransaction
-        , toHeaderValue <$> preferHandling
-        , toHeaderValue <$> preferTimezone
-        , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
+        [ toHeaderValue <$> preferResolution,
+          toHeaderValue <$> preferMissing,
+          toHeaderValue <$> preferRepresentation,
+          toHeaderValue <$> preferCount,
+          toHeaderValue <$> preferTransaction,
+          toHeaderValue <$> preferHandling,
+          toHeaderValue <$> preferTimezone,
+          if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
         ]
 
 -- |

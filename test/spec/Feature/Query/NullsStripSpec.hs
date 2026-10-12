@@ -22,8 +22,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip]
           ""
           `shouldRespondWith` [json|[{"id":1,"name":"Referee Org","manager_id":1},{"id":2,"name":"Auditor Org","manager_id":2},{"id":3,"name":"Acme","referee":1,"auditor":2,"manager_id":3},{"id":4,"name":"Umbrella","referee":1,"auditor":2,"manager_id":4},{"id":5,"name":"Cyberdyne","referee":3,"auditor":4,"manager_id":5},{"id":6,"name":"Oscorp","referee":3,"auditor":4,"manager_id":6}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTArrayStrip]
             }
 
         request
@@ -32,8 +32,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip, ("Prefer", "return=representation")]
           [json|{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}|]
           `shouldRespondWith` [json|[{"id":7,"name":"John","manager_id":6}]|]
-            { matchStatus = 201
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 201,
+              matchHeaders = [matchCTArrayStrip]
             }
 
         request
@@ -42,8 +42,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip, ("Prefer", "return=representation")]
           [json|{"name":"John","referee":null}|]
           `shouldRespondWith` [json|[{"id":3,"name":"John","auditor":2,"manager_id":3}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTArrayStrip]
             }
 
       it "strips nulls when Accept: application/vnd.pgrst.array;nulls=stripped" $
@@ -53,8 +53,8 @@ spec withConfig = withConfig baseCfg $
           [("Accept", "application/vnd.pgrst.array;nulls=stripped")]
           ""
           `shouldRespondWith` [json|[{"id":1,"name":"Referee Org","manager_id":1},{"id":2,"name":"Auditor Org","manager_id":2},{"id":3,"name":"Acme","referee":1,"auditor":2,"manager_id":3},{"id":4,"name":"Umbrella","referee":1,"auditor":2,"manager_id":4},{"id":5,"name":"Cyberdyne","referee":3,"auditor":4,"manager_id":5},{"id":6,"name":"Oscorp","referee":3,"auditor":4,"manager_id":6}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTArrayStrip]
             }
 
       it "strips nulls when Accept: application/vnd.pgrst.object+json;nulls=stripped" $
@@ -64,8 +64,8 @@ spec withConfig = withConfig baseCfg $
           [singularStrip]
           ""
           `shouldRespondWith` [json|{"id":1,"name":"Referee Org","manager_id":1}|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTSingularStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTSingularStrip]
             }
 
       it "throws error when Accept: application/vnd.pgrst.object+json;nulls=stripped and result not singular" $
@@ -75,8 +75,8 @@ spec withConfig = withConfig baseCfg $
           [singularStrip]
           ""
           `shouldRespondWith` [json|{"details":"The result contains 6 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "strip nulls from response even if explicitly selected" $ do
@@ -87,8 +87,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip]
           ""
           `shouldRespondWith` [json|[{"id":1},{"id":2},{"id":3,"referee":1,"auditor":2},{"id":4,"referee":1,"auditor":2},{"id":5,"referee":3,"auditor":4},{"id":6,"referee":3,"auditor":4}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTArrayStrip]
             }
 
         request
@@ -97,8 +97,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip, ("Prefer", "return=representation")]
           [json|{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}|]
           `shouldRespondWith` [json|[{"id":7}]|]
-            { matchStatus = 201
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 201,
+              matchHeaders = [matchCTArrayStrip]
             }
 
         request
@@ -107,8 +107,8 @@ spec withConfig = withConfig baseCfg $
           [arrayStrip, ("Prefer", "return=representation")]
           [json|{"name":"John","referee":null}|]
           `shouldRespondWith` [json|[{"id":3,"name":"John","auditor":2}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTArrayStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTArrayStrip]
             }
 
       it "strips nulls when Accept: application/vnd.pgrst.object+json;nulls=stripped" $
@@ -118,8 +118,8 @@ spec withConfig = withConfig baseCfg $
           [singularStrip]
           ""
           `shouldRespondWith` [json|{"id":1}|]
-            { matchStatus = 200
-            , matchHeaders = [matchCTSingularStrip]
+            { matchStatus = 200,
+              matchHeaders = [matchCTSingularStrip]
             }
 
     context "doesn't strip nulls" $ do
@@ -130,6 +130,6 @@ spec withConfig = withConfig baseCfg $
           [("Accept", "application/vnd.pgrst.array+json")]
           ""
           `shouldRespondWith` [json|[{"id":1,"referee":null,"auditor":null},{"id":2,"referee":null,"auditor":null},{"id":3,"referee":1,"auditor":2},{"id":4,"referee":1,"auditor":2},{"id":5,"referee":3,"auditor":4},{"id":6,"referee":3,"auditor":4}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }

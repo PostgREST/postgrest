@@ -21,8 +21,8 @@ spec withConfig =
       context "secret provided as JWK"
         $ withConfig
           ( baseCfg
-              { configJwtSecret = Just jwk
-              , configJWKS = rightToMaybe $ parseSecret jwk
+              { configJwtSecret = Just jwk,
+                configJWKS = rightToMaybe $ parseSecret jwk
               }
           )
         $ it "succeeds with jwt token signed with an asymmetric key"
@@ -32,8 +32,8 @@ spec withConfig =
       context "secret provided as JWKSet"
         $ withConfig
           ( baseCfg
-              { configJwtSecret = Just jwks
-              , configJWKS = rightToMaybe $ parseSecret jwks
+              { configJwtSecret = Just jwks,
+                configJWKS = rightToMaybe $ parseSecret jwks
               }
           )
         $ it "succeeds with jwt token signed with an asymmetric key"

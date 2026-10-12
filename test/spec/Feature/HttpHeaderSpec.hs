@@ -20,9 +20,9 @@ spec withConfig = do
           []
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders = ["Vary" <:> "X-Test-Accept"]
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders = ["Vary" <:> "X-Test-Accept"]
             }
 
   withConfig baseCfg $
@@ -34,7 +34,7 @@ spec withConfig = do
           []
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders = ["Vary" <:> "Accept, Prefer, Range"]
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders = ["Vary" <:> "Accept, Prefer, Range"]
             }

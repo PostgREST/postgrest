@@ -26,10 +26,10 @@ import Hasql.Session qualified as Session
 
 -- | A connection tagged with metadata.
 data Entry = Entry
-  { entryConnection :: Connection
-  , entryCreationTimeNSec :: Word64
-  , entryUseTimeNSec :: Word64
-  , entryId :: UUID
+  { entryConnection :: Connection,
+    entryCreationTimeNSec :: Word64,
+    entryUseTimeNSec :: Word64,
+    entryId :: UUID
   }
 
 entryIsAged :: Word64 -> Word64 -> Entry -> Bool
@@ -42,29 +42,29 @@ entryIsIdle maxIdletime now Entry{..} =
 
 -- | Pool of connections to DB.
 data Pool = Pool
-  { poolSize :: Int
-  -- ^ Pool size.
-  , poolConnectionSettings :: [Connection.Setting.Setting]
-  -- ^ Connection settings.
-  , poolAcquisitionTimeout :: Int
-  -- ^ Acquisition timeout, in microseconds.
-  , poolMaxLifetime :: Word64
-  -- ^ Maximal connection lifetime, in nanoseconds.
-  , poolMaxIdletime :: Word64
-  -- ^ Maximal connection idle time, in nanoseconds.
-  , poolConnectionQueue :: TQueue Entry
-  -- ^ Avail connections.
-  , poolCapacity :: TVar Int
-  -- ^ Remaining capacity.
-  --     The pool size limits the sum of poolCapacity, the length
-  --     of poolConnectionQueue and the number of in-flight
-  --     connections.
-  , poolReuseVar :: TVar (TVar Bool)
-  -- ^ Whether to return a connection to the pool.
-  , poolReaperRef :: IORef ()
-  -- ^ To stop the manager thread via garbage collection.
-  , poolObserver :: Observation -> IO ()
-  -- ^ Action for reporting the observations.
+  { -- | Pool size.
+    poolSize :: Int,
+    -- | Connection settings.
+    poolConnectionSettings :: [Connection.Setting.Setting],
+    -- | Acquisition timeout, in microseconds.
+    poolAcquisitionTimeout :: Int,
+    -- | Maximal connection lifetime, in nanoseconds.
+    poolMaxLifetime :: Word64,
+    -- | Maximal connection idle time, in nanoseconds.
+    poolMaxIdletime :: Word64,
+    -- | Avail connections.
+    poolConnectionQueue :: TQueue Entry,
+    -- | Remaining capacity.
+    --     The pool size limits the sum of poolCapacity, the length
+    --     of poolConnectionQueue and the number of in-flight
+    --     connections.
+    poolCapacity :: TVar Int,
+    -- | Whether to return a connection to the pool.
+    poolReuseVar :: TVar (TVar Bool),
+    -- | To stop the manager thread via garbage collection.
+    poolReaperRef :: IORef (),
+    -- | Action for reporting the observations.
+    poolObserver :: Observation -> IO ()
   }
 
 -- | Create a connection-pool.
@@ -149,15 +149,15 @@ use Pool{..} sess = do
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
     asum
-      [ readTQueue poolConnectionQueue <&> onConn reuseVar
-      , do
+      [ readTQueue poolConnectionQueue <&> onConn reuseVar,
+        do
           capVal <- readTVar poolCapacity
           if capVal > 0 then do
             writeTVar poolCapacity $! pred capVal
             return $ onNewConn reuseVar
           else
-            retry
-      , do
+            retry,
+        do
           timedOut <- timeout
           if timedOut then
             return . return . Left $ AcquisitionTimeoutUsageError

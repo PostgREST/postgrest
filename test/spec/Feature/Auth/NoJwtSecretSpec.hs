@@ -12,8 +12,8 @@ import SpecHelper
 spec :: SpecWithConfig
 spec withConfig = withConfig
   ( baseCfg
-      { configJwtSecret = Nothing
-      , configJWKS = Nothing
+      { configJwtSecret = Nothing,
+        configJWKS = Nothing
       }
   )
   $ describe "server started without JWT secret"

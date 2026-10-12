@@ -45,12 +45,12 @@ import PostgREST.Catalog.Identifiers
 -- way to make a difference between a multi-column-key and a single-column-key with multiple
 -- references in the view. Or even worse in the multi-column-key-multi-reference case...
 data ViewKeyDependency = ViewKeyDependency
-  { keyDepTable :: QualifiedIdentifier
-  , keyDepView :: QualifiedIdentifier
-  , keyDepCons :: Text
-  , keyDepType :: KeyDep
-  , keyDepCols :: [(FieldName, [FieldName])]
-  -- ^ First element is the table column, second is a list of view columns
+  { keyDepTable :: QualifiedIdentifier,
+    keyDepView :: QualifiedIdentifier,
+    keyDepCons :: Text,
+    keyDepType :: KeyDep,
+    -- | First element is the table column, second is a list of view columns
+    keyDepCols :: [(FieldName, [FieldName])]
   }
   deriving (Eq)
 
@@ -66,21 +66,21 @@ data KeyDep
 -- | Relationship between two tables.
 data Relationship
   = Relationship
-      { relTable :: QualifiedIdentifier
-      , relForeignTable :: QualifiedIdentifier
-      , relIsSelf :: Bool
-      -- ^ Whether is a self relationship
-      , relCardinality :: Cardinality
-      , relTableIsView :: Bool
-      , relFTableIsView :: Bool
+      { relTable :: QualifiedIdentifier,
+        relForeignTable :: QualifiedIdentifier,
+        -- | Whether is a self relationship
+        relIsSelf :: Bool,
+        relCardinality :: Cardinality,
+        relTableIsView :: Bool,
+        relFTableIsView :: Bool
       }
   | ComputedRelationship
-      { relFunction :: QualifiedIdentifier
-      , relTable :: QualifiedIdentifier
-      , relForeignTable :: QualifiedIdentifier
-      , relTableAlias :: QualifiedIdentifier
-      , relToOne :: Bool
-      , relIsSelf :: Bool
+      { relFunction :: QualifiedIdentifier,
+        relTable :: QualifiedIdentifier,
+        relForeignTable :: QualifiedIdentifier,
+        relTableAlias :: QualifiedIdentifier,
+        relToOne :: Bool,
+        relIsSelf :: Bool
       }
   deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
@@ -101,11 +101,11 @@ type FKConstraint = Text
 
 -- | Junction table on an M2M relationship
 data Junction = Junction
-  { junTable :: QualifiedIdentifier
-  , junConstraint1 :: FKConstraint
-  , junConstraint2 :: FKConstraint
-  , junColsSource :: [(FieldName, FieldName)]
-  , junColsTarget :: [(FieldName, FieldName)]
+  { junTable :: QualifiedIdentifier,
+    junConstraint1 :: FKConstraint,
+    junConstraint2 :: FKConstraint,
+    junColsSource :: [(FieldName, FieldName)],
+    junColsTarget :: [(FieldName, FieldName)]
   }
   deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 

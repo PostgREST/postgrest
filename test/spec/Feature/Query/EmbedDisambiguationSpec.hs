@@ -37,10 +37,10 @@ spec withConfig = withConfig baseCfg $
               "code": "PGRST201"
             }
           |]
-            { matchStatus = 300
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Length" <:> "828"
+            { matchStatus = 300,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Length" <:> "828"
                 ]
             }
 
@@ -65,8 +65,8 @@ spec withConfig = withConfig baseCfg $
               "code": "PGRST201"
             }
            |]
-            { matchStatus = 300
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 300,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "errs when there are more than two fks on a junction table but it can be disambiguated with spread embeds" $ do
@@ -101,8 +101,8 @@ spec withConfig = withConfig baseCfg $
               "code": "PGRST201"
             }
           |]
-            { matchStatus = 300
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 300,
+              matchHeaders = [matchContentTypeJson]
             }
         -- Each of those 4 possibilities can be done with spread embeds, by following the details in the error above
         get "/whatev_sites?select=*,whatev_jobs!site_id_1(...whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
@@ -113,13 +113,13 @@ spec withConfig = withConfig baseCfg $
       it "can disambiguate a recursive m2m with spread embeds" $ do
         get "/posters?select=*,subscribers:subscriptions!subscribed(...posters!subscriber(*))&limit=1"
           `shouldRespondWith` [json| [ {"id":1,"name":"Mark","subscribers":[{"id":3,"name":"Bill"}, {"id":4,"name":"Jeff"}]}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
         get "/posters?select=*,subscriptions!subscriber(...posters!subscribed(*))&limit=1"
           `shouldRespondWith` [json| [{"id":1,"name":"Mark","subscriptions":[{"id":2,"name":"Elon"}]}]|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "errs on an ambiguous embed that has two one-to-one relationships" $
@@ -132,8 +132,8 @@ spec withConfig = withConfig baseCfg $
             ],
             "hint":"Try changing 'second' to one of the following: 'second!first_second_id_1_fkey', 'second!first_second_id_2_fkey'. Find the desired relationship in the 'details' key.","message":"Could not embed because more than one relationship was found for 'first' and 'second'"
             }|]
-            { matchStatus = 300
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 300,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "errs with multiple references to the same composite key columns in a view" $
@@ -167,8 +167,8 @@ spec withConfig = withConfig baseCfg $
               "message": "Could not embed because more than one relationship was found for 'i2459_composite_v2' and 'i2459_composite_v1'"
             }
           |]
-            { matchStatus = 300
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 300,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "disambiguating requests with embed hints" $ do
@@ -225,8 +225,8 @@ spec withConfig = withConfig baseCfg $
               "message":"Could not find a relationship between 'message' and 'person' in the schema cache",
               "code": "PGRST200",
               "details":"Searched for a foreign key relationship between 'message' and 'person' using the hint 'space' in the schema 'test', but no matches were found."}|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "can request a parent with fk" $
@@ -552,8 +552,8 @@ spec withConfig = withConfig baseCfg $
             "message":"Could not find a relationship between 'end_1' and 'end_2' in the schema cache",
             "code":"PGRST200",
             "details": "Searched for a foreign key relationship between 'end_1' and 'end_2' in the schema 'test', but no matches were found."}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
       it "shouldn't try to embed if the private junction has an exposed homonym" $
         -- ensures the "invalid reference to FROM-clause entry for table "rollen" error doesn't happen.
@@ -564,8 +564,8 @@ spec withConfig = withConfig baseCfg $
             "message":"Could not find a relationship between 'schauspieler' and 'filme' in the schema cache",
             "code":"PGRST200",
             "details":"Searched for a foreign key relationship between 'schauspieler' and 'filme' in the schema 'test', but no matches were found."}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "embedding with col as a target doesn't consider views" $ do

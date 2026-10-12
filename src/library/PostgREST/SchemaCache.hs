@@ -87,12 +87,12 @@ import PostgREST.MediaType qualified as MediaType
 type TablesFuzzyIndex = HM.HashMap Schema Fuzzy.FuzzySet
 
 data SchemaCache = SchemaCache
-  { dbTables :: TablesMap
-  , dbRelationships :: RelationshipsMap
-  , dbRoutines :: RoutineMap
-  , dbRepresentations :: RepresentationsMap
-  , dbMediaHandlers :: MediaHandlerMap
-  , -- Memoized fuzzy index of table names per schema to support approximate matching
+  { dbTables :: TablesMap,
+    dbRelationships :: RelationshipsMap,
+    dbRoutines :: RoutineMap,
+    dbRepresentations :: RepresentationsMap,
+    dbMediaHandlers :: MediaHandlerMap,
+    -- Memoized fuzzy index of table names per schema to support approximate matching
     -- Since index construction can be expensive, we build it once and store in the SchemaCache
     -- Haskell lazy evaluation ensures it's only built on first use and memoized afterwards
     dbTablesFuzzyIndex :: TablesFuzzyIndex
@@ -102,22 +102,22 @@ data SchemaCache = SchemaCache
 instance JSON.ToJSON SchemaCache where
   toJSON (SchemaCache tabs rels routs reps hdlers _) =
     JSON.object
-      [ "dbTables" .= JSON.toJSON tabs
-      , "dbRelationships" .= JSON.toJSON rels
-      , "dbRoutines" .= JSON.toJSON routs
-      , "dbRepresentations" .= JSON.toJSON reps
-      , "dbMediaHandlers" .= JSON.toJSON hdlers
+      [ "dbTables" .= JSON.toJSON tabs,
+        "dbRelationships" .= JSON.toJSON rels,
+        "dbRoutines" .= JSON.toJSON routs,
+        "dbRepresentations" .= JSON.toJSON reps,
+        "dbMediaHandlers" .= JSON.toJSON hdlers
       ]
 
 showSummary :: SchemaCache -> Text
 showSummary (SchemaCache tbls rels routs reps mediaHdlrs _) =
   T.intercalate
     ", "
-    [ show (HM.size tbls) <> " Relations"
-    , show (HM.size rels) <> " Relationships"
-    , show (HM.size routs) <> " RPCs"
-    , show (HM.size reps) <> " Domain Representations"
-    , show (HM.size mediaHdlrs) <> " Media Type Handlers"
+    [ show (HM.size tbls) <> " Relations",
+      show (HM.size rels) <> " Relationships",
+      show (HM.size routs) <> " RPCs",
+      show (HM.size reps) <> " Domain Representations",
+      show (HM.size mediaHdlrs) <> " Media Type Handlers"
     ]
 
 -- | A SQL query that can be executed independently
@@ -129,13 +129,13 @@ maxDbTablesForFuzzySearch = 500
 -- keep this in the order they're executed on querySchemaCache for accurate logging
 schemaCacheQueries :: PgVersion -> AppConfig -> [SqlQuery]
 schemaCacheQueries pgVer AppConfig{configDbPreparedStatements} =
-  [ statementSql $ allTables pgVer configDbPreparedStatements
-  , statementSql allViewsKeyDependencies
-  , statementSql allM2OandO2ORels
-  , statementSql $ allFunctions pgVer configDbPreparedStatements
-  , statementSql allComputedRels
-  , statementSql dataRepresentations
-  , statementSql mediaHandlers
+  [ statementSql $ allTables pgVer configDbPreparedStatements,
+    statementSql allViewsKeyDependencies,
+    statementSql allM2OandO2ORels,
+    statementSql $ allFunctions pgVer configDbPreparedStatements,
+    statementSql allComputedRels,
+    statementSql dataRepresentations,
+    statementSql mediaHandlers
   ]
   where
     statementSql (SQL.Statement sql _ _ _) = sql
@@ -166,17 +166,17 @@ querySchemaCache pgVer conf@AppConfig{..} = do
   return
     ( removeInternal schemas $
         SchemaCache
-          { dbTables = tabsWViewsPks
-          , dbRelationships = getOverrideRelationshipsMap rels cRels
-          , dbRoutines = funcs
-          , dbRepresentations = reps
-          , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
-          , dbTablesFuzzyIndex =
+          { dbTables = tabsWViewsPks,
+            dbRelationships = getOverrideRelationshipsMap rels cRels,
+            dbRoutines = funcs,
+            dbRepresentations = reps,
+            dbMediaHandlers = HM.union mHdlers initialMediaHandlers, -- the custom handlers will override the initial ones
+            dbTablesFuzzyIndex =
               -- Only build fuzzy index for schemas with a reasonable number of tables
               -- Fuzzy.FuzzySet is memory heavy we just don't use it for large schemas
               Fuzzy.fromList <$> HM.filter ((< maxDbTablesForFuzzySearch) . length) (HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks))
-          }
-    , qsTime
+          },
+      qsTime
     )
   where
     schemas = toList configDbSchemas
@@ -208,14 +208,14 @@ getOverrideRelationshipsMap rels cRels =
 removeInternal :: [Schema] -> SchemaCache -> SchemaCache
 removeInternal schemas dbStruct =
   SchemaCache
-    { dbTables = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
-    , dbRelationships =
+    { dbTables = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct,
+      dbRelationships =
         filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r))
-          <$> HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas) (dbRelationships dbStruct)
-    , dbRoutines = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
-    , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
-    , dbMediaHandlers = dbMediaHandlers dbStruct
-    , dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
+          <$> HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas) (dbRelationships dbStruct),
+      dbRoutines = dbRoutines dbStruct, -- procs are only obtained from the exposed schemas, no need to filter them.
+      dbRepresentations = dbRepresentations dbStruct, -- no need to filter, not directly exposed through the API
+      dbMediaHandlers = dbMediaHandlers dbStruct,
+      dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -498,8 +498,8 @@ addViewM2OAndO2ORels keyDeps rels =
                 (buildCard cons $ zipWith (\(_, vCol) (_, fCol) -> (vCol, fCol)) keyDepColsVwTbl relCols)
                 True
                 False
-            | vwTbl <- viewTableRels
-            , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
+            | vwTbl <- viewTableRels,
+              keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
             ]
               ++ [ Relationship
                      relTable
@@ -508,8 +508,8 @@ addViewM2OAndO2ORels keyDeps rels =
                      (buildCard cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols keyDepColsTblVw)
                      False
                      True
-                 | tblVw <- tableViewRels
-                 , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
+                 | tblVw <- tableViewRels,
+                   keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
                  ]
               ++ [ let
                      vw1 = keyDepView vwTbl
@@ -522,10 +522,10 @@ addViewM2OAndO2ORels keyDeps rels =
                        (buildCard cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) keyDepColsVwTbl keyDepColsTblVw)
                        True
                        True
-                 | vwTbl <- viewTableRels
-                 , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
-                 , tblVw <- tableViewRels
-                 , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
+                 | vwTbl <- viewTableRels,
+                   keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl,
+                   tblVw <- tableViewRels,
+                   keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw
                  ]
     viewRels _ = []
     expandKeyDepCols kdc = zip (fst <$> kdc) <$> traverse snd kdc
@@ -550,9 +550,9 @@ addM2MRels tbls rels =
             Just $ Relationship t ft (t == ft) (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols)) tblIsView fTblisView
           else
             Nothing
-      | Relationship jt1 t _ (M2O cons1 cols) _ tblIsView <- rels
-      , Relationship _ ft _ (M2O cons2 fcols) _ fTblisView <- fold $ HM.lookup jt1 indexedRels
-      , cons1 /= cons2
+      | Relationship jt1 t _ (M2O cons1 cols) _ tblIsView <- rels,
+        Relationship _ ft _ (M2O cons2 fcols) _ fTblisView <- fold $ HM.lookup jt1 indexedRels,
+        cons1 /= cons2
       ]
   where
     indexedRels = HM.fromListWith (<>) $ fmap (relTable &&& pure) rels
@@ -1176,13 +1176,13 @@ extractTimings = SQL.Statement sql HE.noParams decodeThem True
       "SELECT "
         <> BS.intercalate
           ","
-          [ qFrag gucTbls
-          , qFrag gucKDeps
-          , qFrag gucRels
-          , qFrag gucFuncs
-          , qFrag gucCRels
-          , qFrag gucDReps
-          , qFrag gucMHdrs
+          [ qFrag gucTbls,
+            qFrag gucKDeps,
+            qFrag gucRels,
+            qFrag gucFuncs,
+            qFrag gucCRels,
+            qFrag gucDReps,
+            qFrag gucMHdrs
           ]
     decodeThem :: HD.Result QueryTimings
     decodeThem =
@@ -1197,25 +1197,25 @@ extractTimings = SQL.Statement sql HE.noParams decodeThem True
           <*> column HD.text
 
 data QueryTimings = QueryTimings
-  { qtTables :: Text
-  , qtKeyDeps :: Text
-  , qtRels :: Text
-  , qtFuncs :: Text
-  , qtCRels :: Text
-  , qtDReps :: Text
-  , qtMHdrs :: Text
+  { qtTables :: Text,
+    qtKeyDeps :: Text,
+    qtRels :: Text,
+    qtFuncs :: Text,
+    qtCRels :: Text,
+    qtDReps :: Text,
+    qtMHdrs :: Text
   }
   deriving (Show)
 
 queryTimingsWLabels :: QueryTimings -> [(ByteString, Text)]
 queryTimingsWLabels qt =
-  [ (gucTbls, qtTables qt)
-  , (gucKDeps, qtKeyDeps qt)
-  , (gucRels, qtRels qt)
-  , (gucFuncs, qtFuncs qt)
-  , (gucCRels, qtCRels qt)
-  , (gucDReps, qtDReps qt)
-  , (gucMHdrs, qtMHdrs qt)
+  [ (gucTbls, qtTables qt),
+    (gucKDeps, qtKeyDeps qt),
+    (gucRels, qtRels qt),
+    (gucFuncs, qtFuncs qt),
+    (gucCRels, qtCRels qt),
+    (gucDReps, qtDReps qt),
+    (gucMHdrs, qtMHdrs qt)
   ]
 
 gucTbls, gucKDeps, gucRels, gucFuncs, gucCRels, gucDReps, gucMHdrs :: ByteString

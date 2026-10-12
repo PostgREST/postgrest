@@ -42,10 +42,10 @@ import Hasql.Statement qualified as SQL
 import PostgREST.Error qualified as Error
 
 data LoggerState = LoggerState
-  { stateLogDebouncePoolTimeout :: IO ()
-  -- ^ Logs with a debounce
-  , getLogLevel :: IO LogLevel
-  -- ^ Get LogLevel from Config
+  { -- | Logs with a debounce
+    stateLogDebouncePoolTimeout :: IO (),
+    -- | Get LogLevel from Config
+    getLogLevel :: IO LogLevel
   }
 
 init :: IO LogLevel -> IO LoggerState
@@ -182,8 +182,8 @@ observationMessages = \case
       <> let showTimings qt = [T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt]
          in  maybe mempty showTimings timings
   SchemaCacheLoadedObs resultTime summary ->
-    [ "Schema cache loaded " <> summary
-    , "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
+    [ "Schema cache loaded " <> summary,
+      "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
     ]
   ConnectionRetryObs delay ->
     pure $ "Attempting to reconnect to the database in " <> (show delay :: Text) <> " seconds..."
@@ -214,8 +214,8 @@ observationMessages = \case
     -- Queries are formatted with newlines for readability in SchemaCache.hs so we need to join them so each query appears on a single log line
     showOnSingleLine '\n' . T.decodeUtf8 <$> queries
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
-    [ "WARNING: " <> warningMsg
-    , "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
+    [ "WARNING: " <> warningMsg,
+      "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
     ]
   ConfigReadErrorObs usageErr ->
     pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr

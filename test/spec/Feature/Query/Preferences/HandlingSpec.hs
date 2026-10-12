@@ -60,8 +60,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation, handling=lenient, anything")]
           [json|{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}|]
           `shouldRespondWith` [json|[{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}]|]
-            { matchStatus = 201
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 201,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "does not throw error with rpc" $
@@ -71,6 +71,6 @@ spec withConfig = withConfig baseCfg $
           [("Content-Type", "application/json"), ("Prefer", "handling=lenient, anything")]
           [json|{}|]
           `shouldRespondWith` [json| 1 |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }

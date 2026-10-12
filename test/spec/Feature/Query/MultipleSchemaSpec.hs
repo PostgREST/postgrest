@@ -25,8 +25,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"id":1,"name":"parent v1-1"},
             {"id":2,"name":"parent v1-2"}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
               }
 
         it "succeeds in reading table from default schema v1 after explicitly passing it in the header" $
@@ -35,8 +35,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"id":1,"name":"parent v1-1"},
             {"id":2,"name":"parent v1-2"}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
               }
 
         it "succeeds in reading table from schema v2" $
@@ -45,8 +45,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"id":3,"name":"parent v2-3"},
             {"id":4,"name":"parent v2-4"}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
         it "succeeds in reading another_table from schema v2" $
@@ -55,8 +55,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"id":5,"another_value":"value 5"},
             {"id":6,"another_value":"value 6"}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
         it "doesn't find another_table in schema v1" $
@@ -66,8 +66,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Accept-Profile", "v1")]
             ""
             `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'v1.another_table' in the schema cache"} |]
-              { matchStatus = 404
-              , matchHeaders = []
+              { matchStatus = 404,
+                matchHeaders = []
               }
 
         it "fails trying to read table from unknown schema" $
@@ -83,8 +83,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"id": 2, "name":"Mary"},
             {"id": 3, "name":"José"}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
               }
 
         it "succeeds in embedding with FK when the schema name has special characters" $
@@ -93,8 +93,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"name": "John", languages: {"name": "English"}},
             {"name": "José", languages: {"name": "Spanish"}}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
               }
 
         it "succeeds in embedding with computed relationships when the schema name has special characters" $
@@ -103,8 +103,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             {"name": "John", computed_languages: {"name": "English"}},
             {"name": "José", computed_languages: {"name": "Spanish"}}
           ]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
               }
 
       context "Inserting tables on different schemas" $ do
@@ -115,8 +115,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Prefer", "return=representation")]
             [json|{"id": 0, "name": "child v1-1", "parent_id": 1}|]
             `shouldRespondWith` [json|[{"id": 0, "name": "child v1-1", "parent_id": 1}]|]
-              { matchStatus = 201
-              , matchHeaders = ["Content-Profile" <:> "v1"]
+              { matchStatus = 201,
+                matchHeaders = ["Content-Profile" <:> "v1"]
               }
 
         it "succeeds inserting on the v1 schema and returning its parent" $
@@ -126,8 +126,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Prefer", "return=representation"), ("Content-Profile", "v1")]
             [json|{"id": 0, "name": "child v1-2", "parent_id": 2}|]
             `shouldRespondWith` [json|[{"id": 0, "parent": {"id": 2, "name": "parent v1-2"}}]|]
-              { matchStatus = 201
-              , matchHeaders = ["Content-Profile" <:> "v1"]
+              { matchStatus = 201,
+                matchHeaders = ["Content-Profile" <:> "v1"]
               }
 
         it "succeeds inserting on the v2 schema and returning its parent" $
@@ -137,8 +137,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Prefer", "return=representation"), ("Content-Profile", "v2")]
             [json|{"id": 0, "name": "child v2-3", "parent_id": 3}|]
             `shouldRespondWith` [json|[{"id": 0, "parent": {"id": 3, "name": "parent v2-3"}}]|]
-              { matchStatus = 201
-              , matchHeaders = ["Content-Profile" <:> "v2"]
+              { matchStatus = 201,
+                matchHeaders = ["Content-Profile" <:> "v2"]
               }
 
         it "fails when inserting on an unknown schema" $
@@ -154,23 +154,23 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
         it "succeeds in calling handler with a domain on another schema" $
           request methodGet "/another_table" [("Accept-Profile", "v2"), (hAccept, "text/plain")] ""
             `shouldRespondWith` "plain"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
               }
 
         it "succeeds in calling handler with a domain on an exposed schema" $
           request methodGet "/another_table" [("Accept-Profile", "v2"), (hAccept, "text/special")] ""
             `shouldRespondWith` "special"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
               }
 
       context "calling procs on different schemas" $ do
         it "succeeds in calling the default schema proc" $
           request methodGet "/rpc/get_parents_below?id=6" [] ""
             `shouldRespondWith` [json|[{"id":1,"name":"parent v1-1"}, {"id":2,"name":"parent v1-2"}]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
               }
 
         it "succeeds in calling the v1 schema proc and embedding" $
@@ -178,8 +178,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             `shouldRespondWith` [json| [
             {"id":1,"name":"parent v1-1","children":[{"id":1,"name":"child v1-1"}]},
             {"id":2,"name":"parent v1-2","children":[{"id":2,"name":"child v1-2"}]}] |]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
               }
 
         it "succeeds in calling the v2 schema proc and embedding" $
@@ -187,8 +187,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             `shouldRespondWith` [json| [
             {"id":3,"name":"parent v2-3","children":[{"id":1,"name":"child v2-3"}]},
             {"id":4,"name":"parent v2-4","children":[]}] |]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
         it "succeeds in calling the v2 schema proc with POST by using Content-Profile" $
@@ -200,22 +200,22 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             `shouldRespondWith` [json| [
             {"id":3,"name":"parent v2-3"},
             {"id":4,"name":"parent v2-4"}]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
         it "succeeds in calling handler with a domain on another schema" $
           request methodGet "/rpc/get_plain_text" [("Accept-Profile", "v2"), (hAccept, "text/plain")] ""
             `shouldRespondWith` "plain"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
               }
 
         it "succeeds in calling handler with a domain on an exposed schema" $
           request methodGet "/rpc/get_special_text" [("Accept-Profile", "v2"), (hAccept, "text/special")] ""
             `shouldRespondWith` "special"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
               }
 
       context "Modifying tables on different schemas" $ do
@@ -226,8 +226,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Content-Profile", "v1"), ("Prefer", "return=representation")]
             [json|{"name": "child v1-1 updated"}|]
             `shouldRespondWith` [json|[{"name":"child v1-1 updated", "parent": {"name": "parent v1-1"}}]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v1"]
               }
 
         it "succeeds in patching on the v2 schema and returning its parent" $
@@ -237,8 +237,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Content-Profile", "v2"), ("Prefer", "return=representation")]
             [json|{"name": "child v2-1 updated"}|]
             `shouldRespondWith` [json|[{"name":"child v2-1 updated", "parent": {"name": "parent v2-3"}}]|]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
         it "succeeds on deleting on the v2 schema" $ do
@@ -258,8 +258,8 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["v1", "v2", "S
             [("Content-Profile", "v2"), ("Prefer", "return=representation")]
             [json|[{"id": 111, "name": "child v2-111", "parent_id": null}]|]
             `shouldRespondWith` [json|[{"id": 111, "name": "child v2-111", "parent_id": null}]|]
-              { matchStatus = 201
-              , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+              { matchStatus = 201,
+                matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
               }
 
       context "OpenAPI output" $ do

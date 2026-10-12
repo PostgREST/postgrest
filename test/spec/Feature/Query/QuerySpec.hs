@@ -28,8 +28,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "causes a 404" $
       get "/faketable"
         `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.faketable' in the schema cache"} |]
-          { matchStatus = 404
-          , matchHeaders = ["Content-Length" <:> "120"]
+          { matchStatus = 404,
+            matchHeaders = ["Content-Length" <:> "120"]
           }
 
   describe "Filtering response" $ do
@@ -37,8 +37,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
       get "/items?id=eq.5"
         `shouldRespondWith` [json| [{"id":5}] |]
           { matchHeaders =
-              [ "Content-Range" <:> "0-0/*"
-              , "Content-Length" <:> "10"
+              [ "Content-Range" <:> "0-0/*",
+                "Content-Length" <:> "10"
               ]
           }
 
@@ -612,10 +612,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
            "details":null,
            "code":"PGRST108",
            "message":"'non_existent_projects' is not an embedded resource in this request"}|]
-          { matchStatus = 400
-          , matchHeaders =
-              [ "Content-Length" <:> "204"
-              , matchContentTypeJson
+          { matchStatus = 400,
+            matchHeaders =
+              [ "Content-Length" <:> "204",
+                matchContentTypeJson
               ]
           }
       get "/clients?select=*,amiga_projects:projects(*)&amiga_projectsss.name=ilike.*Amiga*"
@@ -624,8 +624,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
            "details":null,
            "code":"PGRST108",
            "message":"'amiga_projectsss' is not an embedded resource in this request"}|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
       get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks2.name=like.Design*"
         `shouldRespondWith` [json|
@@ -633,8 +633,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
            "details":null,
            "code":"PGRST108",
            "message":"'tasks2' is not an embedded resource in this request"}|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
     it "matches with cs operator" $
@@ -703,8 +703,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "fails on bad casting (wrong cast type)" $
       get "/complex_items?select=id::fakecolumntype"
         `shouldRespondWith` [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
-          { matchStatus = 400
-          , matchHeaders = ["Content-Length" <:> "94"]
+          { matchStatus = 400,
+            matchHeaders = ["Content-Length" <:> "94"]
           }
 
     it "can cast types with underscore and numbers" $
@@ -719,8 +719,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
       get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)"
         `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
           { matchHeaders =
-              [ "Content-Length" <:> "141"
-              , matchContentTypeJson
+              [ "Content-Length" <:> "141",
+                matchContentTypeJson
               ]
           }
 
@@ -965,8 +965,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
              {"name":"F310-B","year":1997,"car_dealers":[]},
              {"name":"Murcielago","year":2001,"car_dealers":[{"name":"The Best Deals S.A.","city":"Franklin"}]},
              {"name":"Veneno","year":2013,"car_dealers":[]}] |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "cannot request partitions as children from a partitioned table" $
@@ -976,8 +976,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
              "details":"Searched for a foreign key relationship between 'car_models' and 'car_model_sales_202101' in the schema 'test', but no matches were found.",
              "code":"PGRST200",
              "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
       -- we only search for foreign key relationships after checking the
@@ -985,8 +985,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
       it "table not found error if first table does not exist" $
         get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_model_sales_202101' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "cannot request a partition as parent from a partitioned table" $
@@ -996,15 +996,15 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
              "details":"Searched for a foreign key relationship between 'car_model_sales' and 'car_models_default' in the schema 'test', but no matches were found.",
              "code":"PGRST200",
              "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "table not found error if first table does not exist" $
         get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.car_models_default' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
 
     describe "view embedding" $ do
@@ -1233,15 +1233,15 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "by a column asc" $
       get "/items?id=lte.2&order=id.asc"
         `shouldRespondWith` [json| [{"id":1},{"id":2}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-1/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-1/*"]
           }
 
     it "by a column desc" $
       get "/items?id=lte.2&order=id.desc"
         `shouldRespondWith` [json| [{"id":2},{"id":1}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-1/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-1/*"]
           }
 
     it "by a column with nulls first" $
@@ -1250,8 +1250,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
                               {"a":"1","b":"0"},
                               {"a":"2","b":"0"}
                               ] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-2/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-2/*"]
           }
 
     it "by a column asc with nulls last" $
@@ -1259,8 +1259,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         `shouldRespondWith` [json| [{"a":"1","b":"0"},
                               {"a":"2","b":"0"},
                               {"a":null,"b":null}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-2/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-2/*"]
           }
 
     it "by a column desc with nulls first" $
@@ -1268,8 +1268,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         `shouldRespondWith` [json| [{"a":null,"b":null},
                               {"a":"2","b":"0"},
                               {"a":"1","b":"0"}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-2/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-2/*"]
           }
 
     it "by a column desc with nulls last" $
@@ -1277,8 +1277,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         `shouldRespondWith` [json| [{"a":"2","b":"0"},
                               {"a":"1","b":"0"},
                               {"a":null,"b":null}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-2/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-2/*"]
           }
 
     it "by two columns with nulls and direction specified" $
@@ -1290,15 +1290,15 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
            {"client_id":1,"id":1,"name":"Windows 7"},
            {"client_id":null,"id":5,"name":"Orphan"}]
         |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-4/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-4/*"]
           }
 
     it "by a column with no direction or nulls specified" $
       get "/items?id=lte.2&order=id"
         `shouldRespondWith` [json| [{"id":1},{"id":2}] |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Range" <:> "0-1/*"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Range" <:> "0-1/*"]
           }
 
     it "without other constraints" $
@@ -1329,10 +1329,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "gives meaningful error message on bad syntax" $ do
       get "/items?order=id.asc.nullslasttt"
         `shouldRespondWith` [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
-          { matchStatus = 400
-          , matchHeaders =
-              [ "Content-Length" <:> "169"
-              , matchContentTypeJson
+          { matchStatus = 400,
+            matchHeaders =
+              [ "Content-Length" <:> "169",
+                matchContentTypeJson
               ]
           }
 
@@ -1351,10 +1351,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         (acceptHdrs "text/unknowntype")
         ""
         `shouldRespondWith` [json|{"message":"None of these media types are available: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
-          { matchStatus = 406
-          , matchHeaders =
-              [ "Content-Length" <:> "116"
-              , matchContentTypeJson
+          { matchStatus = 406,
+            matchHeaders =
+              [ "Content-Length" <:> "116",
+                matchContentTypeJson
               ]
           }
 
@@ -1417,10 +1417,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         (acceptHdrs "text/csv; version=1")
         ""
         `shouldRespondWith` "k,extra\nxyyx,u\nxYYx,v"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/csv; charset=utf-8"
-              , "Content-Length" <:> "21"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/csv; charset=utf-8",
+                "Content-Length" <:> "21"
               ]
           }
 
@@ -1428,8 +1428,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "Sets Content-Location with alphabetized params" $
       get "/no_pk?b=eq.1&a=eq.1"
         `shouldRespondWith` "[]"
-          { matchStatus = 200
-          , matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Location" <:> "/no_pk?a=eq.1&b=eq.1"]
           }
 
     it "Omits question mark when there are no params" $ do
@@ -1455,8 +1455,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "fails if an operator is not given" $
       get "/ghostBusters?id=0"
         `shouldRespondWith` [json| {"code":"PGRST100","details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","hint":null,"message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
     it "will embed a collection" $
@@ -1598,8 +1598,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "only returns an empty result set if the in value is empty" $
       get "/items_with_different_col_types?int_data=in.( ,3,4)"
         `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"\""} |]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
   describe "Embedding when column name = table name" $ do
@@ -1787,10 +1787,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
     it "fails in some reasonable way when selecting fields that don't exist" $
       get "/datarep_todos?select=id,label_color,banana"
         `shouldRespondWith` [json| {"code":"42703","details":null,"hint":null,"message":"column datarep_todos.banana does not exist"} |]
-          { matchStatus = 400
-          , matchHeaders =
-              [ "Content-Length" <:> "98"
-              , matchContentTypeJson
+          { matchStatus = 400,
+            matchHeaders =
+              [ "Content-Length" <:> "98",
+                matchContentTypeJson
               ]
           }
     it "formats columns in views including computed columns" $
@@ -1869,10 +1869,10 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         `shouldRespondWith`
         -- we prove the parser is not used because it'd replace the Z with `+00:00` and a different error message.
         [json| {"code":"22007","details":null,"hint":null,"message":"invalid input syntax for type timestamp with time zone: \"Z\""} |]
-          { matchStatus = 400
-          , matchHeaders =
-              [ "Content-Length" <:> "117"
-              , matchContentTypeJson
+          { matchStatus = 400,
+            matchHeaders =
+              [ "Content-Length" <:> "117",
+                matchContentTypeJson
               ]
           }
     it "uses text parser for filter with 'IN' predicates" $
@@ -1908,8 +1908,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
             {"code":"42883","details":"No operator of that name accepts the given argument types.","hint":"You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
           |]
                             )
-          { matchStatus = 404
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 404,
+            matchHeaders = [matchContentTypeJson]
           }
 
   context "searching for an empty string" $ do
@@ -1918,24 +1918,24 @@ spec actualPgVersion withConfig = withConfig baseCfg $ do
         `shouldRespondWith` [json|
           [{"id":1,"string":""}]
         |]
-          { matchStatus = 200
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 200,
+            matchHeaders = [matchContentTypeJson]
           }
 
   context "test infinite recursion error 42P17" $
     it "return http status 500" $
       get "/infinite_recursion?select=*"
         `shouldRespondWith` [json|{"code":"42P17","message":"infinite recursion detected in rules for relation \"infinite_recursion\"","details":null,"hint":null}|]
-          { matchStatus = 500
-          , matchHeaders = ["Content-Length" <:> "128"]
+          { matchStatus = 500,
+            matchHeaders = ["Content-Length" <:> "128"]
           }
 
   context "invalid resource path" $ do
     it "return http status 404" $
       get "/first/second/third?select=*"
         `shouldRespondWith` [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
-          { matchStatus = 404
-          , matchHeaders = ["Content-Length" <:> "96"]
+          { matchStatus = 404,
+            matchHeaders = ["Content-Length" <:> "96"]
           }
 
 specLegacyTargetNames :: SpecWithConfig
@@ -1964,6 +1964,6 @@ specLegacyTargetNames withConfig = withConfig (baseCfg{configUrlUseLegacyTargetN
               "message":"'tasks' is not an embedded resource in this request"
             }
           |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }

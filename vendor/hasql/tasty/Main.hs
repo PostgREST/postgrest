@@ -39,15 +39,15 @@ tree =
                     encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8)))))
                     decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8))))))
                   in
-                    roundtrip encoder decoder
-              , testProperty "2D Array" $
+                    roundtrip encoder decoder,
+                testProperty "2D Array" $
                   let
                     encoder = Encoders.param (Encoders.nonNullable (Encoders.array (Encoders.dimension foldl' (Encoders.dimension foldl' (Encoders.element (Encoders.nonNullable Encoders.int8))))))
                     decoder = Decoders.singleRow (Decoders.column (Decoders.nonNullable (Decoders.array (Decoders.dimension replicateM (Decoders.dimension replicateM (Decoders.element (Decoders.nonNullable Decoders.int8)))))))
                   in
                     \list -> list /= [] ==> roundtrip encoder decoder (replicate 3 list)
-              ]
-      , testCase "Failed query" $
+              ],
+        testCase "Failed query" $
           let
             statement =
               Statement.Statement "select true where 1 = any ($1) and $2" encoder decoder True
@@ -65,8 +65,8 @@ tree =
               x <- Connection.with (Session.run session)
               assertBool (show x) $ case x of
                 Right (Left (Session.QueryError "select true where 1 = any ($1) and $2" ["[3, 7]", "\"a\""] _)) -> True
-                _ -> False
-      , testCase "Failing prepared statements" $
+                _ -> False,
+        testCase "Failing prepared statements" $
           let io =
                 Connection.with (Session.run session)
                   >>= (assertBool <$> show <*> resultTest)
@@ -90,8 +90,8 @@ tree =
                                 mempty
                               decoder =
                                 Decoders.noResult
-          in  io
-      , testCase "Prepared statements after error" $
+          in  io,
+        testCase "Prepared statements after error" $
           let io =
                 Connection.with (Session.run session)
                   >>= \x -> assertBool (show x) (either (const False) isRight x)
@@ -113,8 +113,8 @@ tree =
                                 Decoders.singleRow $ (Decoders.column . Decoders.nonNullable) Decoders.int8
                       fail =
                         catchError (Session.sql "absurd") (const (pure ()))
-          in  io
-      , testCase "\"in progress after error\" bugfix" $
+          in  io,
+        testCase "\"in progress after error\" bugfix" $
           let
             sumStatement :: Statement.Statement (Int64, Int64) Int64
             sumStatement =
@@ -138,8 +138,8 @@ tree =
                 _ <- Session.run errorSession c
                 Session.run sumSession c
           in
-            io >>= \x -> assertBool (show x) (either (const False) isRight x)
-      , testCase "\"another command is already in progress\" bugfix" $
+            io >>= \x -> assertBool (show x) (either (const False) isRight x),
+        testCase "\"another command is already in progress\" bugfix" $
           let
             sumStatement :: Statement.Statement (Int64, Int64) Int64
             sumStatement =
@@ -160,8 +160,8 @@ tree =
                 Session.sql "end;"
                 return s
           in
-            Session.runSessionOnLocalDb session >>= \x -> assertEqual (show x) (Right 2) x
-      , testCase "The same prepared statement used on different types" $
+            Session.runSessionOnLocalDb session >>= \x -> assertEqual (show x) (Right 2) x,
+        testCase "The same prepared statement used on different types" $
           let actualIO =
                 Session.runSessionOnLocalDb $ do
                   let
@@ -191,8 +191,8 @@ tree =
                               Decoders.singleRow ((Decoders.column . Decoders.nonNullable) Decoders.int8)
                    in
                     (,) <$> effect1 <*> effect2
-          in  actualIO >>= assertEqual "" (Right ("ok", 1))
-      , testCase "Affected rows counting" $
+          in  actualIO >>= assertEqual "" (Right ("ok", 1)),
+        testCase "Affected rows counting" $
           replicateM_ 13 $
             let actualIO =
                   Session.runSessionOnLocalDb $ do

@@ -3,8 +3,8 @@ module Hasql.Connection.Config where
 import Hasql.Prelude
 
 data Config = Config
-  { connectionString :: ByteString
-  , usePreparedStatements :: Bool
+  { connectionString :: ByteString,
+    usePreparedStatements :: Bool
   }
 
 class Updates a where
@@ -13,8 +13,8 @@ class Updates a where
 nil :: Config
 nil =
   Config
-    { connectionString = ""
-    , usePreparedStatements = True
+    { connectionString = "",
+      usePreparedStatements = True
     }
 
 fromUpdates :: (Updates a) => [a] -> Config
