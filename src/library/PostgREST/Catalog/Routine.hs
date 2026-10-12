@@ -55,15 +55,15 @@ data FuncVolatility
 type FuncSettings = [(Text, Text)]
 
 data Routine = Function
-  { pdSchema :: Schema
-  , pdName :: Text
-  , pdDescription :: Maybe Text
-  , pdParams :: [RoutineParam]
-  , pdReturnType :: RetType
-  , pdVolatility :: FuncVolatility
-  , pdHasVariadic :: Bool
-  , pdIsoLvl :: Maybe SQL.IsolationLevel
-  , pdFuncSettings :: FuncSettings
+  { pdSchema :: Schema,
+    pdName :: Text,
+    pdDescription :: Maybe Text,
+    pdParams :: [RoutineParam],
+    pdReturnType :: RetType,
+    pdVolatility :: FuncVolatility,
+    pdHasVariadic :: Bool,
+    pdIsoLvl :: Maybe SQL.IsolationLevel,
+    pdFuncSettings :: FuncSettings
   }
   deriving (Eq, Generic, JSON.ToJSON, Show)
 
@@ -73,11 +73,11 @@ deriving instance Generic SQL.IsolationLevel
 deriving instance JSON.ToJSON SQL.IsolationLevel
 
 data RoutineParam = RoutineParam
-  { ppName :: Text
-  , ppType :: Text
-  , ppTypeMaxLength :: Text
-  , ppReq :: Bool
-  , ppVar :: Bool
+  { ppName :: Text,
+    ppType :: Text,
+    ppTypeMaxLength :: Text,
+    ppReq :: Bool,
+    ppVar :: Bool
   }
   deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 

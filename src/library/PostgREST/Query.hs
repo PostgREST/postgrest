@@ -39,15 +39,15 @@ import PostgREST.Query.Statements qualified as Statements
 
 -- The Queries that run on every request
 data MainQuery = MainQuery
-  { mqTxVars :: SQL.Snippet
-  -- ^ the transaction variables that always run on each query
-  , mqPreReq :: Maybe SQL.Snippet
-  -- ^ the pre-request function that runs if enabled
-  -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
-  , mqMain :: SQL.Snippet
-  , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
-  , mqExplain :: Maybe SQL.Snippet
-  -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
+  { -- | the transaction variables that always run on each query
+    mqTxVars :: SQL.Snippet,
+    -- | the pre-request function that runs if enabled
+    -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
+    mqPreReq :: Maybe SQL.Snippet,
+    mqMain :: SQL.Snippet,
+    mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet),
+    -- | the explain query that gets generated for the "Prefer: count=estimated" case
+    mqExplain :: Maybe SQL.Snippet
   }
 
 mainQuery :: PgVersion -> ActionPlan -> AppConfig -> ApiRequest -> RequestValues -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery

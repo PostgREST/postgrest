@@ -48,8 +48,8 @@ spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
       [("Prefer", "count=exact")]
       ""
       `shouldRespondWith` [json|[{"name":"Sid Meier","videogames":[{"name":"Civilization I"}]}]|]
-        { matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-0/1"]
+        { matchStatus = 200,
+          matchHeaders = ["Content-Range" <:> "0-0/1"]
         }
     request
       methodGet
@@ -60,8 +60,8 @@ spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
           {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}},
           {"name":"Final Fantasy II","designer":{"name":"Hironobu Sakaguchi"}}
         ]|]
-        { matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        { matchStatus = 200,
+          matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
     request
       methodGet
@@ -72,8 +72,8 @@ spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
           {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}},
           {"name":"Final Fantasy II","designer":{"name":"Hironobu Sakaguchi"}}
         ]|]
-        { matchStatus = 200
-        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        { matchStatus = 200,
+          matchHeaders = ["Content-Range" <:> "0-1/2"]
         }
 
   it "works with rpc" $ do
@@ -137,14 +137,14 @@ spec withConfig = withConfig baseCfg $ describe "computed relationships" $ do
     -- Verify it was saved the way we requested (there's no text data rep for this column, so if we select with the wrong casing, it should fail.)
     get "/designers?select=id&name=eq.Sidney%20K.%20Meier"
       `shouldRespondWith` [json|[]|]
-        { matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        { matchStatus = 200,
+          matchHeaders = [matchContentTypeJson]
         }
     -- But with the right casing it works.
     get "/designers?select=id,name&name=eq.sidney%20k.%20meier"
       `shouldRespondWith` [json|[{"id": 1, "name":"Sidney K. Meier"}]|]
-        { matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        { matchStatus = 200,
+          matchHeaders = [matchContentTypeJson]
         }
 
     -- Most importantly, if you read it back even via a computed relation, the data rep should be applied.

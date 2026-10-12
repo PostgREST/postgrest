@@ -28,25 +28,25 @@ corsPolicy corsAllowedOrigins req = case lookup "origin" headers of
       Wai.CorsResourcePolicy
         { Wai.corsOrigins = case corsAllowedOrigins of
             [] -> Nothing
-            origins -> Just (map T.encodeUtf8 origins, True)
-        , Wai.corsMethods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
-        , Wai.corsRequestHeaders = "Authorization" : accHeaders
-        , Wai.corsExposedHeaders =
+            origins -> Just (map T.encodeUtf8 origins, True),
+          Wai.corsMethods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+          Wai.corsRequestHeaders = "Authorization" : accHeaders,
+          Wai.corsExposedHeaders =
             Just
-              [ "Content-Encoding"
-              , "Content-Location"
-              , "Content-Range"
-              , "Content-Type"
-              , "Date"
-              , "Location"
-              , "Server"
-              , "Transfer-Encoding"
-              , "Range-Unit"
-              ]
-        , Wai.corsMaxAge = Just $ 60 * 60 * 24
-        , Wai.corsVaryOrigin = False
-        , Wai.corsRequireOrigin = False
-        , Wai.corsIgnoreFailures = True
+              [ "Content-Encoding",
+                "Content-Location",
+                "Content-Range",
+                "Content-Type",
+                "Date",
+                "Location",
+                "Server",
+                "Transfer-Encoding",
+                "Range-Unit"
+              ],
+          Wai.corsMaxAge = Just $ 60 * 60 * 24,
+          Wai.corsVaryOrigin = False,
+          Wai.corsRequireOrigin = False,
+          Wai.corsIgnoreFailures = True
         }
   Nothing -> Nothing
   where

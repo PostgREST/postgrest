@@ -228,8 +228,8 @@ spec withConfig = withConfig baseCfg $
               "code": "PGRST100",
               "hint": null
             }|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
         it "can have a single condition" $ do
           get "/entities?or=(id.eq.1)&select=id"

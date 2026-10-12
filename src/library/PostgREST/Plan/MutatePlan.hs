@@ -11,23 +11,23 @@ import PostgREST.Plan.Types (CoercibleField, CoercibleLogicTree)
 
 data MutatePlan
   = Insert
-      { in_ :: QualifiedIdentifier
-      , insCols :: [CoercibleField]
-      , onConflict :: Maybe (PreferResolution, [FieldName])
-      , where_ :: [CoercibleLogicTree]
-      , returning :: [FieldName]
-      , insPkCols :: [FieldName]
-      , applyDefs :: Bool
+      { in_ :: QualifiedIdentifier,
+        insCols :: [CoercibleField],
+        onConflict :: Maybe (PreferResolution, [FieldName]),
+        where_ :: [CoercibleLogicTree],
+        returning :: [FieldName],
+        insPkCols :: [FieldName],
+        applyDefs :: Bool
       }
   | Update
-      { in_ :: QualifiedIdentifier
-      , updCols :: [CoercibleField]
-      , where_ :: [CoercibleLogicTree]
-      , returning :: [FieldName]
-      , applyDefs :: Bool
+      { in_ :: QualifiedIdentifier,
+        updCols :: [CoercibleField],
+        where_ :: [CoercibleLogicTree],
+        returning :: [FieldName],
+        applyDefs :: Bool
       }
   | Delete
-      { in_ :: QualifiedIdentifier
-      , where_ :: [CoercibleLogicTree]
-      , returning :: [FieldName]
+      { in_ :: QualifiedIdentifier,
+        where_ :: [CoercibleLogicTree],
+        returning :: [FieldName]
       }

@@ -15,9 +15,9 @@ import Protolude
 import Data.Aeson qualified as JSON
 
 data PgVersion = PgVersion
-  { pgvNum :: Int32
-  , pgvName :: Text
-  , pgvFullName :: Text
+  { pgvNum :: Int32,
+    pgvName :: Text,
+    pgvFullName :: Text
   }
   deriving (Eq, Generic, JSON.ToJSON)
 

@@ -134,14 +134,14 @@ validateOpenApiResponse headers = do
     args :: M.Map Text JSON.Value
     args =
       M.fromList
-        [ ("schema", schema)
-        , ("data", body)
+        [ ("schema", schema),
+          ("data", body)
         ]
     hdrs = acceptHdrs "application/json"
   request methodPost "/rpc/validate_json_schema" hdrs (JSON.encode args)
     `shouldRespondWith` "true"
-      { matchStatus = 200
-      , matchHeaders = []
+      { matchStatus = 200,
+        matchHeaders = []
       }
 
 type SpecWithConfig = (AppConfig -> SpecWith ((), Application) -> Spec) -> Spec
@@ -150,59 +150,59 @@ baseCfg :: AppConfig
 baseCfg =
   let secret = encodeUtf8 "reallyreallyreallyreallyverysafe"
   in  AppConfig
-        { configAppSettings = [("app.settings.app_host", "localhost"), ("app.settings.external_api_secret", "0123456789abcdef")]
-        , configClientErrorVerbosity = Verbose
-        , configDbAggregates = False
-        , configDbAnonRole = Just "postgrest_test_anonymous"
-        , configDbChannel = mempty
-        , configDbChannelEnabled = True
-        , configDbExtraSearchPath = []
-        , configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"]
-        , configDbMaxRows = Nothing
-        , configDbPlanEnabled = False
-        , configDbPoolSize = 10
-        , configDbPoolAcquisitionTimeout = 10
-        , configDbPoolMaxLifetime = 1800
-        , configDbPoolMaxIdletime = 600
-        , configDbPoolAutomaticRecovery = True
-        , configDbPreRequest = Just $ QualifiedIdentifier "test" "switch_role"
-        , configDbPreparedStatements = True
-        , configDbRootSpec = Nothing
-        , configDbSchemas = fromList ["test"]
-        , configDbConfig = False
-        , configDbPreConfig = Nothing
-        , configDbUri = "postgresql://"
-        , configFilePath = Nothing
-        , configJWKS = rightToMaybe $ parseSecret secret
-        , configJwtAudience = Nothing
-        , configJwtRoleClaimKey = defaultRoleJSPathKey
-        , configJwtSecret = Just secret
-        , configJwtSecretIsBase64 = False
-        , configJwtCacheMaxEntries = 10
-        , configLogLevel = LogCrit
-        , configLogQuery = False
-        , configOpenApiMode = OAFollowPriv
-        , configOpenApiSecurityActive = False
-        , configOpenApiServerProxyUri = Nothing
-        , configServerCorsAllowedOrigins = []
-        , configServerHost = "localhost"
-        , configServerPort = 3000
-        , configServerReusePort = False
-        , configServerTraceHeader = Nothing
-        , configServerUnixSocket = Nothing
-        , configServerUnixSocketMode = 432
-        , configUrlUseLegacyTargetNames = True
-        , configDbTxAllowOverride = True
-        , configDbTxRollbackAll = True
-        , configAdminServerHost = "localhost"
-        , configAdminServerPort = Nothing
-        , configAdminServerUnixSocket = Nothing
-        , configAdminServerUnixSocketMode = 432
-        , configRoleSettings = mempty
-        , configRoleIsoLvl = mempty
-        , configInternalSCQuerySleepFst = Nothing
-        , configInternalSCQuerySleepSnd = Nothing
-        , configServerTimingEnabled = True
+        { configAppSettings = [("app.settings.app_host", "localhost"), ("app.settings.external_api_secret", "0123456789abcdef")],
+          configClientErrorVerbosity = Verbose,
+          configDbAggregates = False,
+          configDbAnonRole = Just "postgrest_test_anonymous",
+          configDbChannel = mempty,
+          configDbChannelEnabled = True,
+          configDbExtraSearchPath = [],
+          configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"],
+          configDbMaxRows = Nothing,
+          configDbPlanEnabled = False,
+          configDbPoolSize = 10,
+          configDbPoolAcquisitionTimeout = 10,
+          configDbPoolMaxLifetime = 1800,
+          configDbPoolMaxIdletime = 600,
+          configDbPoolAutomaticRecovery = True,
+          configDbPreRequest = Just $ QualifiedIdentifier "test" "switch_role",
+          configDbPreparedStatements = True,
+          configDbRootSpec = Nothing,
+          configDbSchemas = fromList ["test"],
+          configDbConfig = False,
+          configDbPreConfig = Nothing,
+          configDbUri = "postgresql://",
+          configFilePath = Nothing,
+          configJWKS = rightToMaybe $ parseSecret secret,
+          configJwtAudience = Nothing,
+          configJwtRoleClaimKey = defaultRoleJSPathKey,
+          configJwtSecret = Just secret,
+          configJwtSecretIsBase64 = False,
+          configJwtCacheMaxEntries = 10,
+          configLogLevel = LogCrit,
+          configLogQuery = False,
+          configOpenApiMode = OAFollowPriv,
+          configOpenApiSecurityActive = False,
+          configOpenApiServerProxyUri = Nothing,
+          configServerCorsAllowedOrigins = [],
+          configServerHost = "localhost",
+          configServerPort = 3000,
+          configServerReusePort = False,
+          configServerTraceHeader = Nothing,
+          configServerUnixSocket = Nothing,
+          configServerUnixSocketMode = 432,
+          configUrlUseLegacyTargetNames = True,
+          configDbTxAllowOverride = True,
+          configDbTxRollbackAll = True,
+          configAdminServerHost = "localhost",
+          configAdminServerPort = Nothing,
+          configAdminServerUnixSocket = Nothing,
+          configAdminServerUnixSocketMode = 432,
+          configRoleSettings = mempty,
+          configRoleIsoLvl = mempty,
+          configInternalSCQuerySleepFst = Nothing,
+          configInternalSCQuerySleepSnd = Nothing,
+          configServerTimingEnabled = True
         }
 
 rangeHdrs :: ByteRange -> [Header]
@@ -274,8 +274,8 @@ planCost resp =
     unbox _ = Nothing
 
 data TiobePlsRow = TiobePlsRow
-  { name' :: Text
-  , rank :: Int
+  { name' :: Text,
+    rank :: Int
   }
   deriving (Show)
 

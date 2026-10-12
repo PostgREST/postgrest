@@ -336,8 +336,8 @@ allowed withConfig = withConfig (baseCfg{configDbAggregates = True}) $
               "details":"Aggregates are not implemented for one-to-many or many-to-many spreads.",
               "hint":null
             }|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
 
 disallowed :: SpecWithConfig
@@ -351,8 +351,8 @@ disallowed withConfig = withConfig baseCfg $
           "code":"PGRST123",
           "message":"Use of aggregate functions is not allowed"
         }|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
     it "prevents the use of aggregates on embedded relationships" $
@@ -363,8 +363,8 @@ disallowed withConfig = withConfig baseCfg $
           "code":"PGRST123",
           "message":"Use of aggregate functions is not allowed"
         }|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
     it "prevents the use of aggregates on to-one spread embeds" $
@@ -375,8 +375,8 @@ disallowed withConfig = withConfig baseCfg $
           "code":"PGRST123",
           "message":"Use of aggregate functions is not allowed"
         }|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }
 
     it "prevents the use of aggregates on to-many spread embeds" $
@@ -387,6 +387,6 @@ disallowed withConfig = withConfig baseCfg $
           "code":"PGRST123",
           "message":"Use of aggregate functions is not allowed"
         }|]
-          { matchStatus = 400
-          , matchHeaders = [matchContentTypeJson]
+          { matchStatus = 400,
+            matchHeaders = [matchContentTypeJson]
           }

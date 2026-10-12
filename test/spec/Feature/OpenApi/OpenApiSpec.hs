@@ -23,10 +23,10 @@ spec withConfig = withConfig baseCfg $ describe "OpenAPI" $ do
       (acceptHdrs "application/openapi+json")
       ""
       `shouldRespondWith` ""
-        { matchStatus = 200
-        , matchHeaders =
-            [ "Content-Type" <:> "application/openapi+json; charset=utf-8"
-            , matchHeaderAbsent hContentLength
+        { matchStatus = 200,
+          matchHeaders =
+            [ "Content-Type" <:> "application/openapi+json; charset=utf-8",
+              matchHeaderAbsent hContentLength
             ]
         }
 

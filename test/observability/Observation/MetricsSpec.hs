@@ -31,14 +31,14 @@ spec = describe "Server started with metrics enabled" $ do
     -- a vector is only sampled once it has a label, e.g. after a schema cache load
     liftIO $
       filter (/= "pgrst_schema_cache_loads_total") names
-        `shouldBe` [ "pgrst_db_pool_timeouts_total"
-                   , "pgrst_db_pool_available"
-                   , "pgrst_db_pool_waiting"
-                   , "pgrst_db_pool_max"
-                   , "pgrst_schema_cache_query_time_seconds"
-                   , "pgrst_jwt_cache_requests_total"
-                   , "pgrst_jwt_cache_hits_total"
-                   , "pgrst_jwt_cache_evictions_total"
+        `shouldBe` [ "pgrst_db_pool_timeouts_total",
+                     "pgrst_db_pool_available",
+                     "pgrst_db_pool_waiting",
+                     "pgrst_db_pool_max",
+                     "pgrst_schema_cache_query_time_seconds",
+                     "pgrst_jwt_cache_requests_total",
+                     "pgrst_jwt_cache_hits_total",
+                     "pgrst_jwt_cache_evictions_total"
                    ]
 
   it "Should update pgrst_schema_cache_loads_total[SUCCESS]" $ do
@@ -61,8 +61,8 @@ spec = describe "Server started with metrics enabled" $ do
     liftIO
       $ checkState'
         metrics
-        [ schemaCacheLoads "FAIL" (+ 1)
-        , schemaCacheLoads "SUCCESS" (+ 1)
+        [ schemaCacheLoads "FAIL" (+ 1),
+          schemaCacheLoads "SUCCESS" (+ 1)
         ]
       $ do
         AppState.getConfig appState >>= \prev -> do
@@ -82,8 +82,8 @@ spec = describe "Server started with metrics enabled" $ do
       $ checkState'
         metrics
         [ -- we expect exactly 2 successful schema cache loads
-          schemaCacheLoads "FAIL" (+ 0)
-        , schemaCacheLoads "SUCCESS" (+ 2)
+          schemaCacheLoads "FAIL" (+ 0),
+          schemaCacheLoads "SUCCESS" (+ 2)
         ]
       $ do
         AppState.schemaCacheLoader appState

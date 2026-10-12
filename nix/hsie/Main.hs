@@ -46,8 +46,8 @@ import System.FilePath qualified as FP
 
 data Options
   = Options
-  { command :: Command
-  , sources :: [FilePath]
+  { command :: Command,
+    sources :: [FilePath]
   }
 
 data Command
@@ -61,15 +61,15 @@ data OutputFormat = OutputCsv | OutputJson
 
 data ImportedSymbol
   = ImportedSymbol
-  { impFromModule :: Text
-  , impModule :: Text
-  , impQualified :: ImportQualified
-  , impAlias :: Maybe Text
-  , impType :: ImportType
-  , impSymbol :: Maybe Text
-  , impInternal :: ModuleInternal
-  , impSource :: FilePath
-  , impFile :: FilePath
+  { impFromModule :: Text,
+    impModule :: Text,
+    impQualified :: ImportQualified,
+    impAlias :: Maybe Text,
+    impType :: ImportType,
+    impSymbol :: Maybe Text,
+    impInternal :: ModuleInternal,
+    impSource :: FilePath,
+    impFile :: FilePath
   }
   deriving (Csv.DefaultOrdered, Csv.ToNamedRecord, Generic, JSON.ToJSON)
 
@@ -239,15 +239,15 @@ importSymbols source filepath GHC.ImportDecl{..} =
   where
     symbol hiding sym =
       ImportedSymbol
-        { impFile = relativePath filepath
-        , impSource = source
-        , impFromModule = T.pack $ moduleFromPath filepath
-        , impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName
-        , impQualified = if ideclQualified /= GHC.NotQualified then Qualified else NotQualified
-        , impAlias = T.pack . moduleNameString . GHC.unLoc <$> ideclAs
-        , impInternal = External
-        , impType = hiding
-        , impSymbol = T.pack . occNameString . rdrNameOcc . GHC.ieName <$> sym
+        { impFile = relativePath filepath,
+          impSource = source,
+          impFromModule = T.pack $ moduleFromPath filepath,
+          impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName,
+          impQualified = if ideclQualified /= GHC.NotQualified then Qualified else NotQualified,
+          impAlias = T.pack . moduleNameString . GHC.unLoc <$> ideclAs,
+          impInternal = External,
+          impType = hiding,
+          impSymbol = T.pack . occNameString . rdrNameOcc . GHC.ieName <$> sym
         }
     moduleFromPath =
       intercalate "." . FP.splitDirectories . FP.dropExtension . relativePath

@@ -38,12 +38,12 @@ main = do
   pool <-
     P.acquire $
       P.settings
-        [ P.size 3
-        , P.acquisitionTimeout 10
-        , P.agingTimeout 60
-        , P.idlenessTimeout 60
-        , P.staticConnectionSettings $ toConnectionSettings identity testCfg
-        , -- make sure metrics are updated and pool observations published to poolChan
+        [ P.size 3,
+          P.acquisitionTimeout 10,
+          P.agingTimeout 60,
+          P.idlenessTimeout 60,
+          P.staticConnectionSettings $ toConnectionSettings identity testCfg,
+          -- make sure metrics are updated and pool observations published to poolChan
           P.observationHandler $ (writeChan poolChan <> Metrics.observationMetrics metricsState) . HasqlPoolObs
         ]
 

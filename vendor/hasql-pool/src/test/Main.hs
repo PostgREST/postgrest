@@ -26,11 +26,11 @@ main = do
       bracket
         ( acquire
             ( Config.settings
-                [ Config.size poolSize
-                , Config.acquisitionTimeout acqTimeout
-                , Config.agingTimeout maxLifetime
-                , Config.idlenessTimeout maxIdletime
-                , Config.staticConnectionSettings
+                [ Config.size poolSize,
+                  Config.acquisitionTimeout acqTimeout,
+                  Config.agingTimeout maxLifetime,
+                  Config.idlenessTimeout maxIdletime,
+                  Config.staticConnectionSettings
                     [ Connection.Setting.connection
                         (Connection.Setting.Connection.string connectionString)
                     ]
@@ -170,11 +170,11 @@ getConnectionString =
   Text.unwords
     . catMaybes
     <$> sequence
-      [ setting "host" $ defaultEnv "POSTGRES_HOST" "localhost"
-      , setting "port" $ defaultEnv "POSTGRES_PORT" "5432"
-      , setting "user" $ defaultEnv "POSTGRES_USER" "postgres"
-      , setting "password" $ defaultEnv "POSTGRES_PASSWORD" "postgres"
-      , setting "dbname" $ defaultEnv "POSTGRES_DBNAME" "postgres"
+      [ setting "host" $ defaultEnv "POSTGRES_HOST" "localhost",
+        setting "port" $ defaultEnv "POSTGRES_PORT" "5432",
+        setting "user" $ defaultEnv "POSTGRES_USER" "postgres",
+        setting "password" $ defaultEnv "POSTGRES_PASSWORD" "postgres",
+        setting "dbname" $ defaultEnv "POSTGRES_DBNAME" "postgres"
       ]
   where
     maybeEnv env = fmap Text.pack <$> System.Environment.lookupEnv env

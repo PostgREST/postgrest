@@ -73,21 +73,21 @@ data DbResult
 -- | Standard result set format used for the mqMain query
 data ResultSet
   = RSStandard
-  { rsTableTotal :: Maybe Int64
-  -- ^ count of all the table rows
-  , rsQueryTotal :: Int64
-  -- ^ count of the query rows
-  , rsLocation :: [(BS.ByteString, BS.ByteString)]
-  -- ^ The Location header(only used for inserts) is represented as a list of strings containing
-  -- variable bindings like @"k1=eq.42"@, or the empty list if there is no location header.
-  , rsBody :: BS.ByteString
-  -- ^ the aggregated body of the query
-  , rsGucHeaders :: Maybe BS.ByteString
-  -- ^ the HTTP headers to be added to the response
-  , rsGucStatus :: Maybe Text
-  -- ^ the HTTP status to be added to the response
-  , rsInserted :: Maybe Int64
-  -- ^ the number of rows inserted (Only used for upserts)
+  { -- | count of all the table rows
+    rsTableTotal :: Maybe Int64,
+    -- | count of the query rows
+    rsQueryTotal :: Int64,
+    -- | The Location header(only used for inserts) is represented as a list of strings containing
+    -- variable bindings like @"k1=eq.42"@, or the empty list if there is no location header.
+    rsLocation :: [(BS.ByteString, BS.ByteString)],
+    -- | the aggregated body of the query
+    rsBody :: BS.ByteString,
+    -- | the HTTP headers to be added to the response
+    rsGucHeaders :: Maybe BS.ByteString,
+    -- | the HTTP status to be added to the response
+    rsGucStatus :: Maybe Text,
+    -- | the number of rows inserted (Only used for upserts)
+    rsInserted :: Maybe Int64
   }
 
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx

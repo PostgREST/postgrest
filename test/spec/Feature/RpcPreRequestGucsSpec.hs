@@ -18,10 +18,10 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         "/items"
         [json|[{"id": 11111}]|]
         `shouldRespondWith` ""
-          { matchStatus = 201
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , "X-Custom-Header" <:> "mykey=myval"
+          { matchStatus = 201,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                "X-Custom-Header" <:> "mykey=myval"
               ]
           }
 
@@ -42,8 +42,8 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         ""
         `shouldRespondWith` ""
           { matchHeaders =
-              [ matchContentTypeJson
-              , "Cache-Control" <:> "no-cache, no-store, must-revalidate"
+              [ matchContentTypeJson,
+                "Cache-Control" <:> "no-cache, no-store, must-revalidate"
               ]
           }
 
@@ -54,8 +54,8 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         ""
         `shouldRespondWith` ""
           { matchHeaders =
-              [ "Content-Type" <:> "text/csv; charset=utf-8"
-              , "Content-Disposition" <:> "attachment; filename=projects.csv"
+              [ "Content-Type" <:> "text/csv; charset=utf-8",
+                "Content-Disposition" <:> "attachment; filename=projects.csv"
               ]
           }
 
@@ -64,11 +64,11 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         "/items?id=eq.1"
         [json|[{"id": 11111}]|]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , matchHeaderAbsent hContentLength
-              , "X-Custom-Header" <:> "mykey=myval"
+          { matchStatus = 204,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                matchHeaderAbsent hContentLength,
+                "X-Custom-Header" <:> "mykey=myval"
               ]
           }
 
@@ -77,22 +77,22 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         "/items?id=eq.1"
         [json|[{"id": 1}]|]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , matchHeaderAbsent hContentLength
-              , "X-Custom-Header" <:> "mykey=myval"
+          { matchStatus = 204,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                matchHeaderAbsent hContentLength,
+                "X-Custom-Header" <:> "mykey=myval"
               ]
           }
 
     it "succeeds setting the headers on DELETE" $
       delete "/items?id=eq.1"
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , matchHeaderAbsent hContentLength
-              , "X-Custom-Header" <:> "mykey=myval"
+          { matchStatus = 204,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                matchHeaderAbsent hContentLength,
+                "X-Custom-Header" <:> "mykey=myval"
               ]
           }
     it "can override the Content-Type header" $ do
@@ -102,8 +102,8 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         []
         ""
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/custom+json"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/custom+json"]
           }
       request
         methodHead
@@ -111,6 +111,6 @@ spec withConfig = withConfig (baseCfg{configDbPreRequest = Just $ QualifiedIdent
         []
         ""
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/custom+json"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/custom+json"]
           }

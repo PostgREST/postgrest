@@ -25,12 +25,12 @@ import PostgREST.Catalog.Routine
   )
 
 data CallPlan = FunctionCall
-  { funCQi :: QualifiedIdentifier
-  , funCParams :: CallParams
-  , funCScalar :: Bool
-  , funCSetOfScalar :: Bool
-  , funCFilterFields :: Set FieldName
-  , funCReturning :: Set FieldName
+  { funCQi :: QualifiedIdentifier,
+    funCParams :: CallParams,
+    funCScalar :: Bool,
+    funCSetOfScalar :: Bool,
+    funCFilterFields :: Set FieldName,
+    funCReturning :: Set FieldName
   }
 
 data CallParams

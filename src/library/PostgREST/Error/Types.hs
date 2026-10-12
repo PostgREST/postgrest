@@ -126,14 +126,14 @@ data PgError = PgError Authenticated SQL.UsageError
 
 -- For parsing byteString to JSON Object, used for allowing full response control
 data PgRaiseErrMessage = PgRaiseErrMessage
-  { getCode :: Text
-  , getMessage :: Text
-  , getDetails :: Maybe Text
-  , getHint :: Maybe Text
+  { getCode :: Text,
+    getMessage :: Text,
+    getDetails :: Maybe Text,
+    getHint :: Maybe Text
   }
 
 data PgRaiseErrDetails = PgRaiseErrDetails
-  { getStatus :: Int
-  , getStatusText :: Maybe Text
-  , getHeaders :: Map Text Text
+  { getStatus :: Int,
+    getStatusText :: Maybe Text,
+    getHeaders :: Map Text Text
   }

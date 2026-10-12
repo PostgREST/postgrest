@@ -70,39 +70,39 @@ import PostgREST.MediaType qualified as MediaType
 --   sensible, it is up to a later stage of processing to determine
 --   if it is an action we are able to perform.
 data ApiRequest = ApiRequest
-  { iAction :: Action
-  -- ^ Action on the resource
-  , iRange :: HM.HashMap Text NonnegRange
-  -- ^ Requested range of rows within response
-  , iPreferences :: Preferences.Preferences
-  -- ^ Prefer header values
-  , iQueryParams :: QueryParams.QueryParams
-  , iColumns :: S.Set FieldName
-  -- ^ parsed columns from &columns parameter and payload
-  , iSchema :: Schema
-  -- ^ The request schema. Can vary depending on profile headers.
-  , iAcceptMediaType :: [MediaType]
-  -- ^ The resolved media types in the Accept, considering quality(q) factors
-  , iContentMediaType :: MediaType
-  -- ^ The media type in the Content-Type header
+  { -- | Action on the resource
+    iAction :: Action,
+    -- | Requested range of rows within response
+    iRange :: HM.HashMap Text NonnegRange,
+    -- | Prefer header values
+    iPreferences :: Preferences.Preferences,
+    iQueryParams :: QueryParams.QueryParams,
+    -- | parsed columns from &columns parameter and payload
+    iColumns :: S.Set FieldName,
+    -- | The request schema. Can vary depending on profile headers.
+    iSchema :: Schema,
+    -- | The resolved media types in the Accept, considering quality(q) factors
+    iAcceptMediaType :: [MediaType],
+    -- | The media type in the Content-Type header
+    iContentMediaType :: MediaType
   }
 
 --  values of the request, non-structural parts (parts that don't decide the final query shape)
 data RequestValues = RequestValues
-  { vPayload :: Maybe Payload
-  -- ^ Data sent by client and used for mutation actions
-  , vTopLevelRange :: NonnegRange
-  -- ^ Requested range of rows from the top level
-  , vHeaders :: [(ByteString, ByteString)]
-  -- ^ HTTP request headers
-  , vCookies :: [(ByteString, ByteString)]
-  -- ^ Request cookies
-  , vPath :: ByteString
-  -- ^ Raw request path
-  , vMethod :: ByteString
-  -- ^ Raw request method
-  , vNegotiatedByProfile :: Bool
-  -- ^ Whether the schema was chosen according to the profile specification
+  { -- | Data sent by client and used for mutation actions
+    vPayload :: Maybe Payload,
+    -- | Requested range of rows from the top level
+    vTopLevelRange :: NonnegRange,
+    -- | HTTP request headers
+    vHeaders :: [(ByteString, ByteString)],
+    -- | Request cookies
+    vCookies :: [(ByteString, ByteString)],
+    -- | Raw request path
+    vPath :: ByteString,
+    -- | Raw request method
+    vMethod :: ByteString,
+    -- | Whether the schema was chosen according to the profile specification
+    vNegotiatedByProfile :: Bool
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -124,23 +124,23 @@ userApiRequest conf prefs req reqBody = do
     _ -> pure () -- the *Info (OPTIONS) requests don't apply preferences
   return
     ( ApiRequest
-        { iAction = act
-        , iRange = ranges
-        , iPreferences = prefs
-        , iQueryParams = qPrms
-        , iColumns = columns
-        , iSchema = schema
-        , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-        , iContentMediaType = contentMediaType
-        }
-    , RequestValues
-        { vPayload = payload
-        , vTopLevelRange = topLevelRange
-        , vHeaders = iHdrs
-        , vCookies = iCkies
-        , vPath = rawPathInfo req
-        , vMethod = method
-        , vNegotiatedByProfile = negotiatedByProfile
+        { iAction = act,
+          iRange = ranges,
+          iPreferences = prefs,
+          iQueryParams = qPrms,
+          iColumns = columns,
+          iSchema = schema,
+          iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept",
+          iContentMediaType = contentMediaType
+        },
+      RequestValues
+        { vPayload = payload,
+          vTopLevelRange = topLevelRange,
+          vHeaders = iHdrs,
+          vCookies = iCkies,
+          vPath = rawPathInfo req,
+          vMethod = method,
+          vNegotiatedByProfile = negotiatedByProfile
         }
     )
   where

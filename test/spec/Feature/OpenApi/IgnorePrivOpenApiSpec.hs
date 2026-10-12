@@ -16,8 +16,8 @@ import SpecHelper
 spec :: SpecWithConfig
 spec withConfig = withConfig
   ( baseCfg
-      { configOpenApiMode = OAIgnorePriv
-      , configDbSchemas = fromList ["test", "v1"]
+      { configOpenApiMode = OAIgnorePriv,
+        configDbSchemas = fromList ["test", "v1"]
       }
   )
   $ describe "OpenAPI Ignore Privileges"
@@ -30,10 +30,10 @@ spec withConfig = withConfig
         (acceptHdrs "application/openapi+json")
         ""
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "application/openapi+json; charset=utf-8"
-              , matchHeaderAbsent hContentLength
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "application/openapi+json; charset=utf-8",
+                matchHeaderAbsent hContentLength
               ]
           }
 

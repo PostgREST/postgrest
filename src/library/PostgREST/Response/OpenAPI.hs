@@ -111,8 +111,8 @@ parseDefault colType colDefault =
 makeTableDef :: RelationshipsMap -> Table -> (Text, Schema)
 makeTableDef rels t =
   let tn = tableName t
-  in  ( tn
-      , (mempty :: Schema)
+  in  ( tn,
+        (mempty :: Schema)
           & description .~ tableDescription t
           & type_ ?~ SwaggerObject
           & properties .~ fromList (makeProperty t rels <$> tableColumnsList t)
@@ -147,9 +147,9 @@ makeProperty tbl rels col = (colName col, Inline s)
     pk = colName col `elem` tablePKCols tbl
     n =
       catMaybes
-        [ Just "Note:"
-        , if pk then Just "This is a Primary Key.<pk/>" else Nothing
-        , fk
+        [ Just "Note:",
+          if pk then Just "This is a Primary Key.<pk/>" else Nothing,
+          fk
         ]
     d =
       if length n > 1 then
@@ -247,20 +247,19 @@ makeProcPostParams pd =
       (mempty :: Param)
         & name .~ "args"
         & required ?~ True
-        & schema .~ ParamBody (Inline $ makeProcSchema pd)
-  , Ref $ Reference "preferParams"
+        & schema .~ ParamBody (Inline $ makeProcSchema pd),
+    Ref $ Reference "preferParams"
   ]
 
 makeParamDefs :: [Table] -> [(Text, Param)]
 makeParamDefs ti =
   -- TODO: create Prefer for each method (GET, PATCH, etc.)
-  [ ("preferParams", makePreferParam ["params"])
-  , ("preferReturn", makePreferParam ["return"])
-  , ("preferCount", makePreferParam ["count"])
-  , ("preferPost", makePreferParam ["return", "resolution"])
-  ,
-    ( "select"
-    , (mempty :: Param)
+  [ ("preferParams", makePreferParam ["params"]),
+    ("preferReturn", makePreferParam ["return"]),
+    ("preferCount", makePreferParam ["count"]),
+    ("preferPost", makePreferParam ["return", "resolution"]),
+    ( "select",
+      (mempty :: Param)
         & name .~ "select"
         & description ?~ "Filtering Columns"
         & required ?~ False
@@ -270,10 +269,9 @@ makeParamDefs ti =
                 & in_ .~ ParamQuery
                 & type_ ?~ SwaggerString
             )
-    )
-  ,
-    ( "on_conflict"
-    , (mempty :: Param)
+    ),
+    ( "on_conflict",
+      (mempty :: Param)
         & name .~ "on_conflict"
         & description ?~ "On Conflict"
         & required ?~ False
@@ -283,10 +281,9 @@ makeParamDefs ti =
                 & in_ .~ ParamQuery
                 & type_ ?~ SwaggerString
             )
-    )
-  ,
-    ( "order"
-    , (mempty :: Param)
+    ),
+    ( "order",
+      (mempty :: Param)
         & name .~ "order"
         & description ?~ "Ordering"
         & required ?~ False
@@ -296,10 +293,9 @@ makeParamDefs ti =
                 & in_ .~ ParamQuery
                 & type_ ?~ SwaggerString
             )
-    )
-  ,
-    ( "range"
-    , (mempty :: Param)
+    ),
+    ( "range",
+      (mempty :: Param)
         & name .~ "Range"
         & description ?~ "Limiting and Pagination"
         & required ?~ False
@@ -309,10 +305,9 @@ makeParamDefs ti =
                 & in_ .~ ParamHeader
                 & type_ ?~ SwaggerString
             )
-    )
-  ,
-    ( "rangeUnit"
-    , (mempty :: Param)
+    ),
+    ( "rangeUnit",
+      (mempty :: Param)
         & name .~ "Range-Unit"
         & description ?~ "Limiting and Pagination"
         & required ?~ False
@@ -323,10 +318,9 @@ makeParamDefs ti =
                 & type_ ?~ SwaggerString
                 & default_ .~ JSON.decode "\"items\""
             )
-    )
-  ,
-    ( "offset"
-    , (mempty :: Param)
+    ),
+    ( "offset",
+      (mempty :: Param)
         & name .~ "offset"
         & description ?~ "Limiting and Pagination"
         & required ?~ False
@@ -336,10 +330,9 @@ makeParamDefs ti =
                 & in_ .~ ParamQuery
                 & type_ ?~ SwaggerString
             )
-    )
-  ,
-    ( "limit"
-    , (mempty :: Param)
+    ),
+    ( "limit",
+      (mempty :: Param)
         & name .~ "limit"
         & description ?~ "Limiting and Pagination"
         & required ?~ False
@@ -358,8 +351,8 @@ makeParamDefs ti =
 
 makeObjectBody :: Text -> (Text, Param)
 makeObjectBody tn =
-  ( "body." <> tn
-  , (mempty :: Param)
+  ( "body." <> tn,
+    (mempty :: Param)
       & name .~ tn
       & description ?~ tn
       & required ?~ False
@@ -368,8 +361,8 @@ makeObjectBody tn =
 
 makeRowFilter :: Text -> Column -> (Text, Param)
 makeRowFilter tn c =
-  ( T.intercalate "." ["rowFilter", tn, colName c]
-  , (mempty :: Param)
+  ( T.intercalate "." ["rowFilter", tn, colName c],
+    (mempty :: Param)
       & name .~ colName c
       & description .~ colDescription c
       & required ?~ False
@@ -526,10 +519,10 @@ pickProxy proxy
   | otherwise =
       Just
         Proxy
-          { proxyScheme = scheme
-          , proxyHost = host'
-          , proxyPort = port''
-          , proxyPath = path'
+          { proxyScheme = scheme,
+            proxyHost = host',
+            proxyPort = port'',
+            proxyPath = path'
           }
   where
     uri = toURI $ fromJust proxy

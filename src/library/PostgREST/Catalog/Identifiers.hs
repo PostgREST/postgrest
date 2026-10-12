@@ -28,8 +28,8 @@ instance Hashable RelIdentifier
 -- When qiSchema is "", the schema is defined by the pg search_path.
 -- TODO: Refactor this, we also use QI for procedure names
 data QualifiedIdentifier = QualifiedIdentifier
-  { qiSchema :: Schema
-  , qiName :: TableName
+  { qiSchema :: Schema,
+    qiName :: TableName
   }
   deriving (Eq, Generic, JSON.ToJSON, JSON.ToJSONKey, Ord, Show)
 

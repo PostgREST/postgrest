@@ -35,6 +35,6 @@ spec withConfig = withConfig (baseCfg{configDbSchemas = fromList ["تست"]}) $
         [("Prefer", "tx=commit")]
         ""
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = [matchHeaderAbsent hContentType]
+          { matchStatus = 204,
+            matchHeaders = [matchHeaderAbsent hContentType]
           }

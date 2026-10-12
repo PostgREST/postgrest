@@ -54,10 +54,10 @@ spec withConfig = withConfig (baseCfg{configDbMaxRows = Just 2}) $
           [("Prefer", "count=estimated")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2019"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2019"
                 ]
             }
 
@@ -69,8 +69,8 @@ spec withConfig = withConfig (baseCfg{configDbMaxRows = Just 2}) $
           ""
           `shouldRespondWith` ""
             { matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -81,10 +81,10 @@ spec withConfig = withConfig (baseCfg{configDbMaxRows = Just 2}) $
           [("Prefer", "count=estimated")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/3"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/3"
                 ]
             }
 

@@ -35,17 +35,17 @@ import Hasql.Pool.Observation qualified as SQL
 
 data MetricsState
   = MetricsState
-  { poolTimeouts :: Counter
-  , connTrack :: ConnTrack
-  , poolWaiting :: Gauge
-  , poolMaxSize :: Gauge
-  , schemaCacheLoads :: Vector Label1 Counter
-  , schemaCacheQueryTime :: Gauge
-  , jwtCacheRequests :: Counter
-  , jwtCacheHits :: Counter
-  , jwtCacheEvictions :: Counter
-  , metricsSamples :: IO [SampleGroup]
-  -- ^ The current samples of the metrics above
+  { poolTimeouts :: Counter,
+    connTrack :: ConnTrack,
+    poolWaiting :: Gauge,
+    poolMaxSize :: Gauge,
+    schemaCacheLoads :: Vector Label1 Counter,
+    schemaCacheQueryTime :: Gauge,
+    jwtCacheRequests :: Counter,
+    jwtCacheHits :: Counter,
+    jwtCacheEvictions :: Counter,
+    -- | The current samples of the metrics above
+    metricsSamples :: IO [SampleGroup]
   }
 
 -- | Create the metrics. They are not registered, so several can be created in
@@ -123,8 +123,8 @@ metricsToText :: IO LBS.ByteString
 metricsToText = exportMetricsAsText
 
 data ConnStats = ConnStats
-  { connected :: Int
-  , inUse :: Int
+  { connected :: Int,
+    inUse :: Int
   }
   deriving (Eq, Show)
 

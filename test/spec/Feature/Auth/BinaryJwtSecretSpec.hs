@@ -11,8 +11,8 @@ import SpecHelper
 spec :: SpecWithConfig
 spec withConfig = withConfig
   ( baseCfg
-      { configJwtSecret = Just generateSecret
-      , configJWKS = rightToMaybe $ parseSecret generateSecret
+      { configJwtSecret = Just generateSecret,
+        configJWKS = rightToMaybe $ parseSecret generateSecret
       }
   )
   $ describe "server started with binary JWT secret"
