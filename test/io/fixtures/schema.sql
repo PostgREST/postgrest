@@ -200,6 +200,15 @@ create function terminate_pgrst(appname text) returns setof record as $$
 select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%' || appname || '%';
 $$ language sql security definer;
 
+create function prepared_statement_cache() returns json as $$
+  select json_build_object(
+    'used_bytes', coalesce(sum(used_bytes), 0)
+  )
+  from pg_backend_memory_contexts
+  where name in ('Prepared Queries', 'CachedPlanSource', 'CachedPlanQuery', 'CachedPlan');
+-- reading memory contexts requires elevated privileges on pg 14
+$$ language sql security definer;
+
 create or replace function one_sec_timeout() returns void as $$
   select pg_sleep(3);
 $$ language sql set statement_timeout = '1s';
