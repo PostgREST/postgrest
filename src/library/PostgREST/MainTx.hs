@@ -91,6 +91,80 @@ data ResultSet
     rsInserted :: Maybe Int64
   }
 
+-- | The result set a query that matched no row yields.
+emptyResultSet :: Maybe Int64 -> ResultSet
+emptyResultSet tableTotal = RSStandard tableTotal 0 mempty mempty Nothing Nothing Nothing
+
+-- | A step applied after the plan's main statement. 'FailWhen' is a predicate on
+-- the result set that, when it returns 'Just', fails the request and rolls the
+-- transaction back. 'MaybeRollback' honors a 'Prefer: tx=rollback' request (or
+-- @db-tx-end=rollback-allow-override@) by checking deferred constraints and
+-- aborting instead of committing.
+data ResultStep
+  = FailWhen (ResultSet -> Maybe Error)
+  | MaybeRollback
+
+-- | The steps a plan applies after its main statement, in order.
+resultSteps :: DbActionPlan -> ApiRequest -> [ResultStep]
+resultSteps (MayUseDb _) _ = []
+resultSteps (DbCrud True _) _ = [MaybeRollback]
+resultSteps (DbCrud _ plan) ApiRequest{iPreferences = Preferences{..}} = case plan of
+  WrappedReadPlan{pMedia} -> singular pMedia ++ [MaybeRollback]
+  MutateReadPlan{pMedia, mrMutation} -> case mrMutation of
+    MutationCreate -> singular pMedia ++ [MaybeRollback]
+    MutationUpdate -> singular pMedia ++ maxAffected ++ [MaybeRollback]
+    MutationSingleUpsert -> [FailWhen matchingPk, MaybeRollback]
+    MutationDelete -> singular pMedia ++ maxAffected ++ [MaybeRollback]
+  CallReadPlan{pMedia} -> MaybeRollback : singular pMedia ++ maxAffected
+  where
+    -- Fail a response if a single JSON object was requested and not exactly one
+    -- was found.
+    singular mediaType
+      | mediaType `elem` [MTVndSingularJSON True, MTVndSingularJSON False] = [FailWhen notSingular]
+      | otherwise = []
+    notSingular RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal /= 1 = Just . Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
+      | otherwise = Nothing
+
+    maxAffected = case (preferMaxAffected, preferHandling) of
+      (Just (PreferMaxAffected n), Just Strict) -> [FailWhen $ exceedsMaxAffected n]
+      _ -> []
+    exceedsMaxAffected n RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal > n = Just . Error.ApiRequestErr . Error.MaxAffectedViolationError $ toInteger queryTotal
+      | otherwise = Nothing
+
+    -- Makes sure the querystring pk matches the payload pk
+    -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
+    -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
+    -- If this condition is not satisfied then nothing is inserted,
+    -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
+    matchingPk RSStandard{rsQueryTotal = queryTotal}
+      | queryTotal /= 1 = Just $ Error.ApiRequestErr Error.PutMatchingPkError
+      | otherwise = Nothing
+
+-- | Whether the request asked for the transaction to be rolled back.
+rollbackRequested :: AppConfig -> ApiRequest -> Bool
+rollbackRequested AppConfig{configDbTxRollbackAll} ApiRequest{iPreferences = Preferences{..}} =
+  shouldRollback || (configDbTxRollbackAll && not shouldCommit)
+  where
+    shouldCommit = preferTransaction == Just Commit
+    shouldRollback = preferTransaction == Just Rollback
+
+-- | Interpret the plan's steps against the result set. On a failed check, condemn
+-- the transaction and surface the error. On 'MaybeRollback' with a rollback
+-- requested, set deferred constraints immediate before condemning so a
+-- constraint violation still surfaces on a request that asked not to commit.
+applyStepsM :: Bool -> [ResultStep] -> ResultSet -> DbHandler ()
+applyStepsM wantRollback steps resultSet = traverse_ runStep steps
+  where
+    runStep MaybeRollback =
+      when wantRollback . lift $ do
+        SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
+        SQL.condemn
+    runStep (FailWhen failsWhen) = whenJust (failsWhen resultSet) $ \err -> do
+      lift SQL.condemn
+      throwError err
+
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
 mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
 mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
@@ -125,14 +199,13 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
 actionResult :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction DbResult
-actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
+actionResult MainQuery{..} actPlan@(DbCrud True plan) conf@AppConfig{..} apiReq _ = do
   explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
-  optionalRollback conf apiReq
+  applyStepsM (rollbackRequested conf apiReq) (resultSteps actPlan apiReq) (emptyResultSet Nothing)
   pure $ DbPlanResult (pMedia plan) explRes
-actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
+actionResult MainQuery{..} actPlan@(DbCrud _ plan@WrappedReadPlan{}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
   resultSet@RSStandard{rsTableTotal = tableTotal} <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
-  failNotSingular pMedia resultSet
-  optionalRollback conf apiReq
+  applyStepsM (rollbackRequested conf apiReq) (resultSteps actPlan apiReq) resultSet
   explainTotal <-
     lift . fmap join $
       traverse
@@ -161,34 +234,20 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
     decodeExplain =
       let row = HD.singleRow $ HH.column HD.bytea
       in  (^? L.nth 0 . L.key "Plan" . L.key "Plan Rows" . L._Integral) <$> row
-actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
+actionResult MainQuery{..} actPlan@(DbCrud _ plan@MutateReadPlan{}) conf@AppConfig{..} apiReq _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-  failMutation resultSet
-  optionalRollback conf apiReq
+  applyStepsM (rollbackRequested conf apiReq) (resultSteps actPlan apiReq) resultSet
   pure $ DbCrudResult plan resultSet
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
-    failMutation resultSet = case mrMutation of
-      MutationCreate -> do
-        failNotSingular pMedia resultSet
-      MutationUpdate -> do
-        failNotSingular pMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
-      MutationSingleUpsert -> do
-        failPut resultSet
-      MutationDelete -> do
-        failNotSingular pMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
-    decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
-actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
+    decodeRow = fromMaybe (emptyResultSet Nothing) <$> HD.rowMaybe (standardRow False)
+actionResult MainQuery{..} actPlan@(DbCrud _ plan@CallReadPlan{}) conf@AppConfig{..} apiReq _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-  optionalRollback conf apiReq
-  failNotSingular pMedia resultSet
-  failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
+  applyStepsM (rollbackRequested conf apiReq) (resultSteps actPlan apiReq) resultSet
   pure $ DbCrudResult plan resultSet
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
-    decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
+    decodeRow = fromMaybe (emptyResultSet (Just 0)) <$> HD.rowMaybe (standardRow True)
 actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema = tSchema}) AppConfig{..} _ sCache =
   mainActionQuery
   where
@@ -222,44 +281,6 @@ actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@Inspect
               <$> HH.column HD.text
               <*> HH.column HD.text
       in  S.fromList <$> HD.rowList row
-
--- Makes sure the querystring pk matches the payload pk
--- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
--- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
--- If this condition is not satisfied then nothing is inserted,
--- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-failPut :: ResultSet -> DbHandler ()
-failPut RSStandard{rsQueryTotal = queryTotal} =
-  when (queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestErr Error.PutMatchingPkError
-
--- |
--- Fail a response if a single JSON object was requested and not exactly one
--- was found.
-failNotSingular :: MediaType -> ResultSet -> DbHandler ()
-failNotSingular mediaType RSStandard{rsQueryTotal = queryTotal} =
-  when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestErr . Error.SingularityError $ toInteger queryTotal
-
-failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
-failExceedsMaxAffectedPref (Nothing, _) _ = pure ()
-failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal = queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
-  lift SQL.condemn
-  throwError $ Error.ApiRequestErr . Error.MaxAffectedViolationError $ toInteger queryTotal
-
--- | Set a transaction to roll back if requested
-optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
-optionalRollback AppConfig{..} ApiRequest{iPreferences = Preferences{..}} = do
-  lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
-    SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
-    SQL.condemn
-  where
-    shouldCommit =
-      preferTransaction == Just Commit
-    shouldRollback =
-      preferTransaction == Just Rollback
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result BS.ByteString
