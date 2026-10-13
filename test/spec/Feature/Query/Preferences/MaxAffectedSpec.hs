@@ -28,8 +28,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=strict, max-affected=10")]
         ""
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=10"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=10"]
           }
 
     it "should fail if items updated more than 0" $
@@ -49,8 +49,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=strict, max-affected=1")]
         [json| [{"name":"Java", "rank":19}] |]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=1"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=1"]
           }
 
   context "test Prefer: max-affected with handling=lenient" $ do
@@ -61,8 +61,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=lenient, max-affected=10")]
         ""
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
           }
 
     it "should succeed if items deleted less than 10" $
@@ -72,8 +72,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=lenient, max-affected=10")]
         ""
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
           }
 
     it "should not fail" $
@@ -83,8 +83,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=lenient, max-affected=0")]
         [json| [{"name":"Java", "rank":19}] |]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
           }
 
     it "should succeed if items updated equal 1" $
@@ -94,8 +94,8 @@ spec withConfig = withConfig baseCfg $ describe "test Prefer: max-affected" $ do
         [("Prefer", "handling=lenient, max-affected=1")]
         [json| [{"name":"Java", "rank":19}] |]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
+          { matchStatus = 204,
+            matchHeaders = ["Preference-Applied" <:> "handling=lenient"]
           }
 
   context "test Prefer: max-affected with rpc" $ do

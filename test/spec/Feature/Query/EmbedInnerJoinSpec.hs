@@ -28,10 +28,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/projects?select=id,clients!inner(id)" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-3/4"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-3/4"
                 ]
             }
 
@@ -54,10 +54,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/projects?select=id,clients!inner(id)&clients.id=eq.1" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -80,10 +80,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/tasks?select=id,projects!inner(id,clients!inner(id))&projects.clients.id=eq.1" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-3/4"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-3/4"
                 ]
             }
 
@@ -102,10 +102,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/tasks?select=id,projects(id,clients!inner(id))&projects.clients.id=eq.2" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-7/8"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-7/8"
                 ]
             }
 
@@ -116,10 +116,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/books?select=title,authors!inner(name)&authors.name=eq.George%20Orwell" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -141,10 +141,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/entities?select=id,child_entities!inner(id)" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -163,10 +163,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/entities?select=id,child_entities!inner(id)&child_entities.id=eq.1" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -194,10 +194,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/entities?select=id,child_entities!inner(id,grandchild_entities!inner(id))&child_entities.grandchild_entities.id=in.(1,5)" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -223,10 +223,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/entities?select=id,child_entities!inner(id,grandchild_entities(id))&child_entities.grandchild_entities.id=eq.2" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -237,10 +237,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/authors?select=*,books!inner(*)&books.title=eq.1984" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -261,10 +261,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/products?select=id,suppliers!inner(id)" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -283,10 +283,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/products?select=id,suppliers!inner(id)&suppliers.id=eq.2" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -301,10 +301,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/products?select=id,suppliers!inner(id,trade_unions!inner(id))&suppliers.trade_unions.id=eq.3" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -317,10 +317,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/products?select=id,suppliers!inner(id,trade_unions(id))&suppliers.trade_unions.id=eq.3" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2"
                 ]
             }
 
@@ -335,10 +335,10 @@ spec withConfig = withConfig baseCfg $
             }
         request methodHead "/actors?select=*,films!inner(*)&films.title=eq.douze%20commandements" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-0/1"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-0/1"
                 ]
             }
 
@@ -353,10 +353,10 @@ spec withConfig = withConfig baseCfg $
           }
       request methodHead "/projects?select=name,clients!inner(name),users!inner(name)" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-3/4"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-3/4"
               ]
           }
 
@@ -367,10 +367,10 @@ spec withConfig = withConfig baseCfg $
           }
       request methodHead "/rpc/getallprojects?select=id,clients!inner(id)&clients.id=eq.1" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-1/2"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-1/2"
               ]
           }
 
@@ -385,10 +385,10 @@ spec withConfig = withConfig baseCfg $
           }
       request methodHead "/projects?select=id,clients!client!inner(id)&clients.id=eq.2" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-1/2"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-1/2"
               ]
           }
 
@@ -416,10 +416,10 @@ spec withConfig = withConfig baseCfg $
           }
       request methodHead "/client?select=id,name,contact!inner(name),clientinfo!inner(other)" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-2/3"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-2/3"
               ]
           }
 
@@ -434,17 +434,17 @@ spec withConfig = withConfig baseCfg $
           }
       request methodHead "/books?select=id,authors(name),publishers!inner(name)&id=gte.7" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-2/3"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-2/3"
               ]
           }
       request methodHead "/books?select=id,publishers!inner(name),authors(name)&id=gte.7" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Range" <:> "0-2/3"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Range" <:> "0-2/3"
               ]
           }

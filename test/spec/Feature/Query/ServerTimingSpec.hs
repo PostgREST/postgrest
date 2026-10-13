@@ -20,8 +20,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` [json|[{"id":6,"name":"Oscorp","referee":3,"auditor":4,"manager_id":6}]|]
-            { matchStatus = 200
-            , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 200,
+              matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with post request" $
@@ -31,8 +31,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           [("Prefer", "return=representation")]
           [json|{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}|]
           `shouldRespondWith` [json|[{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}]|]
-            { matchStatus = 201
-            , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 201,
+              matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with patch request" $
@@ -42,8 +42,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           mempty
           [json| { b: "1" } |]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 204,
+              matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with put request" $
@@ -53,8 +53,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           [("Prefer", "return=representation")]
           [json| [ { "name": "Python", "rank": 19 } ]|]
           `shouldRespondWith` [json| [ { "name": "Python", "rank": 19 } ]|]
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with delete request" $
@@ -64,8 +64,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 204,
+              matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with rpc call" $
@@ -75,8 +75,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           [json|{"x": 1, "y": 2}|]
           `shouldRespondWith` [json|{"x": 1, "y": 2}|]
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with root spec" $
@@ -86,8 +86,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "response"]
             }
 
       it "works with OPTIONS method" $ do
@@ -97,8 +97,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
             }
         request
           methodOptions
@@ -106,8 +106,8 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
             }
         request
           methodOptions
@@ -115,6 +115,6 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $
           []
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
+            { matchStatus = 200,
+              matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "response"]
             }

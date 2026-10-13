@@ -22,8 +22,8 @@ spec withConfig = withConfig baseCfg $ do
           get "/rpc/getitemrange?min=2&max=2"
             `shouldRespondWith` [json| [] |]
               { matchHeaders =
-                  [ "Content-Range" <:> "*/*"
-                  , "Content-Length" <:> "2"
+                  [ "Content-Range" <:> "*/*",
+                    "Content-Length" <:> "2"
                   ]
               }
 
@@ -46,10 +46,10 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 1 was requested, but there are only 0 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders =
-                  [ "Content-Range" <:> "*/0"
-                  , "Content-Length" <:> "144"
+              { matchStatus = 416,
+                matchHeaders =
+                  [ "Content-Range" <:> "*/0",
+                    "Content-Length" <:> "144"
                   ]
               }
 
@@ -65,8 +65,8 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 100 was requested, but there are only 15 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders = ["Content-Range" <:> "*/15"]
+              { matchStatus = 416,
+                matchHeaders = ["Content-Range" <:> "*/15"]
               }
 
     context "with range headers" $ do
@@ -98,8 +98,8 @@ spec withConfig = withConfig baseCfg $ do
             (rangeHdrs $ ByteRangeFromTo 0 1)
             mempty
             `shouldRespondWith` "[]"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "*/*"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Range" <:> "*/*"]
               }
 
         it "allows one-item requests" $ do
@@ -154,10 +154,10 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 1 was requested, but there are only 0 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders =
-                  [ "Content-Range" <:> "*/0"
-                  , "Content-Length" <:> "144"
+              { matchStatus = 416,
+                matchHeaders =
+                  [ "Content-Range" <:> "*/0",
+                    "Content-Length" <:> "144"
                   ]
               }
 
@@ -173,8 +173,8 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 100 was requested, but there are only 15 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders = ["Content-Range" <:> "*/15"]
+              { matchStatus = 416,
+                matchHeaders = ["Content-Range" <:> "*/15"]
               }
 
   describe "GET /items" $ do
@@ -229,14 +229,14 @@ spec withConfig = withConfig baseCfg $ do
       it "no parameters return everything" $
         get "/items?select=id&order=id.asc"
           `shouldRespondWith` [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-14/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-14/*"]
             }
       it "top level limit with parameter" $
         get "/items?select=id&order=id.asc&limit=3"
           `shouldRespondWith` [json|[{"id":1},{"id":2},{"id":3}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-2/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-2/*"]
             }
       it "headers override get parameters" $
         request
@@ -245,22 +245,22 @@ spec withConfig = withConfig baseCfg $ do
           (rangeHdrs $ ByteRangeFromTo 0 1)
           ""
           `shouldRespondWith` [json|[{"id":1},{"id":2}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-1/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-1/*"]
             }
 
       it "limit works on all levels" $
         get "/clients?select=id,projects(id,tasks(id))&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=1"
           `shouldRespondWith` [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1}]},{"id":2,"tasks":[{"id":3}]}]}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
 
       it "limit and offset works on first level" $ do
         get "/items?select=id&order=id.asc&limit=3&offset=2"
           `shouldRespondWith` [json|[{"id":3},{"id":4},{"id":5}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "2-4/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "2-4/*"]
             }
         request
           methodHead
@@ -268,18 +268,18 @@ spec withConfig = withConfig baseCfg $ do
           []
           mempty
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "2-4/*"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "2-4/*"
                 ]
             }
 
       it "works alongside order by with nulls order" $
         get "/clients?select=id,projects(id,tasks(id))&order=id.asc.nullslast&limit=1&projects.order=id.asc.nullsfirst&projects.limit=2"
           `shouldRespondWith` [json|[{"id":1,"projects":[{"id": 1, "tasks": [{"id": 1}, {"id": 2}]}, {"id": 2, "tasks": [{"id": 3}, {"id": 4}]}]}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
 
       context "succeeds if offset equals 0 as a no-op" $ do
@@ -313,8 +313,8 @@ spec withConfig = withConfig baseCfg $ do
       it "succeeds and returns an empty array if limit equals 0" $
         get "/items?select=id&limit=0"
           `shouldRespondWith` [json|[]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "*/*"]
             }
 
       it "fails if limit is negative" $
@@ -325,8 +325,8 @@ spec withConfig = withConfig baseCfg $ do
               "details":"Limit should be greater than or equal to zero.",
               "hint":null
             }|]
-            { matchStatus = 416
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 416,
+              matchHeaders = [matchContentTypeJson]
             }
 
       context "of invalid range" $ do
@@ -342,10 +342,10 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 1 was requested, but there are only 0 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders =
-                  [ "Content-Range" <:> "*/0"
-                  , "Content-Length" <:> "144"
+              { matchStatus = 416,
+                matchHeaders =
+                  [ "Content-Range" <:> "*/0",
+                    "Content-Length" <:> "144"
                   ]
               }
 
@@ -361,8 +361,8 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 100 was requested, but there are only 15 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders = ["Content-Range" <:> "*/15"]
+              { matchStatus = 416,
+                matchHeaders = ["Content-Range" <:> "*/15"]
               }
 
     context "when count=planned" $ do
@@ -373,8 +373,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` [json|[{"id":9}, {"id":10}, {"id":11}, {"id":12}, {"id":13}, {"id":14}, {"id":15}]|]
-            { matchStatus = 206
-            , matchHeaders = ["Content-Range" <:> "0-6/8"]
+            { matchStatus = 206,
+              matchHeaders = ["Content-Range" <:> "0-6/8"]
             }
 
         request
@@ -383,8 +383,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` [json|[{"id":4}, {"id":5}, {"id":6}]|]
-            { matchStatus = 206
-            , matchHeaders = ["Content-Range" <:> "0-2/4"]
+            { matchStatus = 206,
+              matchHeaders = ["Content-Range" <:> "0-2/4"]
             }
 
         request
@@ -393,8 +393,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` [json|[{"id":1}, {"id":2}]|]
-            { matchStatus = 206
-            , matchHeaders = ["Content-Range" <:> "0-1/673"]
+            { matchStatus = 206,
+              matchHeaders = ["Content-Range" <:> "0-1/673"]
             }
 
       it "obtains the full range" $ do
@@ -404,10 +404,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-14/15"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-14/15"
                 ]
             }
 
@@ -417,10 +417,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-5/6"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-5/6"
                 ]
             }
 
@@ -430,10 +430,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-4/2019"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-4/2019"
                 ]
             }
 
@@ -444,10 +444,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "3-4/15"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "3-4/15"
                 ]
             }
 
@@ -457,10 +457,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/6"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/6"
                 ]
             }
 
@@ -470,10 +470,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 206
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-1/2019"
+            { matchStatus = 206,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-1/2019"
                 ]
             }
 
@@ -484,10 +484,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "count=planned")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Range" <:> "0-5/6"
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Range" <:> "0-5/6"
                 ]
             }
 
@@ -520,8 +520,8 @@ spec withConfig = withConfig baseCfg $ do
             (rangeHdrs $ ByteRangeFromTo 0 1)
             ""
             `shouldRespondWith` "[]"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "*/*"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Range" <:> "*/*"]
               }
 
         it "allows one-item requests" $ do
@@ -576,10 +576,10 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 1 was requested, but there are only 0 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders =
-                  [ "Content-Range" <:> "*/0"
-                  , "Content-Length" <:> "144"
+              { matchStatus = 416,
+                matchHeaders =
+                  [ "Content-Range" <:> "*/0",
+                    "Content-Length" <:> "144"
                   ]
               }
 
@@ -595,6 +595,6 @@ spec withConfig = withConfig baseCfg $ do
                 "details":"An offset of 100 was requested, but there are only 15 rows.",
                 "hint":null
               }|]
-              { matchStatus = 416
-              , matchHeaders = ["Content-Range" <:> "*/15"]
+              { matchStatus = 416,
+                matchHeaders = ["Content-Range" <:> "*/15"]
               }

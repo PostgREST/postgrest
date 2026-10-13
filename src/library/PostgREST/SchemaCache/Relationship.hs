@@ -23,21 +23,21 @@ import PostgREST.SchemaCache.Identifiers
 -- | Relationship between two tables.
 data Relationship
   = Relationship
-      { relTable :: QualifiedIdentifier
-      , relForeignTable :: QualifiedIdentifier
-      , relIsSelf :: Bool
-      -- ^ Whether is a self relationship
-      , relCardinality :: Cardinality
-      , relTableIsView :: Bool
-      , relFTableIsView :: Bool
+      { relTable :: QualifiedIdentifier,
+        relForeignTable :: QualifiedIdentifier,
+        -- | Whether is a self relationship
+        relIsSelf :: Bool,
+        relCardinality :: Cardinality,
+        relTableIsView :: Bool,
+        relFTableIsView :: Bool
       }
   | ComputedRelationship
-      { relFunction :: QualifiedIdentifier
-      , relTable :: QualifiedIdentifier
-      , relForeignTable :: QualifiedIdentifier
-      , relTableAlias :: QualifiedIdentifier
-      , relToOne :: Bool
-      , relIsSelf :: Bool
+      { relFunction :: QualifiedIdentifier,
+        relTable :: QualifiedIdentifier,
+        relForeignTable :: QualifiedIdentifier,
+        relTableAlias :: QualifiedIdentifier,
+        relToOne :: Bool,
+        relIsSelf :: Bool
       }
   deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 
@@ -58,11 +58,11 @@ type FKConstraint = Text
 
 -- | Junction table on an M2M relationship
 data Junction = Junction
-  { junTable :: QualifiedIdentifier
-  , junConstraint1 :: FKConstraint
-  , junConstraint2 :: FKConstraint
-  , junColsSource :: [(FieldName, FieldName)]
-  , junColsTarget :: [(FieldName, FieldName)]
+  { junTable :: QualifiedIdentifier,
+    junConstraint1 :: FKConstraint,
+    junConstraint2 :: FKConstraint,
+    junColsSource :: [(FieldName, FieldName)],
+    junColsTarget :: [(FieldName, FieldName)]
   }
   deriving (Eq, Generic, JSON.ToJSON, Ord, Show)
 

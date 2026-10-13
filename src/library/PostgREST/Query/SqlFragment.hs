@@ -392,8 +392,8 @@ pgFmtOrderTerm qi ot =
     <> " "
     <> SQL.sql
       ( BS.unwords
-          [ maybe mempty direction $ coDirection ot
-          , maybe mempty nullOrder $ coNullOrder ot
+          [ maybe mempty direction $ coDirection ot,
+            maybe mempty nullOrder $ coNullOrder ot
           ]
       )
   where
@@ -525,8 +525,8 @@ countF :: SQL.Snippet -> SQL.Snippet -> Bool -> Maybe Integer -> NonnegRange -> 
 countF countQuery pageCountSelect shouldCount maxRows range
   | shouldCount =
       if isJust maxRows || range /= allRange then
-        ( ", pgrst_source_count AS (" <> countQuery <> ")"
-        , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)"
+        ( ", pgrst_source_count AS (" <> countQuery <> ")",
+          "(SELECT pg_catalog.count(*) FROM pgrst_source_count)"
         )
       -- When there are no db-max-rows and limits/offsets, the total count will be the same as the page count,
       -- so we use the same page count here to avoid doing a separate aggregated count.

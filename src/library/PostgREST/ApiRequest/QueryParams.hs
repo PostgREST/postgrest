@@ -111,30 +111,30 @@ import PostgREST.SchemaCache.Identifiers (FieldName)
 
 data QueryParams
   = QueryParams
-  { qsCanonical :: ByteString
-  -- ^ Canonical representation of the query params, sorted alphabetically
-  , qsParams :: [(Text, Text)]
-  -- ^ Parameters for RPC calls
-  , qsRanges :: HM.HashMap Text (Range Integer)
-  -- ^ Ranges derived from &limit and &offset params
-  , qsOrder :: [(EmbedPath, [OrderTerm])]
-  -- ^ &order parameters for each level
-  , qsLogic :: [(EmbedPath, LogicTree)]
-  -- ^ &and and &or parameters used for complex boolean logic
-  , qsColumns :: Maybe (S.Set FieldName)
-  -- ^ &columns parameter and payload
-  , qsSelect :: [Tree SelectItem]
-  -- ^ &select parameter used to shape the response
-  , qsFilters :: [(EmbedPath, Filter)]
-  -- ^ Filters on the result from e.g. &id=e.10
-  , qsFiltersRoot :: [Filter]
-  -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
-  , qsFiltersNotRoot :: [(EmbedPath, Filter)]
-  -- ^ Subset of the filters that do not apply on the root table
-  , qsFilterFields :: S.Set FieldName
-  -- ^ Set of fields that filters apply to
-  , qsOnConflict :: Maybe [FieldName]
-  -- ^ &on_conflict parameter used to upsert on specific unique keys
+  { -- | Canonical representation of the query params, sorted alphabetically
+    qsCanonical :: ByteString,
+    -- | Parameters for RPC calls
+    qsParams :: [(Text, Text)],
+    -- | Ranges derived from &limit and &offset params
+    qsRanges :: HM.HashMap Text (Range Integer),
+    -- | &order parameters for each level
+    qsOrder :: [(EmbedPath, [OrderTerm])],
+    -- | &and and &or parameters used for complex boolean logic
+    qsLogic :: [(EmbedPath, LogicTree)],
+    -- | &columns parameter and payload
+    qsColumns :: Maybe (S.Set FieldName),
+    -- | &select parameter used to shape the response
+    qsSelect :: [Tree SelectItem],
+    -- | Filters on the result from e.g. &id=e.10
+    qsFilters :: [(EmbedPath, Filter)],
+    -- | Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
+    qsFiltersRoot :: [Filter],
+    -- | Subset of the filters that do not apply on the root table
+    qsFiltersNotRoot :: [(EmbedPath, Filter)],
+    -- | Set of fields that filters apply to
+    qsFilterFields :: S.Set FieldName,
+    -- | &on_conflict parameter used to upsert on specific unique keys
+    qsOnConflict :: Maybe [FieldName]
   }
 
 -- |
@@ -605,14 +605,14 @@ pFieldSelect =
     pStar = string "*" $> "*"
     pAggregation =
       choice
-        [ string "sum" $> Sum
-        , string "avg" $> Avg
-        , string "count" $> Count
-        , -- Using 'try' for "min" and "max" to allow backtracking.
+        [ string "sum" $> Sum,
+          string "avg" $> Avg,
+          string "count" $> Count,
+          -- Using 'try' for "min" and "max" to allow backtracking.
           -- This is necessary because both start with the same character 'm',
           -- and without 'try', a partial match on "max" would prevent "min" from being tried.
-          try (string "max") $> Max
-        , try (string "min") $> Min
+          try (string "max") $> Max,
+          try (string "min") $> Min
         ]
 
 -- |

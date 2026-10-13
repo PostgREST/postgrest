@@ -32,15 +32,15 @@ import PostgREST.Observation
 
 data MetricsState
   = MetricsState
-  { poolTimeouts :: Counter
-  , connTrack :: ConnTrack
-  , poolWaiting :: Gauge
-  , poolMaxSize :: Gauge
-  , schemaCacheLoads :: Vector Label1 Counter
-  , schemaCacheQueryTime :: Gauge
-  , jwtCacheRequests :: Counter
-  , jwtCacheHits :: Counter
-  , jwtCacheEvictions :: Counter
+  { poolTimeouts :: Counter,
+    connTrack :: ConnTrack,
+    poolWaiting :: Gauge,
+    poolMaxSize :: Gauge,
+    schemaCacheLoads :: Vector Label1 Counter,
+    schemaCacheQueryTime :: Gauge,
+    jwtCacheRequests :: Counter,
+    jwtCacheHits :: Counter,
+    jwtCacheEvictions :: Counter
   }
 
 init :: Int -> IO MetricsState
@@ -100,8 +100,8 @@ metricsToText :: IO LBS.ByteString
 metricsToText = exportMetricsAsText
 
 data ConnStats = ConnStats
-  { connected :: Int
-  , inUse :: Int
+  { connected :: Int,
+    inUse :: Int
   }
   deriving (Eq, Show)
 

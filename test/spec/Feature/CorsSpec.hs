@@ -15,18 +15,18 @@ spec withConfig = do
       request
         methodOptions
         "/"
-        [ ("Accept", "*/*")
-        , ("Origin", "http://example.com")
-        , ("Access-Control-Request-Method", "POST")
-        , ("Access-Control-Request-Headers", "Foo,Bar")
+        [ ("Accept", "*/*"),
+          ("Origin", "http://example.com"),
+          ("Access-Control-Request-Method", "POST"),
+          ("Access-Control-Request-Headers", "Foo,Bar")
         ]
         ""
         `shouldRespondWith` ""
           { matchHeaders =
-              [ "Access-Control-Allow-Origin" <:> "*"
-              , "Access-Control-Allow-Methods" <:> "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
-              , "Access-Control-Allow-Headers" <:> "Authorization, Foo, Bar, Accept, Accept-Language, Content-Language"
-              , "Access-Control-Max-Age" <:> "86400"
+              [ "Access-Control-Allow-Origin" <:> "*",
+                "Access-Control-Allow-Methods" <:> "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD",
+                "Access-Control-Allow-Headers" <:> "Authorization, Foo, Bar, Accept, Accept-Language, Content-Language",
+                "Access-Control-Max-Age" <:> "86400"
               ]
           }
 
@@ -37,9 +37,9 @@ spec withConfig = do
         [("Origin", "http://example.com")]
         ""
         `shouldRespondWith` ResponseMatcher
-          { matchStatus = 200
-          , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-          , matchHeaders =
+          { matchStatus = 200,
+            matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+            matchHeaders =
               [ "Access-Control-Expose-Headers"
                   <:> "Content-Encoding, Content-Location, Content-Range, Content-Type, \
                       \Date, Location, Server, Transfer-Encoding, Range-Unit"
@@ -50,14 +50,14 @@ spec withConfig = do
       request
         methodOptions
         "/items"
-        [ ("Host", "localhost:3000")
-        , ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:32.0) Gecko/20100101 Firefox/32.0")
-        , ("Origin", "http://localhost:8000")
-        , ("Accept", "text/csv, */*; q=0.01")
-        , ("Accept-Language", "en-US,en;q=0.5")
-        , ("Accept-Encoding", "gzip, deflate")
-        , ("Referer", "http://localhost:8000/")
-        , ("Connection", "keep-alive")
+        [ ("Host", "localhost:3000"),
+          ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:32.0) Gecko/20100101 Firefox/32.0"),
+          ("Origin", "http://localhost:8000"),
+          ("Accept", "text/csv, */*; q=0.01"),
+          ("Accept-Language", "en-US,en;q=0.5"),
+          ("Accept-Encoding", "gzip, deflate"),
+          ("Referer", "http://localhost:8000/"),
+          ("Connection", "keep-alive")
         ]
         ""
         `shouldRespondWith` ""
@@ -88,18 +88,18 @@ spec withConfig = do
         request
           methodOptions
           "/items"
-          [ ("Accept", "*/*")
-          , ("Origin", "http://example.com")
-          , ("Access-Control-Request-Method", "POST")
-          , ("Access-Control-Request-Headers", "Content-Type")
+          [ ("Accept", "*/*"),
+            ("Origin", "http://example.com"),
+            ("Access-Control-Request-Method", "POST"),
+            ("Access-Control-Request-Headers", "Content-Type")
           ]
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders =
-                [ "Access-Control-Allow-Origin" <:> "http://example.com"
-                , "Access-Control-Allow-Credentials" <:> "true"
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders =
+                [ "Access-Control-Allow-Origin" <:> "http://example.com",
+                  "Access-Control-Allow-Credentials" <:> "true"
                 ]
             }
 
@@ -107,28 +107,28 @@ spec withConfig = do
         request
           methodGet
           "/items"
-          [ ("Accept", "*/*")
-          , ("Origin", "http://example.com")
+          [ ("Accept", "*/*"),
+            ("Origin", "http://example.com")
           ]
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders = ["Access-Control-Allow-Origin" <:> "http://example.com"]
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders = ["Access-Control-Allow-Origin" <:> "http://example.com"]
             }
 
       it "GET no preflight request should not return Access-Control-Allow-Origin" $
         request
           methodGet
           "/items"
-          [ ("Accept", "*/*")
-          , ("Origin", "http://invalid.com")
+          [ ("Accept", "*/*"),
+            ("Origin", "http://invalid.com")
           ]
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders = [matchHeaderAbsent "Access-Control-Allow-Origin"]
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders = [matchHeaderAbsent "Access-Control-Allow-Origin"]
             }
 
   withConfig baseCfg{configServerCorsAllowedOrigins = []} $
@@ -137,17 +137,17 @@ spec withConfig = do
         request
           methodOptions
           "/items"
-          [ ("Accept", "*/*")
-          , ("Origin", "http://anyorigin.com")
-          , ("Access-Control-Request-Method", "POST")
-          , ("Access-Control-Request-Headers", "Content-Type")
+          [ ("Accept", "*/*"),
+            ("Origin", "http://anyorigin.com"),
+            ("Access-Control-Request-Method", "POST"),
+            ("Access-Control-Request-Headers", "Content-Type")
           ]
           ""
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 200
-            , matchBody = MatchBody (\_ _ -> Nothing) -- match any body
-            , matchHeaders =
-                [ "Access-Control-Allow-Origin" <:> "*"
-                , matchHeaderValuePresent "Access-Control-Allow-Methods" "POST"
+            { matchStatus = 200,
+              matchBody = MatchBody (\_ _ -> Nothing), -- match any body
+              matchHeaders =
+                [ "Access-Control-Allow-Origin" <:> "*",
+                  matchHeaderValuePresent "Access-Control-Allow-Methods" "POST"
                 ]
             }

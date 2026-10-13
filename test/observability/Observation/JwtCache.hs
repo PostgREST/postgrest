@@ -21,8 +21,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe1"}|]
 
     expectCounters
-      [ requests (+ 1)
-      , hits (+ 0)
+      [ requests (+ 1),
+        hits (+ 0)
       ]
       $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
 
@@ -32,8 +32,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe2"}|]
 
     expectCounters
-      [ requests (+ 2)
-      , hits (+ 1)
+      [ requests (+ 2),
+        hits (+ 1)
       ]
       $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
@@ -44,8 +44,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     let auth = authHeaderJWT "some random bytes"
 
     expectCounters
-      [ requests (+ 2)
-      , hits (+ 0)
+      [ requests (+ 2),
+        hits (+ 0)
       ]
       $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
@@ -56,8 +56,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
     let auth = genToken [json|{"exp": 1, "role": "postgrest_test_author", "id": "jdoe2"}|]
 
     expectCounters
-      [ requests (+ 2)
-      , hits (+ 1)
+      [ requests (+ 2),
+        hits (+ 1)
       ]
       $ request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
         *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
@@ -71,9 +71,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe5"}|]
 
     expectCounters
-      [ requests (+ 6)
-      , hits (+ 0)
-      , evictions (+ 4)
+      [ requests (+ 6),
+        hits (+ 0),
+        evictions (+ 4)
       ]
       $ request methodGet "/authors_only" [jwt1] ""
         *> request methodGet "/authors_only" [jwt2] ""
@@ -91,9 +91,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe8"}|]
 
     expectCounters
-      [ requests (+ 6)
-      , hits (+ 3)
-      , evictions (+ 1)
+      [ requests (+ 6),
+        hits (+ 3),
+        evictions (+ 1)
       ]
       $ request methodGet "/authors_only" [jwt1] ""
         *> request methodGet "/authors_only" [jwt2] ""
@@ -118,9 +118,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe11"}|]
 
     expectCounters
-      [ requests (+ 7)
-      , hits (+ 4)
-      , evictions (+ 1)
+      [ requests (+ 7),
+        hits (+ 4),
+        evictions (+ 1)
       ]
       $ request methodGet "/authors_only" [jwt1] ""
         *> request methodGet "/authors_only" [jwt2] ""

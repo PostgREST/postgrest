@@ -28,6 +28,6 @@ spec withConfig = withConfig (baseCfg{configDbAnonRole = Nothing}) $ describe "s
            "details": null,
            "code": "PGRST302",
            "message":"Anonymous access is disabled"}|]
-        { matchStatus = 401
-        , matchHeaders = ["WWW-Authenticate" <:> "Bearer"]
+        { matchStatus = 401,
+          matchHeaders = ["WWW-Authenticate" <:> "Bearer"]
         }

@@ -43,10 +43,10 @@ import PostgREST.SchemaCache (queryTimingsWLabels)
 import PostgREST.Error qualified as Error
 
 data LoggerState = LoggerState
-  { stateLogDebouncePoolTimeout :: IO ()
-  -- ^ Logs with a debounce
-  , getLogLevel :: IO LogLevel
-  -- ^ Get LogLevel from Config
+  { -- | Logs with a debounce
+    stateLogDebouncePoolTimeout :: IO (),
+    -- | Get LogLevel from Config
+    getLogLevel :: IO LogLevel
   }
 
 init :: IO LogLevel -> IO LoggerState
@@ -173,8 +173,8 @@ observationMessages = \case
       <> let showTimings qt = [T.intercalate ", " $ (\(l, v) -> T.decodeUtf8 l <> ": " <> v <> " ms") <$> queryTimingsWLabels qt]
          in  maybe mempty showTimings timings
   SchemaCacheLoadedObs resultTime summary ->
-    [ "Schema cache loaded " <> summary
-    , "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
+    [ "Schema cache loaded " <> summary,
+      "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
     ]
   ConnectionRetryObs delay ->
     pure $ "Attempting to reconnect to the database in " <> (show delay :: Text) <> " seconds..."
@@ -202,12 +202,12 @@ observationMessages = \case
     let snipts = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
     in  showOnSingleLine '\n' . T.decodeUtf8 <$> filter (/= mempty) snipts
   LegacyTargetNameWarningObs (warningMsg, warningHints) requestMethod requestTarget ->
-    [ "WARNING: " <> warningMsg
-    , "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
+    [ "WARNING: " <> warningMsg,
+      "Update filters, orders or limits that use " <> warningHints <> " in " <> "`" <> T.decodeUtf8 (requestMethod <> " " <> requestTarget) <> "`"
     ]
   DeprecatedJSPathSyntaxObs djsp ->
-    [ "WARNING: The config `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` is using the deprecated JSPath syntax."
-    , "Update `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` to the new JSONPath syntax as support for JSPath will be removed in a future release. See the migration guide on how to update: https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16"
+    [ "WARNING: The config `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` is using the deprecated JSPath syntax.",
+      "Update `jwt-role-claim-key=" <> dumpDeprecatedJSPath djsp <> "` to the new JSONPath syntax as support for JSPath will be removed in a future release. See the migration guide on how to update: https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#migration-to-v16"
     ]
   ConfigReadErrorObs usageErr ->
     pure $ "Failed to query database settings for the config parameters." <> jsonMessage usageErr

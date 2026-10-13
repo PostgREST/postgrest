@@ -19,6 +19,6 @@ spec withConfig = withConfig (baseCfg{configOpenApiMode = OADisabled}) $
         [("Accept", "application/openapi+json")]
         ""
         `shouldRespondWith` [json| {"code":"PGRST126","details":null,"hint":null,"message":"Root endpoint metadata is disabled"} |]
-          { matchStatus = 404
-          , matchHeaders = ["Content-Length" <:> "93"]
+          { matchStatus = 404,
+            matchHeaders = ["Content-Length" <:> "93"]
           }

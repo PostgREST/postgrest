@@ -27,34 +27,34 @@ spec actualPgVersion withConfig = do
             (rangeHdrs (ByteRangeFromTo 1 1))
             mempty
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "1-1/*"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Range" <:> "1-1/*"]
               }
 
         it "using limit and offset" $ do
           post "/rpc/getitemrange?limit=1&offset=1" [json| { "min": 2, "max": 4 } |]
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 200
-              , matchHeaders =
-                  [ "Content-Range" <:> "1-1/*"
-                  , "Content-Length" <:> "10"
+              { matchStatus = 200,
+                matchHeaders =
+                  [ "Content-Range" <:> "1-1/*",
+                    "Content-Length" <:> "10"
                   ]
               }
           get "/rpc/getitemrange?min=2&max=4&limit=1&offset=1"
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 200
-              , matchHeaders =
-                  [ "Content-Range" <:> "1-1/*"
-                  , "Content-Length" <:> "10"
+              { matchStatus = 200,
+                matchHeaders =
+                  [ "Content-Range" <:> "1-1/*",
+                    "Content-Length" <:> "10"
                   ]
               }
           request methodHead "/rpc/getitemrange?min=2&max=4&limit=1&offset=1" mempty mempty
             `shouldRespondWith` ""
-              { matchStatus = 200
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , matchHeaderAbsent hContentLength
-                  , "Content-Range" <:> "1-1/*"
+              { matchStatus = 200,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    matchHeaderAbsent hContentLength,
+                    "Content-Range" <:> "1-1/*"
                   ]
               }
 
@@ -66,8 +66,8 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 1 1))
             ""
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 206 -- it now knows the response is partial
-              , matchHeaders = ["Content-Range" <:> "1-1/2"]
+              { matchStatus = 206, -- it now knows the response is partial
+                matchHeaders = ["Content-Range" <:> "1-1/2"]
               }
 
         it "using limit and offset" $ do
@@ -77,8 +77,8 @@ spec actualPgVersion withConfig = do
             [("Prefer", "count=exact")]
             [json| { "min": 2, "max": 4 } |]
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 206 -- it now knows the response is partial
-              , matchHeaders = ["Content-Range" <:> "1-1/2"]
+              { matchStatus = 206, -- it now knows the response is partial
+                matchHeaders = ["Content-Range" <:> "1-1/2"]
               }
           request
             methodGet
@@ -86,8 +86,8 @@ spec actualPgVersion withConfig = do
             [("Prefer", "count=exact")]
             mempty
             `shouldRespondWith` [json| [{"id":4}] |]
-              { matchStatus = 206
-              , matchHeaders = ["Content-Range" <:> "1-1/2"]
+              { matchStatus = 206,
+                matchHeaders = ["Content-Range" <:> "1-1/2"]
               }
           request
             methodHead
@@ -95,10 +95,10 @@ spec actualPgVersion withConfig = do
             [("Prefer", "count=exact")]
             mempty
             `shouldRespondWith` ""
-              { matchStatus = 206
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , "Content-Range" <:> "1-1/2"
+              { matchStatus = 206,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    "Content-Range" <:> "1-1/2"
                   ]
               }
 
@@ -109,8 +109,8 @@ spec actualPgVersion withConfig = do
           [("Prefer", "count=exact")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-4/5"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-4/5"]
             }
         request
           methodHead
@@ -118,8 +118,8 @@ spec actualPgVersion withConfig = do
           [("Prefer", "count=exact")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-1/2"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-1/2"]
             }
 
       it "includes exact count of 1 for functions that return a single scalar, domain or composite" $ do
@@ -129,8 +129,8 @@ spec actualPgVersion withConfig = do
           [("Prefer", "count=exact")]
           ""
           `shouldRespondWith` "7"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-0/1"]
             }
         request
           methodGet
@@ -138,8 +138,8 @@ spec actualPgVersion withConfig = do
           [("Prefer", "count=exact")]
           ""
           `shouldRespondWith` "8"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-0/1"]
             }
         request
           methodGet
@@ -147,8 +147,8 @@ spec actualPgVersion withConfig = do
           [("Prefer", "count=exact")]
           ""
           `shouldRespondWith` [json|{"x": 10, "y": 5}|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-0/1"]
             }
 
       it "returns proper json" $ do
@@ -168,8 +168,8 @@ spec actualPgVersion withConfig = do
           (acceptHdrs "text/csv")
           [json| { "min": 2, "max": 4 } |]
           `shouldRespondWith` "id\n3\n4"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
         request
           methodGet
@@ -177,8 +177,8 @@ spec actualPgVersion withConfig = do
           (acceptHdrs "text/csv")
           ""
           `shouldRespondWith` "id\n3\n4"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
         request
           methodHead
@@ -186,8 +186,8 @@ spec actualPgVersion withConfig = do
           (acceptHdrs "text/csv")
           ""
           `shouldRespondWith` ""
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
 
       context "ignores Range header when method is different than GET" $ do
@@ -198,8 +198,8 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 1 1))
             [json| { "min": 2, "max": 4 } |]
             `shouldRespondWith` [json| [{"id": 3}, {"id": 4}] |]
-              { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "0-1/2"]
+              { matchStatus = 200,
+                matchHeaders = ["Content-Range" <:> "0-1/2"]
               }
           request
             methodHead
@@ -207,10 +207,10 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 1 1))
             ""
             `shouldRespondWith` ""
-              { matchStatus = 200
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , "Content-Range" <:> "0-1/2"
+              { matchStatus = 200,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    "Content-Range" <:> "0-1/2"
                   ]
               }
 
@@ -221,8 +221,8 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 1 1))
             [json| { "min": 2, "max": 5 } |]
             `shouldRespondWith` [json| [{"id": 4}, {"id": 5}] |]
-              { matchStatus = 206
-              , matchHeaders = ["Content-Range" <:> "1-2/3"]
+              { matchStatus = 206,
+                matchHeaders = ["Content-Range" <:> "1-2/3"]
               }
           request
             methodHead
@@ -230,10 +230,10 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 1 1))
             ""
             `shouldRespondWith` ""
-              { matchStatus = 206
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , "Content-Range" <:> "1-2/3"
+              { matchStatus = 206,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    "Content-Range" <:> "1-2/3"
                   ]
               }
 
@@ -244,8 +244,8 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 0 0))
             [json| { "min": 2, "max": 5 } |]
             `shouldRespondWith` [json| [{"id": 4}, {"id": 5}] |]
-              { matchStatus = 206
-              , matchHeaders = ["Content-Range" <:> "1-2/3"]
+              { matchStatus = 206,
+                matchHeaders = ["Content-Range" <:> "1-2/3"]
               }
           request
             methodHead
@@ -253,10 +253,10 @@ spec actualPgVersion withConfig = do
             (rangeHdrsWithCount (ByteRangeFromTo 0 0))
             ""
             `shouldRespondWith` ""
-              { matchStatus = 206
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , "Content-Range" <:> "1-2/3"
+              { matchStatus = 206,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    "Content-Range" <:> "1-2/3"
                   ]
               }
 
@@ -274,10 +274,10 @@ spec actualPgVersion withConfig = do
             "message":"Could not find the function test.sayhell without parameters in the schema cache",
             "code":"PGRST202",
             "details":"Searched for the function test.sayhell without parameters, but no matches were found in the schema cache."} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Content-Length" <:> "291"
-                , matchContentTypeJson
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Content-Length" <:> "291",
+                  matchContentTypeJson
                 ]
             }
 
@@ -292,8 +292,8 @@ spec actualPgVersion withConfig = do
             "message":"Could not find the function test.sayhello(nam) in the schema cache",
             "code":"PGRST202",
             "details":"Searched for the function test.sayhello with parameter nam, but no matches were found in the schema cache."} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "should not ignore unknown args and fail with 404" $
@@ -303,8 +303,8 @@ spec actualPgVersion withConfig = do
           "message":"Could not find the function test.add_them(a, b, smthelse) in the schema cache",
           "code":"PGRST202",
           "details":"Searched for the function test.add_them with parameters a, b, smthelse, but no matches were found in the schema cache."} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "should fail with 404 for overloaded functions with unknown args" $ do
@@ -314,8 +314,8 @@ spec actualPgVersion withConfig = do
             "message":"Could not find the function test.overloaded(wrong_arg) in the schema cache",
             "code":"PGRST202",
             "details":"Searched for the function test.overloaded with parameter wrong_arg, but no matches were found in the schema cache."} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value"
           `shouldRespondWith` [json| {
@@ -323,8 +323,8 @@ spec actualPgVersion withConfig = do
             "message":"Could not find the function test.overloaded(a, b, wrong_arg) in the schema cache",
             "code":"PGRST202",
             "details":"Searched for the function test.overloaded with parameters a, b, wrong_arg, but no matches were found in the schema cache."} |]
-            { matchStatus = 404
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 404,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "ambiguous overloaded functions with same parameters' names but different types" $ do
@@ -335,10 +335,10 @@ spec actualPgVersion withConfig = do
             "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)",
             "code":"PGRST203",
             "details":null} |]
-            { matchStatus = 300
-            , matchHeaders =
-                [ "Content-Length" <:> "353"
-                , matchContentTypeJson
+            { matchStatus = 300,
+              matchHeaders =
+                [ "Content-Length" <:> "353",
+                  matchContentTypeJson
                 ]
             }
 
@@ -374,13 +374,13 @@ spec actualPgVersion withConfig = do
       it "can limit proc results" $ do
         post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1" [json| {} |]
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "1-2/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "1-2/*"]
             }
         get "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1"
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "1-2/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "1-2/*"]
             }
 
       it "select works on the first level" $ do
@@ -555,10 +555,10 @@ spec actualPgVersion withConfig = do
           "/rpc/ret_void"
           [json|{}|]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hContentLength
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hContentLength
                 ]
             }
 
@@ -720,10 +720,10 @@ spec actualPgVersion withConfig = do
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
           `shouldRespondWith` [json|{"message":"Cannot use the DELETE method on RPC","code":"PGRST101","details":null,"hint":null}|]
-            { matchStatus = 405
-            , matchHeaders =
-                [ "Content-Length" <:> "94"
-                , matchContentTypeJson
+            { matchStatus = 405,
+              matchHeaders =
+                [ "Content-Length" <:> "94",
+                  matchContentTypeJson
                 ]
             }
       it "PATCH fails" $
@@ -739,10 +739,10 @@ spec actualPgVersion withConfig = do
         [("Prefer", "tx=commit")]
         [json|{"name": "callcounter_count", "value": 1}|]
         `shouldRespondWith` ""
-          { matchStatus = 204
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , matchHeaderAbsent hContentLength
+          { matchStatus = 204,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                matchHeaderAbsent hContentLength
               ]
           }
 
@@ -866,20 +866,20 @@ spec actualPgVersion withConfig = do
     it "can map a RAISE error code and message to a http status" $
       get "/rpc/raise_pt402"
         `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded", "code": "PT402", "message": "Payment Required" }|]
-          { matchStatus = 402
-          , matchHeaders =
-              [ "Content-Length" <:> "99"
-              , matchContentTypeJson
+          { matchStatus = 402,
+            matchHeaders =
+              [ "Content-Length" <:> "99",
+                matchContentTypeJson
               ]
           }
 
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
       get "/rpc/raise_bad_pt"
         `shouldRespondWith` [json|{"hint": null, "details": null, "code": "PT40A", "message": "Wrong"}|]
-          { matchStatus = 500
-          , matchHeaders =
-              [ "Content-Length" <:> "61"
-              , matchContentTypeJson
+          { matchStatus = 500,
+            matchHeaders =
+              [ "Content-Length" <:> "61",
+                matchContentTypeJson
               ]
           }
 
@@ -983,8 +983,8 @@ spec actualPgVersion withConfig = do
           [("Custom-Header", "test")]
           [json| { "prefix": "request.headers", "name": "custom-header" } |]
           `shouldRespondWith` [json|"test"|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
       it "standard header is set" $
         request
@@ -993,8 +993,8 @@ spec actualPgVersion withConfig = do
           [("Origin", "http://example.com")]
           [json| { "prefix": "request.headers", "name": "origin" } |]
           `shouldRespondWith` [json|"http://example.com"|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
       it "current role is available as GUC claim" $
         request
@@ -1003,8 +1003,8 @@ spec actualPgVersion withConfig = do
           []
           [json| { "prefix": "request.jwt.claims", "name": "role" } |]
           `shouldRespondWith` [json|"postgrest_test_anonymous"|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
       it "single cookie ends up as claims" $
         request
@@ -1013,8 +1013,8 @@ spec actualPgVersion withConfig = do
           [("Cookie", "acookie=cookievalue")]
           [json| {"prefix": "request.cookies", "name":"acookie"} |]
           `shouldRespondWith` [json|"cookievalue"|]
-            { matchStatus = 200
-            , matchHeaders = []
+            { matchStatus = 200,
+              matchHeaders = []
             }
       it "multiple cookies end up as claims" $
         request
@@ -1023,8 +1023,8 @@ spec actualPgVersion withConfig = do
           [("Cookie", "acookie=cookievalue;secondcookie=anothervalue")]
           [json| {"prefix": "request.cookies", "name":"secondcookie"} |]
           `shouldRespondWith` [json|"anothervalue"|]
-            { matchStatus = 200
-            , matchHeaders = []
+            { matchStatus = 200,
+              matchHeaders = []
             }
       it "app settings available" $
         request
@@ -1033,8 +1033,8 @@ spec actualPgVersion withConfig = do
           []
           [json| { "name": "app.settings.app_host" } |]
           `shouldRespondWith` [json|"localhost"|]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
       it "gets the Authorization value" $
         request
@@ -1043,8 +1043,8 @@ spec actualPgVersion withConfig = do
           [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
           [json| {"prefix": "request.headers", "name":"authorization"} |]
           `shouldRespondWith` [json|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
-            { matchStatus = 200
-            , matchHeaders = []
+            { matchStatus = 200,
+              matchHeaders = []
             }
       it "gets the http method" $
         request
@@ -1053,8 +1053,8 @@ spec actualPgVersion withConfig = do
           []
           [json| {"name":"request.method"} |]
           `shouldRespondWith` [json|"POST"|]
-            { matchStatus = 200
-            , matchHeaders = []
+            { matchStatus = 200,
+              matchHeaders = []
             }
       it "gets the http path" $
         request
@@ -1063,8 +1063,8 @@ spec actualPgVersion withConfig = do
           []
           [json| {"name":"request.path"} |]
           `shouldRespondWith` [json|"/rpc/get_guc_value"|]
-            { matchStatus = 200
-            , matchHeaders = []
+            { matchStatus = 200,
+              matchHeaders = []
             }
 
     context "only for GET rpc" $ do
@@ -1170,62 +1170,62 @@ spec actualPgVersion withConfig = do
         get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
           `shouldRespondWith` [json|[{"id": 2}]|]
             { matchHeaders =
-                [ matchContentTypeJson
-                , "X-Test" <:> "key1=val1; someValue; key2=val2"
-                , "X-Test-2" <:> "key1=val1"
+                [ matchContentTypeJson,
+                  "X-Test" <:> "key1=val1; someValue; key2=val2",
+                  "X-Test-2" <:> "key1=val1"
                 ]
             }
         get "/rpc/get_int_and_guc_headers?num=1"
           `shouldRespondWith` [json|1|]
             { matchHeaders =
-                [ matchContentTypeJson
-                , "X-Test" <:> "key1=val1; someValue; key2=val2"
-                , "X-Test-2" <:> "key1=val1"
+                [ matchContentTypeJson,
+                  "X-Test" <:> "key1=val1; someValue; key2=val2",
+                  "X-Test-2" <:> "key1=val1"
                 ]
             }
         post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
           `shouldRespondWith` [json|1|]
             { matchHeaders =
-                [ matchContentTypeJson
-                , "X-Test" <:> "key1=val1; someValue; key2=val2"
-                , "X-Test-2" <:> "key1=val1"
+                [ matchContentTypeJson,
+                  "X-Test" <:> "key1=val1; someValue; key2=val2",
+                  "X-Test-2" <:> "key1=val1"
                 ]
             }
 
       it "fails when setting headers with wrong json structure" $ do
         get "/rpc/bad_guc_headers_1"
           `shouldRespondWith` [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
-            { matchStatus = 500
-            , matchHeaders =
-                [ "Content-Length" <:> "157"
-                , matchContentTypeJson
+            { matchStatus = 500,
+              matchHeaders =
+                [ "Content-Length" <:> "157",
+                  matchContentTypeJson
                 ]
             }
         get "/rpc/bad_guc_headers_2"
           `shouldRespondWith` [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
-            { matchStatus = 500
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 500,
+              matchHeaders = [matchContentTypeJson]
             }
         get "/rpc/bad_guc_headers_3"
           `shouldRespondWith` [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
-            { matchStatus = 500
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 500,
+              matchHeaders = [matchContentTypeJson]
             }
         post "/rpc/bad_guc_headers_1" [json|{}|]
           `shouldRespondWith` [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
-            { matchStatus = 500
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 500,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "can set the same http header twice" $
         get "/rpc/set_cookie_twice"
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hContentLength
-                , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
-                , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hContentLength,
+                  "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/",
+                  "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly"
                 ]
             }
 
@@ -1234,10 +1234,10 @@ spec actualPgVersion withConfig = do
           "/stuff"
           [json|[{"id": 2, "name": "stuff 2"}]|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/stuff?id=eq.2&overriden=true"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/stuff?id=eq.2&overriden=true"
                 ]
             }
 
@@ -1273,8 +1273,8 @@ spec actualPgVersion withConfig = do
         it "can override the status on RPC" $
           get "/rpc/send_body_status_403"
             `shouldRespondWith` [json|{"message" : "invalid user or password"}|]
-              { matchStatus = 403
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 403,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "can override the status through trigger" $
@@ -1286,10 +1286,10 @@ spec actualPgVersion withConfig = do
         it "fails when setting invalid status guc" $
           get "/rpc/send_bad_status"
             `shouldRespondWith` [json|{"message":"response.status guc must be a valid status code","code":"PGRST112","details":null,"hint":null}|]
-              { matchStatus = 500
-              , matchHeaders =
-                  [ "Content-Length" <:> "106"
-                  , matchContentTypeJson
+              { matchStatus = 500,
+                matchHeaders =
+                  [ "Content-Length" <:> "106",
+                    matchContentTypeJson
                   ]
               }
 
@@ -1353,8 +1353,8 @@ spec actualPgVersion withConfig = do
                 "code":"PGRST202",
                 "details":"Searched for the function test.unnamed_int_param with parameters x, y or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache."
               }|]
-              { matchStatus = 404
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 404,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "will err when no function with single unnamed text parameter exists and text/plain is specified" $
@@ -1369,8 +1369,8 @@ spec actualPgVersion withConfig = do
                 "code":"PGRST202",
                 "details":"Searched for the function test.unnamed_int_param with a single unnamed text parameter, but no matches were found in the schema cache."
               }|]
-              { matchStatus = 404
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 404,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "will err when no function with single unnamed text parameter exists and text/xml is specified" $
@@ -1385,8 +1385,8 @@ spec actualPgVersion withConfig = do
                 "code":"PGRST202",
                 "details":"Searched for the function test.unnamed_int_param with a single unnamed xml parameter, but no matches were found in the schema cache."
               }|]
-              { matchStatus = 404
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 404,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "will err when no function with single unnamed bytea parameter exists and application/octet-stream is specified" $
@@ -1401,8 +1401,8 @@ spec actualPgVersion withConfig = do
               "code":"PGRST202",
               "details":"Searched for the function test.unnamed_int_param with a single unnamed bytea parameter, but no matches were found in the schema cache."
             }|]
-              { matchStatus = 404
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 404,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "should be able to resolve when a single unnamed json parameter exists and other overloaded functions are found" $ do
@@ -1412,8 +1412,8 @@ spec actualPgVersion withConfig = do
             [("Content-Type", "application/json")]
             [json|{}|]
             `shouldRespondWith` [json| 1 |]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson]
               }
           request
             methodPost
@@ -1421,8 +1421,8 @@ spec actualPgVersion withConfig = do
             [("Content-Type", "application/json")]
             [json|{"x": 1, "y": 2}|]
             `shouldRespondWith` [json| 3 |]
-              { matchStatus = 200
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 200,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "should be able to fallback to the single unnamed parameter function when other overloaded functions are not found" $ do
@@ -1471,8 +1471,8 @@ spec actualPgVersion withConfig = do
                 "code":"PGRST202",
                 "details":"Searched for the function test.overloaded_unnamed_param with parameters a, b, but no matches were found in the schema cache."
               }|]
-              { matchStatus = 404
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 404,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "should fail with multiple choices when two fallback functions with single unnamed json and jsonb parameters exist" $ do
@@ -1487,8 +1487,8 @@ spec actualPgVersion withConfig = do
                 "code":"PGRST203",
                 "details":null
               }|]
-              { matchStatus = 300
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 300,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "should fail on /rpc/unnamed_xml_param when posting invalid xml" $ do
@@ -1503,10 +1503,10 @@ spec actualPgVersion withConfig = do
                 "code":"2200N",
                 "details":"line 1: StartTag: invalid element name\n<\n ^"
               }|]
-              { matchStatus = 400
-              , matchHeaders =
-                  [ "Content-Length" <:> "118"
-                  , matchContentTypeJson
+              { matchStatus = 400,
+                matchHeaders =
+                  [ "Content-Length" <:> "118",
+                    matchContentTypeJson
                   ]
               }
 
@@ -1520,10 +1520,10 @@ spec actualPgVersion withConfig = do
 
         post "/rpc/char_param_insert" [json| { "char_": "abcdefg", "char_arr": "{abc,abcdefg}" } |]
           `shouldRespondWith` [json| {"code":"22001","details":null,"hint":null,"message":"value too long for type character(5)"} |]
-            { matchStatus = 400
-            , matchHeaders =
-                [ "Content-Length" <:> "92"
-                , matchContentTypeJson
+            { matchStatus = 400,
+              matchHeaders =
+                [ "Content-Length" <:> "92",
+                  matchContentTypeJson
                 ]
             }
 
@@ -1535,10 +1535,10 @@ spec actualPgVersion withConfig = do
 
         post "/rpc/bit_param_insert" [json| { "bit_": "101010", "bit_arr": "{101,101010}" } |]
           `shouldRespondWith` [json| {"code":"22026","details":null,"hint":null,"message":"bit string length 6 does not match type bit(5)"} |]
-            { matchStatus = 400
-            , matchHeaders =
-                [ "Content-Length" <:> "102"
-                , matchContentTypeJson
+            { matchStatus = 400,
+              matchHeaders =
+                [ "Content-Length" <:> "102",
+                  matchContentTypeJson
                 ]
             }
 
@@ -1563,8 +1563,8 @@ spec actualPgVersion withConfig = do
 
         get "/rpc/raise_sqlstate_test2"
           `shouldRespondWith` [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
-            { matchStatus = 332
-            , matchHeaders = ["X-Header" <:> "str"]
+            { matchStatus = 332,
+              matchHeaders = ["X-Header" <:> "str"]
             }
 
       it "get message and details from PGRST raise and checks standard status message" $ do
@@ -1610,10 +1610,10 @@ spec actualPgVersion withConfig = do
             "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
             "details":"Invalid JSON value for MESSAGE: 'INVALID'",
             "hint":"MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."}|]
-            { matchStatus = 500
-            , matchHeaders =
-                [ "Content-Length" <:> "263"
-                , matchContentTypeJson
+            { matchStatus = 500,
+              matchHeaders =
+                [ "Content-Length" <:> "263",
+                  matchContentTypeJson
                 ]
             }
 
@@ -1647,8 +1647,8 @@ spec actualPgVersion withConfig = do
                                     else
                                       [json|{"code":"53400","message":"temporary file size exceeds \"temp_file_limit\" (1kB)","details":null,"hint":null}|]
                                   )
-                { matchStatus = 500
-                , matchHeaders = [matchContentTypeJson]
+                { matchStatus = 500,
+                  matchHeaders = [matchContentTypeJson]
                 }
 
     context "test table valued function with filter" $ do
@@ -1659,8 +1659,8 @@ spec actualPgVersion withConfig = do
           []
           ""
           `shouldRespondWith` [json| [{"id":4,"client_id":2}] |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "works with filter on unselected columns with null embed" $
@@ -1670,8 +1670,8 @@ spec actualPgVersion withConfig = do
           []
           ""
           `shouldRespondWith` [json| [{"id":1,"clients":{"id": 1}}, {"id":2,"clients":{"id": 1}}, {"id":3,"clients":{"id": 2}}, {"id":4,"clients":{"id": 2}}, {"id":5,"clients":null}] |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "works with logical filter on unselected columns" $
@@ -1681,8 +1681,8 @@ spec actualPgVersion withConfig = do
           []
           ""
           `shouldRespondWith` [json| [{"id":3,"client_id":2}, {"id":4,"client_id":2}] |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "schema cache duplicate definitions when two entries in pg_description have the same OID" $

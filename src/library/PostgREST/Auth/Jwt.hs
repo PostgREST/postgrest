@@ -61,10 +61,10 @@ instance JSON.FromJSON ValidAud where
 checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
 checkForErrors time audMatches =
   mconcat
-    [ claim "exp" ExpClaimNotNumber $ inThePast JWTExpired
-    , claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid
-    , claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture
-    , claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience
+    [ claim "exp" ExpClaimNotNumber $ inThePast JWTExpired,
+      claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid,
+      claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture,
+      claim "aud" AudClaimNotStringOrArray $ checkValue (not . validAud) JWTNotInAudience
     ]
   where
     allowedSkewSeconds = 30 :: Int64
@@ -123,8 +123,8 @@ parseClaims cfg@AppConfig{configJwtRoleClaimKey, configDbAnonRole} time mclaims 
       unquoted <$> either (evaluateDeprecatedJSPath claims) (evaluateJSPath claims) configJwtRoleClaimKey <|> configDbAnonRole
   pure
     AuthResult
-      { authClaims = mclaims
-      , authRole = role
+      { authClaims = mclaims,
+        authRole = role
       }
   where
     unquoted :: JSON.Value -> BS.ByteString

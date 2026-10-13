@@ -8,6 +8,6 @@ import Data.ByteString qualified as BS
 -- Parse and store result for JWT Claims. Can be accessed in
 -- db through GUCs (for RLS etc)
 data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole :: BS.ByteString
+  { authClaims :: KM.KeyMap JSON.Value,
+    authRole :: BS.ByteString
   }

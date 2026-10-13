@@ -23,34 +23,34 @@ import PostgREST.Logger qualified as Logger
 import PostgREST.Metrics qualified as Metrics
 
 data AppState = AppState
-  { statePool :: SQL.Pool
-  -- ^ Database connection pool
-  , statePgVersion :: IORef PgVersion
-  -- ^ Database server version
-  , stateSchemaCache :: IORef (Maybe SchemaCache)
-  -- ^ Schema cache
-  , stateSCacheStatus :: SchemaCacheStatus
-  -- ^ The schema cache status
-  , stateIsListenerOn :: IORef Bool
-  -- ^ State of the LISTEN channel
-  , stateListenerThreadId :: IORef (Maybe ThreadId)
-  -- ^ Listener Thread ID
-  , debouncedSCacheLoader :: IO ()
-  -- ^ starts the connection worker with a debounce
-  , stateConf :: IORef AppConfig
-  -- ^ Config that can change at runtime
-  , stateGetTime :: IO UTCTime
-  -- ^ Time used for verifying JWT expiration
-  , stateKillApp :: IO ()
-  -- ^ Used for killing the main thread in case a subthread fails
-  , stateNextDelay :: IORef Int
-  -- ^ Keeps track of the next delay for db connection retry
-  , stateObserver :: ObservationHandler
-  -- ^ Observation handler
-  , stateJwtCache :: JwtCache.JwtCacheState
-  -- ^ JWT Cache
-  , stateLogger :: Logger.LoggerState
-  , stateMetrics :: Metrics.MetricsState
+  { -- | Database connection pool
+    statePool :: SQL.Pool,
+    -- | Database server version
+    statePgVersion :: IORef PgVersion,
+    -- | Schema cache
+    stateSchemaCache :: IORef (Maybe SchemaCache),
+    -- | The schema cache status
+    stateSCacheStatus :: SchemaCacheStatus,
+    -- | State of the LISTEN channel
+    stateIsListenerOn :: IORef Bool,
+    -- | Listener Thread ID
+    stateListenerThreadId :: IORef (Maybe ThreadId),
+    -- | starts the connection worker with a debounce
+    debouncedSCacheLoader :: IO (),
+    -- | Config that can change at runtime
+    stateConf :: IORef AppConfig,
+    -- | Time used for verifying JWT expiration
+    stateGetTime :: IO UTCTime,
+    -- | Used for killing the main thread in case a subthread fails
+    stateKillApp :: IO (),
+    -- | Keeps track of the next delay for db connection retry
+    stateNextDelay :: IORef Int,
+    -- | Observation handler
+    stateObserver :: ObservationHandler,
+    -- | JWT Cache
+    stateJwtCache :: JwtCache.JwtCacheState,
+    stateLogger :: Logger.LoggerState,
+    stateMetrics :: Metrics.MetricsState
   }
 
 -- | Schema cache status.

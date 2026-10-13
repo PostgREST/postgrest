@@ -69,35 +69,35 @@ import PostgREST.MediaType qualified as MediaType
 --   sensible, it is up to a later stage of processing to determine
 --   if it is an action we are able to perform.
 data ApiRequest = ApiRequest
-  { iAction :: Action
-  -- ^ Action on the resource
-  , iRange :: HM.HashMap Text NonnegRange
-  -- ^ Requested range of rows within response
-  , iTopLevelRange :: NonnegRange
-  -- ^ Requested range of rows from the top level
-  , iPayload :: Maybe Payload
-  -- ^ Data sent by client and used for mutation actions
-  , iPreferences :: Preferences.Preferences
-  -- ^ Prefer header values
-  , iQueryParams :: QueryParams.QueryParams
-  , iColumns :: S.Set FieldName
-  -- ^ parsed columns from &columns parameter and payload
-  , iHeaders :: [(ByteString, ByteString)]
-  -- ^ HTTP request headers
-  , iCookies :: [(ByteString, ByteString)]
-  -- ^ Request Cookies
-  , iPath :: ByteString
-  -- ^ Raw request path
-  , iMethod :: ByteString
-  -- ^ Raw request method
-  , iSchema :: Schema
-  -- ^ The request schema. Can vary depending on profile headers.
-  , iNegotiatedByProfile :: Bool
-  -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
-  , iAcceptMediaType :: [MediaType]
-  -- ^ The resolved media types in the Accept, considering quality(q) factors
-  , iContentMediaType :: MediaType
-  -- ^ The media type in the Content-Type header
+  { -- | Action on the resource
+    iAction :: Action,
+    -- | Requested range of rows within response
+    iRange :: HM.HashMap Text NonnegRange,
+    -- | Requested range of rows from the top level
+    iTopLevelRange :: NonnegRange,
+    -- | Data sent by client and used for mutation actions
+    iPayload :: Maybe Payload,
+    -- | Prefer header values
+    iPreferences :: Preferences.Preferences,
+    iQueryParams :: QueryParams.QueryParams,
+    -- | parsed columns from &columns parameter and payload
+    iColumns :: S.Set FieldName,
+    -- | HTTP request headers
+    iHeaders :: [(ByteString, ByteString)],
+    -- | Request Cookies
+    iCookies :: [(ByteString, ByteString)],
+    -- | Raw request path
+    iPath :: ByteString,
+    -- | Raw request method
+    iMethod :: ByteString,
+    -- | The request schema. Can vary depending on profile headers.
+    iSchema :: Schema,
+    -- | If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
+    iNegotiatedByProfile :: Bool,
+    -- | The resolved media types in the Accept, considering quality(q) factors
+    iAcceptMediaType :: [MediaType],
+    -- | The media type in the Content-Type header
+    iContentMediaType :: MediaType
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -111,21 +111,21 @@ userApiRequest conf prefs req reqBody = do
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act
   return $
     ApiRequest
-      { iAction = act
-      , iRange = ranges
-      , iTopLevelRange = topLevelRange
-      , iPayload = payload
-      , iPreferences = prefs
-      , iQueryParams = qPrms
-      , iColumns = columns
-      , iHeaders = iHdrs
-      , iCookies = iCkies
-      , iPath = rawPathInfo req
-      , iMethod = method
-      , iSchema = schema
-      , iNegotiatedByProfile = negotiatedByProfile
-      , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-      , iContentMediaType = contentMediaType
+      { iAction = act,
+        iRange = ranges,
+        iTopLevelRange = topLevelRange,
+        iPayload = payload,
+        iPreferences = prefs,
+        iQueryParams = qPrms,
+        iColumns = columns,
+        iHeaders = iHdrs,
+        iCookies = iCkies,
+        iPath = rawPathInfo req,
+        iMethod = method,
+        iSchema = schema,
+        iNegotiatedByProfile = negotiatedByProfile,
+        iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept",
+        iContentMediaType = contentMediaType
       }
   where
     method = requestMethod req

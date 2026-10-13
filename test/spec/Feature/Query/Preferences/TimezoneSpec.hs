@@ -18,10 +18,10 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "handling=strict, timezone=America/Los_Angeles")]
         ""
         `shouldRespondWith` [json|[{"t":"2023-10-18T05:37:59.611-07:00"}, {"t":"2023-10-18T07:37:59.611-07:00"}, {"t":"2023-10-18T09:37:59.611-07:00"}]|]
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Preference-Applied" <:> "handling=strict, timezone=America/Los_Angeles"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Preference-Applied" <:> "handling=strict, timezone=America/Los_Angeles"
               ]
           }
 
@@ -32,10 +32,10 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "timezone=America/Los_Angeles")]
         ""
         `shouldRespondWith` [json|[{"t":"2023-10-18T05:37:59.611-07:00"}, {"t":"2023-10-18T07:37:59.611-07:00"}, {"t":"2023-10-18T09:37:59.611-07:00"}]|]
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Preference-Applied" <:> "timezone=America/Los_Angeles"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Preference-Applied" <:> "timezone=America/Los_Angeles"
               ]
           }
 
@@ -78,10 +78,10 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "timezone=+05:30")]
         ""
         `shouldRespondWith` [json|[{"t":"2023-10-18T07:07:59.611-05:30"}, {"t":"2023-10-18T09:07:59.611-05:30"}, {"t":"2023-10-18T11:07:59.611-05:30"}]|]
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Preference-Applied" <:> "timezone=+05:30"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Preference-Applied" <:> "timezone=+05:30"
               ]
           }
 
@@ -92,10 +92,10 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "timezone=-4")]
         ""
         `shouldRespondWith` [json|[{"t":"2023-10-18T08:37:59.611-04:00"}, {"t":"2023-10-18T10:37:59.611-04:00"}, {"t":"2023-10-18T12:37:59.611-04:00"}]|]
-          { matchStatus = 200
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Preference-Applied" <:> "timezone=-4"
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Preference-Applied" <:> "timezone=-4"
               ]
           }
 

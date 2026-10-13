@@ -77,8 +77,8 @@ dumpSchema appState = do
 
 -- | Command line interface options
 data CLI = CLI
-  { cliCommand :: Command
-  , cliPath :: Maybe FilePath
+  { cliCommand :: Command,
+    cliPath :: Maybe FilePath
   }
 
 data Command

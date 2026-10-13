@@ -31,22 +31,22 @@ import Focus qualified as F
 import StmHamt.SizedHamt qualified as SH
 
 data ListNode k v (b :: Bool) = ListNode
-  { nextPtr :: NodePtr k v
-  , prevNextPtrPtr :: NodePtrPtr k v
-  , elem :: NodeElem k v b
+  { nextPtr :: NodePtr k v,
+    prevNextPtrPtr :: NodePtrPtr k v,
+    elem :: NodeElem k v b
   }
 
 data NodeElem :: Type -> Type -> Bool -> Type where
   Head
-    :: { entries :: SH.SizedHamt (HamtEntry k v)
-       , finger :: NodePtrPtr k v
+    :: { entries :: SH.SizedHamt (HamtEntry k v),
+         finger :: NodePtrPtr k v
        }
     -> NodeElem k v False
   Entry
     :: (Hashable k)
-    => { visited :: TVar Bool
-       , ekey :: k
-       , entryValue :: v
+    => { visited :: TVar Bool,
+         ekey :: k,
+         entryValue :: v
        }
     -> NodeElem k v True
 
@@ -63,11 +63,11 @@ data Discard m v = Refresh (m ()) | Invalid (m v)
 data Cache m k v = (Hashable k, MonadIO m) => Cache (ListNode k v False) (CacheConfig m k v)
 
 data CacheConfig m k v = CacheConfig
-  { maxSize :: STM Int
-  , load :: k -> m v
-  , requestListener :: Bool -> m ()
-  , evictionListener :: k -> v -> m ()
-  , validator :: m (k -> v -> Maybe (Discard m v))
+  { maxSize :: STM Int,
+    load :: k -> m v,
+    requestListener :: Bool -> m (),
+    evictionListener :: k -> v -> m (),
+    validator :: m (k -> v -> Maybe (Discard m v))
   }
 
 alwaysValid :: (Applicative m) => m (k -> v -> Maybe (Discard m v))

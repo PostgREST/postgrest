@@ -64,10 +64,10 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=minimal"), singular]
           [json| { address: "C Street" } |]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Preference-Applied" <:> "return=minimal"
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Preference-Applied" <:> "return=minimal"
                 ]
             }
 
@@ -78,8 +78,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), singular]
           [json| { address: "zzz" } |]
           `shouldRespondWith` [json|{"details":"The result contains 4 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should not be updated, either
@@ -93,8 +93,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
           [json| { address: "zzz" } |]
           `shouldRespondWith` [json|{"details":"The result contains 4 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should not be updated, either
@@ -108,8 +108,8 @@ spec withConfig = withConfig baseCfg $
           [singular]
           [json|{"id":1}|]
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "raises an error for zero rows with return=rep" $
@@ -119,8 +119,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation"), singular]
           [json|{"id":1}|]
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "when creating rows" $ do
@@ -131,8 +131,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation"), singular]
           [json| [ { id: 102, address: "xxx" } ] |]
           `shouldRespondWith` [json|{"id":102,"address":"xxx"}|]
-            { matchStatus = 201
-            , matchHeaders = [matchContentTypeSingular]
+            { matchStatus = 201,
+              matchHeaders = [matchContentTypeSingular]
             }
 
       it "works for one row with return=minimal" $ do
@@ -142,11 +142,11 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=minimal"), singular]
           [json| [ { id: 103, address: "xxx" } ] |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Content-Range" <:> "*/*"
-                , "Preference-Applied" <:> "return=minimal"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Content-Range" <:> "*/*",
+                  "Preference-Applied" <:> "return=minimal"
                 ]
             }
 
@@ -157,8 +157,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), singular]
           [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
           `shouldRespondWith` [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should not exist, either
@@ -172,8 +172,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
           [json| [ { id: 202, address: "xxx" }, { id: 203, address: "yyy" } ] |]
           `shouldRespondWith` [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should not exist, either
@@ -187,8 +187,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), ("Prefer", "return=minimal"), singular]
           [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
           `shouldRespondWith` [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should not exist, either
@@ -202,8 +202,8 @@ spec withConfig = withConfig baseCfg $
           [singular]
           [json| [ ] |]
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "raises an error when creating zero entities with return=rep" $
@@ -213,8 +213,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation"), singular]
           [json| [ ] |]
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "when deleting rows" $ do
@@ -243,15 +243,15 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), singular]
           ""
           `shouldRespondWith` [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should still exist
         get "/items?id=gt.0&id=lt.6&order=id"
           `shouldRespondWith` [json| [{"id":1},{"id":2},{"id":3},{"id":4},{"id":5}] |]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-4/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-4/*"]
             }
 
       it "raises an error when attempting to delete multiple entities with return=rep" $ do
@@ -261,15 +261,15 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
           ""
           `shouldRespondWith` [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- the rows should still exist
         get "/items?id=gt.5&id=lt.11"
           `shouldRespondWith` [json| [{"id":6},{"id":7},{"id":8},{"id":9},{"id":10}] |]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-4/*"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Range" <:> "0-4/*"]
             }
 
       it "raises an error when deleting zero entities" $
@@ -279,8 +279,8 @@ spec withConfig = withConfig baseCfg $
           [singular]
           ""
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "raises an error when deleting zero entities with return=rep" $
@@ -290,8 +290,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation"), singular]
           ""
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "when calling a stored proc" $ do
@@ -302,8 +302,8 @@ spec withConfig = withConfig baseCfg $
           [singular]
           [json|{ "id": 9999999}|]
           `shouldRespondWith` [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
       -- this one may be controversial, should vnd.pgrst.object include
@@ -333,8 +333,8 @@ spec withConfig = withConfig baseCfg $
           [singular]
           "{}"
           `shouldRespondWith` [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "fails for multiple rows with rolled back changes" $ do
@@ -349,8 +349,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "tx=commit"), singular]
           [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
           `shouldRespondWith` [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
-            { matchStatus = 406
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 406,
+              matchHeaders = [matchContentTypeJson]
             }
 
         -- should rollback function

@@ -116,39 +116,39 @@ import PostgREST.SchemaCache.Routine qualified as Routine
 -- Plan for reading or writing to the db
 data CrudPlan
   = WrappedReadPlan
-      { wrReadPlan :: ReadPlanTree
-      , pTxMode :: SQL.Mode
-      , wrHandler :: MediaHandler
-      , pMedia :: MediaType
-      , wrHdrsOnly :: Bool
-      , crudQi :: QualifiedIdentifier
+      { wrReadPlan :: ReadPlanTree,
+        pTxMode :: SQL.Mode,
+        wrHandler :: MediaHandler,
+        pMedia :: MediaType,
+        wrHdrsOnly :: Bool,
+        crudQi :: QualifiedIdentifier
       }
   | MutateReadPlan
-      { mrReadPlan :: ReadPlanTree
-      , mrMutatePlan :: MutatePlan
-      , pTxMode :: SQL.Mode
-      , mrHandler :: MediaHandler
-      , pMedia :: MediaType
-      , mrMutation :: Mutation
-      , crudQi :: QualifiedIdentifier
+      { mrReadPlan :: ReadPlanTree,
+        mrMutatePlan :: MutatePlan,
+        pTxMode :: SQL.Mode,
+        mrHandler :: MediaHandler,
+        pMedia :: MediaType,
+        mrMutation :: Mutation,
+        crudQi :: QualifiedIdentifier
       }
   | CallReadPlan
-      { crReadPlan :: ReadPlanTree
-      , crCallPlan :: CallPlan
-      , pTxMode :: SQL.Mode
-      , crProc :: Routine
-      , crHandler :: MediaHandler
-      , pMedia :: MediaType
-      , crInvMthd :: InvokeMethod
-      , crQi :: QualifiedIdentifier
+      { crReadPlan :: ReadPlanTree,
+        crCallPlan :: CallPlan,
+        pTxMode :: SQL.Mode,
+        crProc :: Routine,
+        crHandler :: MediaHandler,
+        pMedia :: MediaType,
+        crInvMthd :: InvokeMethod,
+        crQi :: QualifiedIdentifier
       }
 
 -- Plan for reading db object metadadta
 data InspectPlan = InspectPlan
-  { ipMedia :: MediaType
-  , ipTxmode :: SQL.Mode
-  , ipHdrsOnly :: Bool
-  , ipSchema :: Schema
+  { ipMedia :: MediaType,
+    ipTxmode :: SQL.Mode,
+    ipHdrsOnly :: Bool,
+    ipSchema :: Schema
   }
 
 -- A Plan may use the database or not
@@ -332,12 +332,12 @@ findProc qi argumentsKeys allProcs contentMediaType isInvPost =
 -- | During planning we need to resolve Field -> CoercibleField (finding the context specific target type and map function).
 -- | ResolverContext facilitates this without the need to pass around a laundry list of parameters.
 data ResolverContext = ResolverContext
-  { tables :: TablesMap
-  , representations :: RepresentationsMap
-  , qi :: QualifiedIdentifier
-  -- ^ The table we're currently attending; changes as we recurse into joins etc.
-  , outputType :: Text
-  -- ^ The output type for the response payload; e.g. "csv", "json", "binary".
+  { tables :: TablesMap,
+    representations :: RepresentationsMap,
+    -- | The table we're currently attending; changes as we recurse into joins etc.
+    qi :: QualifiedIdentifier,
+    -- | The output type for the response payload; e.g. "csv", "json", "binary".
+    outputType :: Text
   }
 
 resolveColumnField :: Column -> Maybe ToTsVector -> CoercibleField
@@ -859,9 +859,9 @@ hoistIntoRelSelectFields aggList r@(Spread{rsSpreadSel = spreadSelects, rsAggAli
       case lookup (relAggAlias, ssSelName s) aggList of
         Just (aggFunc, aggCast, fldAlias) ->
           s
-            { ssSelAggFunction = Just aggFunc
-            , ssSelAggCast = aggCast
-            , ssSelAlias = fldAlias
+            { ssSelAggFunction = Just aggFunc,
+              ssSelAggCast = aggCast,
+              ssSelAlias = fldAlias
             }
         Nothing -> s
 hoistIntoRelSelectFields _ r = r
@@ -881,12 +881,12 @@ addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, r
     (addSprExtraSelects, addSprOrder) = unzip $ zipWith ordToExtraSelsAndSprOrds [1 ..] order
     ordToExtraSelsAndSprOrds i = \case
       CoercibleOrderTerm fld dir ordr ->
-        ( (Nothing, CoercibleSelectField fld Nothing Nothing Nothing (Just $ selOrdAlias (cfName fld) i))
-        , CoercibleOrderTerm (unknownField (selOrdAlias (cfName fld) i) []) dir ordr
+        ( (Nothing, CoercibleSelectField fld Nothing Nothing Nothing (Just $ selOrdAlias (cfName fld) i)),
+          CoercibleOrderTerm (unknownField (selOrdAlias (cfName fld) i) []) dir ordr
         )
       CoercibleOrderRelationTerm rel (fld, jp) dir ordr ->
-        ( (Just rel, CoercibleSelectField (unknownField fld jp) Nothing Nothing Nothing (Just $ selOrdAlias fld i))
-        , CoercibleOrderTerm (unknownField (selOrdAlias fld i) []) dir ordr
+        ( (Just rel, CoercibleSelectField (unknownField fld jp) Nothing Nothing Nothing (Just $ selOrdAlias fld i)),
+          CoercibleOrderTerm (unknownField (selOrdAlias fld i) []) dir ordr
         )
     selOrdAlias :: Alias -> Integer -> Alias
     selOrdAlias name i = relAggAlias <> "_" <> name <> "_" <> show i -- add index to avoid collisions in aliases
@@ -1157,13 +1157,13 @@ resolveOrError ctx table field = case resolveTableFieldName table field Nothing 
 callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan
 callPlan proc ApiRequest{} paramKeys args readReq =
   FunctionCall
-    { funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
-    , funCParams = callParams
-    , funCArgs = args
-    , funCScalar = funcReturnsScalar proc
-    , funCSetOfScalar = funcReturnsSetOfScalar proc
-    , funCFilterFields = getFilterFieldNames readReq
-    , funCReturning = inferColsEmbedNeeds readReq []
+    { funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc),
+      funCParams = callParams,
+      funCArgs = args,
+      funCScalar = funcReturnsScalar proc,
+      funCSetOfScalar = funcReturnsSetOfScalar proc,
+      funCFilterFields = getFilterFieldNames readReq,
+      funCReturning = inferColsEmbedNeeds readReq []
     }
   where
     specifiedParams = filter (\x -> ppName x `S.member` paramKeys)

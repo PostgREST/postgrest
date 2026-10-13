@@ -51,9 +51,9 @@ instance (Constructor c) => HasConstructor (C1 c f) where
   genericConstrName = T.pack . conName
 
 data SpecState = SpecState
-  { specAppState :: AppState.AppState
-  , specMetrics :: Metrics.MetricsState
-  , specObsChan :: ObsChan
+  { specAppState :: AppState.AppState,
+    specMetrics :: Metrics.MetricsState,
+    specObsChan :: ObsChan
   }
 
 data StateCheck st m = forall a. StateCheck (st -> (String, m a)) (a -> a -> Expectation)
@@ -69,59 +69,59 @@ baseCfg :: AppConfig
 baseCfg =
   let secret = encodeUtf8 "reallyreallyreallyreallyverysafe"
   in  AppConfig
-        { configAppSettings = []
-        , configClientErrorVerbosity = Verbose
-        , configDbAggregates = False
-        , configDbAnonRole = Just "postgrest_test_anonymous"
-        , configDbChannel = mempty
-        , configDbChannelEnabled = True
-        , configDbExtraSearchPath = []
-        , configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"]
-        , configDbMaxRows = Nothing
-        , configDbPlanEnabled = False
-        , configDbPoolSize = 10
-        , configDbPoolAcquisitionTimeout = 10
-        , configDbPoolMaxLifetime = 1800
-        , configDbPoolMaxIdletime = 600
-        , configDbPoolAutomaticRecovery = True
-        , configDbPreRequest = Nothing
-        , configDbPreparedStatements = True
-        , configDbRootSpec = Nothing
-        , configDbSchemas = fromList ["test"]
-        , configDbConfig = False
-        , configDbPreConfig = Nothing
-        , configDbUri = "postgresql://"
-        , configFilePath = Nothing
-        , configJWKS = rightToMaybe $ parseSecret secret
-        , configJwtAudience = Nothing
-        , configJwtRoleClaimKey = Right defaultRoleJSPathKey
-        , configJwtSecret = Just secret
-        , configJwtSecretIsBase64 = False
-        , configJwtCacheMaxEntries = 10
-        , configLogLevel = LogCrit
-        , configLogQuery = False
-        , configOpenApiMode = OAFollowPriv
-        , configOpenApiSecurityActive = False
-        , configOpenApiServerProxyUri = Nothing
-        , configServerCorsAllowedOrigins = []
-        , configServerHost = "localhost"
-        , configServerPort = 3000
-        , configServerReusePort = False
-        , configServerTraceHeader = Nothing
-        , configServerUnixSocket = Nothing
-        , configServerUnixSocketMode = 432
-        , configDbTxAllowOverride = True
-        , configDbTxRollbackAll = True
-        , configAdminServerHost = "localhost"
-        , configAdminServerPort = Nothing
-        , configAdminServerUnixSocket = Nothing
-        , configAdminServerUnixSocketMode = 432
-        , configRoleSettings = mempty
-        , configRoleIsoLvl = mempty
-        , configInternalSCQuerySleepFst = Nothing
-        , configInternalSCQuerySleepSnd = Nothing
-        , configServerTimingEnabled = True
-        , configUrlUseLegacyTargetNames = True
+        { configAppSettings = [],
+          configClientErrorVerbosity = Verbose,
+          configDbAggregates = False,
+          configDbAnonRole = Just "postgrest_test_anonymous",
+          configDbChannel = mempty,
+          configDbChannelEnabled = True,
+          configDbExtraSearchPath = [],
+          configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"],
+          configDbMaxRows = Nothing,
+          configDbPlanEnabled = False,
+          configDbPoolSize = 10,
+          configDbPoolAcquisitionTimeout = 10,
+          configDbPoolMaxLifetime = 1800,
+          configDbPoolMaxIdletime = 600,
+          configDbPoolAutomaticRecovery = True,
+          configDbPreRequest = Nothing,
+          configDbPreparedStatements = True,
+          configDbRootSpec = Nothing,
+          configDbSchemas = fromList ["test"],
+          configDbConfig = False,
+          configDbPreConfig = Nothing,
+          configDbUri = "postgresql://",
+          configFilePath = Nothing,
+          configJWKS = rightToMaybe $ parseSecret secret,
+          configJwtAudience = Nothing,
+          configJwtRoleClaimKey = Right defaultRoleJSPathKey,
+          configJwtSecret = Just secret,
+          configJwtSecretIsBase64 = False,
+          configJwtCacheMaxEntries = 10,
+          configLogLevel = LogCrit,
+          configLogQuery = False,
+          configOpenApiMode = OAFollowPriv,
+          configOpenApiSecurityActive = False,
+          configOpenApiServerProxyUri = Nothing,
+          configServerCorsAllowedOrigins = [],
+          configServerHost = "localhost",
+          configServerPort = 3000,
+          configServerReusePort = False,
+          configServerTraceHeader = Nothing,
+          configServerUnixSocket = Nothing,
+          configServerUnixSocketMode = 432,
+          configDbTxAllowOverride = True,
+          configDbTxRollbackAll = True,
+          configAdminServerHost = "localhost",
+          configAdminServerPort = Nothing,
+          configAdminServerUnixSocket = Nothing,
+          configAdminServerUnixSocketMode = 432,
+          configRoleSettings = mempty,
+          configRoleIsoLvl = mempty,
+          configInternalSCQuerySleepFst = Nothing,
+          configInternalSCQuerySleepSnd = Nothing,
+          configServerTimingEnabled = True,
+          configUrlUseLegacyTargetNames = True
         }
 
 testCfg :: AppConfig
@@ -130,9 +130,9 @@ testCfg = baseCfg
 testCfgJwtCache :: AppConfig
 testCfgJwtCache =
   baseCfg
-    { configJwtSecret = Just generateSecret
-    , configJWKS = rightToMaybe $ parseSecret generateSecret
-    , configJwtCacheMaxEntries = 2
+    { configJwtSecret = Just generateSecret,
+      configJWKS = rightToMaybe $ parseSecret generateSecret,
+      configJwtCacheMaxEntries = 2
     }
 
 authHeader :: BS.ByteString -> BS.ByteString -> Header

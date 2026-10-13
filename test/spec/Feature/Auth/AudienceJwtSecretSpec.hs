@@ -12,9 +12,9 @@ import SpecHelper
 spec :: SpecWithConfig
 spec withConfig = withConfig
   ( baseCfg
-      { configJwtSecret = Just generateSecret
-      , configJwtAudience = Just "youraudience"
-      , configJWKS = rightToMaybe $ parseSecret generateSecret
+      { configJwtSecret = Just generateSecret,
+        configJwtAudience = Just "youraudience",
+        configJWKS = rightToMaybe $ parseSecret generateSecret
       }
   )
   $ describe "test handling of aud claims in JWT when the jwt-aud config is set"
