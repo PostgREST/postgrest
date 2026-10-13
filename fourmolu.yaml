@@ -1,4 +1,5 @@
 # https://fourmolu.github.io/config
+comma-style: trailing
 function-arrows: leading
 haddock-style: single-line
 if-style: hanging

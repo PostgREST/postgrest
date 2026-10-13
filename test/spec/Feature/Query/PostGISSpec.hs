@@ -36,8 +36,8 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
           [("Accept", "application/geo+json")]
           ""
           `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22023","message":"geometry column is missing"} |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "gives an empty features array on no rows" $
@@ -134,8 +134,8 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
             }
           ]
         }|]
-            { matchStatus = 201
-            , matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
+            { matchStatus = 201,
+              matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
             }
 
       it "works with Prefer: return=representation after PATCH" $
@@ -154,8 +154,8 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
             }
           ]
         }|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
             }
 
       it "works with Prefer: return=representation after PUT" $
@@ -174,8 +174,8 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
             }
           ]
         }|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
             }
 
       it "works with Prefer: return=representation after DELETE" $
@@ -190,8 +190,8 @@ spec withConfig = withConfig (baseCfg{configDbExtraSearchPath = ["public", "exte
             {"type": "Feature", "geometry": {"type":"Point","coordinates":[-71.081924,42.36437]}, "properties": {"id": 3, "address": "605 W Kendall St"}}
           ]
         }|]
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
             }
 
       context "multiple geometry columns" $

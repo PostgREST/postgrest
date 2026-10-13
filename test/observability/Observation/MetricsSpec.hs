@@ -46,8 +46,8 @@ spec = describe "Server started with metrics enabled" $ do
     liftIO
       $ checkState'
         metrics
-        [ schemaCacheLoads "FAIL" (+ 1)
-        , schemaCacheLoads "SUCCESS" (+ 1)
+        [ schemaCacheLoads "FAIL" (+ 1),
+          schemaCacheLoads "SUCCESS" (+ 1)
         ]
       $ do
         AppState.getConfig appState >>= \prev -> do
@@ -67,8 +67,8 @@ spec = describe "Server started with metrics enabled" $ do
       $ checkState'
         metrics
         [ -- we expect exactly 2 successful schema cache loads
-          schemaCacheLoads "FAIL" (+ 0)
-        , schemaCacheLoads "SUCCESS" (+ 2)
+          schemaCacheLoads "FAIL" (+ 0),
+          schemaCacheLoads "SUCCESS" (+ 2)
         ]
       $ do
         AppState.schemaCacheLoader appState

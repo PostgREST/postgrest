@@ -16,11 +16,11 @@ import Network.HTTP.Types qualified as HTTP
 -- | ServerTiming represents the timing data for a request, in seconds.
 data ServerTiming
   = ServerTiming
-  { jwt :: Maybe Double
-  , parse :: Maybe Double
-  , plan :: Maybe Double
-  , transaction :: Maybe Double
-  , response :: Maybe Double
+  { jwt :: Maybe Double,
+    parse :: Maybe Double,
+    plan :: Maybe Double,
+    transaction :: Maybe Double,
+    response :: Maybe Double
   }
   deriving (Show)
 
@@ -37,9 +37,9 @@ serverTimingHeader timing =
     renderTiming =
       BS.intercalate ", " $
         (\(k, v) -> renderMetric k (v timing))
-          <$> [ ("jwt", jwt)
-              , ("parse", parse)
-              , ("plan", plan)
-              , ("transaction", transaction)
-              , ("response", response)
+          <$> [ ("jwt", jwt),
+                ("parse", parse),
+                ("plan", plan),
+                ("transaction", transaction),
+                ("response", response)
               ]

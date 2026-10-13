@@ -29,8 +29,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
         `shouldRespondWith` [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"baz\""} |]
-          { matchStatus = 400
-          , matchHeaders = []
+          { matchStatus = 400,
+            matchHeaders = []
           }
 
     it "obtains a json subfield two levels (string)" $
@@ -73,8 +73,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
           "hint":null,
           "message":"\"failed to parse select parameter (data->(!@#$%^&*_d->>!@#$%^&*_e::integer)\" (line 1, column 7)"}
         |]
-          { matchStatus = 400
-          , matchHeaders = []
+          { matchStatus = 400,
+            matchHeaders = []
           }
 
     -- TODO the status code for the error is 404, this is because 42883 represents undefined function
@@ -90,8 +90,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
             {"hint":"You might need to add explicit type casts.","details":"No operator of that name accepts the given argument types.",
              "code":"42883","message":"operator does not exist: text -> integer"} |]
                             )
-          { matchStatus = 404
-          , matchHeaders = []
+          { matchStatus = 404,
+            matchHeaders = []
           }
       get "/json_arr?select=data->>c->b"
         `shouldRespondWith` ( if actualPgVersion < pgVersion190 then
@@ -103,8 +103,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
             {"hint":"You might need to add explicit type casts.","details":"No operator of that name accepts the given argument types.",
              "code":"42883","message":"operator does not exist: text -> unknown"} |]
                             )
-          { matchStatus = 404
-          , matchHeaders = []
+          { matchStatus = 404,
+            matchHeaders = []
           }
 
     context "with array index" $ do
@@ -348,8 +348,8 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
          "message": "\"failed to parse select parameter (data->>--34)\" (line 1, column 9)",
          "code": "PGRST100",
          "hint": null} |]
-        { matchStatus = 400
-        , matchHeaders = [matchContentTypeJson]
+        { matchStatus = 400,
+          matchHeaders = [matchContentTypeJson]
         }
 
   it "works when an RPC returns a dynamic TABLE with a composite type" $
@@ -358,6 +358,6 @@ spec actualPgVersion withConfig = withConfig baseCfg $ describe "json and jsonb 
         {"r":0.3},
         {"r":0.2}
       ]|]
-        { matchStatus = 200
-        , matchHeaders = [matchContentTypeJson]
+        { matchStatus = 200,
+          matchHeaders = [matchContentTypeJson]
         }

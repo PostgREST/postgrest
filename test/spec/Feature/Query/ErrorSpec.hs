@@ -26,28 +26,28 @@ spec withConfig = do
            "details": null,
            "hint": "Increase the configuration parameter \"max_stack_depth\" (currently 2048kB), after ensuring the platform's stack depth limit is adequate.",
             "message": "stack depth limit exceeded"}|]
-          { matchStatus = 500
-          , matchHeaders = ["Content-Length" <:> "217"]
+          { matchStatus = 500,
+            matchHeaders = ["Content-Length" <:> "217"]
           }
 
     context "includes the proxy-status header on the response" $ do
       it "works with ApiRequest error" $
         get "/invalid/nested/paths"
           `shouldRespondWith` [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST125"
-                , "Content-Length" <:> "96"
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST125",
+                  "Content-Length" <:> "96"
                 ]
             }
 
       it "works with SchemaCache error" $
         get "/non_existent_table"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.non_existent_table' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                , "Content-Length" <:> "129"
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST205",
+                  "Content-Length" <:> "129"
                 ]
             }
 
@@ -55,30 +55,30 @@ spec withConfig = do
         let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
         request methodGet "/authors_only" [auth] ""
           `shouldRespondWith` [json| {"message":"Expected 3 parts in JWT; got 2","code":"PGRST301","hint":null,"details":null} |]
-            { matchStatus = 401
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST301"
-                , "Content-Length" <:> "89"
+            { matchStatus = 401,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST301",
+                  "Content-Length" <:> "89"
                 ]
             }
 
       it "works with raise sqlstate custom error" $
         get "/rpc/raise_pt402"
           `shouldRespondWith` [json| {"code":"PT402","details":"Quota exceeded","hint":"Upgrade your plan","message":"Payment Required"} |]
-            { matchStatus = 402
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PT402"
-                , "Content-Length" <:> "99"
+            { matchStatus = 402,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PT402",
+                  "Content-Length" <:> "99"
                 ]
             }
 
       it "works with sqlstate PGRST custom error" $
         get "/rpc/raise_sqlstate_test1"
           `shouldRespondWith` [json| {"code":"123","details":"DEF","hint":"XYZ","message":"ABC"} |]
-            { matchStatus = 332
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=123"
-                , "Content-Length" <:> "59"
+            { matchStatus = 332,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=123",
+                  "Content-Length" <:> "59"
                 ]
             }
 
@@ -86,29 +86,29 @@ spec withConfig = do
       it "show hint when similarity score is at least 75%" $ do
         get "/projectx" -- at least 75% similar to "projects"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.projects'","message":"Could not find the table 'test.projectx' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                , "Content-Length" <:> "160"
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST205",
+                  "Content-Length" <:> "160"
                 ]
             }
 
         get "/projecxx" -- at least 75% similar to "projects"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.projects'","message":"Could not find the table 'test.projecxx' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                , "Content-Length" <:> "160"
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST205",
+                  "Content-Length" <:> "160"
                 ]
             }
 
       it "don't show hint when similarity score is less than 75%" $
         get "/projxxxx" -- less than 75% similar to "projects"
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.projxxxx' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders =
-                [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                , "Content-Length" <:> "119"
+            { matchStatus = 404,
+              matchHeaders =
+                [ "Proxy-Status" <:> "PostgREST; error=PGRST205",
+                  "Content-Length" <:> "119"
                 ]
             }
 

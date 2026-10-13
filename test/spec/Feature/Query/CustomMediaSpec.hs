@@ -29,20 +29,20 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
     it "will fail if there's no aggregate defined for the table" $ do
       request methodGet "/lines" (acceptHdrs "text/plain") ""
         `shouldRespondWith` [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"} |]
-          { matchStatus = 406
-          , matchHeaders =
-              [ matchContentTypeJson
-              , "Content-Length" <:> "110"
+          { matchStatus = 406,
+            matchHeaders =
+              [ matchContentTypeJson,
+                "Content-Length" <:> "110"
               ]
           }
 
     it "can get raw xml output with Accept: text/xml if there's an aggregate defined" $ do
       request methodGet "/xmltest" (acceptHdrs "text/xml") ""
         `shouldRespondWith` "<myxml>foo</myxml>bar<foobar><baz/></foobar>"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/xml; charset=utf-8"
-              , "Content-Length" <:> "44"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/xml; charset=utf-8",
+                "Content-Length" <:> "44"
               ]
           }
 
@@ -51,24 +51,24 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
     it "will use the application/vnd.geo2+json media type for any table" $
       request methodGet "/lines" (acceptHdrs "application/vnd.geo2+json") ""
         `shouldRespondWith` "\SOH{\"type\": \"FeatureCollection\", \"hello\": \"world\"}"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "application/vnd.geo2+json"
-              , "Content-Length" <:> "48"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "application/vnd.geo2+json",
+                "Content-Length" <:> "48"
               ]
           }
 
     it "will use the more specific application/vnd.geo2 handler for this table" $ do
       request methodGet "/shop_bles" (acceptHdrs "application/vnd.geo2+json") ""
         `shouldRespondWith` "\SOH\"anyelement overridden\""
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
           }
 
       request methodGet "/rpc/get_shop_bles" (acceptHdrs "application/vnd.geo2+json") ""
         `shouldRespondWith` "\SOH\"anyelement overridden\""
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
           }
 
   context "Proc that returns scalar" $ do
@@ -84,38 +84,38 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
             |  </body>
             |</html>
             |]
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/html"
-              , "Content-Length" <:> "117"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/html",
+                "Content-Length" <:> "117"
               ]
           }
 
     it "can get raw output with Accept: text/plain" $ do
       request methodGet "/rpc/welcome" (acceptHdrs "text/plain") ""
         `shouldRespondWith` "Welcome to PostgREST"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/plain; charset=utf-8"
-              , "Content-Length" <:> "20"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/plain; charset=utf-8",
+                "Content-Length" <:> "20"
               ]
           }
 
     it "can get raw xml output with Accept: text/xml" $ do
       request methodGet "/rpc/return_scalar_xml" (acceptHdrs "text/xml") ""
         `shouldRespondWith` "<my-xml-tag/>"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/xml; charset=utf-8"
-              , "Content-Length" <:> "13"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/xml; charset=utf-8",
+                "Content-Length" <:> "13"
               ]
           }
 
     it "can get raw xml output with Accept: text/xml" $ do
       request methodGet "/rpc/welcome.xml" (acceptHdrs "text/xml") ""
         `shouldRespondWith` "<html>\n  <head>\n    <title>PostgREST</title>\n  </head>\n  <body>\n    <h1>Welcome to PostgREST</h1>\n  </body>\n</html>"
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
           }
 
     it "should fail with function returning text and Accept: text/xml" $ do
@@ -123,15 +123,15 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [json|
           {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/xml"}
         |]
-          { matchStatus = 406
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          { matchStatus = 406,
+            matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
     it "should not fail when the function doesn't return a row" $ do
       request methodGet "/rpc/get_line?id=777" (acceptHdrs "application/vnd.twkb") ""
         `shouldRespondWith` ""
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/vnd.twkb"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/vnd.twkb"]
           }
 
   context "Proc that returns scalar based on a table" $ do
@@ -150,10 +150,10 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         (acceptHdrs "text/plain")
         ""
         `shouldRespondWith` [json|{"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"}|]
-          { matchStatus = 406
-          , matchHeaders =
-              [ "Content-Type" <:> "application/json; charset=utf-8"
-              , "Content-Length" <:> "110"
+          { matchStatus = 406,
+            matchHeaders =
+              [ "Content-Type" <:> "application/json; charset=utf-8",
+                "Content-Length" <:> "110"
               ]
           }
 
@@ -178,18 +178,18 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
     it "works if there's an anyelement aggregate defined" $ do
       request methodGet "/rpc/get_lines" (acceptHdrs "application/vnd.geo2+json") ""
         `shouldRespondWith` "\SOH{\"type\": \"FeatureCollection\", \"hello\": \"world\"}"
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
           }
 
   context "overriding" $ do
     it "will override the application/json handler for a single table" $
       request methodGet "/ov_json" (acceptHdrs "application/json") ""
         `shouldRespondWith` [json| {"overridden": "true"} |]
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "application/json; charset=utf-8"
-              , "Content-Length" <:> "22"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "application/json; charset=utf-8",
+                "Content-Length" <:> "22"
               ]
           }
 
@@ -197,20 +197,20 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
     it "will override the application/geo+json handler for a single table" $
       request methodGet "/lines?id=eq.1" (acceptHdrs "application/geo+json") ""
         `shouldRespondWith` "\SOH{\"crs\": {\"type\": \"name\", \"properties\": {\"name\": \"EPSG:4326\"}}, \"type\": \"FeatureCollection\", \"features\": [{\"type\": \"Feature\", \"geometry\": {\"type\": \"LineString\", \"coordinates\": [[1, 1], [5, 5]]}, \"properties\": {\"id\": 1, \"name\": \"line-1\"}}]}"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "application/geo+json; charset=utf-8"
-              , "Content-Length" <:> "239"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "application/geo+json; charset=utf-8",
+                "Content-Length" <:> "239"
               ]
           }
 
     it "will not override vendored media types like application/vnd.pgrst.object" $
       request methodGet "/projects?id=eq.1" (acceptHdrs "application/vnd.pgrst.object") ""
         `shouldRespondWith` [json|{"id":1,"name":"Windows 7","client_id":1}|]
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
-              , "Content-Length" <:> "41"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8",
+                "Content-Length" <:> "41"
               ]
           }
 
@@ -240,10 +240,10 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
     it "will match a custom text/tab-separated-values" $ do
       request methodGet "/projects?id=in.(1,2)" (acceptHdrs "text/tab-separated-values") ""
         `shouldRespondWith` "id\tname\tclient_id\n1\tWindows 7\t1\n2\tWindows 10\t1\n"
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "text/tab-separated-values"
-              , "Content-Length" <:> "47"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "text/tab-separated-values",
+                "Content-Length" <:> "47"
               ]
           }
 
@@ -263,10 +263,10 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [str|(1,"Windows 7",1)
             |(2,"Windows 10",1)
             |]
-          { matchStatus = 200
-          , matchHeaders =
-              [ "Content-Type" <:> "pg/outfunc"
-              , "Content-Length" <:> "37"
+          { matchStatus = 200,
+            matchHeaders =
+              [ "Content-Type" <:> "pg/outfunc",
+                "Content-Length" <:> "37"
               ]
           }
 
@@ -275,8 +275,8 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [str|(1,"Windows 7")
             |(2,"Windows 10")
             |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "pg/outfunc"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "pg/outfunc"]
           }
 
     it "with columns in different order" $ do
@@ -284,8 +284,8 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [str|("Windows 7",1,1)
             |("Windows 10",2,1)
             |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "pg/outfunc"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "pg/outfunc"]
           }
 
     it "with computed columns" $ do
@@ -293,8 +293,8 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [str|(1,t)
             |(2,t)
             |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "pg/outfunc"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "pg/outfunc"]
           }
 
     -- TODO: Embeddings should not return JSON. Arrays of record would be much better.
@@ -303,8 +303,8 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         `shouldRespondWith` [str|(1,"Windows 7",1,"{""id"": 1}")
             |(2,"Windows 10",1,"{""id"": 1}")
             |]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "pg/outfunc"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "pg/outfunc"]
           }
 
     it "will fail for specific aggregate with fewer columns" $ do
@@ -329,47 +329,47 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
       it "returns application/json for */* if not explicitly set" $ do
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "*/*") ""
           `shouldRespondWith` "any"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
       it "accepts any media type and sets the generic octet-stream as content type" $ do
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "app/bingo") ""
           `shouldRespondWith` "any"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "text/bango") ""
           `shouldRespondWith` "any"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "image/boingo") ""
           `shouldRespondWith` "any"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
       it "returns custom media type for */* if explicitly set" $ do
         request methodGet "/rpc/ret_some_mt" (acceptHdrs "*/*") ""
           `shouldRespondWith` "groucho"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "app/groucho"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "app/groucho"]
             }
 
       it "accepts some media types if there's conditional logic" $ do
         request methodGet "/rpc/ret_some_mt" (acceptHdrs "app/chico") ""
           `shouldRespondWith` "chico"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "app/chico"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "app/chico"]
             }
 
         request methodGet "/rpc/ret_some_mt" (acceptHdrs "app/harpo") ""
           `shouldRespondWith` "harpo"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "app/harpo"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "app/harpo"]
             }
 
         request methodGet "/rpc/ret_some_mt" (acceptHdrs "text/csv") ""
@@ -379,25 +379,25 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
       it "returns application/json for */* if not explicitly set" $ do
         request methodGet "/some_numbers?val=eq.1" (acceptHdrs "*/*") ""
           `shouldRespondWith` "anything\n1"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
       it "accepts any media type and sets it as a header" $ do
         request methodGet "/some_numbers?val=eq.2" (acceptHdrs "magic/number") ""
           `shouldRespondWith` "magic\n2"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "magic/number"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "magic/number"]
             }
         request methodGet "/some_numbers?val=eq.3" (acceptHdrs "crazy/bingo") ""
           `shouldRespondWith` "crazy\n3"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "crazy/bingo"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "crazy/bingo"]
             }
         request methodGet "/some_numbers?val=eq.4" (acceptHdrs "unknown/unknown") ""
           `shouldRespondWith` "anything\n4"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
+            { matchStatus = 200,
+              matchHeaders = ["Content-Type" <:> "application/octet-stream"]
             }
 
   context "media type parser fails" $ do
@@ -415,8 +415,8 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         [("Content-Type", "application/json; charset=utf-8")]
         [json|{"must_param":1}|]
         `shouldRespondWith` [json|{"val":1}|]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
     it "handle unrecognized parameters leniently" $ do
@@ -426,6 +426,6 @@ spec withConfig = withConfig baseCfg $ describe "custom media types" $ do
         [("Content-Type", "application/json; $$ unrecognized-chars=ignored $$")]
         [json|{"must_param":1}|]
         `shouldRespondWith` [json|{"val":1}|]
-          { matchStatus = 200
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          { matchStatus = 200,
+            matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }

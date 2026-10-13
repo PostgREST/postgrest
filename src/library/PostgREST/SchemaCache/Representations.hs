@@ -19,9 +19,9 @@ import Data.HashMap.Strict qualified as HM
 --
 -- Support for outputting special formats like CSV and binary data would fit into the same system.
 data DataRepresentation = DataRepresentation
-  { drSourceType :: Text
-  , drTargetType :: Text
-  , drFunction :: Text
+  { drSourceType :: Text,
+    drTargetType :: Text,
+    drFunction :: Text
   }
   deriving (Eq, Generic, JSON.FromJSON, JSON.ToJSON, Show)
 

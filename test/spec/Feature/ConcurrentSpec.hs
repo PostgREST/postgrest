@@ -24,8 +24,8 @@ spec withConfig =
         raceTest 10 $
           get "/fakefake"
             `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.fakefake' in the schema cache"} |]
-              { matchStatus = 404
-              , matchHeaders = []
+              { matchStatus = 404,
+                matchHeaders = []
               }
 
 raceTest :: Int -> WaiExpectation st -> WaiExpectation st

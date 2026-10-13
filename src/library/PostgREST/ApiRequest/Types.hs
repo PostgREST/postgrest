@@ -84,14 +84,14 @@ type RequestBody = LBS.ByteString
 data Payload
   = -- | Cached attributes of a JSON payload
     ProcessedJSON
-      { payRaw :: LBS.ByteString
-      -- ^ This is the raw ByteString that comes from the request body.  We
-      -- cache this instead of an Aeson Value because it was detected that for
-      -- large payloads the encoding had high memory usage, see
-      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
-      , payKeys :: S.Set Text
-      -- ^ Keys of the object or if it's an array these keys are guaranteed to
-      -- be the same across all its objects
+      { -- | This is the raw ByteString that comes from the request body.  We
+        -- cache this instead of an Aeson Value because it was detected that for
+        -- large payloads the encoding had high memory usage, see
+        -- https://github.com/PostgREST/postgrest/pull/1005 for more details
+        payRaw :: LBS.ByteString,
+        -- | Keys of the object or if it's an array these keys are guaranteed to
+        -- be the same across all its objects
+        payKeys :: S.Set Text
       }
   | ProcessedUrlEncoded {payArray :: [(Text, Text)], payKeys :: S.Set Text}
   | RawJSON {payRaw :: LBS.ByteString}
@@ -100,24 +100,24 @@ data Payload
 -- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`
 data SelectItem
   = SelectField
-      { selField :: Field
-      , selAggregateFunction :: Maybe AggregateFunction
-      , selAggregateCast :: Maybe Cast
-      , selCast :: Maybe Cast
-      , selAlias :: Maybe Alias
+      { selField :: Field,
+        selAggregateFunction :: Maybe AggregateFunction,
+        selAggregateCast :: Maybe Cast,
+        selCast :: Maybe Cast,
+        selAlias :: Maybe Alias
       }
   | -- \| The value in `/tbl?select=alias:another_tbl(*)`
     SelectRelation
-      { selRelation :: FieldName
-      , selAlias :: Maybe Alias
-      , selHint :: Maybe Hint
-      , selJoinType :: Maybe JoinType
+      { selRelation :: FieldName,
+        selAlias :: Maybe Alias,
+        selHint :: Maybe Hint,
+        selJoinType :: Maybe JoinType
       }
   | -- \| The value in `/tbl?select=...another_tbl(*)`
     SpreadRelation
-      { selRelation :: FieldName
-      , selHint :: Maybe Hint
-      , selJoinType :: Maybe JoinType
+      { selRelation :: FieldName,
+        selHint :: Maybe Hint,
+        selJoinType :: Maybe JoinType
       }
   deriving (Eq, Show)
 
@@ -127,15 +127,15 @@ type Depth = Integer
 
 data OrderTerm
   = OrderTerm
-      { otTerm :: Field
-      , otDirection :: Maybe OrderDirection
-      , otNullOrder :: Maybe OrderNulls
+      { otTerm :: Field,
+        otDirection :: Maybe OrderDirection,
+        otNullOrder :: Maybe OrderNulls
       }
   | OrderRelationTerm
-      { otRelation :: FieldName
-      , otRelTerm :: Field
-      , otDirection :: Maybe OrderDirection
-      , otNullOrder :: Maybe OrderNulls
+      { otRelation :: FieldName,
+        otRelTerm :: Field,
+        otDirection :: Maybe OrderDirection,
+        otNullOrder :: Maybe OrderNulls
       }
   deriving (Eq, Show)
 
@@ -213,8 +213,8 @@ data LogicOperator
 
 data Filter
   = Filter
-  { field :: Field
-  , opExpr :: OpExpr
+  { field :: Field,
+    opExpr :: OpExpr
   }
   deriving (Eq, Show)
 

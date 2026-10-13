@@ -25,11 +25,11 @@ spec withConfig = withConfig baseCfg $ do
           , "enum": "foo"
           } |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , -- should not have content type set when body is empty
+            { matchStatus = 201,
+              -- should not have content type set when body is empty
               matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Content-Length" <:> "0"
+                [ matchHeaderAbsent hContentType,
+                  "Content-Length" <:> "0"
                 ]
             }
 
@@ -44,11 +44,11 @@ spec withConfig = withConfig baseCfg $ do
           , "enum": "foo"
           }] |]
           `shouldRespondWith` [json|[{"integer":14,"varchar":"testing!"}]|]
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Length" <:> "37"
-                , "Preference-Applied" <:> "return=representation"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Length" <:> "37",
+                  "Preference-Applied" <:> "return=representation"
                 ]
             }
 
@@ -63,8 +63,8 @@ spec withConfig = withConfig baseCfg $ do
               "enum": "foo"
             }] |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            { matchStatus = 201,
+              matchHeaders = [matchHeaderAbsent hContentType]
             }
         request
           methodPost
@@ -76,10 +76,10 @@ spec withConfig = withConfig baseCfg $ do
               "enum": "foo"
             }] |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Preference-Applied" <:> "return=minimal"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Preference-Applied" <:> "return=minimal"
                 ]
             }
 
@@ -89,8 +89,8 @@ spec withConfig = withConfig baseCfg $ do
           "/articles"
           [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |]
           `shouldRespondWith` [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "rejects json array that has objects with different keys" $
@@ -98,8 +98,8 @@ spec withConfig = withConfig baseCfg $ do
           "/articles"
           [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |]
           `shouldRespondWith` [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "requesting full representation" $ do
@@ -110,12 +110,12 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation"), ("Prefer", "count=exact")]
           [json|{"id":6,"name":"New Project","client_id":2}|]
           `shouldRespondWith` [json|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchContentTypeJson
-                , matchHeaderAbsent hLocation
-                , "Content-Range" <:> "*/1"
-                , "Preference-Applied" <:> "return=representation, count=exact"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  matchHeaderAbsent hLocation,
+                  "Content-Range" <:> "*/1",
+                  "Preference-Applied" <:> "return=representation, count=exact"
                 ]
             }
 
@@ -126,12 +126,12 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json|{"id":7,"name":"New Project","client_id":2}|]
           `shouldRespondWith` [json|[{"pId":"7","pName":"New Project","cId":"2"}]|]
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchContentTypeJson
-                , matchHeaderAbsent hLocation
-                , "Content-Range" <:> "*/*"
-                , "Preference-Applied" <:> "return=representation"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  matchHeaderAbsent hLocation,
+                  "Content-Range" <:> "*/*",
+                  "Preference-Applied" <:> "return=representation"
                 ]
             }
 
@@ -142,12 +142,12 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json|{"id":10,"name":"New Project","client_id":2}|]
           `shouldRespondWith` [json|[{"name":"New Project","client_id":2}]|]
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchContentTypeJson
-                , matchHeaderAbsent hLocation
-                , "Content-Range" <:> "*/*"
-                , "Preference-Applied" <:> "return=representation"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  matchHeaderAbsent hLocation,
+                  "Content-Range" <:> "*/*",
+                  "Preference-Applied" <:> "return=representation"
                 ]
             }
 
@@ -159,13 +159,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json|{"id":11,"name":"New Project","client_id":2}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/projects?id=eq.11"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/projects?id=eq.11",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -176,13 +176,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json|{"name":"Enzo","year":2021}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -194,11 +194,11 @@ spec withConfig = withConfig baseCfg $ do
           []
           [json|{"id":12,"name":"New Project","client_id":2}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hLocation
-                , "Content-Length" <:> "0"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hLocation,
+                  "Content-Length" <:> "0"
                 ]
             }
 
@@ -212,10 +212,10 @@ spec withConfig = withConfig baseCfg $ do
               <> "boolean=false&date=1900-01-01&money=$3.99&enum=foo"
           )
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Content-Length" <:> "0"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Content-Length" <:> "0"
                 ]
             }
 
@@ -229,10 +229,10 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "tx=commit")]
             [json|{"name": "auto_incrementing_pk_id_seq", "value": 2}|]
             `shouldRespondWith` ""
-              { matchStatus = 204
-              , matchHeaders =
-                  [ matchHeaderAbsent hContentType
-                  , matchHeaderAbsent hContentLength
+              { matchStatus = 204,
+                matchHeaders =
+                  [ matchHeaderAbsent hContentType,
+                    matchHeaderAbsent hContentLength
                   ]
               }
 
@@ -242,12 +242,12 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=headers-only")]
             [json| { "non_nullable_string":"not null"} |]
             `shouldRespondWith` ""
-              { matchStatus = 201
-              , matchHeaders =
-                  [ matchHeaderAbsent hContentType
-                  , "Content-Length" <:> "0"
-                  , "Location" <:> "/auto_incrementing_pk?id=eq.2"
-                  , "Preference-Applied" <:> "return=headers-only"
+              { matchStatus = 201,
+                matchHeaders =
+                  [ matchHeaderAbsent hContentType,
+                    "Content-Length" <:> "0",
+                    "Location" <:> "/auto_incrementing_pk?id=eq.2",
+                    "Preference-Applied" <:> "return=headers-only"
                   ]
               }
 
@@ -255,8 +255,8 @@ spec withConfig = withConfig baseCfg $ do
         it "fails with 400 and error" $
           post "/simple_pk" [json| { "extra":"foo"} |]
             `shouldRespondWith` [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" of relation \"simple_pk\" violates not-null constraint"}|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
 
       context "into a table with no pk" $ do
@@ -265,10 +265,10 @@ spec withConfig = withConfig baseCfg $ do
             "/no_pk"
             [json| { "a":"foo", "b":"bar" } |]
             `shouldRespondWith` ""
-              { matchStatus = 201
-              , matchHeaders =
-                  [ matchHeaderAbsent hContentType
-                  , matchHeaderAbsent hLocation
+              { matchStatus = 201,
+                matchHeaders =
+                  [ matchHeaderAbsent hContentType,
+                    matchHeaderAbsent hLocation
                   ]
               }
 
@@ -279,10 +279,10 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=representation")]
             [json| { "a":"bar", "b":"baz" } |]
             `shouldRespondWith` [json| [{ "a":"bar", "b":"baz" }] |]
-              { matchStatus = 201
-              , matchHeaders =
-                  [ matchHeaderAbsent hLocation
-                  , "Preference-Applied" <:> "return=representation"
+              { matchStatus = 201,
+                matchHeaders =
+                  [ matchHeaderAbsent hLocation,
+                    "Preference-Applied" <:> "return=representation"
                   ]
               }
 
@@ -303,8 +303,8 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=representation")]
             [json| { "a":null, "b":"foo" } |]
             `shouldRespondWith` [json| [{ "a":null, "b":"foo" }] |]
-              { matchStatus = 201
-              , matchHeaders = [matchHeaderAbsent hLocation]
+              { matchStatus = 201,
+                matchHeaders = [matchHeaderAbsent hLocation]
               }
 
     context "with compound pk supplied" $
@@ -315,8 +315,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| { "k1":12, "k2":"Rock & R+ll" } |]
           `shouldRespondWith` [json|[ { "k1":12, "k2":"Rock & R+ll", "extra": null } ]|]
-            { matchStatus = 201
-            , matchHeaders = [matchHeaderAbsent hLocation]
+            { matchStatus = 201,
+              matchHeaders = [matchHeaderAbsent hLocation]
             }
 
     context "with bulk insert" $
@@ -331,10 +331,10 @@ spec withConfig = withConfig baseCfg $ do
           []
           bulkData
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hLocation
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hLocation
                 ]
             }
 
@@ -342,10 +342,10 @@ spec withConfig = withConfig baseCfg $ do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
           `shouldRespondWith` [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
-            { matchStatus = 400
-            , matchHeaders =
-                [ matchContentTypeJson
-                , "Content-Length" <:> "80"
+            { matchStatus = 400,
+              matchHeaders =
+                [ matchContentTypeJson,
+                  "Content-Length" <:> "80"
                 ]
             }
 
@@ -353,8 +353,8 @@ spec withConfig = withConfig baseCfg $ do
       it "fails with 400 and error" $
         post "/simple_pk" ""
           `shouldRespondWith` [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
     context "with valid json payload" $
@@ -363,8 +363,8 @@ spec withConfig = withConfig baseCfg $ do
           "/simple_pk"
           [json| { "k":"k1", "extra":"e1" } |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            { matchStatus = 201,
+              matchHeaders = [matchHeaderAbsent hContentType]
             }
 
     context "attempting to insert a row with the same primary key" $
@@ -409,13 +409,13 @@ spec withConfig = withConfig baseCfg $ do
           "/items"
           [json|{}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            { matchStatus = 201,
+              matchHeaders = [matchHeaderAbsent hContentType]
             }
         post "/items" "[{}]"
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders = []
+            { matchStatus = 201,
+              matchHeaders = []
             }
 
       it "successfully inserts two rows with all-default columns" $
@@ -423,8 +423,8 @@ spec withConfig = withConfig baseCfg $ do
           "/items"
           [json|[{}, {}]|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            { matchStatus = 201,
+              matchHeaders = [matchHeaderAbsent hContentType]
             }
 
       it "successfully inserts a row with all-default columns with prefer=rep" $ do
@@ -435,10 +435,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "tx=commit")]
           [json|{"name": "items2_id_seq", "value": 20}|]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hContentLength
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hContentLength
                 ]
             }
 
@@ -459,10 +459,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "tx=commit")]
           [json|{"name": "items3_id_seq", "value": 20}|]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hContentLength
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hContentLength
                 ]
             }
 
@@ -525,8 +525,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id": 200, "body": "xxx", "smth": "here", "other": "stuff", "fake_id": 13} |]
           `shouldRespondWith` [json|[{"id": 200, "body": "xxx", "owner": "postgrest_test_anonymous"}]|]
-            { matchStatus = 201
-            , matchHeaders = []
+            { matchStatus = 201,
+              matchHeaders = []
             }
         request
           methodPost
@@ -540,8 +540,8 @@ spec withConfig = withConfig baseCfg $ do
             {"id": 201, "body": "yyy"},
             {"id": 202, "body": "zzz"},
             {"id": 203, "body": "aaa"} ]|]
-            { matchStatus = 201
-            , matchHeaders = []
+            { matchStatus = 201,
+              matchHeaders = []
             }
 
       -- TODO parse columns error message needs to be improved
@@ -552,8 +552,8 @@ spec withConfig = withConfig baseCfg $ do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith` [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_$])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)","code":"PGRST100","hint":null} |]
-            { matchStatus = 400
-            , matchHeaders = []
+            { matchStatus = 400,
+              matchHeaders = []
             }
 
       it "disallows ?columns which don't exist" $
@@ -563,8 +563,8 @@ spec withConfig = withConfig baseCfg $ do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith` [json|{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopter' column of 'articles' in the schema cache"} |]
-            { matchStatus = 400
-            , matchHeaders = []
+            { matchStatus = 400,
+              matchHeaders = []
             }
 
       it "returns missing table error even if also has invalid ?columns" $
@@ -574,8 +574,8 @@ spec withConfig = withConfig baseCfg $ do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith` [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'test.garlic' in the schema cache"} |]
-            { matchStatus = 404
-            , matchHeaders = []
+            { matchStatus = 404,
+              matchHeaders = []
             }
 
       it "disallows array elements that are not json objects" $
@@ -604,8 +604,8 @@ spec withConfig = withConfig baseCfg $ do
                 {"id": 5, "name": "Funf", "field-with_sep": 1, "settings":null,"arr_data":null},
                 {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
               ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "inserts view default values(field-with_sep) when json keys are undefined" $
@@ -621,8 +621,8 @@ spec withConfig = withConfig baseCfg $ do
                 {"id": 7, "name": "Sieben", "field-with_sep": 1, "settings":null,"arr_data":null},
                 {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
               ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "doesn't insert json duplicate keys(since it uses jsonb)" $
@@ -632,8 +632,8 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]
             `shouldRespondWith` [json| [ { "data": { "a": 2 }, "id": 3 } ] |]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "inserts a default on a generated by default as identity column" $
@@ -644,8 +644,8 @@ spec withConfig = withConfig baseCfg $ do
             [json| { "slug": "foo" } |]
             `shouldRespondWith` [json| [{"data":{"foo": "bar"},"slug":"foo"}] |]
               { -- id 1 was inserted here, we don't get it for idempotence in the tests
-                matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+                matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "fails with a good error message on generated always columns" $
@@ -673,8 +673,8 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json| { "name": "Lu" } |]
             `shouldRespondWith` [json| [{"id": 666, "name": "Lu"}] |]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "inserts a COLUMN default before a DOMAIN default with missing=default" $
@@ -684,8 +684,8 @@ spec withConfig = withConfig baseCfg $ do
             [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json| { "name": "Demon" } |]
             `shouldRespondWith` [json| [{"id": 420, "name": "Demon"}] |]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
     it "inserts json that has duplicate keys" $ do
@@ -739,10 +739,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "tx=commit")]
           ""
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hContentLength
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hContentLength
                 ]
             }
 
@@ -757,9 +757,9 @@ spec withConfig = withConfig baseCfg $ do
             |]
         request methodPost "/menagerie" [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")] inserted
           `shouldRespondWith` ResponseMatcher
-            { matchStatus = 201
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
-            , matchBody = bodyEquals inserted
+            { matchStatus = 201,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"],
+              matchBody = bodyEquals inserted
             }
 
     context "requesting full representation" $ do
@@ -770,8 +770,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
           "a,b\nbar,baz"
           `shouldRespondWith` "a,b\nbar,baz"
-            { matchStatus = 201
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            { matchStatus = 201,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
 
       it "can post nulls" $
@@ -781,8 +781,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
           "a,b\nNULL,foo"
           `shouldRespondWith` "a,b\n,foo"
-            { matchStatus = 201
-            , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+            { matchStatus = 201,
+              matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
 
       it "only returns the requested column header with its associated data" $
@@ -792,10 +792,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Content-Type", "text/csv"), ("Accept", "text/csv"), ("Prefer", "return=representation")]
           "id,name,client_id\n8,Xenix,1\n9,Windows NT,1"
           `shouldRespondWith` "id\n8\n9"
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "text/csv; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "text/csv; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -803,8 +803,8 @@ spec withConfig = withConfig baseCfg $ do
       it "fails for too few" $
         request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
           `shouldRespondWith` [json|{"message":"All lines must have same number of fields","code":"PGRST102","details":null,"hint":null}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
   describe "Row level permission" $
@@ -836,8 +836,8 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "return=representation")]
         [json|{"id":6, "name":"wot", "p_web_id":4}|]
         `shouldRespondWith` [json|[{"id":6,"name":"wot","parent_content":{"name":"wut"}}]|]
-          { matchStatus = 201
-          , matchHeaders = [matchContentTypeJson, matchHeaderAbsent hLocation]
+          { matchStatus = 201,
+            matchHeaders = [matchContentTypeJson, matchHeaderAbsent hLocation]
           }
 
   context "table with limited privileges" $ do
@@ -848,8 +848,8 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "return=representation")]
         [json| {"article_id": 2, "user_id": 1} |]
         `shouldRespondWith` [json|[{"article_id":2,"user_id":1}]|]
-          { matchStatus = 201
-          , matchHeaders = []
+          { matchStatus = 201,
+            matchHeaders = []
           }
 
     it "fails inserting if more columns are selected" $
@@ -859,8 +859,8 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "return=representation")]
         [json| {"article_id": 2, "user_id": 2} |]
         `shouldRespondWith` [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-          { matchStatus = 401
-          , matchHeaders = []
+          { matchStatus = 401,
+            matchHeaders = []
           }
 
     it "fails inserting if select is not specified" $
@@ -870,8 +870,8 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "return=representation")]
         [json| {"article_id": 3, "user_id": 1} |]
         `shouldRespondWith` [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-          { matchStatus = 401
-          , matchHeaders = []
+          { matchStatus = 401,
+            matchHeaders = []
           }
 
     it "can insert in a table with no select and return=minimal" $ do
@@ -881,11 +881,11 @@ spec withConfig = withConfig baseCfg $ do
         [("Prefer", "return=minimal")]
         [json| { "v":"some value" } |]
         `shouldRespondWith` ""
-          { matchStatus = 201
-          , matchHeaders =
-              [ matchHeaderAbsent hContentType
-              , "Content-Length" <:> "0"
-              , "Preference-Applied" <:> "return=minimal"
+          { matchStatus = 201,
+            matchHeaders =
+              [ matchHeaderAbsent hContentType,
+                "Content-Length" <:> "0",
+                "Preference-Applied" <:> "return=minimal"
               ]
           }
 
@@ -896,11 +896,11 @@ spec withConfig = withConfig baseCfg $ do
           "/compound_pk_view"
           [json|{"k1":1,"k2":"test","extra":2}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , matchHeaderAbsent hLocation
-                , "Content-Length" <:> "0"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  matchHeaderAbsent hLocation,
+                  "Content-Length" <:> "0"
                 ]
             }
 
@@ -911,13 +911,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json|{"pk1":1,"pk2":2}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -929,13 +929,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json|{"k1":1,"k2":"test","extra":2}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -946,13 +946,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json|{"id":1}|]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -967,13 +967,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/datarep_todos?id=eq.5"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/datarep_todos?id=eq.5",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -984,10 +984,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
           `shouldRespondWith` [json| [{"id":5, "label_color": "#001100"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -998,10 +998,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00", "icon_image": "3q2+7w", "created_at":-15, "budget": "-100000000000000.13"} |]
           `shouldRespondWith` [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "icon_image": "3q2+7w==", "created_at":-15, "budget": "-100000000000000.13"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -1013,10 +1013,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
           `shouldRespondWith` [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -1027,8 +1027,8 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
           `shouldRespondWith` [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos' in the schema cache"} |]
-            { matchStatus = 400
-            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+            { matchStatus = 400,
+              matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
             }
 
     context "on updatable view" $ do
@@ -1041,13 +1041,13 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=headers-only")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
           `shouldRespondWith` ""
-            { matchStatus = 201
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Location" <:> "/datarep_todos_computed?id=eq.5"
-                , "Content-Range" <:> "*/*"
-                , "Content-Length" <:> "0"
-                , "Preference-Applied" <:> "return=headers-only"
+            { matchStatus = 201,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Location" <:> "/datarep_todos_computed?id=eq.5",
+                  "Content-Range" <:> "*/*",
+                  "Content-Length" <:> "0",
+                  "Preference-Applied" <:> "return=headers-only"
                 ]
             }
 
@@ -1058,10 +1058,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
           `shouldRespondWith` [json| [{"id":5, "label_color": "#001100"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -1072,10 +1072,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
           `shouldRespondWith` [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "dark_color":"#000880"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -1087,10 +1087,10 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
           `shouldRespondWith` [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
-            { matchStatus = 201
-            , matchHeaders =
-                [ "Content-Type" <:> "application/json; charset=utf-8"
-                , "Content-Range" <:> "*/*"
+            { matchStatus = 201,
+              matchHeaders =
+                [ "Content-Type" <:> "application/json; charset=utf-8",
+                  "Content-Range" <:> "*/*"
                 ]
             }
 
@@ -1101,6 +1101,6 @@ spec withConfig = withConfig baseCfg $ do
           [("Prefer", "return=representation")]
           [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
           `shouldRespondWith` [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos_computed' in the schema cache"} |]
-            { matchStatus = 400
-            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+            { matchStatus = 400,
+              matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
             }

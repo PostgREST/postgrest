@@ -25,13 +25,13 @@ import PostgREST.SchemaCache.Routine
   )
 
 data CallPlan = FunctionCall
-  { funCQi :: QualifiedIdentifier
-  , funCParams :: CallParams
-  , funCArgs :: CallArgs
-  , funCScalar :: Bool
-  , funCSetOfScalar :: Bool
-  , funCFilterFields :: Set FieldName
-  , funCReturning :: Set FieldName
+  { funCQi :: QualifiedIdentifier,
+    funCParams :: CallParams,
+    funCArgs :: CallArgs,
+    funCScalar :: Bool,
+    funCSetOfScalar :: Bool,
+    funCFilterFields :: Set FieldName,
+    funCReturning :: Set FieldName
   }
 
 data CallParams

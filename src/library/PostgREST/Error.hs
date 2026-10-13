@@ -69,15 +69,15 @@ errorPayload verb = JSON.encode . toJsonPgrstError verb
     toJsonPgrstError :: (ErrorBody a, ErrorHeaders a) => Verbosity -> a -> JSON.Value
     toJsonPgrstError Verbose err =
       JSON.object
-        [ "code" .= code err
-        , "message" .= message err
-        , "details" .= details err
-        , "hint" .= hint err
+        [ "code" .= code err,
+          "message" .= message err,
+          "details" .= details err,
+          "hint" .= hint err
         ]
     toJsonPgrstError Minimal err =
       JSON.object
-        [ "code" .= code err
-        , "message" .= message err
+        [ "code" .= code err,
+          "message" .= message err
         ]
 
 -- | Create HTTP response from Error
@@ -415,20 +415,20 @@ compressedRel Relationship{..} =
         ("embedding" .= (qiName relTable <> " with " <> qiName relForeignTable :: Text))
           : case relCardinality of
             M2M Junction{..} ->
-              [ "cardinality" .= ("many-to-many" :: Text)
-              , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColsSource) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColsTarget))
+              [ "cardinality" .= ("many-to-many" :: Text),
+                "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColsSource) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColsTarget))
               ]
             M2O cons relColumns ->
-              [ "cardinality" .= ("many-to-one" :: Text)
-              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              [ "cardinality" .= ("many-to-one" :: Text),
+                "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
               ]
             O2O cons relColumns _ ->
-              [ "cardinality" .= ("one-to-one" :: Text)
-              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              [ "cardinality" .= ("one-to-one" :: Text),
+                "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
               ]
             O2M cons relColumns ->
-              [ "cardinality" .= ("one-to-many" :: Text)
-              , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
+              [ "cardinality" .= ("one-to-many" :: Text),
+                "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
               ]
 
 relHint :: [Relationship] -> Text

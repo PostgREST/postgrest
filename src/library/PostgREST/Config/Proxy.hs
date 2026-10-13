@@ -15,10 +15,10 @@ import Protolude hiding (Proxy)
 import Data.Text qualified as T
 
 data Proxy = Proxy
-  { proxyScheme :: Text
-  , proxyHost :: Text
-  , proxyPort :: Integer
-  , proxyPath :: Text
+  { proxyScheme :: Text,
+    proxyHost :: Text,
+    proxyPort :: Integer,
+    proxyPath :: Text
   }
 
 -- |

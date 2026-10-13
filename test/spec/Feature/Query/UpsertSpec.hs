@@ -31,8 +31,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "Java", "rank": 2 },
               { "name": "C", "rank": 1 }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "UPDATEs rows on pk conflict" $
@@ -50,8 +50,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "Java", "rank": 2 },
               { "name": "C", "rank": 1 }
             ]|]
-              { matchStatus = 200
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 200,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs row on composite pk conflict" $
@@ -67,8 +67,8 @@ spec withConfig = withConfig baseCfg $
               { "first_name": "Frances M.", "last_name": "Roe", "salary": "$30,000.00", "company": "One-Up Realty", "occupation": "Author" },
               { "first_name": "Peter S.", "last_name": "Yang", "salary": "$42,000.00", "company": null, "occupation": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows on composite pk conflict for partitioned tables" $
@@ -84,8 +84,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "Murcielago", "year": 2001, "car_brand_name": null},
               { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "succeeds when the payload has no elements" $
@@ -95,8 +95,8 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[]|]
             `shouldRespondWith` [json|[]|]
-              { matchStatus = 200 -- nothing was inserted, so it should be 200
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 200, -- nothing was inserted, so it should be 200
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows on single unique key conflict" $
@@ -112,8 +112,8 @@ spec withConfig = withConfig baseCfg $
               { "unique_key": 1, "value": "B" },
               { "unique_key": 2, "value": "C" }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows on compound unique keys conflict" $
@@ -129,8 +129,8 @@ spec withConfig = withConfig baseCfg $
               { "key1": 1, "key2": 1, "value": "B" },
               { "key1": 1, "key2": 2, "value": "C" }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows with SERIAL surrogate primary keys using Prefer: missing=default" $
@@ -146,8 +146,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "updated value", "extra": "existing value" },
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows with GENERATED BY DEFAULT surrogate primary keys using Prefer: missing=default" $
@@ -163,8 +163,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "updated value", "extra": "existing value" },
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows with case sensitive table name with GENERATED BY DEFAULT surrogate primary keys using Prefer: missing=default" $
@@ -180,8 +180,8 @@ spec withConfig = withConfig baseCfg $
               { "name": "updated value", "extra": "existing value cs" },
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "succeeds if the table has only PK cols and no other cols" $
@@ -191,10 +191,10 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
             `shouldRespondWith` [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
-              { matchStatus = 201
-              , matchHeaders =
-                  [ "Preference-Applied" <:> "resolution=merge-duplicates, return=representation"
-                  , matchContentTypeJson
+              { matchStatus = 201,
+                matchHeaders =
+                  [ "Preference-Applied" <:> "resolution=merge-duplicates, return=representation",
+                    matchContentTypeJson
                   ]
               }
 
@@ -205,10 +205,10 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[ { "a": "1", "b": "0" } ]|]
             `shouldRespondWith` [json|[ { "a": "1", "b": "0" } ]|]
-              { matchStatus = 201
-              , matchHeaders =
-                  [ matchContentTypeJson
-                  , "Preference-Applied" <:> "return=representation"
+              { matchStatus = 201,
+                matchHeaders =
+                  [ matchContentTypeJson,
+                    "Preference-Applied" <:> "return=representation"
                   ]
               }
 
@@ -225,8 +225,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json|[
               { "name": "PHP", "rank": 9 }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and ignores rows on composite pk conflict" $
@@ -241,8 +241,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json|[
               { "first_name": "Sara M.", "last_name": "Torpey", "salary": "$60,000.00", "company": "Burstein-Applebee", "occupation": "Soil scientist" }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and ignores rows on composite pk conflict for partitioned tables" $
@@ -257,8 +257,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json| [
               { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and ignores rows on single unique key conflict" $
@@ -275,8 +275,8 @@ spec withConfig = withConfig baseCfg $
                 { "unique_key": 2, "value": "C" },
                 { "unique_key": 3, "value": "D" }
               ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
               }
 
         it "INSERTs and UPDATEs rows on compound unique keys conflict" $
@@ -293,8 +293,8 @@ spec withConfig = withConfig baseCfg $
                 { "key1": 1, "key2": 2, "value": "C" },
                 { "key1": 1, "key2": 3, "value": "D" }
               ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
               }
 
         it "INSERTs and UPDATEs rows with SERIAL surrogate primary keys using Prefer: missing=default" $
@@ -309,8 +309,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json| [
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows with GENERATED BY DEFAULT surrogate primary keys using Prefer: missing=default" $
@@ -325,8 +325,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json| [
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and UPDATEs rows with case sensitive table name GENERATED BY DEFAULT surrogate primary keys using Prefer: missing=default" $
@@ -341,8 +341,8 @@ spec withConfig = withConfig baseCfg $
             `shouldRespondWith` [json| [
               { "name": "new value", "extra": null }
             ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, missing=default, return=representation", matchContentTypeJson]
               }
 
         it "succeeds if the table has only PK cols and no other cols" $
@@ -352,10 +352,10 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
             [json|[ { "id": 1 }, { "id": 2 }, { "id": 3} ]|]
             `shouldRespondWith` [json|[ { "id": 3} ]|]
-              { matchStatus = 201
-              , matchHeaders =
-                  [ "Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"
-                  , matchContentTypeJson
+              { matchStatus = 201,
+                matchHeaders =
+                  [ "Preference-Applied" <:> "resolution=ignore-duplicates, return=representation",
+                    matchContentTypeJson
                   ]
               }
 
@@ -366,8 +366,8 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
             [json|[ { "name": "Java", "rank": 1 } ]|]
             `shouldRespondWith` [json|[]|]
-              { matchStatus = 201
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = [matchContentTypeJson]
               }
 
           request
@@ -376,8 +376,8 @@ spec withConfig = withConfig baseCfg $
             [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
             [json|[ { "name": "Java", "rank": 1 }, { "name": "C", "rank": 2 } ]|]
             `shouldRespondWith` [json|[]|]
-              { matchStatus = 201
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 201,
+                matchHeaders = [matchContentTypeJson]
               }
 
     context "with PUT" $ do
@@ -387,8 +387,8 @@ spec withConfig = withConfig baseCfg $
             "/tiobe_pls?name=eq.Javascript&limit=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith` [json|{"message":"limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "fails if offset is specified" $
@@ -396,8 +396,8 @@ spec withConfig = withConfig baseCfg $
             "/tiobe_pls?name=eq.Javascript&offset=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith` [json|{"message":"limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
-              { matchStatus = 400
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 400,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "rejects every other filter than pk cols eq's" $ do
@@ -405,30 +405,30 @@ spec withConfig = withConfig baseCfg $
             "/tiobe_pls?rank=eq.19"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
 
           put
             "/tiobe_pls?id=not.eq.Java"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
           put
             "/tiobe_pls?id=in.(Go)"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
           put
             "/tiobe_pls?and=(id.eq.Go)"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
 
         it "fails if not all composite key cols are specified as eq filters" $ do
@@ -436,36 +436,36 @@ spec withConfig = withConfig baseCfg $
             "/employees?first_name=eq.Susan"
             [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
           put
             "/employees?last_name=eq.Heidt"
             [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-              { matchStatus = 405
-              , matchHeaders = [matchContentTypeJson]
+              { matchStatus = 405,
+                matchHeaders = [matchContentTypeJson]
               }
 
       it "fails if the uri primary key doesn't match the payload primary key" $ do
         put "/tiobe_pls?name=eq.MATLAB" [json| [ { "name": "Perl", "rank": 17 } ]|]
           `shouldRespondWith` [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST115","details":null,"hint":null}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
         put
           "/employees?first_name=eq.Wendy&last_name=eq.Anderson"
           [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
           `shouldRespondWith` [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST115","details":null,"hint":null}|]
-            { matchStatus = 400
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 400,
+              matchHeaders = [matchContentTypeJson]
             }
 
       it "fails if the table has no PK" $
         put "/no_pk?a=eq.one&b=eq.two" [json| [ { "a": "one", "b": "two" } ]|]
           `shouldRespondWith` [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
-            { matchStatus = 405
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 405,
+              matchHeaders = [matchContentTypeJson]
             }
 
       context "Inserting row" $ do
@@ -609,8 +609,8 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
           [json| [ { "name": "Ruby", "rank": 11 } ]|]
           `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|]
-            { matchStatus = 201
-            , matchHeaders = [matchContentTypeSingular]
+            { matchStatus = 201,
+              matchHeaders = [matchContentTypeSingular]
             }
 
     context "with a camel case pk column" $ do
@@ -627,8 +627,8 @@ spec withConfig = withConfig baseCfg $
               { "idUnitTest": 1, "nameUnitTest": "name of unittest 1" },
               { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
             ]|]
-            { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation"]
+            { matchStatus = 201,
+              matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation"]
             }
 
       it "works with POST and ignore-duplicates headers" $ do
@@ -643,8 +643,8 @@ spec withConfig = withConfig baseCfg $
           `shouldRespondWith` [json|[
               { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
             ]|]
-            { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
+            { matchStatus = 201,
+              matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
             }
 
       it "works with PUT" $ do
@@ -652,8 +652,8 @@ spec withConfig = withConfig baseCfg $
           "/UnitTest?idUnitTest=eq.1"
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            { matchStatus = 204,
+              matchHeaders = [matchHeaderAbsent hContentType]
             }
         get "/UnitTest?idUnitTest=eq.1"
           `shouldRespondWith` [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
@@ -665,10 +665,10 @@ spec withConfig = withConfig baseCfg $
           [("Prefer", "return=minimal")]
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
           `shouldRespondWith` ""
-            { matchStatus = 204
-            , matchHeaders =
-                [ matchHeaderAbsent hContentType
-                , "Preference-Applied" <:> "return=minimal"
+            { matchStatus = 204,
+              matchHeaders =
+                [ matchHeaderAbsent hContentType,
+                  "Preference-Applied" <:> "return=minimal"
                 ]
             }
         get "/UnitTest?idUnitTest=eq.1"
@@ -684,8 +684,8 @@ spec withConfig = withConfig baseCfg $
           `shouldRespondWith` [json|
             [ { "id": 0, "name": "tardis-upserted", "web_content": [ { "name": "bar" }, { "name": "fezz" }, { "name": "foo" } ]} ]
           |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
             }
 
       it "works with batch upserts and embedded resource" $
@@ -696,6 +696,6 @@ spec withConfig = withConfig baseCfg $
           [json| [{ "id": 1, "name": "duster-updated" },
                   { "id": 2, "name": "bcnr-updated" }] |]
           `shouldRespondWith` [json|  [{"id":2,"name":"bcnr-updated","albums":[{"title": "ants from up above"}]}, {"id":1,"name":"duster-updated","albums":[{"title": "stratosphere"}, {"title": "contemporary movement"}]}] |]
-            { matchStatus = 200
-            , matchHeaders = [matchContentTypeJson]
+            { matchStatus = 200,
+              matchHeaders = [matchContentTypeJson]
             }

@@ -84,59 +84,59 @@ audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg = maybe (const True) (==) . configJwtAudience
 
 data AppConfig = AppConfig
-  { configAppSettings :: [(Text, Text)]
-  , configClientErrorVerbosity :: Verbosity
-  , configDbAggregates :: Bool
-  , configDbAnonRole :: Maybe BS.ByteString
-  , configDbChannel :: Text
-  , configDbChannelEnabled :: Bool
-  , configDbExtraSearchPath :: [Text]
-  , configDbHoistedTxSettings :: [Text]
-  , configDbMaxRows :: Maybe Integer
-  , configDbPlanEnabled :: Bool
-  , configDbPoolSize :: Int
-  , configDbPoolAcquisitionTimeout :: Int
-  , configDbPoolMaxLifetime :: Int
-  , configDbPoolMaxIdletime :: Int
-  , configDbPoolAutomaticRecovery :: Bool
-  , configDbPreRequest :: Maybe QualifiedIdentifier
-  , configDbPreparedStatements :: Bool
-  , configDbRootSpec :: Maybe QualifiedIdentifier
-  , configDbSchemas :: NonEmpty Text
-  , configDbConfig :: Bool
-  , configDbPreConfig :: Maybe QualifiedIdentifier
-  , configDbTxAllowOverride :: Bool
-  , configDbTxRollbackAll :: Bool
-  , configDbUri :: Text
-  , configFilePath :: Maybe FilePath
-  , configJWKS :: Maybe JwkSet
-  , configJwtAudience :: Maybe Text
-  , configJwtRoleClaimKey :: Either DeprecatedJSPath JSPath
-  , configJwtSecret :: Maybe BS.ByteString
-  , configJwtSecretIsBase64 :: Bool
-  , configJwtCacheMaxEntries :: Int
-  , configLogLevel :: LogLevel
-  , configLogQuery :: Bool
-  , configOpenApiMode :: OpenAPIMode
-  , configOpenApiSecurityActive :: Bool
-  , configOpenApiServerProxyUri :: Maybe Text
-  , configServerCorsAllowedOrigins :: [Text]
-  , configServerHost :: Text
-  , configServerPort :: Int
-  , configServerReusePort :: Bool
-  , configServerTraceHeader :: Maybe (CI.CI BS.ByteString)
-  , configServerTimingEnabled :: Bool
-  , configServerUnixSocket :: Maybe FilePath
-  , configServerUnixSocketMode :: FileMode
-  , configUrlUseLegacyTargetNames :: Bool
-  , configAdminServerHost :: Text
-  , configAdminServerPort :: Maybe Int
-  , configAdminServerUnixSocket :: Maybe FilePath
-  , configAdminServerUnixSocketMode :: FileMode
-  , configRoleSettings :: RoleSettings
-  , configRoleIsoLvl :: RoleIsolationLvl
-  , configInternalSCQuerySleepFst :: Maybe Int32
-  , configInternalSCQuerySleepSnd :: Maybe Int32
+  { configAppSettings :: [(Text, Text)],
+    configClientErrorVerbosity :: Verbosity,
+    configDbAggregates :: Bool,
+    configDbAnonRole :: Maybe BS.ByteString,
+    configDbChannel :: Text,
+    configDbChannelEnabled :: Bool,
+    configDbExtraSearchPath :: [Text],
+    configDbHoistedTxSettings :: [Text],
+    configDbMaxRows :: Maybe Integer,
+    configDbPlanEnabled :: Bool,
+    configDbPoolSize :: Int,
+    configDbPoolAcquisitionTimeout :: Int,
+    configDbPoolMaxLifetime :: Int,
+    configDbPoolMaxIdletime :: Int,
+    configDbPoolAutomaticRecovery :: Bool,
+    configDbPreRequest :: Maybe QualifiedIdentifier,
+    configDbPreparedStatements :: Bool,
+    configDbRootSpec :: Maybe QualifiedIdentifier,
+    configDbSchemas :: NonEmpty Text,
+    configDbConfig :: Bool,
+    configDbPreConfig :: Maybe QualifiedIdentifier,
+    configDbTxAllowOverride :: Bool,
+    configDbTxRollbackAll :: Bool,
+    configDbUri :: Text,
+    configFilePath :: Maybe FilePath,
+    configJWKS :: Maybe JwkSet,
+    configJwtAudience :: Maybe Text,
+    configJwtRoleClaimKey :: Either DeprecatedJSPath JSPath,
+    configJwtSecret :: Maybe BS.ByteString,
+    configJwtSecretIsBase64 :: Bool,
+    configJwtCacheMaxEntries :: Int,
+    configLogLevel :: LogLevel,
+    configLogQuery :: Bool,
+    configOpenApiMode :: OpenAPIMode,
+    configOpenApiSecurityActive :: Bool,
+    configOpenApiServerProxyUri :: Maybe Text,
+    configServerCorsAllowedOrigins :: [Text],
+    configServerHost :: Text,
+    configServerPort :: Int,
+    configServerReusePort :: Bool,
+    configServerTraceHeader :: Maybe (CI.CI BS.ByteString),
+    configServerTimingEnabled :: Bool,
+    configServerUnixSocket :: Maybe FilePath,
+    configServerUnixSocketMode :: FileMode,
+    configUrlUseLegacyTargetNames :: Bool,
+    configAdminServerHost :: Text,
+    configAdminServerPort :: Maybe Int,
+    configAdminServerUnixSocket :: Maybe FilePath,
+    configAdminServerUnixSocketMode :: FileMode,
+    configRoleSettings :: RoleSettings,
+    configRoleIsoLvl :: RoleIsolationLvl,
+    configInternalSCQuerySleepFst :: Maybe Int32,
+    configInternalSCQuerySleepSnd :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -176,51 +176,51 @@ toText conf =
     -- apply conf to all pgrst settings
     pgrstSettings =
       (\(k, v) -> (k, v conf))
-        <$> [ ("client-error-verbosity", q . dumpClientErrorVerbosity . configClientErrorVerbosity)
-            , ("db-aggregates-enabled", T.toLower . show . configDbAggregates)
-            , ("db-anon-role", q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
-            , ("db-channel", q . configDbChannel)
-            , ("db-channel-enabled", T.toLower . show . configDbChannelEnabled)
-            , ("db-extra-search-path", q . T.intercalate "," . configDbExtraSearchPath)
-            , ("db-hoisted-tx-settings", q . T.intercalate "," . configDbHoistedTxSettings)
-            , ("db-max-rows", maybe "\"\"" show . configDbMaxRows)
-            , ("db-plan-enabled", T.toLower . show . configDbPlanEnabled)
-            , ("db-pool", show . configDbPoolSize)
-            , ("db-pool-acquisition-timeout", show . configDbPoolAcquisitionTimeout)
-            , ("db-pool-max-lifetime", show . configDbPoolMaxLifetime)
-            , ("db-pool-max-idletime", show . configDbPoolMaxIdletime)
-            , ("db-pool-automatic-recovery", T.toLower . show . configDbPoolAutomaticRecovery)
-            , ("db-pre-request", q . maybe mempty dumpQi . configDbPreRequest)
-            , ("db-prepared-statements", T.toLower . show . configDbPreparedStatements)
-            , ("db-root-spec", q . maybe mempty dumpQi . configDbRootSpec)
-            , ("db-schemas", q . T.intercalate "," . toList . configDbSchemas)
-            , ("db-config", T.toLower . show . configDbConfig)
-            , ("db-pre-config", q . maybe mempty dumpQi . configDbPreConfig)
-            , ("db-tx-end", q . showTxEnd)
-            , ("db-uri", q . configDbUri)
-            , ("jwt-aud", q . fromMaybe mempty . configJwtAudience)
-            , ("jwt-role-claim-key", q . dumpJwtRoleClaimKey . configJwtRoleClaimKey)
-            , ("jwt-secret", q . T.decodeUtf8 . showJwtSecret)
-            , ("jwt-secret-is-base64", T.toLower . show . configJwtSecretIsBase64)
-            , ("jwt-cache-max-entries", show . configJwtCacheMaxEntries)
-            , ("log-level", q . dumpLogLevel . configLogLevel)
-            , ("log-query", T.toLower . show . configLogQuery)
-            , ("openapi-mode", q . dumpOpenApiMode . configOpenApiMode)
-            , ("openapi-security-active", T.toLower . show . configOpenApiSecurityActive)
-            , ("openapi-server-proxy-uri", q . fromMaybe mempty . configOpenApiServerProxyUri)
-            , ("server-cors-allowed-origins", q . T.intercalate "," . configServerCorsAllowedOrigins)
-            , ("server-host", q . configServerHost)
-            , ("server-port", show . configServerPort)
-            , ("server-reuseport", T.toLower . show . configServerReusePort)
-            , ("server-trace-header", q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
-            , ("server-timing-enabled", T.toLower . show . configServerTimingEnabled)
-            , ("server-unix-socket", q . maybe mempty T.pack . configServerUnixSocket)
-            , ("server-unix-socket-mode", q . T.pack . showSocketMode)
-            , ("url-use-legacy-target-names", T.toLower . show . configUrlUseLegacyTargetNames)
-            , ("admin-server-host", q . configAdminServerHost)
-            , ("admin-server-port", maybe "\"\"" show . configAdminServerPort)
-            , ("admin-server-unix-socket", q . maybe mempty T.pack . configAdminServerUnixSocket)
-            , ("admin-server-unix-socket-mode", q . T.pack . showAdminSocketMode)
+        <$> [ ("client-error-verbosity", q . dumpClientErrorVerbosity . configClientErrorVerbosity),
+              ("db-aggregates-enabled", T.toLower . show . configDbAggregates),
+              ("db-anon-role", q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole),
+              ("db-channel", q . configDbChannel),
+              ("db-channel-enabled", T.toLower . show . configDbChannelEnabled),
+              ("db-extra-search-path", q . T.intercalate "," . configDbExtraSearchPath),
+              ("db-hoisted-tx-settings", q . T.intercalate "," . configDbHoistedTxSettings),
+              ("db-max-rows", maybe "\"\"" show . configDbMaxRows),
+              ("db-plan-enabled", T.toLower . show . configDbPlanEnabled),
+              ("db-pool", show . configDbPoolSize),
+              ("db-pool-acquisition-timeout", show . configDbPoolAcquisitionTimeout),
+              ("db-pool-max-lifetime", show . configDbPoolMaxLifetime),
+              ("db-pool-max-idletime", show . configDbPoolMaxIdletime),
+              ("db-pool-automatic-recovery", T.toLower . show . configDbPoolAutomaticRecovery),
+              ("db-pre-request", q . maybe mempty dumpQi . configDbPreRequest),
+              ("db-prepared-statements", T.toLower . show . configDbPreparedStatements),
+              ("db-root-spec", q . maybe mempty dumpQi . configDbRootSpec),
+              ("db-schemas", q . T.intercalate "," . toList . configDbSchemas),
+              ("db-config", T.toLower . show . configDbConfig),
+              ("db-pre-config", q . maybe mempty dumpQi . configDbPreConfig),
+              ("db-tx-end", q . showTxEnd),
+              ("db-uri", q . configDbUri),
+              ("jwt-aud", q . fromMaybe mempty . configJwtAudience),
+              ("jwt-role-claim-key", q . dumpJwtRoleClaimKey . configJwtRoleClaimKey),
+              ("jwt-secret", q . T.decodeUtf8 . showJwtSecret),
+              ("jwt-secret-is-base64", T.toLower . show . configJwtSecretIsBase64),
+              ("jwt-cache-max-entries", show . configJwtCacheMaxEntries),
+              ("log-level", q . dumpLogLevel . configLogLevel),
+              ("log-query", T.toLower . show . configLogQuery),
+              ("openapi-mode", q . dumpOpenApiMode . configOpenApiMode),
+              ("openapi-security-active", T.toLower . show . configOpenApiSecurityActive),
+              ("openapi-server-proxy-uri", q . fromMaybe mempty . configOpenApiServerProxyUri),
+              ("server-cors-allowed-origins", q . T.intercalate "," . configServerCorsAllowedOrigins),
+              ("server-host", q . configServerHost),
+              ("server-port", show . configServerPort),
+              ("server-reuseport", T.toLower . show . configServerReusePort),
+              ("server-trace-header", q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader),
+              ("server-timing-enabled", T.toLower . show . configServerTimingEnabled),
+              ("server-unix-socket", q . maybe mempty T.pack . configServerUnixSocket),
+              ("server-unix-socket-mode", q . T.pack . showSocketMode),
+              ("url-use-legacy-target-names", T.toLower . show . configUrlUseLegacyTargetNames),
+              ("admin-server-host", q . configAdminServerHost),
+              ("admin-server-port", maybe "\"\"" show . configAdminServerPort),
+              ("admin-server-unix-socket", q . maybe mempty T.pack . configAdminServerUnixSocket),
+              ("admin-server-unix-socket-mode", q . T.pack . showAdminSocketMode)
             ]
 
     dumpJwtRoleClaimKey :: Either DeprecatedJSPath JSPath -> Text
@@ -703,8 +703,8 @@ addTargetSessionAttrs dbUri = addConnStringOption dbUri "target_session_attrs" "
 
 toConnectionSettings :: (Text -> Text) -> AppConfig -> [SQL.Setting]
 toConnectionSettings transformUri AppConfig{configDbUri, configDbPreparedStatements} =
-  [ SQL.connection $ SQL.string $ transformUri . addFallbackAppName prettyVersion $ configDbUri
-  , SQL.usePreparedStatements configDbPreparedStatements
+  [ SQL.connection $ SQL.string $ transformUri . addFallbackAppName prettyVersion $ configDbUri,
+    SQL.usePreparedStatements configDbPreparedStatements
   ]
 
 addConnStringOption :: Text -> Text -> Text -> Text
@@ -726,123 +726,123 @@ addConnStringOption dbUri key val =
 exampleConfigFile :: [Char]
 exampleConfigFile =
   S.unlines
-    [ "## Admin server used for checks. It's disabled by default unless a port is specified."
-    , "# admin-server-port = 3001"
-    , ""
-    , "# PostgREST error json verbosity config"
-    , "# client-error-verbosity = \"verbose\""
-    , ""
-    , "## The database role to use when no client authentication is provided"
-    , "# db-anon-role = \"anon\""
-    , ""
-    , "## Notification channel for reloading the schema cache"
-    , "db-channel = \"pgrst\""
-    , ""
-    , "## Enable or disable the notification channel"
-    , "db-channel-enabled = true"
-    , ""
-    , "## Enable in-database configuration"
-    , "db-config = true"
-    , ""
-    , "## Function for in-database configuration"
-    , "## db-pre-config = \"postgrest.pre_config\""
-    , ""
-    , "## Extra schemas to add to the search_path of every request"
-    , "db-extra-search-path = \"public\""
-    , ""
-    , "## Limit rows in response"
-    , "# db-max-rows = 1000"
-    , ""
-    , "## Allow getting the EXPLAIN plan through the `Accept: application/vnd.pgrst.plan` header"
-    , "# db-plan-enabled = false"
-    , ""
-    , "## Number of open connections in the pool"
-    , "db-pool = 10"
-    , ""
-    , "## Time in seconds to wait to acquire a slot from the connection pool"
-    , "# db-pool-acquisition-timeout = 10"
-    , ""
-    , "## Time in seconds after which to recycle pool connections"
-    , "# db-pool-max-lifetime = 1800"
-    , ""
-    , "## Time in seconds after which to recycle unused pool connections"
-    , "# db-pool-max-idletime = 30"
-    , ""
-    , "## Allow automatic database connection retrying"
-    , "# db-pool-automatic-recovery = true"
-    , ""
-    , "## Stored proc to exec immediately after auth"
-    , "# db-pre-request = \"stored_proc_name\""
-    , ""
-    , "## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler."
-    , "## When disabled, statements will be parametrized but won't be prepared."
-    , "db-prepared-statements = true"
-    , ""
-    , "## The name of which database schema to expose to REST clients"
-    , "db-schemas = \"public\""
-    , ""
-    , "## How to terminate database transactions"
-    , "## Possible values are:"
-    , "## commit (default)"
-    , "##   Transaction is always committed, this can not be overridden"
-    , "## commit-allow-override"
-    , "##   Transaction is committed, but can be overridden with Prefer tx=rollback header"
-    , "## rollback"
-    , "##   Transaction is always rolled back, this can not be overridden"
-    , "## rollback-allow-override"
-    , "##   Transaction is rolled back, but can be overridden with Prefer tx=commit header"
-    , "db-tx-end = \"commit\""
-    , ""
-    , "## The standard connection URI format, documented at"
-    , "## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING"
-    , "db-uri = \"postgresql://\""
-    , ""
-    , "# jwt-aud = \"your_audience_claim\""
-    , ""
-    , "## Jspath to the role claim key"
-    , "jwt-role-claim-key = \".role\""
-    , ""
-    , "## Choose a secret, JSON Web Key (or set) to enable JWT auth"
-    , "## (use \"@filename\" to load from separate file)"
-    , "# jwt-secret = \"secret_with_at_least_32_characters\""
-    , "jwt-secret-is-base64 = false"
-    , ""
-    , "## Enables JWT Cache and sets its max size, disables caching with 0"
-    , "# jwt-cache-max-entries = 0"
-    , ""
-    , "## Logging level, the admitted values are: crit, error, warn, info and debug."
-    , "log-level = \"error\""
-    , ""
-    , "## Log the SQL query at the current log-level."
-    , "log-query = false"
-    , ""
-    , "## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely."
-    , "## Admitted values: follow-privileges, ignore-privileges, disabled"
-    , "openapi-mode = \"follow-privileges\""
-    , ""
-    , "## Base url for the OpenAPI output"
-    , "openapi-server-proxy-uri = \"\""
-    , ""
-    , "## Configurable CORS origins"
-    , "# server-cors-allowed-origins = \"\""
-    , ""
-    , "server-host = \"!4\""
-    , "server-port = 3000"
-    , "server-reuseport = false"
-    , ""
-    , "## Allow getting the request-response timing information through the `Server-Timing` header"
-    , "server-timing-enabled = false"
-    , ""
-    , "## Unix socket location"
-    , "## if specified it takes precedence over server-port"
-    , "# server-unix-socket = \"/tmp/pgrst.sock\""
-    , ""
-    , "## Unix socket file mode"
-    , "## When none is provided, 660 is applied by default"
-    , "# server-unix-socket-mode = \"660\""
-    , ""
-    , "## Use legacy target names in relationship filters"
-    , "## If active, allows using the target name of the relationship in filters even if it has an alias."
-    , "## Otherwise it only allows the alias in filters"
-    , "url-use-legacy-target-names = true"
+    [ "## Admin server used for checks. It's disabled by default unless a port is specified.",
+      "# admin-server-port = 3001",
+      "",
+      "# PostgREST error json verbosity config",
+      "# client-error-verbosity = \"verbose\"",
+      "",
+      "## The database role to use when no client authentication is provided",
+      "# db-anon-role = \"anon\"",
+      "",
+      "## Notification channel for reloading the schema cache",
+      "db-channel = \"pgrst\"",
+      "",
+      "## Enable or disable the notification channel",
+      "db-channel-enabled = true",
+      "",
+      "## Enable in-database configuration",
+      "db-config = true",
+      "",
+      "## Function for in-database configuration",
+      "## db-pre-config = \"postgrest.pre_config\"",
+      "",
+      "## Extra schemas to add to the search_path of every request",
+      "db-extra-search-path = \"public\"",
+      "",
+      "## Limit rows in response",
+      "# db-max-rows = 1000",
+      "",
+      "## Allow getting the EXPLAIN plan through the `Accept: application/vnd.pgrst.plan` header",
+      "# db-plan-enabled = false",
+      "",
+      "## Number of open connections in the pool",
+      "db-pool = 10",
+      "",
+      "## Time in seconds to wait to acquire a slot from the connection pool",
+      "# db-pool-acquisition-timeout = 10",
+      "",
+      "## Time in seconds after which to recycle pool connections",
+      "# db-pool-max-lifetime = 1800",
+      "",
+      "## Time in seconds after which to recycle unused pool connections",
+      "# db-pool-max-idletime = 30",
+      "",
+      "## Allow automatic database connection retrying",
+      "# db-pool-automatic-recovery = true",
+      "",
+      "## Stored proc to exec immediately after auth",
+      "# db-pre-request = \"stored_proc_name\"",
+      "",
+      "## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler.",
+      "## When disabled, statements will be parametrized but won't be prepared.",
+      "db-prepared-statements = true",
+      "",
+      "## The name of which database schema to expose to REST clients",
+      "db-schemas = \"public\"",
+      "",
+      "## How to terminate database transactions",
+      "## Possible values are:",
+      "## commit (default)",
+      "##   Transaction is always committed, this can not be overridden",
+      "## commit-allow-override",
+      "##   Transaction is committed, but can be overridden with Prefer tx=rollback header",
+      "## rollback",
+      "##   Transaction is always rolled back, this can not be overridden",
+      "## rollback-allow-override",
+      "##   Transaction is rolled back, but can be overridden with Prefer tx=commit header",
+      "db-tx-end = \"commit\"",
+      "",
+      "## The standard connection URI format, documented at",
+      "## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING",
+      "db-uri = \"postgresql://\"",
+      "",
+      "# jwt-aud = \"your_audience_claim\"",
+      "",
+      "## Jspath to the role claim key",
+      "jwt-role-claim-key = \".role\"",
+      "",
+      "## Choose a secret, JSON Web Key (or set) to enable JWT auth",
+      "## (use \"@filename\" to load from separate file)",
+      "# jwt-secret = \"secret_with_at_least_32_characters\"",
+      "jwt-secret-is-base64 = false",
+      "",
+      "## Enables JWT Cache and sets its max size, disables caching with 0",
+      "# jwt-cache-max-entries = 0",
+      "",
+      "## Logging level, the admitted values are: crit, error, warn, info and debug.",
+      "log-level = \"error\"",
+      "",
+      "## Log the SQL query at the current log-level.",
+      "log-query = false",
+      "",
+      "## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.",
+      "## Admitted values: follow-privileges, ignore-privileges, disabled",
+      "openapi-mode = \"follow-privileges\"",
+      "",
+      "## Base url for the OpenAPI output",
+      "openapi-server-proxy-uri = \"\"",
+      "",
+      "## Configurable CORS origins",
+      "# server-cors-allowed-origins = \"\"",
+      "",
+      "server-host = \"!4\"",
+      "server-port = 3000",
+      "server-reuseport = false",
+      "",
+      "## Allow getting the request-response timing information through the `Server-Timing` header",
+      "server-timing-enabled = false",
+      "",
+      "## Unix socket location",
+      "## if specified it takes precedence over server-port",
+      "# server-unix-socket = \"/tmp/pgrst.sock\"",
+      "",
+      "## Unix socket file mode",
+      "## When none is provided, 660 is applied by default",
+      "# server-unix-socket-mode = \"660\"",
+      "",
+      "## Use legacy target names in relationship filters",
+      "## If active, allows using the target name of the relationship in filters even if it has an alias.",
+      "## Otherwise it only allows the alias in filters",
+      "url-use-legacy-target-names = true"
     ]

@@ -33,12 +33,12 @@ initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool cfg@AppConfig{..} observer = do
   SQL.acquire $
     SQL.settings
-      [ SQL.size configDbPoolSize
-      , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
-      , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
-      , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-      , SQL.staticConnectionSettings $ toConnectionSettings identity cfg
-      , SQL.observationHandler $ observer . HasqlPoolObs
+      [ SQL.size configDbPoolSize,
+        SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout,
+        SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime,
+        SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime,
+        SQL.staticConnectionSettings $ toConnectionSettings identity cfg,
+        SQL.observationHandler $ observer . HasqlPoolObs
       ]
 
 -- | Run an action with a database connection.
