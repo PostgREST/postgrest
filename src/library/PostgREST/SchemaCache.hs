@@ -80,6 +80,7 @@ import PostgREST.Config.PgVersion (PgVersion)
 
 import Hasql.Decoders qualified as HD
 import Hasql.Encoders qualified as HE
+import Hasql.Helpers qualified as HH
 import Hasql.Statement qualified as SQL
 import Hasql.Transaction qualified as SQL
 import PostgREST.MediaType qualified as MediaType
@@ -182,7 +183,7 @@ querySchemaCache pgVer conf@AppConfig{..} = do
     schemas = toList configDbSchemas
     isLogDebug = configLogLevel == LogDebug
     sqlTimedStmt = sqlTimedStatement isLogDebug
-    sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True
+    sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (HH.param HE.int4) HD.noResult True
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap
@@ -229,25 +230,25 @@ decodeTables =
   where
     tblRow =
       Table
-        <$> column HD.text
-        <*> column HD.text
-        <*> nullableColumn HD.text
-        <*> column HD.bool
-        <*> column HD.bool
-        <*> column HD.bool
-        <*> column HD.bool
-        <*> arrayColumn HD.text
+        <$> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.nullableColumn HD.text
+        <*> HH.column HD.bool
+        <*> HH.column HD.bool
+        <*> HH.column HD.bool
+        <*> HH.column HD.bool
+        <*> HH.arrayColumn HD.text
         <*> parseCols
-          ( compositeArrayColumn
+          ( HH.compositeArrayColumn
               ( Column
-                  <$> compositeField HD.text
-                  <*> nullableCompositeField HD.text
-                  <*> compositeField HD.bool
-                  <*> compositeField HD.text
-                  <*> compositeField HD.text
-                  <*> nullableCompositeField HD.int4
-                  <*> nullableCompositeField HD.text
-                  <*> compositeFieldArray HD.text
+                  <$> HH.compositeField HD.text
+                  <*> HH.nullableCompositeField HD.text
+                  <*> HH.compositeField HD.bool
+                  <*> HH.compositeField HD.text
+                  <*> HH.compositeField HD.text
+                  <*> HH.nullableCompositeField HD.int4
+                  <*> HH.nullableCompositeField HD.text
+                  <*> HH.compositeFieldArray HD.text
               )
           )
 
@@ -261,12 +262,12 @@ decodeRels =
     relRow = (\(qi1, qi2, isSelf, constr, cols, isOneToOne) -> Relationship qi1 qi2 isSelf (if isOneToOne then O2O constr cols False else M2O constr cols) False False) <$> row
     row =
       (,,,,,)
-        <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> column HD.bool
-        <*> column HD.text
-        <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
-        <*> column HD.bool
+        <$> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> HH.column HD.bool
+        <*> HH.column HD.text
+        <*> HH.compositeArrayColumn ((,) <$> HH.compositeField HD.text <*> HH.compositeField HD.text)
+        <*> HH.column HD.bool
 
 decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
 decodeViewKeyDeps =
@@ -274,16 +275,16 @@ decodeViewKeyDeps =
   where
     row =
       (,,,,,,)
-        <$> column HD.text
-        <*> column HD.text
-        <*> column HD.text
-        <*> column HD.text
-        <*> column HD.text
-        <*> column HD.text
-        <*> compositeArrayColumn
+        <$> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.compositeArrayColumn
           ( (,)
-              <$> compositeField HD.text
-              <*> compositeFieldArray HD.text
+              <$> HH.compositeField HD.text
+              <*> HH.compositeFieldArray HD.text
           )
 
 viewKeyDepFromRow :: (Text, Text, Text, Text, Text, Text, [(Text, [Text])]) -> ViewKeyDependency
@@ -301,28 +302,28 @@ decodeFuncs =
   where
     funcRow =
       Function
-        <$> column HD.text
-        <*> column HD.text
-        <*> nullableColumn HD.text
-        <*> compositeArrayColumn
+        <$> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.nullableColumn HD.text
+        <*> HH.compositeArrayColumn
           ( RoutineParam
-              <$> compositeField HD.text
-              <*> compositeField HD.text
-              <*> compositeField HD.text
-              <*> compositeField HD.bool
-              <*> compositeField HD.bool
+              <$> HH.compositeField HD.text
+              <*> HH.compositeField HD.text
+              <*> HH.compositeField HD.text
+              <*> HH.compositeField HD.bool
+              <*> HH.compositeField HD.bool
           )
         <*> ( parseRetType
-                <$> column HD.text
-                <*> column HD.text
-                <*> column HD.bool
-                <*> column HD.bool
-                <*> column HD.bool
+                <$> HH.column HD.text
+                <*> HH.column HD.text
+                <*> HH.column HD.bool
+                <*> HH.column HD.bool
+                <*> HH.column HD.bool
             )
-        <*> (parseVolatility <$> column HD.char)
-        <*> column HD.bool
-        <*> nullableColumn (toIsolationLevel <$> HD.text)
-        <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
+        <*> (parseVolatility <$> HH.column HD.char)
+        <*> HH.column HD.bool
+        <*> HH.nullableColumn (toIsolationLevel <$> HD.text)
+        <*> HH.compositeArrayColumn ((,) <$> HH.compositeField HD.text <*> HH.compositeField HD.text) -- function setting
     addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
@@ -348,9 +349,9 @@ decodeRepresentations =
   where
     row =
       DataRepresentation
-        <$> column HD.text
-        <*> column HD.text
-        <*> column HD.text
+        <$> HH.column HD.text
+        <*> HH.column HD.text
+        <*> HH.column HD.text
 
 -- Selects all potential data representation transformations. To qualify the cast must be
 -- 1. to or from a domain
@@ -385,8 +386,8 @@ allFunctions :: PgVersion -> Bool -> SQL.Statement AppConfig RoutineMap
 allFunctions pgVer = SQL.Statement (funcsSqlQuery pgVer) params decodeFuncs
   where
     params =
-      (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text)
-        <> (configDbHoistedTxSettings >$< arrayParam HE.text)
+      (map escapeIdent . toList . configDbSchemas >$< HH.arrayParam HE.text)
+        <> (configDbHoistedTxSettings >$< HH.arrayParam HE.text)
 
 funcsSqlQuery :: PgVersion -> SqlQuery
 funcsSqlQuery pgVer =
@@ -582,7 +583,7 @@ addViewPrimaryKeys tabs keyDeps =
 allTables :: PgVersion -> Bool -> SQL.Statement AppConfig TablesMap
 allTables pgVer = SQL.Statement (tablesSqlQuery pgVer) params decodeTables
   where
-    params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
+    params = map escapeIdent . toList . configDbSchemas >$< HH.arrayParam HE.text
 
 -- | Gets tables with their PK cols
 tablesSqlQuery :: PgVersion -> SqlQuery
@@ -815,12 +816,12 @@ allComputedRels =
 
     cRelRow =
       ComputedRelationship
-        <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+        <$> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
         <*> pure (QualifiedIdentifier mempty mempty)
-        <*> column HD.bool
-        <*> column HD.bool
+        <*> HH.column HD.bool
+        <*> HH.column HD.bool
 
 -- | Returns all the views' primary keys and foreign keys dependencies
 allViewsKeyDependencies :: SQL.Statement AppConfig [ViewKeyDependency]
@@ -832,8 +833,8 @@ allViewsKeyDependencies =
     --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
 
     params =
-      (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text)
-        <> (map escapeIdent . toList . configDbExtraSearchPath >$< arrayParam HE.text)
+      (map escapeIdent . toList . configDbSchemas >$< HH.arrayParam HE.text)
+        <> (map escapeIdent . toList . configDbExtraSearchPath >$< HH.arrayParam HE.text)
     sql =
       encodeUtf8
         [trimming|
@@ -1042,7 +1043,7 @@ mediaHandlers :: SQL.Statement AppConfig MediaHandlerMap
 mediaHandlers =
   SQL.Statement sql params decodeMediaHandlers True
   where
-    params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
+    params = map escapeIdent . toList . configDbSchemas >$< HH.arrayParam HE.text
     sql =
       encodeUtf8
         [trimming|
@@ -1116,37 +1117,10 @@ decodeMediaHandlers =
   where
     caggRow =
       (,,,)
-        <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-        <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
-        <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
-
-param :: HE.Value a -> HE.Params a
-param = HE.param . HE.nonNullable
-
-arrayParam :: HE.Value a -> HE.Params [a]
-arrayParam = param . HE.foldableArray . HE.nonNullable
-
-compositeArrayColumn :: HD.Composite a -> HD.Row [a]
-compositeArrayColumn = arrayColumn . HD.composite
-
-compositeField :: HD.Value a -> HD.Composite a
-compositeField = HD.field . HD.nonNullable
-
-nullableCompositeField :: HD.Value a -> HD.Composite (Maybe a)
-nullableCompositeField = HD.field . HD.nullable
-
-compositeFieldArray :: HD.Value a -> HD.Composite [a]
-compositeFieldArray = HD.field . HD.nonNullable . HD.listArray . HD.nonNullable
-
-column :: HD.Value a -> HD.Row a
-column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-arrayColumn :: HD.Value a -> HD.Row [a]
-arrayColumn = column . HD.listArray . HD.nonNullable
+        <$> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> (QualifiedIdentifier <$> HH.column HD.text <*> HH.column HD.text)
+        <*> (MediaType.decodeMediaType . encodeUtf8 <$> HH.column HD.text)
+        <*> (MediaType.decodeMediaType . encodeUtf8 <$> HH.column HD.text)
 
 {-
  - Times a sql statement inside a transaction, for this:
@@ -1188,13 +1162,13 @@ extractTimings = SQL.Statement sql HE.noParams decodeThem True
     decodeThem =
       HD.singleRow $
         QueryTimings
-          <$> column HD.text
-          <*> column HD.text
-          <*> column HD.text
-          <*> column HD.text
-          <*> column HD.text
-          <*> column HD.text
-          <*> column HD.text
+          <$> HH.column HD.text
+          <*> HH.column HD.text
+          <*> HH.column HD.text
+          <*> HH.column HD.text
+          <*> HH.column HD.text
+          <*> HH.column HD.text
+          <*> HH.column HD.text
 
 data QueryTimings = QueryTimings
   { qtTables :: Text,

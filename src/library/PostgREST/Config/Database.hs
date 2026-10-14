@@ -23,6 +23,7 @@ import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
 import Hasql.Decoders qualified as HD
 import Hasql.Encoders qualified as HE
+import Hasql.Helpers qualified as HH
 import Hasql.Statement qualified as SQL
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
@@ -78,7 +79,7 @@ pgVersionStatement :: Bool -> SQL.Statement () PgVersion
 pgVersionStatement = SQL.Statement sql HE.noParams versionRow
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version'), version()"
-    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text <*> column HD.text
+    versionRow = HD.singleRow $ PgVersion <$> HH.column HD.int4 <*> HH.column HD.text <*> HH.column HD.text
 
 -- | Query the in-database configuration. The settings have the following priorities:
 --
@@ -93,7 +94,7 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
 -- A setting on the database only will have no effect: ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
 queryDbSettings :: Maybe Text -> Session [(Text, Text)]
 queryDbSettings preConfFunc =
-  SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings True
+  SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (HH.arrayParam HE.text) decodeSettings True
   where
     sql =
       encodeUtf8
@@ -133,7 +134,7 @@ queryDbSettings preConfFunc =
           JOIN ${func}() _ ON TRUE
       |]
           :: Text
-    decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
+    decodeSettings = HD.rowList $ (,) <$> HH.column HD.text <*> HH.column HD.text
 
 queryRoleSettings :: PgVersion -> Session (RoleSettings, RoleIsolationLvl)
 queryRoleSettings pgVer =
@@ -186,25 +187,4 @@ queryRoleSettings pgVer =
         )
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
-    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
-
-column :: HD.Value a -> HD.Row a
-column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-compositeField :: HD.Value a -> HD.Composite a
-compositeField = HD.field . HD.nonNullable
-
-compositeArrayColumn :: HD.Composite a -> HD.Row [a]
-compositeArrayColumn = arrayColumn . HD.composite
-
-arrayColumn :: HD.Value a -> HD.Row [a]
-arrayColumn = column . HD.listArray . HD.nonNullable
-
-param :: HE.Value a -> HE.Params a
-param = HE.param . HE.nonNullable
-
-arrayParam :: HE.Value a -> HE.Params [a]
-arrayParam = param . HE.foldableArray . HE.nonNullable
+    rows = HD.rowList $ (,,) <$> HH.column HD.text <*> HH.nullableColumn HD.text <*> HH.compositeArrayColumn ((,) <$> HH.compositeField HD.text <*> HH.compositeField HD.text)

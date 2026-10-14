@@ -52,6 +52,7 @@ import PostgREST.SchemaCache (SchemaCache (..))
 
 import Hasql.Decoders qualified as HD
 import Hasql.DynamicStatements.Statement qualified as SQL
+import Hasql.Helpers qualified as HH
 import Hasql.Session qualified as SQL (Session)
 import Hasql.Transaction qualified as SQL
 import Hasql.Transaction.Sessions qualified as SQL
@@ -158,7 +159,7 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
 
     decodeExplain :: HD.Result (Maybe Int64)
     decodeExplain =
-      let row = HD.singleRow $ column HD.bytea
+      let row = HD.singleRow $ HH.column HD.bytea
       in  (^? L.nth 0 . L.key "Plan" . L.key "Plan Rows" . L._Integral) <$> row
 actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences = Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
@@ -212,14 +213,14 @@ actionResult MainQuery{mqOpenAPI = (tblsQ, funcsQ, schQ)} (MayUseDb plan@Inspect
           pure $ MaybeDbResult plan Nothing
 
     decodeSchemaDesc :: HD.Result (Maybe Text)
-    decodeSchemaDesc = join <$> HD.rowMaybe (nullableColumn HD.text)
+    decodeSchemaDesc = join <$> HD.rowMaybe (HH.nullableColumn HD.text)
 
     decodeAccessibleIdentifiers :: HD.Result (S.Set QualifiedIdentifier)
     decodeAccessibleIdentifiers =
       let row =
             QualifiedIdentifier
-              <$> column HD.text
-              <*> column HD.text
+              <$> HH.column HD.text
+              <*> HH.column HD.text
       in  S.fromList <$> HD.rowList row
 
 -- Makes sure the querystring pk matches the payload pk
@@ -262,26 +263,17 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences = Preferences{..}} = do
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result BS.ByteString
-planRow = BS.unlines <$> HD.rowList (column HD.bytea)
-
-column :: HD.Value a -> HD.Row a
-column = HD.column . HD.nonNullable
-
-nullableColumn :: HD.Value a -> HD.Row (Maybe a)
-nullableColumn = HD.column . HD.nullable
-
-arrayColumn :: HD.Value a -> HD.Row [a]
-arrayColumn = column . HD.listArray . HD.nonNullable
+planRow = BS.unlines <$> HD.rowList (HH.column HD.bytea)
 
 standardRow :: Bool -> HD.Row ResultSet
 standardRow noLocation =
-  RSStandard <$> nullableColumn HD.int8
-    <*> column HD.int8
-    <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea)
-    <*> (fromMaybe mempty <$> nullableColumn HD.bytea)
-    <*> nullableColumn HD.bytea
-    <*> nullableColumn HD.text
-    <*> nullableColumn HD.int8
+  RSStandard <$> HH.nullableColumn HD.int8
+    <*> HH.column HD.int8
+    <*> (if noLocation then pure mempty else fmap splitKeyValue <$> HH.arrayColumn HD.bytea)
+    <*> (fromMaybe mempty <$> HH.nullableColumn HD.bytea)
+    <*> HH.nullableColumn HD.bytea
+    <*> HH.nullableColumn HD.text
+    <*> HH.nullableColumn HD.int8
   where
     splitKeyValue :: ByteString -> (ByteString, ByteString)
     splitKeyValue kv =
