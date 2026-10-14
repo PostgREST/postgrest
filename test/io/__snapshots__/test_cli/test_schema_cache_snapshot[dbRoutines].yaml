@@ -170,6 +170,24 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: raise_warnings_then_exception
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdIsoLvl: null
+      pdName: raise_warnings_then_exception
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: reset_max_rows_config
     qiSchema: public
   - - pdDescription: null
@@ -259,6 +277,24 @@
         contents:
           contents:
             qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: raise_warning_only
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdIsoLvl: null
+      pdName: raise_warning_only
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single

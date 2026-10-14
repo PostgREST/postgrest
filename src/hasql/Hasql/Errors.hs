@@ -2,6 +2,8 @@ module Hasql.Errors where
 
 import Hasql.Prelude hiding (lines)
 
+import Hasql.LibPq14.Notices qualified as Notices
+
 -- | Error during execution of a session.
 data SessionError
   = -- | Error during the execution of a query.
@@ -13,6 +15,8 @@ data SessionError
       -- ^ Parameters rendered as human-readable SQL literals.
       CommandError
       -- ^ Error details.
+      -- | Notices (e.g. RAISE WARNING messages) buffered during the query's execution.
+      [Notices.Notice]
   deriving (Show)
 
 instance Exception SessionError
