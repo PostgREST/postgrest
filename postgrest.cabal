@@ -75,6 +75,7 @@ library hasql
                       Hasql.DynamicStatements.Snippet
                       Hasql.DynamicStatements.Statement
                       Hasql.Encoders
+                      Hasql.Helpers
                       Hasql.Notifications
                       Hasql.Pool
                       Hasql.Pool.Config
