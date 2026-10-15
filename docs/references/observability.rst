@@ -47,6 +47,27 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
 
   Logs are based on the ``log-level`` setting. See :ref:`log-level`.
 
+.. _json_logs:
+
+JSON Logs
+---------
+
+With :ref:`log-format` set to ``json``, every log line is a JSON object, which log collectors can read without parsing the text. Access lines still go to ``stdout`` and diagnostic lines to ``stderr``.
+
+.. code::
+
+   {"time":"2026-10-15T05:35:33.627Z","level":"info","event":"response","msg":"127.0.0.1 - user [15/Oct/2026:07:35:33 +0200] \"GET /clients?id=eq.1 HTTP/1.1\" 200 56 \"\" \"curl/7.64.0\"","http.request.method":"GET","url.path":"/clients","url.query":"id=eq.1","http.response.status_code":200,"http.response.body.size":56,"client.address":"127.0.0.1","user_agent.original":"curl/7.64.0","postgrest.role":"user"}
+   {"time":"2026-10-15T05:35:34.012Z","level":"crit","event":"config.reloaded","msg":"Config reloaded"}
+
+Every object has these fields:
+
+- ``time``: when the line was written, in UTC (RFC 3339, with milliseconds).
+- ``level``: the :ref:`log-level` the line is logged at.
+- ``event``: the name of the event, such as ``response`` or ``schema_cache.loaded``. It stays the same across releases, so it's the field to filter on.
+- ``msg``: the line as it is written with ``log-format = "text"``, without the time prefix of diagnostic lines.
+
+Events add their own fields, named after the `OpenTelemetry semantic conventions <https://opentelemetry.io/docs/specs/semconv/>`_ where one exists. For instance, ``error.type`` holds the error code of the events about errors, and ``duration_ms`` the time taken to query and load the :ref:`schema_cache`.
+
 .. _sql_query_logs:
 
 SQL Query Logs

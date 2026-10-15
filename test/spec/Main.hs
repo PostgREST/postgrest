@@ -92,7 +92,7 @@ main = do
   let
     initApp sCache config = do
       confRef <- newIORef config
-      loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
+      loggerState <- Logger.init (configLogLevel <$> readIORef confRef) (configLogFormat <$> readIORef confRef)
       appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState) mempty
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)

@@ -63,7 +63,7 @@ init conf@AppConfig{configDbPoolSize} appKiller = do
   -- We need to create IORef first, so we can make its read action part of
   -- loggerState. This is needed for log-level config reloading.
   confRef <- newIORef conf
-  loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
+  loggerState <- Logger.init (configLogLevel <$> readIORef confRef) (configLogFormat <$> readIORef confRef)
   metricsState <- Metrics.init configDbPoolSize
   logger <- debounceAcqTimeouts $ Logger.observationLogger loggerState
   let observer = liftA2 (>>) logger (Metrics.observationMetrics metricsState)
