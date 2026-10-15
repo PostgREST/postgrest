@@ -154,7 +154,12 @@ statement params (Statement.Statement sql (Encoders.Params encoder) (Decoders.Re
         runPrepared = runExceptT do
           (key, keyRecv) <- ExceptT resolvePreparedStatementKey
           queryRecv <- ExceptT (sendQuery key)
-          pure (keyRecv *> queryRecv)
+          -- Run both recv actions and combine their Either results on the
+          -- inner Either monad (Left-biased): a Parse-time ServerError on
+          -- keyRecv wins over the Execute's PGRES_PIPELINE_ABORTED sentinel
+          -- on queryRecv. So we capture the original error in the pipeline
+          -- instead of subsequent PGRES_PIPELINE_ABORTED errors masking it.
+          pure (liftA2 (*>) keyRecv queryRecv)
           where
             (oidList, valueAndFormatList) =
               Encoders.Params.compilePreparedStatementData encoder integerDatetimes params
