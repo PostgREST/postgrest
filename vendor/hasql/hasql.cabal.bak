@@ -75,26 +75,6 @@ library testing-kit
     transformers,
     uuid,
 
-test-suite tasty
-  import: base
-  type: exitcode-stdio-1.0
-  hs-source-dirs: tasty
-  main-is: Main.hs
-  other-modules:
-    Main.Connection
-    Main.Prelude
-    Main.Statements
-
-  build-depends:
-    contravariant-extras >=0.3.5.2 && <0.4,
-    hasql,
-    hasql:testing-kit,
-    quickcheck-instances >=0.3.11 && <0.4,
-    rerebase <2,
-    tasty >=0.12 && <2,
-    tasty-hunit >=0.9 && <0.11,
-    tasty-quickcheck >=0.9 && <0.12,
-
 test-suite threads-test
   import: test
   type: exitcode-stdio-1.0
