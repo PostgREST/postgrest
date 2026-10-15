@@ -18,6 +18,7 @@ module PostgREST.Error
   , JwtClaimsError (..)
   , errorPayload
   , status
+  , code
   , noRelBetweenHint
   , noRpcHint
   )

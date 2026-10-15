@@ -16,11 +16,15 @@ module PostgREST.Observation
   )
 where
 
+import Data.Aeson ((.=))
 import GHC.RTS.Flags (RTSFlags)
-import Network.HTTP.Types.Status (Status, status400, status500)
+import Network.HTTP.Types.Status (Status, status400, status500, statusCode)
+import Network.Wai.Logger (showSockAddr)
 import Numeric (showFFloat)
 import Protolude
 
+import Data.Aeson qualified as JSON
+import Data.ByteString qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
@@ -94,6 +98,13 @@ class IsObservation o where
   obsLevel :: o -> LogLevel
   obsLog :: o -> LogLine
 
+  -- | The name of the event, which stays the same across releases
+  obsEvent :: o -> Text
+
+  -- | The data of the event, as the fields of a structured log line
+  obsFields :: o -> JSON.Series
+  obsFields = const mempty
+
 -- | What the logger writes for an observation
 data LogLine
   = -- | Lines for stderr, each prefixed with the time
@@ -146,6 +157,77 @@ instance IsObservation Observation where
   obsLog = \case
     ResponseObs maybeRole req status contentLen -> AccessLog $ \time -> apacheFormat maybeRole time req status contentLen
     o -> DiagnosticLog $ observationMessages o
+  obsEvent = \case
+    AdminStartObs{} -> "admin_server.start"
+    AdminServerCrashedObs{} -> "admin_server.crash"
+    AppStartObs{} -> "app.start"
+    RTSFlagsObs{} -> "app.rts_flags"
+    AppServerAddressObs{} -> "server.start"
+    ExitUnsupportedPgVersion{} -> "db.unsupported_version"
+    ExitDBNoRecoveryObs -> "db.no_recovery"
+    ExitDBFatalError{} -> "db.fatal_error"
+    DBConnectedObs{} -> "db.connected"
+    SchemaCacheEmptyObs -> "schema_cache.empty"
+    SchemaCacheErrorObs{} -> "schema_cache.error"
+    SchemaCacheQueriedObs{} -> "schema_cache.queried"
+    SchemaCacheLoadedObs{} -> "schema_cache.loaded"
+    ConnectionRetryObs{} -> "db.connection_retry"
+    DBListenStart{} -> "listener.start"
+    DBListenFail{} -> "listener.fail"
+    DBListenRetry{} -> "listener.retry"
+    DBListenBugCallQueryFix -> "listener.queue_fix"
+    DBListenerGotSCacheMsg{} -> "listener.schema_cache_reload"
+    DBListenerGotConfigMsg{} -> "listener.config_reload"
+    DBListenerConnectionCleanupFail{} -> "listener.cleanup_fail"
+    QueryObs{} -> "query"
+    SchemaCacheQueryObs{} -> "schema_cache.query"
+    LegacyTargetNameWarningObs{} -> "request.legacy_target_name"
+    ConfigReadErrorObs{} -> "config.read_error"
+    ConfigInvalidObs{} -> "config.invalid"
+    ConfigSucceededObs -> "config.reloaded"
+    QueryRoleSettingsErrorObs{} -> "config.role_settings_error"
+    QueryErrorCodeHighObs{} -> "query.server_error"
+    QueryPgVersionError{} -> "db.version_error"
+    PoolInit{} -> "pool.init"
+    PoolAcqTimeoutObs -> "pool.acquisition_timeout"
+    HasqlPoolObs{} -> "pool.connection"
+    ResponseObs{} -> "response"
+    PoolRequest -> "pool.request"
+    PoolRequestFullfilled -> "pool.request_fulfilled"
+    PoolFlushed -> "pool.flushed"
+    JwtCacheObs (JwtCacheLookup _) -> "jwt_cache.lookup"
+    JwtCacheObs JwtCacheEviction -> "jwt_cache.eviction"
+    TerminationUnixSignalObs{} -> "app.termination_signal"
+    WarpServerObs{} -> "server.warp"
+  obsFields = \case
+    AppStartObs ver -> "service.version" .= T.decodeUtf8 ver
+    ExitDBFatalError _ usageErr -> usageErrorFields usageErr
+    SchemaCacheEmptyObs -> "error.type" .= Error.code Error.NoSchemaCacheError
+    SchemaCacheErrorObs _ _ usageErr -> usageErrorFields usageErr
+    SchemaCacheQueriedObs resultTime _ -> "duration_ms" .= resultTime
+    SchemaCacheLoadedObs resultTime _ -> "duration_ms" .= resultTime
+    QueryObs _ status -> "http.response.status_code" .= statusCode status
+    ConfigReadErrorObs usageErr -> usageErrorFields usageErr
+    QueryRoleSettingsErrorObs usageErr -> usageErrorFields usageErr
+    QueryErrorCodeHighObs usageErr -> usageErrorFields usageErr
+    QueryPgVersionError usageErr -> usageErrorFields usageErr
+    PoolInit poolSize -> "db.client.connection.pool.max" .= poolSize
+    PoolAcqTimeoutObs -> usageErrorFields SQL.AcquisitionTimeoutUsageError
+    ResponseObs maybeRole req status contentLen ->
+      mconcat
+        [ "http.request.method" .= T.decodeUtf8Lenient (Wai.requestMethod req),
+          "url.path" .= T.decodeUtf8Lenient (Wai.rawPathInfo req),
+          foldMap (("url.query" .=) . T.decodeUtf8Lenient) (BS.stripPrefix "?" $ Wai.rawQueryString req),
+          "http.response.status_code" .= statusCode status,
+          foldMap ("http.response.body.size" .=) contentLen,
+          "client.address" .= showSockAddr (Wai.remoteHost req),
+          foldMap (("user_agent.original" .=) . T.decodeUtf8Lenient) (Wai.requestHeaderUserAgent req),
+          foldMap (("postgrest.role" .=) . T.decodeUtf8Lenient) maybeRole
+        ]
+    JwtCacheObs (JwtCacheLookup hit) -> "jwt_cache.hit" .= hit
+    _ -> mempty
+    where
+      usageErrorFields usageErr = "error.type" .= Error.code (Error.PgError False usageErr)
 
 -- | The log level of the observations about a response
 statusLevel :: Status -> LogLevel
