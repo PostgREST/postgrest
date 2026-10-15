@@ -419,6 +419,20 @@ test-suite hasql-pool
                     , time              >= 1.6 && < 1.15
   ghc-options:        -threaded -O0 -fwrite-ide-info
 
+test-suite hasql-statements
+  import:             defaults-and-shared
+  type:               exitcode-stdio-1.0
+  default-extensions: LambdaCase
+  hs-source-dirs:     test/hasql/statements
+  main-is:            Main.hs
+  build-depends:      base              >= 4.9 && < 4.22
+                    , contravariant-extras >= 0.3.5.2 && < 0.4
+                    , hspec             >= 2.3 && < 2.12
+                    , postgrest:hasql
+                    , protolude         >= 0.3.1 && < 0.4
+                    , QuickCheck        >= 2.14 && < 2.17
+  ghc-options:        -threaded -O0 -fwrite-ide-info
+
 test-suite doctests
   import:             defaults-and-shared
   type:               exitcode-stdio-1.0

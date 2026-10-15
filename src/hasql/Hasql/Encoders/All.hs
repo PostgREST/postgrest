@@ -62,7 +62,7 @@ import Hasql.PostgresTypeInfo qualified as PTI
 --     Female -> "female"
 -- @
 newtype Params a = Params (Params.Params a)
-  deriving (Contravariant, Monoid, Semigroup)
+  deriving (Contravariant, Divisible, Monoid, Semigroup)
 
 -- |
 -- No parameters. Same as `mempty` and `conquered`.

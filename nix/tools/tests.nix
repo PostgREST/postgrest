@@ -59,6 +59,8 @@ let
       ''
         ${withTools.withPg} \
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-pool -- "''${_arg_leftovers[@]}"
+        ${withTools.withPg} \
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-statements -- "''${_arg_leftovers[@]}"
       '';
 
   testDoctests =
@@ -184,7 +186,7 @@ let
             rm -rf coverage/*
 
             # build once before running all the tests
-            ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability test:hasql-pool
+            ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:observability test:hasql-pool test:hasql-statements
 
             (
               trap 'echo Found dead code: Check file list above.' ERR ;
@@ -216,12 +218,16 @@ let
               ${withTools.withPg} \
               ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-pool
 
+            HPCTIXFILE="$tmpdir"/hasql-statements.tix \
+              ${withTools.withPg} \
+              ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:hasql-statements
+
             # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
             # collect all the tix files
             ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
               "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/replica*.tix "$tmpdir"/spec.tix \
-              "$tmpdir"/observability.tix "$tmpdir"/hasql-pool.tix
+              "$tmpdir"/observability.tix "$tmpdir"/hasql-pool.tix "$tmpdir"/hasql-statements.tix
 
             # prepare the overlay
             ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
