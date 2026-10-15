@@ -24,6 +24,7 @@ import Jose.Jwt qualified as JWT
 
 import PostgREST.Config
   ( AppConfig (..)
+  , LogFormat (..)
   , LogLevel (..)
   , OpenAPIMode (..)
   , Verbosity (..)
@@ -99,6 +100,7 @@ baseCfg =
           configJwtSecretIsBase64 = False,
           configJwtCacheMaxEntries = 10,
           configLogLevel = LogCrit,
+          configLogFormat = LogFormatText,
           configLogQuery = False,
           configOpenApiMode = OAFollowPriv,
           configOpenApiSecurityActive = False,

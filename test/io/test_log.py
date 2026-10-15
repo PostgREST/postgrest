@@ -88,7 +88,6 @@ def test_log_level(level, defaultenv):
             assert any("Connection" and "is used" in line for line in output)
 
 
-@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
 def test_log_format_json_access_lines(defaultenv):
     "log-format=json should write the access lines as JSON objects"
 
@@ -125,7 +124,6 @@ def test_log_format_json_access_lines(defaultenv):
         assert notfound["http.response.status_code"] == 404
 
 
-@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
 def test_log_format_json_diagnostic_lines(defaultenv):
     "log-format=json should write the diagnostic lines as JSON objects"
 

@@ -283,7 +283,6 @@ def test_invalid_client_error_verbosity(defaultenv):
     assert "Invalid client-error-verbosity. Check your configuration." in error
 
 
-@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
 def test_invalid_log_format(defaultenv):
     "Given an invalid value for log-format, Postgrest should exit with a non-zero exit code."
     env = {
