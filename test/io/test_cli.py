@@ -283,6 +283,18 @@ def test_invalid_client_error_verbosity(defaultenv):
     assert "Invalid client-error-verbosity. Check your configuration." in error
 
 
+@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
+def test_invalid_log_format(defaultenv):
+    "Given an invalid value for log-format, Postgrest should exit with a non-zero exit code."
+    env = {
+        **defaultenv,
+        "PGRST_LOG_FORMAT": "invalid",
+    }
+
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "Invalid log-format. Check your configuration." in error
+
+
 @pytest.mark.parametrize("restricted_schema", FIXTURES["restrictedschemas"])
 def test_restricted_db_schemas(restricted_schema, defaultenv):
     "Should print error when db-schemas config contain pg_catalog or information_schema"
