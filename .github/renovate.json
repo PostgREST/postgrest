@@ -11,6 +11,9 @@
   "pip_requirements": {
     "enabled": false
   },
+  "labels": [
+    "deps-update"
+  ],
   "packageRules": [
     {
       "matchManagers": [
