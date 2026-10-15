@@ -1,5 +1,6 @@
 "Test PostgREST logs and observations"
 
+import json
 import re
 import signal
 import time
@@ -85,6 +86,59 @@ def test_log_level(level, defaultenv):
             assert len(output) == 9
             assert any("Connection" and "is available" in line for line in output)
             assert any("Connection" and "is used" in line for line in output)
+
+
+@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
+def test_log_format_json_access_lines(defaultenv):
+    "log-format=json should write the access lines as JSON objects"
+
+    env = {**defaultenv, "PGRST_LOG_FORMAT": "json", "PGRST_LOG_LEVEL": "info"}
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get(
+            "/projects?limit=1", headers={"User-Agent": "pgrst-test"}
+        )
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/unknown")
+        assert response.status_code == 404
+
+        output = postgrest.read_stdout(nlines=2)
+        assert len(output) == 2
+
+        ok, notfound = (json.loads(line) for line in output)
+
+        assert ok["level"] == "info"
+        assert ok["event"] == "response"
+        assert re.match(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$", ok["time"])
+        assert '"GET /projects?limit=1 HTTP/1.1" 200' in ok["msg"]
+        assert ok["http.request.method"] == "GET"
+        assert ok["url.path"] == "/projects"
+        assert ok["url.query"] == "limit=1"
+        assert ok["http.response.status_code"] == 200
+        assert ok["user_agent.original"] == "pgrst-test"
+        assert ok["postgrest.role"] == "postgrest_test_anonymous"
+
+        assert notfound["level"] == "warn"
+        assert notfound["url.path"] == "/unknown"
+        assert "url.query" not in notfound
+        assert notfound["http.response.status_code"] == 404
+
+
+@pytest.mark.xfail(reason="log-format isn't implemented yet", strict=True)
+def test_log_format_json_diagnostic_lines(defaultenv):
+    "log-format=json should write the diagnostic lines as JSON objects"
+
+    env = {**defaultenv, "PGRST_LOG_FORMAT": "json"}
+
+    with run(env=env) as postgrest:
+        postgrest.process.send_signal(signal.SIGUSR2)
+
+        output = [json.loads(line) for line in postgrest.read_stdout(nlines=10)]
+        reloaded = [line for line in output if line["event"] == "config.reloaded"]
+        assert len(reloaded) == 1
+        assert reloaded[0]["level"] == "crit"
+        assert reloaded[0]["msg"] == "Config reloaded"
 
 
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
