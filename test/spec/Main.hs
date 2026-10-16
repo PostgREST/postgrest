@@ -44,6 +44,7 @@ import Feature.Query.JsonOperatorSpec qualified
 import Feature.Query.MultipleSchemaSpec qualified
 import Feature.Query.NullsStripSpec qualified
 import Feature.Query.PgSafeUpdateSpec qualified
+import Feature.Query.PipelineModeSpec qualified
 import Feature.Query.PlanSpec qualified
 import Feature.Query.PostGISSpec qualified
 import Feature.Query.Preferences.HandlingSpec qualified
@@ -106,83 +107,106 @@ main = do
       customSchemaCache <- loadSCache pool actualPgVersion config
       initApp customSchemaCache config
 
-    withConfig config = before (app config)
-    withConfigDbs config = before (appDbs config)
-    describeWithConfig label spec = describe label $ spec withConfig
+    -- Every spec in the matrix runs under both pipeline mode = off and
+    -- pipeline mode = on, so a spec that passes with the sequential path also
+    -- has to pass with BEGIN..COMMIT batched into a pipeline. Specs that pin
+    -- pipeline mode themselves (e.g. PipelineModeSpec) stay outside the matrix.
+    pipelineModes = [("off", False), ("on", True)]
 
-  let specs =
-        uncurry describeWithConfig
-          <$> [ ("Feature.Auth.AsymmetricJwtSpec", Feature.Auth.AsymmetricJwtSpec.spec),
-                ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.disabledSpec),
-                ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.spec),
-                ("Feature.Auth.AuthSpec", Feature.Auth.AuthSpec.spec),
-                ("Feature.Auth.BinaryJwtSecretSpec", Feature.Auth.BinaryJwtSecretSpec.spec),
-                ("Feature.Auth.JwtCacheSpec", Feature.Auth.JwtCacheSpec.spec),
-                ("Feature.Auth.NoAnonSpec", Feature.Auth.NoAnonSpec.spec),
-                ("Feature.Auth.NoJwtSecretSpec", Feature.Auth.NoJwtSecretSpec.spec),
-                ("Feature.ConcurrentSpec", Feature.ConcurrentSpec.spec),
-                ("Feature.CorsSpec", Feature.CorsSpec.spec),
-                ("Feature.HttpHeaderSpec", Feature.HttpHeaderSpec.spec),
-                ("Feature.NoSuperuserSpec", Feature.NoSuperuserSpec.spec),
-                ("Feature.ObservabilitySpec", Feature.ObservabilitySpec.spec),
-                ("Feature.OpenApi.DisabledOpenApiSpec", Feature.OpenApi.DisabledOpenApiSpec.spec),
-                ("Feature.OpenApi.OpenApiSpec", Feature.OpenApi.OpenApiSpec.spec),
-                ("Feature.OpenApi.ProxySpec", Feature.OpenApi.ProxySpec.spec),
-                ("Feature.OpenApi.RootSpec", Feature.OpenApi.RootSpec.spec),
-                ("Feature.OpenApi.SecurityOpenApiSpec", Feature.OpenApi.SecurityOpenApiSpec.spec),
-                ("Feature.OptionsSpec", Feature.OptionsSpec.spec),
-                ("Feature.Query.AggregateFunctionsSpec.allowed", Feature.Query.AggregateFunctionsSpec.allowed),
-                ("Feature.Query.AggregateFunctionsSpec.disallowed", Feature.Query.AggregateFunctionsSpec.disallowed),
-                ("Feature.Query.AndOrParamsSpec", Feature.Query.AndOrParamsSpec.spec),
-                ("Feature.Query.ComputedRelsSpec", Feature.Query.ComputedRelsSpec.spec),
-                ("Feature.Query.CustomMediaSpec", Feature.Query.CustomMediaSpec.spec),
-                ("Feature.Query.DeleteSpec", Feature.Query.DeleteSpec.spec),
-                ("Feature.Query.EmbedDisambiguationSpec", Feature.Query.EmbedDisambiguationSpec.spec),
-                ("Feature.Query.EmbedInnerJoinSpec", Feature.Query.EmbedInnerJoinSpec.spec),
-                ("Feature.Query.ErrorSpec", Feature.Query.ErrorSpec.spec),
-                ("Feature.Query.InsertSpec", Feature.Query.InsertSpec.spec),
-                ("Feature.Query.JsonOperatorSpec", Feature.Query.JsonOperatorSpec.spec actualPgVersion),
-                ("Feature.Query.NullsStripSpec", Feature.Query.NullsStripSpec.spec),
-                ("Feature.Query.PgSafeUpdateSpec.disabledSpec", Feature.Query.PgSafeUpdateSpec.disabledSpec),
-                ("Feature.Query.PlanSpec.disabledSpec", Feature.Query.PlanSpec.disabledSpec),
-                ("Feature.Query.PlanSpec.spec", Feature.Query.PlanSpec.spec),
-                ("Feature.Query.Preferences.HandlingSpec", Feature.Query.Preferences.HandlingSpec.spec),
-                ("Feature.Query.Preferences.MaxAffectedSpec", Feature.Query.Preferences.MaxAffectedSpec.spec),
-                ("Feature.Query.Preferences.TimezoneSpec", Feature.Query.Preferences.TimezoneSpec.spec),
-                ("Feature.Query.PreparedStatementsSpec.spec", Feature.Query.PreparedStatementsSpec.spec),
-                ("Feature.Query.QueryLimitedSpec", Feature.Query.QueryLimitedSpec.spec),
-                ("Feature.Query.QuerySpec", Feature.Query.QuerySpec.spec actualPgVersion),
-                ("Feature.Query.QuerySpec.specLegacyTargetNames", Feature.Query.QuerySpec.specLegacyTargetNames),
-                ("Feature.Query.RangeSpec", Feature.Query.RangeSpec.spec),
-                ("Feature.Query.RawOutputTypesSpec", Feature.Query.RawOutputTypesSpec.spec),
-                ("Feature.Query.RelatedQueriesSpec", Feature.Query.RelatedQueriesSpec.spec),
-                ("Feature.Query.RpcSpec", Feature.Query.RpcSpec.spec actualPgVersion),
-                ("Feature.Query.ServerTimingSpec", Feature.Query.ServerTimingSpec.spec),
-                ("Feature.Query.SingularSpec", Feature.Query.SingularSpec.spec),
-                ("Feature.Query.SpreadQueriesSpec", Feature.Query.SpreadQueriesSpec.spec),
-                ("Feature.Query.UpdateSpec", Feature.Query.UpdateSpec.spec),
-                ("Feature.Query.UpsertSpec", Feature.Query.UpsertSpec.spec),
-                ("Feature.RpcPreRequestGucsSpec", Feature.RpcPreRequestGucsSpec.spec)
-              ]
+    withConfigFor pipelineMode config = before (app config{configDbPipelineMode = pipelineMode})
+    withConfigDbsFor pipelineMode config = before (appDbs config{configDbPipelineMode = pipelineMode})
+
+    -- Outside the matrix: specs that drive their own pipeline-mode setting.
+    withConfig config = before (app config)
 
   hspec $ do
-    mapM_ parallel specs
+    for_ pipelineModes $ \(label, pipelineMode) ->
+      describe ("pipeline mode = " <> label) $ do
+        let
+          wc = withConfigFor pipelineMode
+          wcDbs = withConfigDbsFor pipelineMode
+          describeWithConfig lbl spec = describe lbl $ spec wc
 
-    parallel $ describe "Feature.Query.UnicodeSpec" $ Feature.Query.UnicodeSpec.spec withConfigDbs
-    parallel $ describe "Feature.OpenApi.IgnorePrivOpenApiSpec" $ Feature.OpenApi.IgnorePrivOpenApiSpec.spec withConfigDbs
-    parallel $ describe "Feature.ExtraSearchPathSpec" $ Feature.ExtraSearchPathSpec.spec withConfigDbs
-    parallel $ describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec withConfigDbs
-    parallel $ describe "Feature.Query.MultipleSchemaSpec" $ Feature.Query.MultipleSchemaSpec.spec withConfigDbs
+        let specs =
+              uncurry describeWithConfig
+                <$> [ ("Feature.Auth.AsymmetricJwtSpec", Feature.Auth.AsymmetricJwtSpec.spec),
+                      ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.disabledSpec),
+                      ("Feature.Auth.AudienceJwtSecretSpec", Feature.Auth.AudienceJwtSecretSpec.spec),
+                      ("Feature.Auth.AuthSpec", Feature.Auth.AuthSpec.spec),
+                      ("Feature.Auth.BinaryJwtSecretSpec", Feature.Auth.BinaryJwtSecretSpec.spec),
+                      ("Feature.Auth.JwtCacheSpec", Feature.Auth.JwtCacheSpec.spec),
+                      ("Feature.Auth.NoAnonSpec", Feature.Auth.NoAnonSpec.spec),
+                      ("Feature.Auth.NoJwtSecretSpec", Feature.Auth.NoJwtSecretSpec.spec),
+                      ("Feature.ConcurrentSpec", Feature.ConcurrentSpec.spec),
+                      ("Feature.CorsSpec", Feature.CorsSpec.spec),
+                      ("Feature.HttpHeaderSpec", Feature.HttpHeaderSpec.spec),
+                      ("Feature.NoSuperuserSpec", Feature.NoSuperuserSpec.spec),
+                      ("Feature.ObservabilitySpec", Feature.ObservabilitySpec.spec),
+                      ("Feature.OpenApi.DisabledOpenApiSpec", Feature.OpenApi.DisabledOpenApiSpec.spec),
+                      ("Feature.OpenApi.OpenApiSpec", Feature.OpenApi.OpenApiSpec.spec),
+                      ("Feature.OpenApi.ProxySpec", Feature.OpenApi.ProxySpec.spec),
+                      ("Feature.OpenApi.RootSpec", Feature.OpenApi.RootSpec.spec),
+                      ("Feature.OpenApi.SecurityOpenApiSpec", Feature.OpenApi.SecurityOpenApiSpec.spec),
+                      ("Feature.OptionsSpec", Feature.OptionsSpec.spec),
+                      ("Feature.Query.AggregateFunctionsSpec.allowed", Feature.Query.AggregateFunctionsSpec.allowed),
+                      ("Feature.Query.AggregateFunctionsSpec.disallowed", Feature.Query.AggregateFunctionsSpec.disallowed),
+                      ("Feature.Query.AndOrParamsSpec", Feature.Query.AndOrParamsSpec.spec),
+                      ("Feature.Query.ComputedRelsSpec", Feature.Query.ComputedRelsSpec.spec),
+                      ("Feature.Query.CustomMediaSpec", Feature.Query.CustomMediaSpec.spec),
+                      ("Feature.Query.DeleteSpec", Feature.Query.DeleteSpec.spec),
+                      ("Feature.Query.EmbedDisambiguationSpec", Feature.Query.EmbedDisambiguationSpec.spec),
+                      ("Feature.Query.EmbedInnerJoinSpec", Feature.Query.EmbedInnerJoinSpec.spec),
+                      ("Feature.Query.ErrorSpec", Feature.Query.ErrorSpec.spec),
+                      ("Feature.Query.InsertSpec", Feature.Query.InsertSpec.spec),
+                      ("Feature.Query.JsonOperatorSpec", Feature.Query.JsonOperatorSpec.spec actualPgVersion),
+                      ("Feature.Query.NullsStripSpec", Feature.Query.NullsStripSpec.spec),
+                      ("Feature.Query.PgSafeUpdateSpec.disabledSpec", Feature.Query.PgSafeUpdateSpec.disabledSpec),
+                      ("Feature.Query.PlanSpec.disabledSpec", Feature.Query.PlanSpec.disabledSpec),
+                      ("Feature.Query.PlanSpec.spec", Feature.Query.PlanSpec.spec),
+                      ("Feature.Query.Preferences.HandlingSpec", Feature.Query.Preferences.HandlingSpec.spec),
+                      ("Feature.Query.Preferences.MaxAffectedSpec", Feature.Query.Preferences.MaxAffectedSpec.spec),
+                      ("Feature.Query.Preferences.TimezoneSpec", Feature.Query.Preferences.TimezoneSpec.spec),
+                      ("Feature.Query.PreparedStatementsSpec.spec", Feature.Query.PreparedStatementsSpec.spec),
+                      ("Feature.Query.QueryLimitedSpec", Feature.Query.QueryLimitedSpec.spec),
+                      ("Feature.Query.QuerySpec", Feature.Query.QuerySpec.spec actualPgVersion),
+                      ("Feature.Query.QuerySpec.specLegacyTargetNames", Feature.Query.QuerySpec.specLegacyTargetNames),
+                      ("Feature.Query.RangeSpec", Feature.Query.RangeSpec.spec),
+                      ("Feature.Query.RawOutputTypesSpec", Feature.Query.RawOutputTypesSpec.spec),
+                      ("Feature.Query.RelatedQueriesSpec", Feature.Query.RelatedQueriesSpec.spec),
+                      ("Feature.Query.RpcSpec", Feature.Query.RpcSpec.spec actualPgVersion),
+                      ("Feature.Query.ServerTimingSpec", Feature.Query.ServerTimingSpec.spec),
+                      ("Feature.Query.SingularSpec", Feature.Query.SingularSpec.spec),
+                      ("Feature.Query.SpreadQueriesSpec", Feature.Query.SpreadQueriesSpec.spec),
+                      ("Feature.Query.UpdateSpec", Feature.Query.UpdateSpec.spec),
+                      ("Feature.Query.UpsertSpec", Feature.Query.UpsertSpec.spec),
+                      ("Feature.RpcPreRequestGucsSpec", Feature.RpcPreRequestGucsSpec.spec)
+                    ]
 
-    -- Note: the rollback tests can not run in parallel, because they test persistence and
-    -- this results in race conditions
-    describe "Feature.RollbackAllowedSpec" $ Feature.RollbackSpec.allowed withConfig
-    describe "Feature.RollbackDisallowedSpec" $ Feature.RollbackSpec.disallowed withConfig
-    describe "Feature.RollbackForcedSpec" $ Feature.RollbackSpec.forced withConfig
+        mapM_ parallel specs
 
-    -- This test runs with a pre request to enable the pg-safeupdate library per-session.
-    -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
-    describe "Feature.Query.PgSafeUpdateSpec.spec" $ Feature.Query.PgSafeUpdateSpec.spec withConfig
+        parallel $ describe "Feature.Query.UnicodeSpec" $ Feature.Query.UnicodeSpec.spec wcDbs
+        parallel $ describe "Feature.OpenApi.IgnorePrivOpenApiSpec" $ Feature.OpenApi.IgnorePrivOpenApiSpec.spec wcDbs
+        parallel $ describe "Feature.ExtraSearchPathSpec" $ Feature.ExtraSearchPathSpec.spec wcDbs
+        parallel $ describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec wcDbs
+        parallel $ describe "Feature.Query.MultipleSchemaSpec" $ Feature.Query.MultipleSchemaSpec.spec wcDbs
+
+        -- Note: the rollback tests can not run in parallel, because they test persistence and
+        -- this results in race conditions
+        describe "Feature.RollbackAllowedSpec" $ Feature.RollbackSpec.allowed wc
+        describe "Feature.RollbackDisallowedSpec" $ Feature.RollbackSpec.disallowed wc
+        describe "Feature.RollbackForcedSpec" $ Feature.RollbackSpec.forced wc
+
+    -- Outside the matrix: PipelineModeSpec sets configDbPipelineMode itself,
+    -- so running it under the matrix would mean the "off" axis silently
+    -- re-enables pipeline mode. It stays separate so each axis says what it does.
+    parallel $ describe "Feature.Query.PipelineModeSpec" $ Feature.Query.PipelineModeSpec.spec withConfig
+
+    -- Must run last, outside the matrix: pg-safeupdate is loaded per-session
+    -- but the pool is shared, so once a connection has it loaded every later
+    -- spec on that connection inherits it. We pick one pipeline mode (on) to
+    -- cover it; the sequential path has upstream coverage.
+    describe "Feature.Query.PgSafeUpdateSpec.spec" $
+      Feature.Query.PgSafeUpdateSpec.spec (\config -> before (app config{configDbPipelineMode = True}))
   where
     loadSCache pool pgVersion conf =
       either (panic . show) fst <$> P.use pool (HT.transactionNoRetry HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
