@@ -1,7 +1,7 @@
 module Main where
 
 import Data.Functor.Contravariant (contramap)
-import Data.Time (diffUTCTime, getCurrentTime)
+import Data.Time (DiffTime, diffUTCTime, getCurrentTime)
 import Protolude
 import Test.Hspec
 
@@ -18,17 +18,34 @@ import Hasql.Pool.Config qualified as Config
 import Hasql.Session qualified as Session
 import Hasql.Statement qualified as Statement
 
+-- | The settings of a pool under test
+data PoolSettings = PoolSettings
+  { poolSize :: Int,
+    acquisitionTimeout :: DiffTime,
+    maxLifetime :: DiffTime,
+    maxIdletime :: DiffTime
+  }
+
+defaultPoolSettings :: PoolSettings
+defaultPoolSettings =
+  PoolSettings
+    { poolSize = 3,
+      acquisitionTimeout = 10,
+      maxLifetime = 1_800,
+      maxIdletime = 1_800
+    }
+
 main :: IO ()
 main = do
   -- libpq reads the connection parameters from the PG* variables
   let connectionString = ""
   let
-    withPool poolSize acqTimeout maxLifetime maxIdletime connString =
+    withPool PoolSettings{poolSize, acquisitionTimeout, maxLifetime, maxIdletime} connString =
       bracket
         ( acquire
             ( Config.settings
                 [ Config.size poolSize,
-                  Config.acquisitionTimeout acqTimeout,
+                  Config.acquisitionTimeout acquisitionTimeout,
                   Config.agingTimeout maxLifetime,
                   Config.idlenessTimeout maxIdletime,
                   Config.staticConnectionSettings
@@ -40,7 +57,7 @@ main = do
         )
         release
     withDefaultPool =
-      withPool 3 10 1_800 1_800 connectionString
+      withPool defaultPoolSettings connectionString
 
   hspec . describe "" $ do
     it "Releases a spot in the pool when there is a query error" $ withDefaultPool $ \pool -> do
@@ -83,12 +100,12 @@ main = do
         setSettingSession "testing.foo" "hello world"
         getSettingSession "testing.foo"
       res2 `shouldBe` Right (Just "hello world")
-    it "Session variables stay set when a connection gets reused" $ withPool 1 10 1_800 1_800 connectionString $ \pool -> do
+    it "Session variables stay set when a connection gets reused" $ withPool defaultPoolSettings{poolSize = 1} connectionString $ \pool -> do
       res <- use pool $ setSettingSession "testing.foo" "hello world"
       res `shouldBe` Right ()
       res2 <- use pool $ getSettingSession "testing.foo"
       res2 `shouldBe` Right (Just "hello world")
-    it "Releasing the pool resets session variables" $ withPool 1 10 1_800 1_800 connectionString $ \pool -> do
+    it "Releasing the pool resets session variables" $ withPool defaultPoolSettings{poolSize = 1} connectionString $ \pool -> do
       res <- use pool $ setSettingSession "testing.foo" "hello world"
       res `shouldBe` Right ()
       release pool
@@ -98,7 +115,7 @@ main = do
       -- 1ms timeout
       -- 1ms timeout
       -- 1ms timeout
-      withPool 1 0.001 1_800 1_800 connectionString $
+      withPool defaultPoolSettings{poolSize = 1, acquisitionTimeout = 0.001} connectionString $
         \pool -> do
           sleeping <- newEmptyMVar
           t0 <- getCurrentTime
@@ -121,7 +138,7 @@ main = do
       -- 0.5s connection lifetime
       -- 0.5s connection lifetime
       -- 0.5s connection lifetime
-      withPool 1 10 0.5 1_800 connectionString $
+      withPool defaultPoolSettings{poolSize = 1, maxLifetime = 0.5} connectionString $
         \pool -> do
           res <- use pool $ setSettingSession "testing.foo" "hello world"
           res `shouldBe` Right ()
@@ -132,14 +149,14 @@ main = do
           res3 `shouldBe` Right Nothing
     it "Counts active connections" $ do
       (taggedConnectionSettings, appName) <- tagConnection connectionString
-      withPool 3 10 1_800 1_800 taggedConnectionSettings $ \pool -> do
+      withPool defaultPoolSettings taggedConnectionSettings $ \pool -> do
         res <- use pool $ countConnectionsSession appName
         res `shouldBe` Right 1
 
     it "Actively times out old connections (maxLifetime)" $ do
       withDefaultPool $ \countPool -> do
         (taggedConnectionSettings, appName) <- tagConnection connectionString
-        withPool 3 10 0.5 1_800 taggedConnectionSettings $ \limitedPool -> do
+        withPool defaultPoolSettings{maxLifetime = 0.5} taggedConnectionSettings $ \limitedPool -> do
           res <- use limitedPool selectOneSession
           res `shouldBe` Right 1
           res2 <- use countPool $ countConnectionsSession appName
@@ -149,7 +166,7 @@ main = do
           res3 `shouldBe` Right 0
     it "Times out old connections (maxIdletime)" $ do
       -- 0.5s connection idle time
-      withPool 1 10 1_800 0.5 connectionString $ \pool -> do
+      withPool defaultPoolSettings{poolSize = 1, maxIdletime = 0.5} connectionString $ \pool -> do
         res <- use pool $ setSettingSession "testing.foo" "hello world"
         res `shouldBe` Right ()
         res2 <- use pool $ getSettingSession "testing.foo"
