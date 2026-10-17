@@ -122,6 +122,30 @@ For an invalid time zone, PostgREST returns a database error.
 
   HTTP/1.1 400 Bad Request
 
+.. warning::
+
+  The header value in not allowed to exceed 24 characters in Postgres versions lower than ``18.6``, ``17.11``, ``16.15``, ``15.19`` and ``14.24``. :ref:`PGRST129 <pgrst129>` error will returned if it is violated.
+  This is a mitigation for PostgreSQL `CVE-2026-14669 <https://www.postgresql.org/support/security/CVE-2026-14669>`_.
+
+  .. code-block:: bash
+
+    curl -i "http://localhost:3000/timestamps" \
+      -H "Prefer: timezone=xxxxxxxxxxxxxxxxxxxxxxxxxxxx0"
+
+  .. code-block:: http
+
+    HTTP/1.1 400 Bad Request
+    Proxy-Status: PostgREST; error=PGRST129
+
+  .. code-block:: json
+
+    {
+      "code":"PGRST129",
+      "message":"Invalid timezone value given in 'Prefer: timezone=xxxxxxxxxxxxxxxxxxxxxxxxxxxx0'",
+      "details":"'Prefer: timezone' header value is not allowed to exceed 24 characters",
+      "hint": null
+    }
+
 .. _prefer_return:
 
 Return Representation

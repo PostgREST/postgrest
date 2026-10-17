@@ -271,6 +271,10 @@ Related to the HTTP request elements.
 |               |             | See :ref:`prefer_max_affected`.                             |
 | PGRST128      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst129: | 400         | ``timezone`` preference value exceeded 24 characters in     |
+|               |             | selected Postgres versions. See :ref:`prefer_timezone`.     |
+| PGRST129      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 
 .. _pgrst2**:

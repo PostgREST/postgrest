@@ -225,8 +225,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache RequestCtx{ctxTim
   let prefs = ApiRequest.userPreferences conf req
 
   body <- liftIO $ Wai.strictRequestBody req
+  pgVer <- liftIO $ AppState.getPgVersion appState
 
-  (apiReq@ApiRequest{..}, requestValues@RequestValues{..}) <- timed ctxTimer Parse $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (apiReq@ApiRequest{..}, requestValues@RequestValues{..}) <- timed ctxTimer Parse $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body pgVer
   plan <- timed ctxTimer Plan $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let
@@ -239,7 +240,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache RequestCtx{ctxTim
     when shouldShowWarnings $
       observer $
         LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) vMethod (vPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in RequestValues for consistency
-  pgVer <- liftIO $ AppState.getPgVersion appState
   let
     mainQ = Query.mainQuery pgVer plan conf apiReq requestValues authResult configDbPreRequest
     tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
