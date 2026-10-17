@@ -111,11 +111,13 @@ data JwtClaimsError
   | JWTNotYetValid
   | JWTIssuedAtFuture
   | JWTNotInAudience
+  | JWTIssuerMismatch
   | ParsingClaimsFailed
   | ExpClaimNotNumber
   | NbfClaimNotNumber
   | IatClaimNotNumber
   | AudClaimNotStringOrArray
+  | IssClaimNotString
   deriving (Show)
 
 -- PG ERRORS
