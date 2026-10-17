@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file. From versio
 ### Changes
 
 - Fix admin `/live` and `/metrics` waiting for a pool connection when `db-channel-enabled` is false by @mkleczek
+- Fix `Prefer: timezone` validation in selected pg versions by @taimoorzaeem
+  + PostgREST returns `PGRST129` error when timezone value exceeds 24 characters in pg versions lower than `18.6`, `17.11`, `16.15`, `15.19` and `14.24`.
+  + The validation is added to mitigate Postgres [CVE-2026-14669](https://www.postgresql.org/support/security/CVE-2026-14669/) for unpatched versions.
+  + We recommend to upgrade to later PostgreSQL versions.
 
 ## [16.4] - 2026-09-24
 

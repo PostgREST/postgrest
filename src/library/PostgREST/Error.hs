@@ -125,6 +125,7 @@ instance ErrorHeaders ApiRequestError where
   status InvalidResourcePath = HTTP.status404
   status OpenAPIDisabled = HTTP.status404
   status MaxAffectedRpcViolation = HTTP.status400
+  status TzLengthInvalidInPgError{} = HTTP.status400
 
   headers _ = mempty
 
@@ -172,6 +173,7 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled = "PGRST126"
   code NotImplemented{} = "PGRST127"
   code MaxAffectedRpcViolation = "PGRST128"
+  code TzLengthInvalidInPgError{} = "PGRST129"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -198,6 +200,7 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled = "Root endpoint metadata is disabled"
   message (NotImplemented _) = "Feature not implemented"
   message MaxAffectedRpcViolation = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+  message (TzLengthInvalidInPgError tzGuc) = "Invalid timezone value given in 'Prefer: timezone=" <> T.decodeUtf8 tzGuc <> "'"
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
@@ -214,6 +217,7 @@ instance ErrorBody ApiRequestError where
   details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
   details (NotImplemented details') = Just $ JSON.String details'
   details (NotEmbedded _ (Just _)) = Just $ JSON.String "Target names are not allowed in filters if they have an alias"
+  details (TzLengthInvalidInPgError{}) = Just $ JSON.String "'Prefer: timezone' header value is not allowed to exceed 24 characters"
   details _ = Nothing
 
   -- HINT: Maybe JSON.Value

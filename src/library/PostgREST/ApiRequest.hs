@@ -25,6 +25,7 @@ import Network.Wai.Parse (parseHttpAccept)
 import Protolude
 import Web.Cookie (parseCookies)
 
+import Data.ByteString qualified as BS
 import Data.CaseInsensitive qualified as CI
 import Data.HashMap.Strict qualified as HM
 import Data.List.NonEmpty qualified as NonEmptyList
@@ -43,6 +44,7 @@ import PostgREST.ApiRequest.Types
   , Resource (..)
   )
 import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
+import PostgREST.Config.PgVersion (PgVersion, timezoneGucInvalid)
 import PostgREST.Error (ApiRequestError (..), RangeError (..))
 import PostgREST.MediaType (MediaType (..))
 import PostgREST.RangeQuery
@@ -101,8 +103,8 @@ data ApiRequest = ApiRequest
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf prefs req reqBody = do
+userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> PgVersion -> Either ApiRequestError ApiRequest
+userApiRequest conf prefs req reqBody pgVer = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
@@ -111,11 +113,14 @@ userApiRequest conf prefs req reqBody = do
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act
   case act of
     ActDb ActSchemaRead{} -> pure () -- root doesn't apply preferences
-    ActDb _ ->
+    ActDb _ -> do
       when (Preferences.preferHandling prefs == Just Preferences.Strict && not (null $ Preferences.invalidPrefs prefs)) $
         Left $
           InvalidPreferences $
             Preferences.invalidPrefs prefs
+      -- For unpatched pg versions, we throw ApiRequestError if timezone GUC
+      -- string is longer than safe limit.
+      throwTzGucLengthInvalid (Preferences.preferTimezone prefs) pgVer
     _ -> pure () -- the *Info (OPTIONS) requests don't apply preferences
   return $
     ApiRequest
@@ -143,6 +148,15 @@ userApiRequest conf prefs req reqBody = do
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
     actIsInvokeSafe x = case x of ActDb (ActRoutine _ (InvRead _)) -> True; _ -> False
+
+    throwTzGucLengthInvalid :: Maybe Preferences.PreferTimezone -> PgVersion -> Either ApiRequestError ()
+    throwTzGucLengthInvalid prefTz currPgVer =
+      let maxAllowedLen = 24 -- this comes from (length('TZ') * 12 bytes). See: https://github.com/postgres/postgres/commit/3d724bf4fde67a2931733a5143b7d6c12b23990c
+      in  case prefTz of
+            Just (Preferences.PreferTimezone tz)
+              | BS.length tz > maxAllowedLen && timezoneGucInvalid currPgVer ->
+                  Left $ TzLengthInvalidInPgError tz
+            _ -> Right ()
 
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> Preferences.Preferences
