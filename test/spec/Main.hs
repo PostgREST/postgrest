@@ -70,6 +70,7 @@ import Hasql.Transaction.Sessions qualified as HT
 import PostgREST.AppState qualified as AppState
 import PostgREST.Logger qualified as Logger
 import PostgREST.Metrics qualified as Metrics
+import Unit.CacheSpec qualified
 
 main :: IO ()
 main = do
@@ -166,6 +167,8 @@ main = do
               ]
 
   hspec $ do
+    describe "Unit.CacheSpec" Unit.CacheSpec.spec
+
     mapM_ parallel specs
 
     parallel $ describe "Feature.Query.UnicodeSpec" $ Feature.Query.UnicodeSpec.spec withConfigDbs

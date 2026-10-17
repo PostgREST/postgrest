@@ -26,4 +26,5 @@ getAuthResult appState token = do
   conf <- liftIO $ getConfig appState
   time <- liftIO $ getTime appState
 
-  parseClaims conf time =<< lookupJwtCache (getJwtCacheState appState) token
+  -- a request without a JWT has no claims
+  parseClaims conf time =<< traverse (lookupJwtCache $ getJwtCacheState appState) token
