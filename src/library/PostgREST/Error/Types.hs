@@ -61,6 +61,7 @@ data ApiRequestError
   | InvalidResourcePath
   | OpenAPIDisabled
   | MaxAffectedRpcViolation
+  | TzLengthInvalidInPgError ByteString
   deriving (Show)
 
 data QPError = QPError Text Text
