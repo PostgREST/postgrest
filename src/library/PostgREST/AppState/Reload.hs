@@ -32,7 +32,7 @@ import Data.ByteString.Char8 qualified as BS
 import Data.Text qualified as T
 import Database.PostgreSQL.LibPQ qualified as LibPQ
 
-import PostgREST.AppState.Pool (flushPool, usePool)
+import PostgREST.AppState.Pool (flushCurrentPool, flushPool, initPool, usePool)
 import PostgREST.AppState.Types
 import PostgREST.Auth.JwtCache (update)
 import PostgREST.Catalog.Identifiers (quoteQi)
@@ -96,15 +96,17 @@ retryingSchemaCacheLoad appState@AppState{stateObserver = observer} =
             killApp appState
             return Nothing
           else do
-            observer $ DBConnectedObs $ pgvFullName actualPgVersion
-            observer $ PoolInit configDbPoolSize
             putPgVersion appState actualPgVersion
             return $ Just actualPgVersion
 
     qInDbConfig :: IO ()
     qInDbConfig = do
-      AppConfig{..} <- getConfig appState
-      when configDbConfig $ readInDbConfig False appState
+      AppConfig{configDbConfig} <- getConfig appState
+      when configDbConfig $ readInDbConfig False False appState
+
+      -- We log the DB pool initiation here, because the pool configuration could be modified in-db
+      observer . DBConnectedObs . pgvFullName =<< getPgVersion appState
+      observer . PoolInit . configDbPoolSize =<< getConfig appState
 
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
@@ -167,8 +169,8 @@ waitForSchemaCacheLoaded = atomically . (check <=< readTMVar) . getSCStatusTMVar
 
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
-readInDbConfig :: Bool -> AppState -> IO ()
-readInDbConfig startingUp appState@AppState{stateObserver = observer} = do
+readInDbConfig :: Bool -> Bool -> AppState -> IO ()
+readInDbConfig startingUp shouldLogDBPool appState@AppState{stateObserver = observer} = do
   oldConf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -197,7 +199,20 @@ readInDbConfig startingUp appState@AppState{stateObserver = observer} = do
         panic err -- die on invalid config if the program is starting up
       else
         observer $ ConfigInvalidObs err
-    Right newConf -> do
+    Right newConf@AppConfig{configDbPoolSize=newDbPoolSize} -> do
+      -- We verify if any db-pool configuration has changed. If so, we need to
+      -- initiate a new connection pool and flush the old one.
+      let dbPoolSettingsHasChanged = ((/=) `on` configDbPoolAcquisitionTimeout *> configDbPoolAutomaticRecovery *> configDbPoolMaxIdletime *> configDbPoolMaxLifetime *> configDbPoolSize)
+      when (dbPoolSettingsHasChanged newConf oldConf) $ do
+        oldPool <- getPool appState
+        newPool <- initPool newConf observer
+        putPool appState newPool
+        flushCurrentPool oldPool appState
+
+        when shouldLogDBPool $ do
+          observer . DBConnectedObs . pgvFullName =<< getPgVersion appState
+          observer $ PoolInit newDbPoolSize
+
       putConfig appState newConf
       -- After the config has reloaded, jwt-secret might have changed, so
       -- if it has changed, it is important to invalidate the jwt cache
@@ -300,7 +315,7 @@ retryingListen appState nextDelay hasDbListenerBug = do
       if
         | BS.null msg -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
         | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-        | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False appState
+        | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False True appState
         | otherwise -> pure () -- Do nothing if anything else than an empty message is sent
     cacheReloader =
       schemaCacheLoader appState

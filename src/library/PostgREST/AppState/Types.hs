@@ -22,7 +22,7 @@ import PostgREST.Logger qualified as Logger
 import PostgREST.Metrics qualified as Metrics
 
 data AppState = AppState
-  { statePool :: SQL.Pool
+  { statePool :: IORef SQL.Pool
   -- ^ Database connection pool
   , statePgVersion :: IORef PgVersion
   -- ^ Database server version
@@ -110,3 +110,9 @@ putListenerThreadId = atomicWriteIORef . stateListenerThreadId
 
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
+
+getPool :: AppState -> IO SQL.Pool
+getPool = readIORef . statePool
+
+putPool :: AppState -> SQL.Pool -> IO ()
+putPool = atomicWriteIORef . statePool
