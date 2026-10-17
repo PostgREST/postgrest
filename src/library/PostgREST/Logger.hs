@@ -29,6 +29,7 @@ import PostgREST.Config.PgVersion (pgvName)
 import PostgREST.Debounce (makeDebouncer)
 import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
+import PostgREST.Observation.JwtCache (jwtCacheMessage)
 import PostgREST.Query (MainQuery (..))
 import PostgREST.SchemaCache (queryTimingsWLabels)
 
@@ -108,10 +109,7 @@ observationLogger loggerState obs = do
     o@PoolFlushed ->
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
-    o@JwtCacheEviction ->
-      when (logLevel >= LogDebug) $ do
-        logWithZTime $ observationMessages o
-    o@(JwtCacheLookup _) ->
+    o@(JwtCacheObs _) ->
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
     o@(WarpServerObs _) ->
@@ -256,10 +254,8 @@ observationMessages = \case
     pure "Borrowed a connection from the pool"
   PoolFlushed ->
     pure "Database connection pool flushed"
-  JwtCacheLookup _ ->
-    pure "Looked up a JWT in JWT cache"
-  JwtCacheEviction ->
-    pure "Evicted entry from JWT cache"
+  JwtCacheObs o ->
+    pure $ jwtCacheMessage o
   TerminationUnixSignalObs signal ->
     pure $ "Received termination unix signal " <> signal
   WarpServerObs txt ->
