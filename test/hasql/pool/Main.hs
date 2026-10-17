@@ -176,7 +176,7 @@ main = do
           threadDelay 1_500_000 -- 1.5s
           res3 <- use countPool $ countConnectionsSession appName
           res3 `shouldBe` Right 0
-    it "Reuses the most recently used connection so that the others become idle (maxIdletime)" $ xfail $ do
+    it "Reuses the most recently used connection so that the others become idle (maxIdletime)" $ do
       withDefaultPool $ \countPool -> do
         (taggedConnectionSettings, appName) <- tagConnection connectionString
         withPool defaultPoolSettings{maxIdletime = 0.5} taggedConnectionSettings $ \limitedPool -> do
@@ -209,13 +209,6 @@ main = do
         threadDelay 1_000_000 -- 1s
         res4 <- use pool $ getSettingSession "testing.foo"
         res4 `shouldBe` Right Nothing
-
--- | The test is expected to fail, until what it checks is fixed
-xfail :: IO () -> IO ()
-xfail test =
-  try @SomeException test >>= \case
-    Left _ -> pass
-    Right _ -> expectationFailure "expected the test to fail"
 
 tagConnection :: Text -> IO (Text, Text)
 tagConnection connectionString = do

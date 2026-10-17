@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. From versio
 - Add the `Server-Timing` header to error responses by @mkleczek in #5294
 - Log GHC RTS flags at startup on `log-level=debug` by @steve-chavez in #5222
 - Fix idle pool connections not being released after `db-pool-max-idletime` by @mkleczek in #3902
+- Reuse the most recently used pool connection so surplus ones are released after `db-pool-max-idletime` by @mkleczek in #5337
 - Raise the soft limit on open file descriptors to the hard limit on startup by @mkleczek
 
 ## [16.5] - 2026-10-18
