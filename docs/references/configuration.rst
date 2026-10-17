@@ -224,7 +224,7 @@ app.settings.*
   =============== =======================
   **Type**        String
   **Default**     `n/a`
-  **Reloadable**  &
+  **Reloadable**  Y
   **Environment** PGRST_APP_SETTINGS_*
   **In-Database** `n/a`
   =============== =======================
