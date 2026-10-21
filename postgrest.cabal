@@ -145,6 +145,11 @@ library
   import:             defaults-and-shared, build-mode-opts
   hs-source-dirs:     src/library
   exposed-modules:    PostgREST.Admin
+                      PostgREST.ApiRequest
+                      PostgREST.ApiRequest.Payload
+                      PostgREST.ApiRequest.Preferences
+                      PostgREST.ApiRequest.QueryParams
+                      PostgREST.ApiRequest.Types
                       PostgREST.App
                       PostgREST.AppState
                       PostgREST.AppState.Pool
@@ -154,55 +159,50 @@ library
                       PostgREST.Auth.Jwt
                       PostgREST.Auth.JwtCache
                       PostgREST.Auth.Types
-                      PostgREST.Cache.Sieve
                       PostgREST.CLI
+                      PostgREST.Cache.Sieve
+                      PostgREST.Catalog.Identifiers
+                      PostgREST.Catalog.Query
+                      PostgREST.Catalog.Relationship
+                      PostgREST.Catalog.Representations
+                      PostgREST.Catalog.Routine
+                      PostgREST.Catalog.Table
                       PostgREST.Client
                       PostgREST.Config
                       PostgREST.Config.Database
-                      PostgREST.Debounce
                       PostgREST.Config.JSPath
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.Cors
-                      PostgREST.SchemaCache
-                      PostgREST.Catalog.Identifiers
-                      PostgREST.Catalog.Query
-                      PostgREST.Catalog.Routine
-                      PostgREST.Catalog.Relationship
-                      PostgREST.Catalog.Representations
-                      PostgREST.Catalog.Table
+                      PostgREST.Debounce
                       PostgREST.Error
                       PostgREST.Error.Types
                       PostgREST.Logger
-                      PostgREST.MainTx
                       PostgREST.Logger.Apache
+                      PostgREST.MainTx
                       PostgREST.MediaType
                       PostgREST.Metrics
                       PostgREST.Network
                       PostgREST.Observation
-                      PostgREST.Query
-                      PostgREST.Query.PreQuery
-                      PostgREST.Query.QueryBuilder
-                      PostgREST.Query.SqlFragment
-                      PostgREST.Query.Statements
                       PostgREST.Plan
                       PostgREST.Plan.CallPlan
                       PostgREST.Plan.MutatePlan
                       PostgREST.Plan.Negotiate
                       PostgREST.Plan.ReadPlan
                       PostgREST.Plan.Types
+                      PostgREST.Query
+                      PostgREST.Query.PreQuery
+                      PostgREST.Query.QueryBuilder
+                      PostgREST.Query.SqlFragment
+                      PostgREST.Query.Statements
                       PostgREST.RangeQuery
-                      PostgREST.Unix
-                      PostgREST.ApiRequest
-                      PostgREST.ApiRequest.Preferences
-                      PostgREST.ApiRequest.QueryParams
-                      PostgREST.ApiRequest.Payload
-                      PostgREST.ApiRequest.Types
                       PostgREST.Response
-                      PostgREST.Response.OpenAPI
                       PostgREST.Response.GucHeader
+                      PostgREST.Response.OpenAPI
                       PostgREST.Response.Performance
+                      PostgREST.SchemaCache
                       PostgREST.TimeIt
+                      PostgREST.Unix
                       PostgREST.Version
   build-depends:      base                      >= 4.9 && < 4.22
                     , HTTP                      >= 4000.3.7 && < 4000.6
@@ -297,8 +297,8 @@ test-suite spec
                       Feature.Auth.NoJwtSecretSpec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
-                      Feature.HttpHeaderSpec
                       Feature.ExtraSearchPathSpec
+                      Feature.HttpHeaderSpec
                       Feature.NoSuperuserSpec
                       Feature.ObservabilitySpec
                       Feature.OpenApi.DisabledOpenApiSpec
