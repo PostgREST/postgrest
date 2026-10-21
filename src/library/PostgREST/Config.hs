@@ -441,7 +441,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =
       optString k >>= \case
-        --                                          RollbackAll AllowOverride
+        -- (RollbackAll, AllowOverride)
         Nothing -> pure $ f (False, False)
         Just "commit" -> pure $ f (False, False)
         Just "commit-allow-override" -> pure $ f (False, True)
