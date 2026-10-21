@@ -19,6 +19,7 @@ runs:
     - if: ${{ inputs.vm == 'freebsd' }}
       uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
       with:
+        cache-after-prepare: true
         envs: ${{ inputs.envs }}
         prepare: ${{ inputs.prepare }}
         # Work around https://github.com/vmactions/freebsd-vm/issues/59
