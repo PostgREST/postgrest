@@ -399,13 +399,13 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
       optString k >>= \case
-        Nothing -> pure 432 -- return default 660 mode if no value was provided
+        Nothing -> pure 0o660 -- return default 660 mode if no value was provided
         Just fileModeText ->
           case readOct $ T.unpack fileModeText of
             [] ->
               fail $ "Invalid " <> T.unpack k <> ": not an octal"
             (fileMode, _) : _ ->
-              if fileMode < 384 || fileMode > 511 then
+              if fileMode < 0o600 || fileMode > 0o777 then
                 fail $ "Invalid " <> T.unpack k <> ": needs to be between 600 and 777"
               else
                 pure fileMode
