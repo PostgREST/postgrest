@@ -1,5 +1,5 @@
 -- |
--- Module      : PostgREST.Private.ProxyUri
+-- Module      : PostgREST.Config.Proxy
 -- Description : Proxy Uri validator
 module PostgREST.Config.Proxy
   ( Proxy (..)
