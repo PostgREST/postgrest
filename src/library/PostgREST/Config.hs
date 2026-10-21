@@ -12,6 +12,8 @@ module PostgREST.Config
   , JSPath
   , defaultRoleJSPathKey
   , LogLevel (..)
+  , LogFormat (..)
+  , dumpLogLevel
   , OpenAPIMode (..)
   , Proxy (..)
   , toText
@@ -111,6 +113,7 @@ data AppConfig = AppConfig
     configJwtSecretIsBase64 :: Bool,
     configJwtCacheMaxEntries :: Int,
     configLogLevel :: LogLevel,
+    configLogFormat :: LogFormat,
     configLogQuery :: Bool,
     configOpenApiMode :: OpenAPIMode,
     configOpenApiSecurityActive :: Bool,
@@ -144,6 +147,13 @@ dumpLogLevel = \case
   LogWarn -> "warn"
   LogInfo -> "info"
   LogDebug -> "debug"
+
+data LogFormat = LogFormatText | LogFormatJson
+
+dumpLogFormat :: LogFormat -> Text
+dumpLogFormat = \case
+  LogFormatText -> "text"
+  LogFormatJson -> "json"
 
 data Verbosity
   = Minimal
@@ -199,6 +209,7 @@ toText conf =
               ("jwt-secret-is-base64", T.toLower . show . configJwtSecretIsBase64),
               ("jwt-cache-max-entries", show . configJwtCacheMaxEntries),
               ("log-level", q . dumpLogLevel . configLogLevel),
+              ("log-format", q . dumpLogFormat . configLogFormat),
               ("log-query", T.toLower . show . configLogQuery),
               ("openapi-mode", q . dumpOpenApiMode . configOpenApiMode),
               ("openapi-security-active", T.toLower . show . configOpenApiSecurityActive),
@@ -331,6 +342,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         )
     <*> (fromMaybe 1000 <$> optInt "jwt-cache-max-entries")
     <*> parseLogLevel "log-level"
+    <*> parseLogFormat "log-format"
     <*> (fromMaybe False <$> optBool "log-query")
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
@@ -437,6 +449,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just "info" -> pure LogInfo
         Just "debug" -> pure LogDebug
         Just _ -> fail "Invalid logging level. Check your configuration."
+
+    parseLogFormat :: C.Key -> C.Parser C.Config LogFormat
+    parseLogFormat k =
+      optString k >>= \case
+        Nothing -> pure LogFormatText
+        Just "text" -> pure LogFormatText
+        Just "json" -> pure LogFormatJson
+        Just _ -> fail "Invalid log-format. Check your configuration."
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =
@@ -798,6 +818,9 @@ exampleConfigFile =
       "",
       "## Logging level, the admitted values are: crit, error, warn, info and debug.",
       "log-level = \"error\"",
+      "",
+      "## Format of the log lines, the admitted values are: text and json.",
+      "log-format = \"text\"",
       "",
       "## Log the SQL query at the current log-level.",
       "log-query = false",

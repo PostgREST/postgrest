@@ -748,6 +748,31 @@ jwt-cache-max-entries
 
   Maximum number of entries in JWT cache. The value :code:`0` disables JWT caching. See :ref:`jwt_caching`.
 
+.. _log-format:
+
+log-format
+----------
+
+  =============== =================================
+  **Type**        String
+  **Default**     text
+  **Reloadable**  Y
+  **Environment** PGRST_LOG_FORMAT
+  **In-Database** `n/a`
+  =============== =================================
+
+  Specifies the format of the log lines.
+
+  .. code:: bash
+
+      # Access lines in the Apache Combined Log Format and diagnostic lines as text
+      log-format = "text"
+
+      # Every line as a JSON object
+      log-format = "json"
+
+  See :ref:`json_logs`.
+
 .. _log-level:
 
 log-level

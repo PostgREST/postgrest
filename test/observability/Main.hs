@@ -55,7 +55,7 @@ main = do
   let initApp sCache config = do
         -- duplicate poolChan as a starting point
         confRef <- newIORef config
-        loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
+        loggerState <- Logger.init (configLogLevel <$> readIORef confRef) (configLogFormat <$> readIORef confRef)
         obsChan <- dupChan poolChan
         stateObsChan <- newObsChan obsChan
         appState <- AppState.initWithPool pool confRef loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan) mempty
