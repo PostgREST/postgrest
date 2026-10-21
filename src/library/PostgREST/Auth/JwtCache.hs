@@ -36,9 +36,10 @@ import PostgREST.Cache.Sieve (alwaysValid)
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
 import PostgREST.Observation
-  ( Observation (JwtCacheEviction, JwtCacheLookup)
+  ( Observation (JwtCacheObs)
   , ObservationHandler
   )
+import PostgREST.Observation.JwtCache (JwtCacheObservation (..))
 
 import PostgREST.Cache.Sieve qualified as SC
 
@@ -101,10 +102,12 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
             maxSize
             copy
             (parseAndDecodeClaims key)
-            (lift . observationHandler . JwtCacheLookup) -- lookup metrics
-            (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
+            (lift . observationHandler . JwtCacheObs . JwtCacheLookup) -- lookup metrics
+            (const . const $ lift $ observationHandler $ JwtCacheObs JwtCacheEviction) -- evictions metrics
             alwaysValid -- no invalidation for now
         )
+        -- thrashing metrics
+        >>= (atomically . SC.trackThrashing maxSize (lift . observationHandler $ JwtCacheObs JwtCacheThrashing))
 
 lookupJwtCache :: (MonadError Error m, MonadIO m) => JwtCacheState -> Maybe ByteString -> m JSON.Object
 lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
