@@ -3,6 +3,7 @@ module Main where
 import Contravariant.Extras (contrazip2)
 import Control.Monad.Fail (fail)
 import Protolude
+import System.IO.Error (userError)
 import Test.Hspec
 import Test.QuickCheck (Property, ioProperty, property, (===), (==>))
 
@@ -12,6 +13,8 @@ import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
 import Hasql.Session qualified as Session
 import Hasql.Statement qualified as Statement
+import Hasql.Transaction qualified as Transaction
+import Hasql.Transaction.Sessions qualified as Transaction
 
 main :: IO ()
 main = hspec $ do
@@ -89,11 +92,67 @@ main = hspec $ do
         session = (,) <$> Session.statement "ok" textStatement <*> Session.statement 1 int4Statement
       Session.run session connection `shouldReturn` Right ("ok", 1)
 
+    it "prepares the TCL commands when rolling back a failed transaction" $ \conn -> do
+      result <-
+        run
+          ( Transaction.transactionNoRetry Transaction.ReadCommitted Transaction.Write $
+              Transaction.statement () $
+                Statement.Statement
+                  "SELECT 1 / 0"
+                  mempty
+                  (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
+                  True
+          )
+          conn
+      result `shouldSatisfy` isLeft
+      preparedStatements conn `shouldReturn` Right ["ABORT", "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE", "SELECT 1 / 0"]
+
+    it "does not prepare statements when preparation is disabled" $ \_ ->
+      withConnectionSettings [Setting.usePreparedStatements False] $ \conn -> do
+        runQuery conn "SELECT 1" `shouldReturn` Right 1
+        preparedStatements conn `shouldReturn` Right []
+
+    it "clears the prepared statement cache when an exception resets the connection" $ \conn -> do
+      result <-
+        try @SomeException $
+          run
+            ( do
+                Session.sql "BEGIN"
+                void $ query "SELECT 1"
+                liftIO (throwIO (userError "reset") :: IO ())
+            )
+            conn
+      result `shouldSatisfy` isLeft
+      preparedStatements conn `shouldReturn` Right []
+      runQuery conn "SELECT 1" `shouldReturn` Right 1
+      preparedStatements conn `shouldReturn` Right ["SELECT 1"]
+  where
+    run session conn = first (show :: Session.SessionError -> Text) <$> Session.run session conn
+    query sql =
+      Session.statement () $
+        Statement.Statement
+          sql
+          mempty
+          (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
+          True
+    runQuery conn sql = run (query sql) conn
+    preparedStatements =
+      run $
+        Session.statement () $
+          Statement.Statement
+            "SELECT statement FROM pg_prepared_statements ORDER BY statement"
+            mempty
+            (Decoders.rowList $ Decoders.column $ Decoders.nonNullable Decoders.text)
+            False
+
 withConnection :: (Connection.Connection -> IO a) -> IO a
-withConnection = bracket acquire Connection.release
+withConnection = withConnectionSettings []
+
+withConnectionSettings :: [Setting.Setting] -> (Connection.Connection -> IO a) -> IO a
+withConnectionSettings settings = bracket acquire Connection.release
   where
     -- libpq reads the connection parameters from the PG* variables.
-    acquire = Connection.acquire [Setting.connection ""] >>= either (fail . show) pure
+    acquire = Connection.acquire (Setting.connection "" : settings) >>= either (fail . show) pure
 
 roundtrip :: (Eq a, Show a) => Encoders.Params a -> Decoders.Result a -> a -> Property
 roundtrip encoder decoder input = ioProperty $ withConnection $ \connection -> do
