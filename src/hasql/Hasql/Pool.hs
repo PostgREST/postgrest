@@ -223,7 +223,7 @@ use Pool{..} sess = do
           join . atomically $ do
             reuse <- readTVar reuseVar
             if reuse then
-              writeTQueue poolConnectionQueue entry $> return ()
+              unGetTQueue poolConnectionQueue entry $> return ()
             else return $ do
               Connection.release (entryConnection entry)
               atomically $ modifyTVar' poolCapacity succ
