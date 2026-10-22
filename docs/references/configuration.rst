@@ -561,6 +561,8 @@ db-root-spec
   **In-Database** pgrst.db_root_spec
   =============== =================================
 
+  *For backwards compatibility, this config parameter is also available without prefix as "root-spec".*
+
   Function to override the OpenAPI response. See :ref:`override_openapi`.
 
 .. _db-schemas:
@@ -726,6 +728,8 @@ jwt-secret-is-base64
   **Environment** PGRST_JWT_SECRET_IS_BASE64
   **In-Database** pgrst.jwt_secret_is_base64
   =============== =================================
+
+  *For backwards compatibility, this config parameter is also available without prefix as "secret-is-base64".*
 
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
