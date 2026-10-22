@@ -1,6 +1,7 @@
 module Feature.RollbackSpec where
 
 import Network.HTTP.Types
+import Network.Wai (Application)
 import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
@@ -12,6 +13,7 @@ import SpecHelper
 -- two helpers functions to make sure that each test can setup and cleanup properly
 
 -- creates Item to work with for PATCH and DELETE
+postItem :: WaiExpectation st
 postItem =
   request
     methodPost
@@ -27,6 +29,7 @@ postItem =
       }
 
 -- removes Items left over from POST, PUT, and PATCH
+deleteItems :: WaiExpectation st
 deleteItems =
   request
     methodDelete
@@ -41,18 +44,25 @@ deleteItems =
           ]
       }
 
+preferDefault :: [(HeaderName, ByteString)]
 preferDefault = [("Prefer", "return=representation")]
 
+preferCommit :: [(HeaderName, ByteString)]
 preferCommit = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
 
+preferRollback :: [(HeaderName, ByteString)]
 preferRollback = [("Prefer", "return=representation"), ("Prefer", "tx=rollback")]
 
+withoutPreferenceApplied :: [a]
 withoutPreferenceApplied = []
 
+withPreferenceCommitApplied :: [MatchHeader]
 withPreferenceCommitApplied = [matchHeaderValuePresent "Preference-Applied" "tx=commit"]
 
+withPreferenceRollbackApplied :: [MatchHeader]
 withPreferenceRollbackApplied = [matchHeaderValuePresent "Preference-Applied" "tx=rollback"]
 
+shouldRespondToReads :: [Header] -> [MatchHeader] -> SpecWith ((), Application)
 shouldRespondToReads reqHeaders respHeaders = do
   it "responds to GET" $ do
     request
@@ -94,6 +104,7 @@ shouldRespondToReads reqHeaders respHeaders = do
         { matchHeaders = respHeaders
         }
 
+shouldRaiseExceptions :: [Header] -> [MatchHeader] -> SpecWith ((), Application)
 shouldRaiseExceptions reqHeaders respHeaders = do
   it "raises immediate constraints" $ do
     request
@@ -127,6 +138,7 @@ shouldRaiseExceptions reqHeaders respHeaders = do
           matchHeaders = respHeaders
         }
 
+shouldPersistMutations :: [Header] -> [MatchHeader] -> SpecWith ((), Application)
 shouldPersistMutations reqHeaders respHeaders = do
   it "does persist post" $ do
     request
@@ -185,6 +197,7 @@ shouldPersistMutations reqHeaders respHeaders = do
     get "/items?id=eq.0"
       `shouldRespondWith` [json|[]|]
 
+shouldNotPersistMutations :: [Header] -> [MatchHeader] -> SpecWith ((), Application)
 shouldNotPersistMutations reqHeaders respHeaders = do
   it "does not persist post" $ do
     request
