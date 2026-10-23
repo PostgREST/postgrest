@@ -220,7 +220,7 @@ def test_no_pool_connection_required_on_bad_embedding(defaultenv):
 
 
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
-def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
+def test_pool_acquisition_timeout(level, defaultenv):
     "Verify that PGRST_DB_POOL_ACQUISITION_TIMEOUT times out when the pool is empty"
 
     env = {
