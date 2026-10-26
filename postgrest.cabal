@@ -224,6 +224,7 @@ library
                     , extra                     >= 1.7.0 && < 2.0
                     , fast-logger               >= 3.2.0 && < 3.3
                     , fuzzyset                  >= 0.2.4 && < 0.3
+                    , hashable                  >= 1.2 && < 2
                     , postgrest:hasql
                     , http-client               >= 0.7.19 && < 0.8
                     , http-types                >= 0.12.2 && < 0.13
