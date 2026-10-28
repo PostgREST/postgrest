@@ -92,6 +92,22 @@ main = hspec $ do
         session = (,) <$> Session.statement "ok" textStatement <*> Session.statement 1 int4Statement
       Session.run session connection `shouldReturn` Right ("ok", 1)
 
+    it "does not cache a failed preparation" $ \conn -> do
+      runQuery conn "SELECT 1" `shouldReturn` Right 1
+
+      -- invalid statement
+      firstResult <- Session.run (query "SELECT FROM") conn
+      firstResult `shouldSatisfy` isSyntaxError
+
+      -- if the previous invalid statement was cached in Hasql, the second attempt would instead fail with 26000 invalid_sql_statement_name
+      -- since it would send the cached invalid statement
+      secondResult <- Session.run (query "SELECT FROM") conn
+      secondResult `shouldSatisfy` isSyntaxError
+
+      -- The failed preparation must not corrupt the cache
+      runQuery conn "SELECT 2" `shouldReturn` Right 2
+      preparedStatements conn `shouldReturn` Right ["SELECT 1", "SELECT 2"]
+
     it "prepares the TCL commands when rolling back a failed transaction" $ \conn -> do
       result <-
         run
@@ -126,6 +142,29 @@ main = hspec $ do
       preparedStatements conn `shouldReturn` Right []
       runQuery conn "SELECT 1" `shouldReturn` Right 1
       preparedStatements conn `shouldReturn` Right ["SELECT 1"]
+
+    it "distinguishes parameter types for identical SQL" $ \conn -> do
+      run
+        ( Session.statement (42 :: Int32) $
+            Statement.Statement
+              "SELECT $1"
+              (Encoders.param $ Encoders.nonNullable Encoders.int4)
+              (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
+              True
+        )
+        conn
+        `shouldReturn` Right 42
+      run
+        ( Session.statement ("hello" :: Text) $
+            Statement.Statement
+              "SELECT $1"
+              (Encoders.param $ Encoders.nonNullable Encoders.text)
+              (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.text)
+              True
+        )
+        conn
+        `shouldReturn` Right "hello"
+      preparedStatements conn `shouldReturn` Right ["SELECT $1", "SELECT $1"]
   where
     run session conn = first (show :: Session.SessionError -> Text) <$> Session.run session conn
     query sql =
@@ -136,6 +175,9 @@ main = hspec $ do
           (Decoders.singleRow $ Decoders.column $ Decoders.nonNullable Decoders.int4)
           True
     runQuery conn sql = run (query sql) conn
+    isSyntaxError = \case
+      Left (Session.QueryError _ _ (Session.ResultError (Session.ServerError "42601" _ _ _))) -> True
+      _ -> False
     preparedStatements =
       run $
         Session.statement () $
