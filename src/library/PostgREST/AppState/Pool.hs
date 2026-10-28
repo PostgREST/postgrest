@@ -10,6 +10,8 @@ module PostgREST.AppState.Pool
 where
 
 import Data.Either.Combinators (whenLeft)
+import Data.IORef (newIORef, readIORef, writeIORef)
+import GHC.Clock (getMonotonicTimeNSec)
 import Protolude
 
 import Data.ByteString.Char8 qualified as BS
@@ -46,7 +48,15 @@ usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool appState@AppState{stateObserver = observer, ..} sess = do
   observer PoolRequest
 
-  res <- SQL.use statePool sess
+  start <- getMonotonicTimeNSec
+  waiting <- newIORef True
+  -- the wait ends when the session starts, or when it can't without a connection
+  let endWait = whenM (readIORef waiting) $ do
+        writeIORef waiting False
+        end <- getMonotonicTimeNSec
+        observer . PoolWaitedObs $ fromIntegral (end - start) / 1e9
+
+  res <- SQL.use statePool (liftIO endWait *> sess) <* endWait
 
   observer PoolRequestFullfilled
 

@@ -102,6 +102,9 @@ observationLogger loggerState obs = do
     o@PoolRequestFullfilled ->
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
+    o@(PoolWaitedObs _) ->
+      when (logLevel >= LogDebug) $ do
+        logWithZTime $ observationMessages o
     ResponseObs maybeRole req status contentLen ->
       when (shouldLogResponse logLevel status) $ do
         zTime <- getZonedTime
@@ -252,6 +255,8 @@ observationMessages = \case
     pure "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
     pure "Borrowed a connection from the pool"
+  PoolWaitedObs seconds ->
+    pure $ "Waited " <> T.pack (showFFloat (Just 1) (seconds * 1000) "") <> " ms for a pool connection"
   PoolFlushed ->
     pure "Database connection pool flushed"
   JwtCacheObs o ->

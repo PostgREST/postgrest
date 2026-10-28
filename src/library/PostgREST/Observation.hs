@@ -63,6 +63,7 @@ data Observation
   | ResponseObs (Maybe ByteString) Wai.Request Status (Maybe Integer)
   | PoolRequest
   | PoolRequestFullfilled
+  | PoolWaitedObs Double
   | PoolFlushed
   | JwtCacheObs JwtCacheObservation
   | TerminationUnixSignalObs Text

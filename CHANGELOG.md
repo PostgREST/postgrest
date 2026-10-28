@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. From versio
 - Log GHC RTS flags at startup on `log-level=debug` by @steve-chavez in #5222
 - Fix idle pool connections not being released after `db-pool-max-idletime` by @mkleczek in #3902
 - Raise the soft limit on open file descriptors to the hard limit on startup by @mkleczek
+- Add `pgrst_db_pool_wait_seconds` metric, a histogram of the wait for a pool connection, by @mkleczek in #5361
 
 ## [16.5] - 2026-10-18
 

@@ -267,9 +267,6 @@ def waits_between(before, after, low, high):
     return (after[high] - before[high]) - (after[low] - before[low])
 
 
-@pytest.mark.xfail(
-    reason="pgrst_db_pool_wait_seconds is added by the next change", strict=True
-)
 def test_pool_wait_histogram_counts_the_wait_for_a_connection(defaultenv):
     "pgrst_db_pool_wait_seconds should put the wait for a busy pool in a high bucket"
 
@@ -300,9 +297,6 @@ def test_pool_wait_histogram_counts_the_wait_for_a_connection(defaultenv):
         assert waits_between(before, after, "5.0", "+Inf") == 0
 
 
-@pytest.mark.xfail(
-    reason="pgrst_db_pool_wait_seconds is added by the next change", strict=True
-)
 def test_pool_wait_histogram_counts_acquisition_timeouts(defaultenv):
     "pgrst_db_pool_wait_seconds should count the wait of a request that times out acquiring a connection"
 

@@ -206,6 +206,15 @@ pgrst_db_pool_max
 
 Max pool connections.
 
+pgrst_db_pool_wait_seconds
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =========
+**Type** Histogram
+======== =========
+
+The wait for a pool connection, until it is acquired or acquiring it fails, in seconds. It is observed on every use of the pool.
+
 .. _jwt_cache_metrics:
 
 JWT Cache Metrics

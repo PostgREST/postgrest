@@ -32,7 +32,8 @@ data PoolMetrics = PoolMetrics
   { poolTimeouts :: Counter,
     connTrack :: ConnTrack,
     poolWaiting :: Gauge,
-    poolMaxSize :: Gauge
+    poolMaxSize :: Gauge,
+    poolWait :: Histogram
   }
 
 init :: Int -> IO (PoolMetrics, MetricsModule)
@@ -43,6 +44,7 @@ init configDbPoolSize = do
       <*> create (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
       <*> create (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
       <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
+      <*> create (histogram (Info "pgrst_db_pool_wait_seconds" "The wait for a pool connection") poolWaitBuckets)
   setGauge (poolMaxSize metrics) (fromIntegral configDbPoolSize)
   pure (metrics, MetricsModule (onObservation metrics) samples)
   where
@@ -69,8 +71,14 @@ init configDbPoolSize = do
         incGauge poolWaiting
       PoolRequestFullfilled ->
         decGauge poolWaiting
+      PoolWaitedObs seconds ->
+        observe poolWait seconds
       _ ->
         pure ()
+
+-- | From a millisecond to the default db-pool-acquisition-timeout, 10 s
+poolWaitBuckets :: [Double]
+poolWaitBuckets = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]
 
 data ConnStats = ConnStats
   { connected :: Int,
