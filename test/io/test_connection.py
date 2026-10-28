@@ -252,6 +252,81 @@ def test_pool_acquisition_timeout(level, defaultenv):
             )
 
 
+def pool_wait_histogram(response):
+    "The buckets of pgrst_db_pool_wait_seconds in a /metrics response, as upper bound to count"
+    return {
+        le: int(count)
+        for le, count in re.findall(
+            r'pgrst_db_pool_wait_seconds_bucket\{le="([^"]+)"\} (\d+)', response.text
+        )
+    }
+
+
+def waits_between(before, after, low, high):
+    "The waits observed between two histograms that are longer than low and up to high"
+    return (after[high] - before[high]) - (after[low] - before[low])
+
+
+@pytest.mark.xfail(
+    reason="pgrst_db_pool_wait_seconds is added by the next change", strict=True
+)
+def test_pool_wait_histogram_counts_the_wait_for_a_connection(defaultenv):
+    "pgrst_db_pool_wait_seconds should put the wait for a busy pool in a high bucket"
+
+    env = {**defaultenv, "PGRST_DB_POOL": "1"}
+
+    with run(env=env) as postgrest:
+        before = pool_wait_histogram(postgrest.admin.get("/metrics"))
+
+        def sleep():
+            response = postgrest.session.get("/rpc/sleep?seconds=2")
+            assert response.status_code == 204
+
+        t = Thread(target=sleep)
+        t.start()
+
+        # make sure the request holds the connection
+        time.sleep(0.2)
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+        t.join()
+
+        after = pool_wait_histogram(postgrest.admin.get("/metrics"))
+
+        # the sleeping request got its connection at once, the other waited for it
+        assert waits_between(before, after, "1.0", "5.0") == 1
+        assert waits_between(before, after, "5.0", "+Inf") == 0
+
+
+@pytest.mark.xfail(
+    reason="pgrst_db_pool_wait_seconds is added by the next change", strict=True
+)
+def test_pool_wait_histogram_counts_acquisition_timeouts(defaultenv):
+    "pgrst_db_pool_wait_seconds should count the wait of a request that times out acquiring a connection"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "2",  # 2 seconds
+    }
+
+    with run(
+        env=env, no_pool_connection_available=True, wait_max_seconds=3
+    ) as postgrest:
+        before = pool_wait_histogram(postgrest.admin.get("/metrics"))
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 504
+
+        after = pool_wait_histogram(postgrest.admin.get("/metrics"))
+
+        # the request waited until the timeout
+        assert waits_between(before, after, "1.0", "5.0") == 1
+        assert waits_between(before, after, "5.0", "+Inf") == 0
+
+
 def test_pool_acquisition_timeout_logs_are_debounced(defaultenv):
     "Pool acquisition timeout diagnostic logs should be debounced over a burst of failures"
 
