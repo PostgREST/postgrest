@@ -2,11 +2,41 @@
 
 ## AI Policy
 
-We adhere to [Gentoo's AI policy](https://wiki.gentoo.org/wiki/Project:Council/AI_policy):
+You may use AI tools when contributing to PostgREST, just as you may use any
+editor or other development tool. What matters is that a human is accountable
+for every contribution and that reviewers' time is respected. Maintainers hold
+differing views on AI, so reviewing and merging AI-assisted contributions may
+take longer and be harder; be prepared for this.
 
-> It is expressly forbidden to contribute [...] any content that has been created with the assistance of Natural Language Processing artificial intelligence tools. This motion can be revisited, should a case been made over such a tool that does not pose copyright, ethical and quality concerns.
+### Accountability
 
-You can find more about its rationale [here](https://wiki.gentoo.org/wiki/Project:Council/AI_policy#Rationale).
+* **You own it.** Anything you submit (code, tests, docs, issues, comments) is
+  your work, whatever drafted it. You must be able to explain and defend every
+  line in review.
+* **Understand before submitting.** Read, run and understand your changes. "The
+  AI wrote it" is not an answer to a review comment.
+* **Licensing.** You are responsible for ensuring your contribution can be
+  distributed under PostgREST's license. Don't submit output that reproduces
+  code you know to be incompatibly licensed.
+
+### Respecting reviewers' capacity
+
+* **Same bar for everyone.** Contributions from humans and AI-assisted
+  contributors alike must meet the quality bar and the issue, commit and patch
+  requirements described elsewhere in this document and the project docs.
+  Generating code is cheap; reviewing it is not.
+* **Small and focused.** Large, unrequested or drive-by changes may be closed
+  without detailed review. For non-trivial changes, discuss in an issue first.
+* **Keep it reviewable.** Issue and PR descriptions and replies to reviewers
+  should be concise and understandable: state the problem, the change and how
+  you verified it. Padded or unfocused text, however it was produced, may be
+  asked to be rewritten before review continues.
+* **No unattended agents.** Don't use bots or agents that open issues, PRs or
+  comments without a human reviewing each one first.
+
+Maintainers may close contributions that demand more review effort than they
+are worth and may restrict contributors who repeatedly submit them. This policy
+may be revisited as tools and norms change.
 
 ## Issues
 
