@@ -121,7 +121,7 @@ main = hspec $ do
           )
           conn
       result `shouldSatisfy` isLeft
-      preparedStatements conn `shouldReturn` Right ["ABORT", "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE", "SELECT 1 / 0"]
+      preparedStatements conn `shouldReturn` Right ["BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE", "ROLLBACK", "SELECT 1 / 0"]
 
     it "does not prepare statements when preparation is disabled" $ \_ ->
       withConnectionSettings [Setting.usePreparedStatements False] $ \conn -> do
