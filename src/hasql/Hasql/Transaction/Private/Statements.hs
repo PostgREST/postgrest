@@ -16,6 +16,6 @@ commitTransaction :: A.Statement () ()
 commitTransaction =
   A.Statement "COMMIT" B.noParams C.noResult True
 
-abortTransaction :: A.Statement () ()
-abortTransaction =
-  A.Statement "ABORT" B.noParams C.noResult True
+rollbackTransaction :: A.Statement () ()
+rollbackTransaction =
+  A.Statement "ROLLBACK" B.noParams C.noResult True

@@ -11,14 +11,14 @@ tryTransaction level mode body = do
   statement () (Statements.beginTransaction level mode)
 
   (res, commit) <- catchError body $ \error -> do
-    statement () Statements.abortTransaction
+    statement () Statements.rollbackTransaction
     throwError error
 
-  commitOrAbort commit $> res
+  commitOrRollback commit $> res
 
-commitOrAbort :: Bool -> Session ()
-commitOrAbort commit =
+commitOrRollback :: Bool -> Session ()
+commitOrRollback commit =
   if commit then
     statement () Statements.commitTransaction
   else
-    statement () Statements.abortTransaction
+    statement () Statements.rollbackTransaction
