@@ -240,6 +240,15 @@ pgrst_jwt_cache_evictions_total
 
 The total number of JWT cache evictions.
 
+pgrst_jwt_cache_thrashing_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of JWT cache misses of entries that were among the last :ref:`jwt-cache-max-entries` evicted ones. These misses would be hits with twice as many cache entries, so a growing value suggests increasing :ref:`jwt-cache-max-entries`.
+
 GHC Runtime Metrics
 -------------------
 
