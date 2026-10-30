@@ -20,6 +20,7 @@ import Hasql.Pool.Prelude hiding (timeout)
 
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
+import Hasql.LibPq14 qualified as LibPQ
 import Hasql.Pool.Config.Config qualified as Config
 import Hasql.Pool.SessionErrorDestructors qualified as ErrorsDestruction
 import Hasql.Session qualified as Session
@@ -189,8 +190,15 @@ use Pool{..} sess = do
           Connection.release (entryConnection entry)
           poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
           onNewConn reuseVar
-        else do
-          onLiveConn reuseVar entry{entryUseTimeNSec = now}
+        else
+          checkConnection (entryConnection entry) >>= \case
+            Nothing -> onLiveConn reuseVar entry{entryUseTimeNSec = now}
+            -- the server closed the connection meanwhile, e.g. when it shut
+            -- down: replace it instead of failing the session on it
+            Just details -> do
+              Connection.release (entryConnection entry)
+              poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
+              onNewConn reuseVar
 
     onLiveConn reuseVar entry = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
@@ -201,19 +209,23 @@ use Pool{..} sess = do
           returnConn
           throwIO exc
         Right (Left err) ->
-          ErrorsDestruction.reset
-            ( \details -> do
+          let discard details = do
                 Connection.release (entryConnection entry)
                 atomically $ modifyTVar' poolCapacity succ
                 poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
                 return $ Left $ SessionUsageError err
-            )
-            ( do
-                returnConn
-                poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus (SessionFailedConnectionReadyForUseReason err)))
-                return $ Left $ SessionUsageError err
-            )
-            err
+          in  ErrorsDestruction.reset
+                discard
+                -- a server error can leave the connection broken too, e.g. the
+                -- error the server sends before closing it when it shuts down
+                ( checkConnection (entryConnection entry) >>= \case
+                    Just details -> discard details
+                    Nothing -> do
+                      returnConn
+                      poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus (SessionFailedConnectionReadyForUseReason err)))
+                      return $ Left $ SessionUsageError err
+                )
+                err
         Right (Right res) -> do
           returnConn
           poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus SessionSucceededConnectionReadyForUseReason))
@@ -228,6 +240,19 @@ use Pool{..} sess = do
               Connection.release (entryConnection entry)
               atomically $ modifyTVar' poolCapacity succ
               poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
+
+-- | Nothing if the connection is still usable, or the error that broke it.
+-- Reads what the server sent meanwhile without waiting, e.g. the error it
+-- sends before closing a connection when it shuts down: libpq marks the
+-- connection as bad when it reads the close. It stops reading after getting
+-- data, so it reads twice, for the data and for the close after it.
+checkConnection :: Connection -> IO (Maybe (Maybe ByteString))
+checkConnection connection =
+  Connection.withLibPQConnection connection $ \pqConnection -> do
+    replicateM_ 2 $ LibPQ.consumeInput pqConnection
+    LibPQ.status pqConnection >>= \case
+      LibPQ.ConnectionOk -> pure Nothing
+      _ -> Just <$> LibPQ.errorMessage pqConnection
 
 -- | Union over all errors that 'use' can result in.
 data UsageError
