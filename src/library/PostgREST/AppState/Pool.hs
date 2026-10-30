@@ -2,7 +2,8 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.AppState.Pool
-  ( destroy
+  ( debounceAcqTimeouts
+  , destroy
   , initPool
   , flushPool
   , usePool
@@ -17,6 +18,7 @@ import Network.HTTP.Types.Status qualified as HTTP
 
 import PostgREST.AppState.Types
 import PostgREST.Config (AppConfig (..), toConnectionSettings)
+import PostgREST.Debounce (makeDebouncer)
 import PostgREST.Observation
 
 import Hasql.Pool qualified as SQL
@@ -40,6 +42,17 @@ initPool cfg@AppConfig{..} observer = do
         SQL.staticConnectionSettings $ toConnectionSettings identity cfg,
         SQL.observationHandler $ observer . HasqlPoolObs
       ]
+
+-- | Pass pool acquisition timeouts on at most once every 5 seconds, so that
+-- they don't flood the log
+debounceAcqTimeouts :: ObservationHandler -> IO ObservationHandler
+debounceAcqTimeouts observer = do
+  observeTimeout <- makeDebouncer $ observer PoolAcqTimeoutObs *> threadDelay (5 * oneSecond)
+  pure $ \case
+    PoolAcqTimeoutObs -> observeTimeout
+    o -> observer o
+  where
+    oneSecond = 1_000_000
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
