@@ -41,6 +41,7 @@ data MetricsState
     poolMaxSize :: Gauge,
     schemaCacheLoads :: Vector Label1 Counter,
     schemaCacheQueryTime :: Gauge,
+    schemaCacheLoadFailedAttempts :: Gauge,
     jwtCacheRequests :: Counter,
     jwtCacheHits :: Counter,
     jwtCacheEvictions :: Counter,
@@ -68,6 +69,7 @@ init configDbPoolSize = do
       <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
       <*> create (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
       <*> create (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
+      <*> create (gauge (Info "pgrst_schema_cache_failed_attempts_since_last_successful_load" "The number of times schema cache load failed since last successful load"))
       <*> create (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups"))
       <*> create (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits"))
       <*> create (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
@@ -103,8 +105,10 @@ observationMetrics MetricsState{..} obs = case obs of
   SchemaCacheLoadedObs resTime _ -> do
     withLabel schemaCacheLoads "SUCCESS" incCounter
     setGauge schemaCacheQueryTime resTime
+    setGauge schemaCacheLoadFailedAttempts 0
   SchemaCacheErrorObs{} -> do
     withLabel schemaCacheLoads "FAIL" incCounter
+    incGauge schemaCacheLoadFailedAttempts
   JwtCacheLookup True -> incCounter jwtCacheRequests *> incCounter jwtCacheHits
   JwtCacheLookup False -> incCounter jwtCacheRequests
   JwtCacheEviction -> incCounter jwtCacheEvictions

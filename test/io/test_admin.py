@@ -162,6 +162,10 @@ def test_admin_metrics(defaultenv):
         assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
         assert "pgrst_schema_cache_query_time_seconds" in response.text
         assert 'pgrst_schema_cache_loads_total{status="SUCCESS"}' in response.text
+        assert (
+            "pgrst_schema_cache_failed_attempts_since_last_successful_load"
+            in response.text
+        )
         assert "pgrst_db_pool_max" in response.text
         assert "pgrst_db_pool_waiting" in response.text
         assert "pgrst_db_pool_available" in response.text
