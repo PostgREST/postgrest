@@ -232,6 +232,7 @@ In Production
 
 Here are some companies that use PostgREST in production.
 
+* `Aiven <https://aiven.io>`_
 * `Catarse <https://www.catarse.me>`_
 * `Drip Depot <https://www.dripdepot.com>`_
 * `Image-charts <https://www.image-charts.com>`_
