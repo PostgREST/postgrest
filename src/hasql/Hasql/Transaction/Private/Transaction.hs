@@ -39,10 +39,3 @@ sql =
 statement :: a -> A.Statement a b -> Transaction b
 statement params statement' =
   Transaction . lift $ B.statement params statement'
-
--- |
--- Cause transaction to eventually roll back.
-{-# INLINE condemn #-}
-condemn :: Transaction ()
-condemn =
-  Transaction $ put False
