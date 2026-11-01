@@ -1,9 +1,12 @@
 {
   buildToolbox,
+  cabal-install,
   checkedShellScript,
+  coreutils,
   git,
   jq,
   libfaketime,
+  postgrest,
   python3,
   python3Packages,
   runCommand,
@@ -12,6 +15,28 @@
   writers,
 }:
 let
+  loadtestPool =
+    checkedShellScript
+      {
+        name = "postgrest-loadtest-pool";
+        docs = "Loadtest the pool throughput with one CPU and all available CPUs";
+        workingDir = "/";
+        withEnv = postgrest.env;
+        withPath = [ coreutils ];
+      }
+      ''
+        output=$(mktemp)
+        trap 'rm -rf "$output"' EXIT
+
+        printf "## Pool Loadtest\n\n" >> "$output"
+
+        for n in 1 "$(nproc)"; do
+          ${withTools.withPg} ${cabal-install}/bin/cabal v2-run \
+            -v0 -f-dev bench:loadtest-pool -- +RTS -N"$n" -RTS >> "$output"
+        done
+        cat "$output"
+      '';
+
   runner =
     checkedShellScript
       {
@@ -315,6 +340,7 @@ buildToolbox {
     inherit
       loadtest
       loadtestAgainst
+      loadtestPool
       report
       report-load
       ;

@@ -201,7 +201,7 @@ rec {
   gitTools = pkgs.callPackage nix/tools/gitTools.nix { inherit treefmtNix; };
 
   # Load testing tools.
-  loadtest = pkgs.callPackage nix/tools/loadtest.nix { inherit withTools; };
+  loadtest = pkgs.callPackage nix/tools/loadtest.nix { inherit postgrest withTools; };
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsTools = pkgs.callPackage nix/tools/nixpkgsTools.nix { };
