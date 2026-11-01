@@ -404,6 +404,17 @@ test-suite observability
                       -- https://github.com/PostgREST/postgrest/issues/387
                       -with-rtsopts=-K33K
 
+benchmark loadtest-pool
+  import:             defaults-and-shared, build-mode-opts
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/bench/pool
+  main-is:            Main.hs
+  build-depends:      base >= 4.9 && < 4.22
+                    , async
+                    , postgrest:hasql
+                    , transformers
+  ghc-options:        -threaded -rtsopts
+
 test-suite hasql-pool
   import:             defaults-and-shared
   type:               exitcode-stdio-1.0

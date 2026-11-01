@@ -199,6 +199,24 @@ jobs:
         run: |
           postgrest-loadtest-report-load -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
 
+  loadtest-pool:
+    name: Pool Loadtest
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: loadtest.loadtestPool.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
+
+      - name: Run pool loadtest
+        run: postgrest-loadtest-pool >> "$GITHUB_STEP_SUMMARY"
+
   flake:
     strategy:
       fail-fast: false
