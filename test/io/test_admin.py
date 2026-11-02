@@ -6,12 +6,14 @@ import signal
 import time
 import pytest
 
-from config import FIXTURES
+from config import FIXTURES, CONFIGSDIR
 from postgrest import (
     freeport,
     reset_statement_timeout,
     run,
     set_statement_timeout,
+    sleep_until_postgrest_scache_reload,
+    sleep_until_postgrest_config_reload,
 )
 
 
@@ -162,6 +164,7 @@ def test_admin_metrics(defaultenv):
         assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
         assert "pgrst_schema_cache_query_time_seconds" in response.text
         assert 'pgrst_schema_cache_loads_total{status="SUCCESS"}' in response.text
+        assert "pgrst_schema_cache_last_reload_successful" in response.text
         assert "pgrst_db_pool_max" in response.text
         assert "pgrst_db_pool_waiting" in response.text
         assert "pgrst_db_pool_available" in response.text
@@ -228,3 +231,40 @@ def test_admin_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
         assert metrics == 1.0
 
     reset_statement_timeout(metapostgrest, role)
+
+
+def test_admin_metric_last_successful_schema_cache_reload(tmp_path, defaultenv):
+    "Should update pgrst_schema_cache_last_reload_successful metric"
+
+    config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
+    configfile = tmp_path / "test.config"
+    configfile.write_text(config)
+
+    with run(configfile, env=defaultenv) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "pgrst_schema_cache_last_reload_successful 1.0" in response.text
+
+        # change setting
+        configfile.write_text(config.replace("public", "bad_schema"))
+        # reload schema cache with the new config
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
+
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "pgrst_schema_cache_last_reload_successful 0.0" in response.text
+
+        # reset setting
+        configfile.write_text(
+            configfile.read_text().replace(
+                'db-schemas = "bad_schema"', 'db-schemas = "test"'
+            )
+        )
+        # reload
+        postgrest.process.send_signal(signal.SIGUSR2)
+        sleep_until_postgrest_config_reload()
+        postgrest.process.send_signal(signal.SIGUSR1)
+        sleep_until_postgrest_scache_reload()
