@@ -36,6 +36,7 @@ spec = describe "Server started with metrics enabled" $ do
                      "pgrst_db_pool_waiting",
                      "pgrst_db_pool_max",
                      "pgrst_schema_cache_query_time_seconds",
+                     "pgrst_schema_cache_last_reload_successful",
                      "pgrst_jwt_cache_requests_total",
                      "pgrst_jwt_cache_hits_total",
                      "pgrst_jwt_cache_evictions_total"

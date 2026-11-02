@@ -165,6 +165,15 @@ pgrst_schema_cache_loads_total
 
 The total number of times the schema cache was loaded.
 
+pgrst_schema_cache_last_reload_successful
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== ======
+**Type** Gauge
+======== ======
+
+Whether the most recent schema cache reload succeeded (1) or failed (0).
+
 Connection Pool Metrics
 -----------------------
 
