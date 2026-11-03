@@ -25,15 +25,22 @@ let
         withPath = [ coreutils ];
       }
       ''
-        output=$(mktemp)
-        trap 'rm -rf "$output"' EXIT
+        tmpdir=$(mktemp -d)
+        trap 'rm -rf "$tmpdir"' EXIT
+        output="$tmpdir/report.md"
+
+        ${cabal-install}/bin/cabal v2-build -v0 -f-dev bench:loadtest-pool
+        benchmark=$(${cabal-install}/bin/cabal list-bin -v0 -f-dev bench:loadtest-pool)
 
         printf "## Pool Loadtest\n\n" >> "$output"
 
         for n in 1 "$(nproc)"; do
-          ${withTools.withPg} ${cabal-install}/bin/cabal v2-run \
-            -v0 -f-dev bench:loadtest-pool -- +RTS -N"$n" -RTS >> "$output"
+          ${withTools.withPg} ${withTools.withMonitor} --subseconds "$tmpdir/N$n.csv" \
+            "$benchmark" +RTS -N"$n" -RTS >> "$output"
         done
+
+        printf "\n## CPU/MEM usage\n\n" >> "$output"
+        printf '%s\n' "$tmpdir"/*.csv | ${mergeMonitorResults} >> "$output"
         cat "$output"
       '';
 

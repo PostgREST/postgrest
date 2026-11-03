@@ -1,4 +1,5 @@
 # Monitor a process pid with psutil and emits a CSV.
+import argparse
 import sys
 import time
 import psutil
@@ -6,12 +7,14 @@ import pandas as pd
 
 KEY = "Elapsed seconds"
 BASE_METRICS = ["CPU (%)", "Real (MB)"]
-SAMPLE_INTERVAL_SECS = 1
 
-if len(sys.argv) != 2 or not sys.argv[1].isdigit():
-    sys.exit(f"Usage: {sys.argv[0]} <PID>")
+parser = argparse.ArgumentParser()
+parser.add_argument("pid", type=int)
+parser.add_argument("--subseconds", action="store_true")
+args = parser.parse_args()
 
-pid = int(sys.argv[1])
+sample_interval_secs = 0.1 if args.subseconds else 1
+pid = args.pid
 try:
     proc = psutil.Process(pid)
 except psutil.NoSuchProcess:
@@ -20,7 +23,7 @@ except psutil.NoSuchProcess:
 print(f"Starting monitoring of {pid} pid", file=sys.stderr)
 
 records = []
-start = time.time()
+start = time.monotonic()
 # ignore first result as per docs recommendation
 # https://psutil.readthedocs.io/en/latest/#psutil.cpu_percent
 proc.cpu_percent(None)
@@ -29,9 +32,10 @@ while True:
     try:
         if not proc.is_running():
             break
-        time.sleep(SAMPLE_INTERVAL_SECS)
+        time.sleep(sample_interval_secs)
 
-        elapsed_secs = int(time.time() - start)
+        elapsed = time.monotonic() - start
+        elapsed_secs = round(elapsed, 1) if args.subseconds else int(elapsed)
         cpu = proc.cpu_percent(None)
         meminfo = proc.memory_info()
         bytes_in_MB = 1024**2
@@ -48,7 +52,7 @@ while True:
     except psutil.NoSuchProcess:
         break
 
-end = time.time()
+end = time.monotonic()
 total_time = end - start
 print(f"Finished {pid} pid monitoring in {total_time:.3f}", file=sys.stderr)
 
