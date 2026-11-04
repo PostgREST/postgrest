@@ -227,20 +227,6 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 
    ecosystem.rst
 
-In Production
--------------
-
-Here are some companies that use PostgREST in production.
-
-* `Catarse <https://www.catarse.me>`_
-* `Drip Depot <https://www.dripdepot.com>`_
-* `Image-charts <https://www.image-charts.com>`_
-* `Netwo <https://www.netwo.io>`_
-* `Nimbus <https://www.nimbusfacility.com/sg/home>`_
-  - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
-* `OpenBooking <https://openbooking.ch>`_
-* `Supabase <https://supabase.com>`_
-
 Testimonials
 ------------
 
