@@ -29,6 +29,7 @@ import Focus qualified
 import Prometheus.Metric.GHC qualified as PMG
 import StmHamt.SizedHamt qualified as SH
 
+import Hasql.Pool.Observation (ConnectionStatus)
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
@@ -38,6 +39,7 @@ data MetricsState
   { poolTimeouts :: Counter,
     connTrack :: ConnTrack,
     poolWaiting :: Gauge,
+    poolWaitTimeSeconds :: Gauge,
     poolMaxSize :: Gauge,
     schemaCacheLoads :: Vector Label1 Counter,
     schemaCacheQueryTime :: Gauge,
@@ -66,6 +68,7 @@ init configDbPoolSize = do
       <$> create (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
       <*> create (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
       <*> create (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
+      <*> create (gauge (Info "pgrst_db_pool_wait_time_seconds" "Total time waiting to acquire pool connections (includes timeouts)"))
       <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
       <*> create (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
       <*> create (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
@@ -97,7 +100,8 @@ observationMetrics MetricsState{..} obs = case obs of
   -- When receiving TerminatedConnectionStatus we have to find out
   -- if we can decrement established connection count. To do that we have to track
   -- established connections.
-  (HasqlPoolObs sqlObs) -> trackConnections connTrack sqlObs
+  HasqlPoolObs (SQL.ConnectionObservation uuid status) -> trackConnections connTrack uuid status
+  HasqlPoolObs (SQL.ConnectionWaitCompletedStatus seconds) -> addGauge poolWaitTimeSeconds seconds
   PoolRequest ->
     incGauge poolWaiting
   PoolRequestFullfilled ->
@@ -137,8 +141,8 @@ data ConnTrack = ConnTrack {connTrackConnected :: SH.SizedHamt UUID, connTrackIn
 connectionTracker :: IO ConnTrack
 connectionTracker = ConnTrack <$> SH.newIO <*> SH.newIO
 
-trackConnections :: ConnTrack -> SQL.Observation -> IO ()
-trackConnections ConnTrack{..} (SQL.ConnectionObservation uuid status) = case status of
+trackConnections :: ConnTrack -> UUID -> ConnectionStatus -> IO ()
+trackConnections ConnTrack{..} uuid status = case status of
   SQL.ReadyForUseConnectionStatus _ ->
     atomically $
       SH.insert identity uuid connTrackConnected

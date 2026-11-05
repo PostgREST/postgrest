@@ -17,6 +17,8 @@ data Observation
       -- For grouping the observations by one connection.
       ConnectionStatus
       -- ^ Status that the connection has entered.
+  | -- | Wait for a connection is over (includes cases where no connection is obtained)
+    ConnectionWaitCompletedStatus Double
   deriving (Show)
 
 -- | Status of a connection.
