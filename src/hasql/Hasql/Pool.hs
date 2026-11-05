@@ -148,22 +148,22 @@ use Pool{..} sess = do
     return $ readTVar delay
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
-    asum
-      [ readTQueue poolConnectionQueue <&> onConn reuseVar,
-        do
-          capVal <- readTVar poolCapacity
-          if capVal > 0 then do
-            writeTVar poolCapacity $! pred capVal
-            return $ onNewConn reuseVar
-          else
-            retry,
-        do
-          timedOut <- timeout
-          if timedOut then
-            return . return . Left $ AcquisitionTimeoutUsageError
-          else
-            retry
-      ]
+    let
+      waitForAvailableConnection = readTQueue poolConnectionQueue <&> onConn reuseVar
+      waitForNewConnection = do
+        capVal <- readTVar poolCapacity
+        if capVal > 0 then do
+          writeTVar poolCapacity $! pred capVal
+          return $ onNewConn reuseVar
+        else
+          retry
+      waitForTimeout = do
+        timedOut <- timeout
+        if timedOut then
+          return . return . Left $ AcquisitionTimeoutUsageError
+        else
+          retry
+    asum [waitForAvailableConnection, waitForNewConnection, waitForTimeout]
   where
     onNewConn reuseVar = do
       now <- getMonotonicTimeNSec
