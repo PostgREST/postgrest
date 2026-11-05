@@ -151,12 +151,12 @@ use Pool{..} sess = do
     let
       waitForAvailableConnection = do
         entry <- readTQueue poolConnectionQueue
-        return $ onConn reuseVar entry
+        return $ useAvailableConnection reuseVar entry
       waitForNewConnection = do
         capVal <- readTVar poolCapacity
         if capVal > 0 then do
           writeTVar poolCapacity $! pred capVal
-          return $ onNewConn reuseVar
+          return $ acquireNewConnection reuseVar
         else
           retry
       waitForTimeout = do
@@ -167,7 +167,7 @@ use Pool{..} sess = do
           retry
     asum [waitForAvailableConnection, waitForNewConnection, waitForTimeout]
   where
-    onNewConn reuseVar = do
+    acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
@@ -178,23 +178,23 @@ use Pool{..} sess = do
           return $ Left $ ConnectionUsageError connErr
         Right connection -> do
           poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-          onLiveConn reuseVar (Entry connection now now uuid)
+          runSessionOnConnection reuseVar (Entry connection now now uuid)
 
-    onConn reuseVar entry = do
+    useAvailableConnection reuseVar entry = do
       now <- getMonotonicTimeNSec
       if entryIsAged poolMaxLifetime now entry then do
         Connection.release (entryConnection entry)
         poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
-        onNewConn reuseVar
+        acquireNewConnection reuseVar
       else
         if entryIsIdle poolMaxIdletime now entry then do
           Connection.release (entryConnection entry)
           poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
-          onNewConn reuseVar
+          acquireNewConnection reuseVar
         else do
-          onLiveConn reuseVar entry{entryUseTimeNSec = now}
+          runSessionOnConnection reuseVar entry{entryUseTimeNSec = now}
 
-    onLiveConn reuseVar entry = do
+    runSessionOnConnection reuseVar entry = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 
