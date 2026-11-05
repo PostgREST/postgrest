@@ -149,7 +149,9 @@ use Pool{..} sess = do
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
     let
-      waitForAvailableConnection = readTQueue poolConnectionQueue <&> onConn reuseVar
+      waitForAvailableConnection = do
+        entry <- readTQueue poolConnectionQueue
+        return $ onConn reuseVar entry
       waitForNewConnection = do
         capVal <- readTVar poolCapacity
         if capVal > 0 then do
