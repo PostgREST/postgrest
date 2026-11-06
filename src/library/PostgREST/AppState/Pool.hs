@@ -62,9 +62,13 @@ usePool appState@AppState{stateObserver = observer, ..} sess = do
                 killApp appState
         err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) ->
           handleResultError err tpl resultErr
+        err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr))) ->
+          -- Passing the empty template will not work for schema cache queries, see TODO further below.
+          handleResultError err mempty resultErr
         err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
           -- An error on the client-side, usually indicates problems with connection
           observer $ QueryErrorCodeHighObs err
+        SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _)) -> pure ()
     )
 
   return res
