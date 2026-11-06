@@ -38,6 +38,7 @@ import Network.Wai.Handler.Warp
   , setBeforeMainLoop
   , setHost
   , setOnException
+  , setOnExceptionResponse
   , setPort
   , setServerName
   )
@@ -61,7 +62,7 @@ import PostgREST.AppState (AppState)
 import PostgREST.AppState.Reload (runListener)
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Config (AppConfig (..))
-import PostgREST.Error (Error)
+import PostgREST.Error (Error, errorResponseFor)
 import PostgREST.Network (resolveSocketToAddress)
 import PostgREST.Observation (Observation (..))
 import PostgREST.Response.Performance (Metric (..), NoTimer (..), Timer (..), newServerTimer, serverTimingHeader, timed)
@@ -117,6 +118,7 @@ run appState mainThreadIdRef = do
             serverSettings conf
               & setPort (configServerPort conf)
               & setOnException onWarpException
+              & setOnExceptionResponse (onWarpExceptionResponse conf)
               & setBeforeMainLoop (setMainSocketRef mainSocket *> observer (AppServerAddressObs address))
 
       Warp.runSettingsSocket appServerSettings mainSocket app
@@ -132,6 +134,9 @@ run appState mainThreadIdRef = do
         observer $
           WarpServerObs $
             show ex
+
+    onWarpExceptionResponse :: AppConfig -> SomeException -> Wai.Response
+    onWarpExceptionResponse conf ex = errorResponseFor (configClientErrorVerbosity conf) (Error.InternalServerErr $ Error.WarpServerError ex)
 
     -- Similar to wai defaultShouldDisplayException in
     -- https://github.com/yesodweb/wai//blob/8c3882c60f6abe043889fc20c7efd3fa9747fa4a/warp/Network/Wai/Handler/Warp/Settings.hs#L251-L258
