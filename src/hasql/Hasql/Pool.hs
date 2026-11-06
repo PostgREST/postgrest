@@ -146,26 +146,37 @@ use Pool{..} sess = do
   timeout <- do
     delay <- registerDelay poolAcquisitionTimeout
     return $ readTVar delay
+  startWaitingTime <- getMonotonicTimeNSec
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
-    asum
-      [ readTQueue poolConnectionQueue <&> onConn reuseVar,
-        do
-          capVal <- readTVar poolCapacity
-          if capVal > 0 then do
-            writeTVar poolCapacity $! pred capVal
-            return $ onNewConn reuseVar
-          else
-            retry,
-        do
-          timedOut <- timeout
-          if timedOut then
-            return . return . Left $ AcquisitionTimeoutUsageError
-          else
-            retry
-      ]
+    let
+      observeConnectionWaitTime = do
+        doneWaitingTime <- getMonotonicTimeNSec
+        let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000000
+        poolObserver $ ConnectionWaitCompletedStatus delta
+      waitForAvailableConnection = do
+        entry <- readTQueue poolConnectionQueue
+        return $ do
+          void observeConnectionWaitTime
+          useAvailableConnection reuseVar entry
+      waitForNewConnection = do
+        capVal <- readTVar poolCapacity
+        if capVal > 0 then do
+          writeTVar poolCapacity $! pred capVal
+          return $ acquireNewConnection reuseVar
+        else
+          retry
+      waitForTimeout = do
+        timedOut <- timeout
+        if timedOut then do
+          return $ do
+            poolObserver $ ConnectionWaitCompletedStatus $ fromIntegral poolAcquisitionTimeout
+            return $ Left AcquisitionTimeoutUsageError
+        else
+          retry
+    asum [waitForAvailableConnection, waitForNewConnection, waitForTimeout]
   where
-    onNewConn reuseVar = do
+    acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
@@ -176,23 +187,23 @@ use Pool{..} sess = do
           return $ Left $ ConnectionUsageError connErr
         Right connection -> do
           poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-          onLiveConn reuseVar (Entry connection now now uuid)
+          runSessionOnConnection reuseVar (Entry connection now now uuid)
 
-    onConn reuseVar entry = do
+    useAvailableConnection reuseVar entry = do
       now <- getMonotonicTimeNSec
       if entryIsAged poolMaxLifetime now entry then do
         Connection.release (entryConnection entry)
         poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
-        onNewConn reuseVar
+        acquireNewConnection reuseVar
       else
         if entryIsIdle poolMaxIdletime now entry then do
           Connection.release (entryConnection entry)
           poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
-          onNewConn reuseVar
+          acquireNewConnection reuseVar
         else do
-          onLiveConn reuseVar entry{entryUseTimeNSec = now}
+          runSessionOnConnection reuseVar entry{entryUseTimeNSec = now}
 
-    onLiveConn reuseVar entry = do
+    runSessionOnConnection reuseVar entry = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 

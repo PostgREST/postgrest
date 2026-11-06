@@ -34,6 +34,7 @@ spec = describe "Server started with metrics enabled" $ do
         `shouldBe` [ "pgrst_db_pool_timeouts_total",
                      "pgrst_db_pool_available",
                      "pgrst_db_pool_waiting",
+                     "pgrst_db_pool_wait_time_seconds",
                      "pgrst_db_pool_max",
                      "pgrst_schema_cache_query_time_seconds",
                      "pgrst_schema_cache_last_reload_successful",
