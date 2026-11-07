@@ -111,7 +111,7 @@ jobs:
             deps: pkg install -y git postgresql16-client hs-stack
 
           - name: MacOS aarch64
-            runs-on: macos-14
+            runs-on: macos-15
             artifact: postgrest-macos-aarch64
             deps: brew link --force libpq
 
