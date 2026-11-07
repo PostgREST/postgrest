@@ -31,7 +31,7 @@ import Protolude
 import Data.Aeson qualified as JSON
 import Data.Aeson.KeyMap qualified as KM
 
-import PostgREST.Auth.Jwt (parseAndDecodeClaims)
+import PostgREST.Auth.Jwt (verifyDecodeJwt)
 import PostgREST.Cache.Sieve (alwaysValid)
 import PostgREST.Config (AppConfig (..))
 import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
@@ -60,7 +60,7 @@ data JwtCache
 
 decode :: (MonadError Error m, MonadIO m) => JwtCache -> ByteString -> m JSON.Object
 decode JwtNoJwks = const $ throwError (JwtErr JwtSecretMissing)
-decode (JwtNoCache key) = parseAndDecodeClaims key
+decode (JwtNoCache key) = verifyDecodeJwt key
 decode (JwtCache _ _ c) = liftIO . runExceptT . SC.cached c >=> liftEither
 
 -- | Reconfigure JWT caching and update JwtCacheState accordingly
@@ -99,7 +99,7 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
       SC.cacheIO
         ( SC.CacheConfig
             maxSize
-            (parseAndDecodeClaims key)
+            (verifyDecodeJwt key)
             (lift . observationHandler . JwtCacheLookup) -- lookup metrics
             (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
             alwaysValid -- no invalidation for now
