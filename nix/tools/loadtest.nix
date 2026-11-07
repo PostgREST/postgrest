@@ -15,6 +15,35 @@
   writers,
 }:
 let
+  loadtestJwt =
+    checkedShellScript
+      {
+        name = "postgrest-loadtest-jwt";
+        docs = "Loadtest JWT verification";
+        workingDir = "/";
+        withEnv = postgrest.env;
+        withPath = [ coreutils ];
+      }
+      ''
+        tmpdir=$(mktemp -d)
+        trap 'rm -rf "$tmpdir"' EXIT
+        output="$tmpdir/report.md"
+
+        ${cabal-install}/bin/cabal v2-build -v0 -f-dev --enable-benchmarks bench:loadtest-jwt
+        benchmark=$(${cabal-install}/bin/cabal list-bin -f-dev --enable-benchmarks bench:loadtest-jwt)
+
+        printf "## JWT Verification Loadtest\n\n" >> "$output"
+
+        for algorithm in RS256 ES256 Ed25519; do
+          ${withTools.withMonitor} --subseconds "$tmpdir/$algorithm.csv" \
+            "$benchmark" --algorithm "$algorithm" +RTS -N1 -RTS >> "$output"
+        done
+
+        printf "\n## CPU/MEM usage\n\n" >> "$output"
+        printf '%s\n' "$tmpdir"/*.csv | ${mergeMonitorResults} >> "$output"
+        cat "$output"
+      '';
+
   loadtestPool =
     checkedShellScript
       {
@@ -29,8 +58,8 @@ let
         trap 'rm -rf "$tmpdir"' EXIT
         output="$tmpdir/report.md"
 
-        ${cabal-install}/bin/cabal v2-build -v0 -f-dev bench:loadtest-pool
-        benchmark=$(${cabal-install}/bin/cabal list-bin -v0 -f-dev bench:loadtest-pool)
+        ${cabal-install}/bin/cabal v2-build -v0 -f-dev --enable-benchmarks bench:loadtest-pool
+        benchmark=$(${cabal-install}/bin/cabal list-bin -v0 -f-dev --enable-benchmarks bench:loadtest-pool)
 
         printf "## Pool Loadtest\n\n" >> "$output"
 
@@ -347,6 +376,7 @@ buildToolbox {
     inherit
       loadtest
       loadtestAgainst
+      loadtestJwt
       loadtestPool
       report
       report-load

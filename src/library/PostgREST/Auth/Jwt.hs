@@ -9,7 +9,7 @@
 --
 -- This module provides functions to deal with JWT parsing and validation (http://jwt.io).
 module PostgREST.Auth.Jwt
-  ( parseAndDecodeClaims
+  ( verifyDecodeJwt
   , parseClaims
   )
 where
@@ -42,8 +42,8 @@ import PostgREST.Error
   , JwtError (..)
   )
 
-parseAndDecodeClaims :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
-parseAndDecodeClaims jwkSet token = parseToken jwkSet token >>= decodeClaims
+verifyDecodeJwt :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
+verifyDecodeJwt jwkSet token = parseToken jwkSet token >>= decodeClaims
 
 decodeClaims :: (MonadError Error m) => JWT.JwtContent -> m JSON.Object
 decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
@@ -94,6 +94,7 @@ parseToken :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JWT.J
 parseToken _ "" = throwError $ JwtErr $ JwtDecodeErr EmptyAuthHeader
 parseToken secret tkn = do
   tknWith3Parts <- hasThreeParts tkn
+  -- JWT.decode verifies the signature
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
   liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
   where
