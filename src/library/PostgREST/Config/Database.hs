@@ -58,6 +58,7 @@ dbSettingsNames =
           "db_schemas",
           "db_tx_end",
           "db_hoisted_tx_settings",
+          "db_warnings_enabled",
           "jwt_aud",
           "jwt_role_claim_key",
           "jwt_secret",
