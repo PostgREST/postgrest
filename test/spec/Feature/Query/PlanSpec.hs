@@ -120,7 +120,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
         queryIdentifier `shouldSatisfy` isJust
 
     it "outputs the plan for application/json " $ do
-      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose") ""
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; for=application/json; options=verbose") ""
 
       let
         aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
@@ -132,7 +132,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           `shouldBe` Just [aesonQQ| "COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json)" |]
 
     it "outputs the plan for application/vnd.pgrst.object " $ do
-      r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose") ""
+      r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=application/vnd.pgrst.object; options=verbose") ""
 
       let
         aggCol = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
@@ -298,7 +298,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
         request
           methodDelete
           "/projects?id=eq.6"
-          [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose")]
+          [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.plan+json; for=application/vnd.pgrst.object; options=verbose")]
           ""
 
       let
@@ -575,7 +575,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
         request
           methodGet
           "/rpc/return_scalar_xml"
-          (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose")
+          (acceptHdrs "application/vnd.pgrst.plan+json; for=text/xml; options=verbose")
           ""
 
       let
@@ -591,7 +591,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
         request
           methodGet
           "/lines"
-          (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose")
+          (acceptHdrs "application/vnd.pgrst.plan+json; for=application/vnd.twkb; options=verbose")
           ""
 
       let
@@ -638,7 +638,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           request
             methodGet
             "/tiobe_pls"
-            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
+            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=application/json; options=analyze")
             ""
 
         let
@@ -664,7 +664,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           request
             methodGet
             "/tiobe_pls?limit=1000"
-            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
+            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=application/json; options=analyze")
             ""
 
         let
@@ -691,7 +691,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           request
             methodGet
             "/rpc/get_tiobe_pls"
-            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
+            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=application/json; options=analyze")
             ""
 
         let
@@ -717,7 +717,7 @@ spec withConfig = withConfig (baseCfg{configDbPlanEnabled = True}) $ do
           request
             methodGet
             "/rpc/get_tiobe_pls?limit=1000"
-            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;")
+            (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=application/json; options=analyze")
             ""
 
         let
