@@ -417,8 +417,6 @@ benchmark loadtest-jwt
                     , jose-jwt >= 0.9.6 && < 0.12
                     , lens
                     , optparse-applicative
-                    , postgrest
-                    , transformers
   ghc-options:        -threaded -rtsopts
 
 benchmark loadtest-pool

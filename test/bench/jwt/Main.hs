@@ -5,7 +5,6 @@ import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Lens (view)
 import Control.Monad (replicateM_)
-import Control.Monad.Trans.Except (runExceptT)
 import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
 import Data.Functor.Identity (Identity (..))
@@ -17,9 +16,8 @@ import Crypto.JOSE qualified as JOSE
 import Data.Aeson qualified as JSON
 import Data.ByteString.Lazy qualified as LBS
 import Jose.Jwk qualified as JWT
+import Jose.Jwt qualified as JWT
 import Options.Applicative qualified as O
-
-import PostgREST.Auth.Jwt (verifyDecodeJwt)
 
 main :: IO ()
 main = do
@@ -63,7 +61,7 @@ readCLI = O.execParser $ O.info (O.helper <*> algo) (O.progDesc "JWT Verificatio
 
 verify :: JWT.JwkSet -> ByteString -> IO ()
 verify jwks token = do
-  result <- runExceptT $ verifyDecodeJwt jwks token
+  result <- JWT.decode (JWT.keys jwks) Nothing token
   case result of
     Left err ->
       ioError $ userError $ show err
