@@ -292,6 +292,7 @@ test-suite spec
                       Feature.Auth.AudienceJwtSecretSpec
                       Feature.Auth.AuthSpec
                       Feature.Auth.BinaryJwtSecretSpec
+                      Feature.Auth.IssuerJwtSpec
                       Feature.Auth.JwtCacheSpec
                       Feature.Auth.NoAnonSpec
                       Feature.Auth.NoJwtSecretSpec
@@ -342,6 +343,7 @@ test-suite spec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
                       SpecHelper
+                      Unit.CacheSpec
   build-depends:      base              >= 4.9 && < 4.22
                     , aeson             >= 2.0.3 && < 2.3
                     , aeson-qq          >= 0.8.1 && < 0.9
@@ -367,6 +369,7 @@ test-suite spec
                     , protolude         >= 0.3.1 && < 0.4
                     , regex-tdfa        >= 1.2.2 && < 1.4
                     , scientific        >= 0.3.4 && < 0.4
+                    , stm               >= 2.5 && < 3
                     , text              >= 1.2.2 && < 2.2
                     , time              >= 1.6 && < 1.15
                     , transformers-base >= 0.4.4 && < 0.5

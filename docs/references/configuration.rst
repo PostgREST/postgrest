@@ -674,6 +674,21 @@ jwt-aud
 
     Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud`.
 
+.. _jwt-iss:
+
+jwt-iss
+-------
+
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_ISS
+  **In-Database** pgrst.jwt_iss
+  =============== =================================
+
+    Specifies the issuer the JWT ``iss`` claim must match. See :ref:`jwt_iss`.
+
 .. _jwt-role-claim-key:
 
 jwt-role-claim-key

@@ -200,6 +200,17 @@ It works this way:
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
 
+.. _jwt_iss:
+
+``iss`` validation
+~~~~~~~~~~~~~~~~~~
+
+PostgREST can validate the `JWT issuer claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1>`_:
+
+- If :ref:`jwt-iss` is not set (the default), the ``iss`` claim is not checked.
+- If :ref:`jwt-iss` is set, the ``iss`` claim must be a string identical to it; it is compared as is, so ``https://example.com`` and ``https://example.com/`` are different issuers.
+  Unlike ``aud``, the claim is required: a token without ``iss`` (or with a ``null`` one) is rejected with a :ref:`401 Unauthorized <pgrst303>` error, like a token with another issuer.
+
 .. _jwt_caching:
 
 JWT Cache
