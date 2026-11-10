@@ -142,15 +142,18 @@ def run(
         if configpath:
             command.append(configpath)
 
+        stdout_path = pathlib.Path(tmpdir) / "stdout"
+        stdout_writer = open(stdout_path, "wb")
+        stdout_reader = open(stdout_path, "rb")
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
+            stdout=stdout_writer,
             stderr=subprocess.STDOUT,
             env=env,
         )
-
-        os.set_blocking(process.stdout.fileno(), False)
+        stdout_writer.close()
+        process.stdout = stdout_reader
 
         try:
             process.stdin.write(stdin or b"")
