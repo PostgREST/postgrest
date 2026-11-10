@@ -12,6 +12,7 @@ module PostgREST.Error.Types
   , JwtError (..)
   , JwtDecodeError (..)
   , JwtClaimsError (..)
+  , InternalServerError (..)
   , PgRaiseErrMessage (..)
   , PgRaiseErrDetails (..)
   )
@@ -31,6 +32,7 @@ data Error
   = ApiRequestErr ApiRequestError
   | SchemaCacheErr SchemaCacheError
   | JwtErr JwtError
+  | InternalServerErr InternalServerError
   | NoSchemaCacheError
   | PgErr PgError
   deriving (Show)
@@ -117,6 +119,10 @@ data JwtClaimsError
   | NbfClaimNotNumber
   | IatClaimNotNumber
   | AudClaimNotStringOrArray
+  deriving (Show)
+
+-- INTERNAL SERVER ERRORS: PGRSTX00
+newtype InternalServerError = WarpServerError SomeException
   deriving (Show)
 
 -- PG ERRORS
