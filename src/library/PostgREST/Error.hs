@@ -16,6 +16,7 @@ module PostgREST.Error
   , JwtError (..)
   , JwtDecodeError (..)
   , JwtClaimsError (..)
+  , InternalServerError (..)
   , errorPayload
   , status
   , noRelBetweenHint
@@ -605,12 +606,14 @@ instance ErrorHeaders Error where
   status (ApiRequestErr err) = status err
   status (SchemaCacheErr err) = status err
   status (JwtErr err) = status err
+  status (InternalServerErr err) = status err
   status NoSchemaCacheError = HTTP.status503
   status (PgErr err) = status err
 
   headers (ApiRequestErr err) = headers err
   headers (SchemaCacheErr err) = headers err
   headers (JwtErr err) = headers err
+  headers (InternalServerErr err) = headers err
   headers (PgErr err) = headers err
   headers NoSchemaCacheError = mempty
 
@@ -618,24 +621,28 @@ instance ErrorBody Error where
   code (ApiRequestErr err) = code err
   code (SchemaCacheErr err) = code err
   code (JwtErr err) = code err
+  code (InternalServerErr err) = code err
   code NoSchemaCacheError = "PGRST002"
   code (PgErr err) = code err
 
   message (ApiRequestErr err) = message err
   message (SchemaCacheErr err) = message err
   message (JwtErr err) = message err
+  message (InternalServerErr err) = message err
   message NoSchemaCacheError = "Could not query the database for the schema cache. Retrying."
   message (PgErr err) = message err
 
   details (ApiRequestErr err) = details err
   details (SchemaCacheErr err) = details err
   details (JwtErr err) = details err
+  details (InternalServerErr err) = details err
   details NoSchemaCacheError = Nothing
   details (PgErr err) = details err
 
   hint (ApiRequestErr err) = hint err
   hint (SchemaCacheErr err) = hint err
   hint (JwtErr err) = hint err
+  hint (InternalServerErr err) = hint err
   hint NoSchemaCacheError = Nothing
   hint (PgErr err) = hint err
 
@@ -683,6 +690,16 @@ instance ErrorBody JwtError where
     _ -> Nothing
   details _ = Nothing
 
+  hint _ = Nothing
+
+instance ErrorHeaders InternalServerError where
+  status WarpServerError{} = HTTP.status500
+  headers _ = mempty
+
+instance ErrorBody InternalServerError where
+  code WarpServerError{} = "PGRSTX00"
+  message (WarpServerError ex) = show ex
+  details _ = Nothing
   hint _ = Nothing
 
 invalidTokenHeader :: Text -> Header
