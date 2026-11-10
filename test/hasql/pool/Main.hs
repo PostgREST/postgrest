@@ -176,6 +176,21 @@ main = do
           threadDelay 1_500_000 -- 1.5s
           res3 <- use countPool $ countConnectionsSession appName
           res3 `shouldBe` Right 0
+    it "Reuses the most recently used connection so that the others become idle (maxIdletime)" $ do
+      withDefaultPool $ \countPool -> do
+        (taggedConnectionSettings, appName) <- tagConnection connectionString
+        withPool defaultPoolSettings{maxIdletime = 0.5} taggedConnectionSettings $ \limitedPool -> do
+          -- open all the connections of the pool, keeping them in use for 0.1s
+          runConcurrently . for_ [1 :: Int .. 3] $ \_ ->
+            Concurrently . use limitedPool $ liftIO $ threadDelay 100_000
+          -- a connection that is returned to the pool is used again before the others,
+          -- which are not used for longer than the idle time, so they time out
+          forM_ [1 :: Int .. 15] $ \_ -> do
+            res <- use limitedPool selectOneSession
+            res `shouldBe` Right 1
+            threadDelay 100_000 -- 0.1s
+          res2 <- use countPool $ countConnectionsSession appName
+          res2 `shouldBe` Right 1
     it "Times out old connections (maxIdletime)" $ do
       -- 0.5s connection idle time
       withPool defaultPoolSettings{poolSize = 1, maxIdletime = 0.5} connectionString $ \pool -> do
