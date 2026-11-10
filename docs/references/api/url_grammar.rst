@@ -35,6 +35,10 @@ Do this:
 
   curl "http://localhost:3000/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
 
+.. note::
+
+   PostgREST only supports `UTF-8 <https://en.wikipedia.org/wiki/UTF-8>`_ character encoding in the URL grammar. Other encoding standards such as `Windows-1252 <https://en.wikipedia.org/wiki/Windows-1252>`_ or `Latin-1 <https://en.wikipedia.org/wiki/ISO/IEC_8859-1>`_ are not supported.
+
 .. _tabs-cols-w-spaces:
 
 Table / Columns with spaces
