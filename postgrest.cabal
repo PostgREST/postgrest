@@ -77,12 +77,14 @@ library hasql
                       Hasql.Encoders
                       Hasql.Helpers
                       Hasql.Notifications
+                      Hasql.Pipeline
                       Hasql.Pool
                       Hasql.Pool.Config
                       Hasql.Pool.Config.Defaults
                       Hasql.Pool.Observation
                       Hasql.Session
                       Hasql.Statement
+                      Hasql.StatementRunner
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
   other-modules:      Hasql.Connection.Config
@@ -105,6 +107,7 @@ library hasql
                       Hasql.LibPq14
                       Hasql.LibPq14.Ffi
                       Hasql.LibPq14.Mappings
+                      Hasql.Pipeline.Core
                       Hasql.Pool.Config.Config
                       Hasql.Pool.Config.Setting
                       Hasql.Pool.Prelude
