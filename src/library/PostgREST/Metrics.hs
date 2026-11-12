@@ -29,10 +29,10 @@ import Focus qualified
 import Prometheus.Metric.GHC qualified as PMG
 import StmHamt.SizedHamt qualified as SH
 
+import PostgREST.Config (AppConfig (..))
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
-import PostgREST.Config (AppConfig (..))
 
 data MetricsState
   = MetricsState

@@ -180,10 +180,9 @@ use Pool{..} sess = do
               useConnection
           waitForTimeout = do
             timedOut <- timeout
-            if timedOut then
-              return $ do
-                observeConnectionWaitTime
-                return $ Left AcquisitionTimeoutUsageError
+            if timedOut then return $ do
+              observeConnectionWaitTime
+              return $ Left AcquisitionTimeoutUsageError
             else
               retry
         waitForConnection <|> waitForTimeout

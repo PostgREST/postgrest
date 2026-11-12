@@ -7,7 +7,7 @@ module ObsHelper where
 import Data.List.NonEmpty (fromList)
 import Data.String (String)
 import Network.HTTP.Types
-import Prometheus (Counter, getCounter, Histogram, getHistogram, Bucket)
+import Prometheus (Bucket, Counter, Histogram, getCounter, getHistogram)
 import Protolude hiding (get, toS)
 import System.Timeout (timeout)
 import Test.Hspec
