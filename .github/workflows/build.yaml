@@ -108,21 +108,28 @@ jobs:
             runs-on: ubuntu-24.04
             vm: freebsd
             artifact: postgrest-freebsd-x86-64
-            deps: pkg install -y git postgresql16-client hs-stack
+            deps: pkg install -y git postgresql16-client hs-stack botan3 pkgconf
 
           - name: MacOS aarch64
             runs-on: macos-15
             artifact: postgrest-macos-aarch64
-            deps: brew link --force libpq
+            deps: |
+              brew install botan pkgconf
+              brew link --force libpq
 
           - name: MacOS x86-64
             runs-on: macos-15-intel
             artifact: postgrest-macos-x86-64
-            deps: brew link --force libpq
+            deps: |
+              brew install botan pkgconf
+              brew link --force libpq
 
           - name: Windows
             runs-on: windows-2022
-            deps: Add-Content $env:GITHUB_PATH $env:PGBIN
+            deps: |
+              Add-Content $env:GITHUB_PATH $env:PGBIN
+              stack exec -- pacman -Syu --noconfirm
+              stack exec -- pacman -Syu --needed --noconfirm mingw-w64-clang-x86_64-libbotan mingw-w64-clang-x86_64-pkgconf
             artifact: postgrest-windows-x86-64
 
     name: Stack - ${{ matrix.name }}
@@ -204,6 +211,8 @@ jobs:
           prefix: cabal-${{ matrix.ghc }}-dist-newstyle-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
           suffix: ${{ hashFiles('**/*.hs') }}
       - name: Install dependencies
-        run: cabal build --only-dependencies --enable-tests --enable-benchmarks
+        run: |
+          sudo apt-get update && sudo apt-get install -y libbotan-3-dev pkg-config
+          cabal build --only-dependencies --enable-tests --enable-benchmarks
       - name: Build
         run: cabal build --enable-tests --enable-benchmarks all

@@ -15,6 +15,13 @@ All notable changes to this project will be documented in this file. From versio
 - Raise the soft limit on open file descriptors to the hard limit on startup by @mkleczek
 - Add `pgrst_schema_cache_last_reload_successful` metric to `/metrics` endpoint by @taimoorzaeem in #4971
 - Fix no JSON response on Warp Internal Server Error by @taimoorzaeem in #5363
+- Improve JWT verification for the ES256 algorithm, ~x9 faster and reduces time by ~89% according to our benchmarks by @steve-chavez in #5403
+
+### Migration to v18
+
+- JWT verification now uses the `botan` C++ library by @steve-chavez in #5403
+  + If you build from source you'll need to ensure `botan` is present as a dependency.
+  + Static builds work as usual, they include the `botan` library.
 
 ## [16.5] - 2026-10-18
 

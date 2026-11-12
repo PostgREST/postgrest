@@ -12,6 +12,20 @@ packages:
   original:
     hackage: aeson-jsonpath-0.4.2.0
 - completed:
+    hackage: botan-bindings-0.3.0.0@sha256:29db7f3d4cfe9a032e3df274cfbceacfb8df4c882fc069ce45f8e6025729c052,3240
+    pantry-tree:
+      sha256: d8f92c62961d4526fe2e50580323effbb65057907b7f218aa022049c73118ba9
+      size: 2869
+  original:
+    hackage: botan-bindings-0.3.0.0
+- completed:
+    hackage: botan-low-0.2.0.1@sha256:a70faf02eb74fd6d10ccb50d8883c6234787347c4ff845dec83b3b163ccd1828,4849
+    pantry-tree:
+      sha256: 1f9d13c695a6646e9a04d44a6b41462f32d133084d7563ae09e51e7da1eb98a5
+      size: 5832
+  original:
+    hackage: botan-low-0.2.0.1
+- completed:
     hackage: configurator-pg-0.2.11@sha256:de0c56386591e85159436b0af04a8f15a4f4e156354e99709676c2c2ee959505,2850
     pantry-tree:
       sha256: 7b4daa4ea970335414f26b313a168cd12182b7b34ea8af2616c83d38699c4301
@@ -46,6 +60,13 @@ packages:
       size: 44864
   original:
     hackage: http2-5.4.0
+- completed:
+    hackage: jose-jwt-botan-0.13.0@sha256:91841f3274989c9956ba1a04a9e9fe42a8a320deb5a95d9a411329f4b89d82ce,4550
+    pantry-tree:
+      sha256: 87d0efde5c59916f7b664707c1a8fe265bb19eca2b0f0025eeecfbbceb6e2cd4
+      size: 1309
+  original:
+    hackage: jose-jwt-botan-0.13.0
 - completed:
     hackage: warp-3.4.14@sha256:66b82af637f79ae4d39f7373b39491067f6d059b2581cb4caf18760f1d82e686,10066
     pantry-tree:

@@ -9,7 +9,16 @@ let
   inherit (pkgsStatic.haskell) lib;
 
   packagesStatic = pkgsStatic.haskell.packages.native-bignum."${compiler}".override {
-    overrides = pkgsStatic.callPackage ./overlays/haskell-packages.nix { };
+    overrides = pkgsStatic.callPackage ./overlays/haskell-packages.nix {
+      botan3 = pkgsStatic.botan3.overrideAttrs (old: {
+        # botan uses libc++ but doesn't include the linking flags in its pkg-config metadta
+        # TODO this should be upstreamed?
+        postInstall = (old.postInstall or "") + ''
+          substituteInPlace "$out/lib/pkgconfig/botan-3.pc" \
+            --replace-fail 'Libs.private: ' 'Libs.private: -L${pkgsStatic.libcxx}/lib -lc++ '
+        '';
+      });
+    };
   };
 
   makeExecutableStatic =
