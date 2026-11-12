@@ -210,14 +210,14 @@ You can build PostgREST from source with `Stack <https://github.com/commercialha
 * `Install Stack <https://docs.haskellstack.org/en/stable/#how-to-install-stack>`_ for your platform
 * Install Library Dependencies
 
-  =====================  =======================================
+  =====================  =====================================================
   Operating System       Dependencies
-  =====================  =======================================
-  Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev
-  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
-  BSD                    postgresql12-client
-  macOS                  libpq, gmp
-  =====================  =======================================
+  =====================  =====================================================
+  Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev, libbotan-3-dev
+  CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel, botan3-devel
+  BSD                    postgresql12-client, botan3
+  macOS                  libpq, gmp, botan
+  =====================  =====================================================
 
 * Build and install binary
 

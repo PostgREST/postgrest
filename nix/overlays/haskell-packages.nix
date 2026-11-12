@@ -1,4 +1,7 @@
-{ haskell }:
+{
+  haskell,
+  botan3,
+}:
 
 let
   inherit (haskell) lib;
@@ -42,6 +45,14 @@ _: prev: {
   #     - <package>-<ver>
   #   + For stack.yaml.lock, CI should report an error with the correct lock, copy/paste that one into the file
   # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
+
+  botan-bindings = prev.botan-bindings.override { botan = botan3; };
+
+  jose-jwt-botan = prev.callHackageDirect {
+    pkg = "jose-jwt-botan";
+    ver = "0.13.0";
+    sha256 = "sha256-Nnofzxe3BMUDzpiEF5lrOoeInLqzVna+W0pTW/tp4bw=";
+  } { };
 
   # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
   fuzzyset = prev.fuzzyset_0_2_4;

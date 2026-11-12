@@ -3,6 +3,7 @@ resolver: lts-24.48 # 2026-06-30, GHC 9.10.3
 
 nix:
   packages:
+    - botan3
     - libpq
     - libpq.pg_config
     - pkg-config
@@ -10,11 +11,14 @@ nix:
 
 extra-deps:
   - aeson-jsonpath-0.4.2.0
+  - botan-bindings-0.3.0.0
+  - botan-low-0.2.0.1
   - configurator-pg-0.2.11
   - fuzzyset-0.2.4
   - hasql-notifications-0.2.4.0
   - http-semantics-0.4.0
   - http2-5.4.0
+  - jose-jwt-botan-0.13.0
   - warp-3.4.14
 
 allow-newer: true
