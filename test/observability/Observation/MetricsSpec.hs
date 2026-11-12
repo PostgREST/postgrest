@@ -104,6 +104,24 @@ spec = describe "Server started with metrics enabled" $ do
         -- (there should be none but we need to verify that)
         threadDelay $ 1 * sec
 
+  it "Should not track wait completed when there is no pool contention" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO
+      $ checkState'
+        metrics
+        [ -- we expect in use connections to be the same once finished
+          expectHistogramSatisfy @"poolWaitTimeSeconds" (==)
+        ]
+      $ do
+        let poolSize = configDbPoolSize testCfg
+        replicateConcurrently_ poolSize $
+          void $
+            AppState.usePool appState $
+              liftIO $
+                threadDelay 100
+        waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
 
   it "Should track wait completed when there is pool contention" $ do
     SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState

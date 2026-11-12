@@ -154,32 +154,39 @@ use Pool{..} sess = do
       else
         retry
 
-  timeout <- do
-    delay <- registerDelay poolAcquisitionTimeout
-    return $ readTVar delay
-
-  startWaitingTime <- getMonotonicTimeNSec
-  join . atomically $ do
+  maybeActWithoutContention <- atomically $ do
     reuseVar <- readTVar poolReuseVar
-    let
-      observeConnectionWaitTime = do
-        doneWaitingTime <- getMonotonicTimeNSec
-        let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
-        poolObserver $ ConnectionWaitCompletedStatus delta
-      waitForConnection = do
-        useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
-        return $ do
-          observeConnectionWaitTime
-          useConnection
-      waitForTimeout = do
-        timedOut <- timeout
-        if timedOut then
-          return $ do
-            observeConnectionWaitTime
-            return $ Left AcquisitionTimeoutUsageError
-        else
-          retry
-    waitForConnection <|> waitForTimeout
+    optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
+
+  case maybeActWithoutContention of
+    Just act -> act
+    Nothing -> do
+      timeout <- do
+        delay <- registerDelay poolAcquisitionTimeout
+        return $ readTVar delay
+
+      startWaitingTime <- getMonotonicTimeNSec
+      join . atomically $ do
+        reuseVar <- readTVar poolReuseVar
+        let
+          observeConnectionWaitTime = do
+            doneWaitingTime <- getMonotonicTimeNSec
+            let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
+            poolObserver $ ConnectionWaitCompletedStatus delta
+          waitForConnection = do
+            useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+            return $ do
+              observeConnectionWaitTime
+              useConnection
+          waitForTimeout = do
+            timedOut <- timeout
+            if timedOut then
+              return $ do
+                observeConnectionWaitTime
+                return $ Left AcquisitionTimeoutUsageError
+            else
+              retry
+        waitForConnection <|> waitForTimeout
   where
     acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
