@@ -143,22 +143,26 @@ release Pool{..} =
 -- __Warning:__ Due to the mechanism mentioned above you should avoid intercepting this error type from within sessions.
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess = do
+  let
+    tryAvailableConnection reuseVar =
+      useAvailableConnection reuseVar <$> readTQueue poolConnectionQueue
+    tryNewConnection reuseVar = do
+      capVal <- readTVar poolCapacity
+      if capVal > 0 then do
+        writeTVar poolCapacity $! pred capVal
+        return $ acquireNewConnection reuseVar
+      else
+        retry
+
   timeout <- do
     delay <- registerDelay poolAcquisitionTimeout
     return $ readTVar delay
+
   join . atomically $ do
     reuseVar <- readTVar poolReuseVar
     let
-      waitForAvailableConnection = do
-        entry <- readTQueue poolConnectionQueue
-        return $ useAvailableConnection reuseVar entry
-      waitForNewConnection = do
-        capVal <- readTVar poolCapacity
-        if capVal > 0 then do
-          writeTVar poolCapacity $! pred capVal
-          return $ acquireNewConnection reuseVar
-        else
-          retry
+      waitForAvailableConnection = tryAvailableConnection reuseVar
+      waitForNewConnection = tryNewConnection reuseVar
       waitForTimeout = do
         timedOut <- timeout
         if timedOut then
