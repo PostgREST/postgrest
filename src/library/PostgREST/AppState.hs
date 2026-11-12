@@ -59,12 +59,12 @@ import PostgREST.Logger qualified as Logger
 import PostgREST.Metrics qualified as Metrics
 
 init :: AppConfig -> IO () -> IO AppState
-init conf@AppConfig{configDbPoolSize} appKiller = do
+init conf appKiller = do
   -- We need to create IORef first, so we can make its read action part of
   -- loggerState. This is needed for log-level config reloading.
   confRef <- newIORef conf
   loggerState <- Logger.init (configLogLevel <$> readIORef confRef)
-  metricsState <- Metrics.init configDbPoolSize
+  metricsState <- Metrics.init conf
   let observer = liftA2 (>>) (Logger.observationLogger loggerState) (Metrics.observationMetrics metricsState)
 
   observer $ AppStartObs prettyVersion

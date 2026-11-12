@@ -7,7 +7,7 @@ module ObsHelper where
 import Data.List.NonEmpty (fromList)
 import Data.String (String)
 import Network.HTTP.Types
-import Prometheus (Counter, getCounter)
+import Prometheus (Counter, getCounter, Histogram, getHistogram, Bucket)
 import Protolude hiding (get, toS)
 import System.Timeout (timeout)
 import Test.Hspec
@@ -168,6 +168,12 @@ expectCounter :: forall s st m. (HasField s st Counter, KnownSymbol s, MonadIO m
 expectCounter = expectField @s intCounter
   where
     intCounter = ((round @Double @Int) <$>) . getCounter
+
+expectHistogramSatisfy :: forall s st m. (HasField s st Histogram, KnownSymbol s, MonadIO m) => (Map Bucket Int -> Map Bucket Int -> Bool) -> StateCheck st m
+expectHistogramSatisfy predicate =
+  StateCheck
+    ((symbolVal (Proxy @s),) . getHistogram . getField @s)
+    (\beforeAction afterAction -> beforeAction `shouldSatisfy` predicate afterAction)
 
 accumulateUntilTimeout :: Int -> (s -> a -> s) -> s -> IO a -> IO s
 accumulateUntilTimeout t f start act = do
