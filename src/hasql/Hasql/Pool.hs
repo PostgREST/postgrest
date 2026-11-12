@@ -169,7 +169,7 @@ use Pool{..} sess = do
           return . return . Left $ AcquisitionTimeoutUsageError
         else
           retry
-    asum [waitForAvailableConnection, waitForNewConnection, waitForTimeout]
+    waitForAvailableConnection <|> waitForNewConnection <|> waitForTimeout
   where
     acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
