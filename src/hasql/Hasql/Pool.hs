@@ -166,13 +166,8 @@ use Pool{..} sess = do
         doneWaitingTime <- getMonotonicTimeNSec
         let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
         poolObserver $ ConnectionWaitCompletedStatus delta
-      waitForAvailableConnection = do
-        useConnection <- tryAvailableConnection reuseVar
-        return $ do
-          observeConnectionWaitTime
-          useConnection
-      waitForNewConnection = do
-        useConnection <- tryNewConnection reuseVar
+      waitForConnection = do
+        useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
         return $ do
           observeConnectionWaitTime
           useConnection
@@ -184,7 +179,7 @@ use Pool{..} sess = do
             return $ Left AcquisitionTimeoutUsageError
         else
           retry
-    waitForAvailableConnection <|> waitForNewConnection <|> waitForTimeout
+    waitForConnection <|> waitForTimeout
   where
     acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
