@@ -345,8 +345,6 @@ let
 
   monitorPid = writers.writePython3 "postgrest-monitor-pid" {
     libraries = [
-      python3Packages.pandas
-      python3Packages.tabulate
       python3Packages.psutil
     ];
   } (builtins.readFile ./monitor_pid.py);

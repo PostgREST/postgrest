@@ -1,9 +1,9 @@
 # Monitor a process pid with psutil and emits a CSV.
 import argparse
+import csv
 import sys
 import time
 import psutil
-import pandas as pd
 
 KEY = "Elapsed seconds"
 BASE_METRICS = ["CPU (%)", "Real (MB)"]
@@ -57,5 +57,6 @@ total_time = end - start
 print(f"Finished {pid} pid monitoring in {total_time:.3f}", file=sys.stderr)
 
 cols = [KEY] + BASE_METRICS
-df = pd.DataFrame(records, columns=cols, dtype=str)
-df.to_csv(sys.stdout, index=False)
+writer = csv.writer(sys.stdout, lineterminator="\n")
+writer.writerow(cols)
+writer.writerows(records)
