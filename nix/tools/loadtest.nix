@@ -29,18 +29,27 @@ let
         trap 'rm -rf "$tmpdir"' EXIT
         output="$tmpdir/report.md"
 
-        ${cabal-install}/bin/cabal v2-build -v0 -f-dev bench:loadtest-pool
-        benchmark=$(${cabal-install}/bin/cabal list-bin -v0 -f-dev bench:loadtest-pool)
+        cabalOptions=(-v0 -f-dev --enable-profiling --disable-shared)
+        ${cabal-install}/bin/cabal v2-build "''${cabalOptions[@]}" bench:loadtest-pool
+        benchmark=$(${cabal-install}/bin/cabal list-bin "''${cabalOptions[@]}" bench:loadtest-pool)
 
         printf "## Pool Loadtest\n\n" >> "$output"
 
         for n in 1 "$(nproc)"; do
           ${withTools.withPg} ${withTools.withMonitor} --subseconds "$tmpdir/N$n.csv" \
-            "$benchmark" +RTS -N"$n" -RTS >> "$output"
+            "$benchmark" +RTS -N"$n" -p -po"$tmpdir/N$n" -RTS >> "$output"
         done
 
-        printf "\n## CPU/MEM usage\n\n" >> "$output"
-        printf '%s\n' "$tmpdir"/*.csv | ${mergeMonitorResults} >> "$output"
+        {
+          printf "\n## CPU/MEM usage\n\n"
+          printf '%s\n' "$tmpdir"/*.csv | ${mergeMonitorResults}
+          for profile in "$tmpdir"/*.prof; do
+            printf '\n\n## %s' "$(basename "$profile")"
+            printf '\n\n```\n'
+            cat "$profile"
+            printf '```'
+          done
+        } >> "$output"
         cat "$output"
       '';
 
