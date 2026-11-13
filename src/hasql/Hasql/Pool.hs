@@ -143,29 +143,51 @@ release Pool{..} =
 -- __Warning:__ Due to the mechanism mentioned above you should avoid intercepting this error type from within sessions.
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess = do
-  timeout <- do
-    delay <- registerDelay poolAcquisitionTimeout
-    return $ readTVar delay
-  join . atomically $ do
+  let
+    tryAvailableConnection reuseVar =
+      useAvailableConnection reuseVar <$> readTQueue poolConnectionQueue
+    tryNewConnection reuseVar = do
+      capVal <- readTVar poolCapacity
+      if capVal > 0 then do
+        writeTVar poolCapacity $! pred capVal
+        return $ acquireNewConnection reuseVar
+      else
+        retry
+
+  maybeActWithoutContention <- atomically $ do
     reuseVar <- readTVar poolReuseVar
-    asum
-      [ readTQueue poolConnectionQueue <&> onConn reuseVar,
-        do
-          capVal <- readTVar poolCapacity
-          if capVal > 0 then do
-            writeTVar poolCapacity $! pred capVal
-            return $ onNewConn reuseVar
-          else
-            retry,
-        do
-          timedOut <- timeout
-          if timedOut then
-            return . return . Left $ AcquisitionTimeoutUsageError
-          else
-            retry
-      ]
+    optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
+
+  case maybeActWithoutContention of
+    Just act -> act
+    Nothing -> do
+      timeout <- do
+        delay <- registerDelay poolAcquisitionTimeout
+        return $ readTVar delay
+
+      startWaitingTime <- getMonotonicTimeNSec
+      join . atomically $ do
+        reuseVar <- readTVar poolReuseVar
+        let
+          observeConnectionWaitTime = do
+            doneWaitingTime <- getMonotonicTimeNSec
+            let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
+            poolObserver $ ConnectionWaitCompletedStatus delta
+          waitForConnection = do
+            useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+            return $ do
+              observeConnectionWaitTime
+              useConnection
+          waitForTimeout = do
+            timedOut <- timeout
+            if timedOut then return $ do
+              observeConnectionWaitTime
+              return $ Left AcquisitionTimeoutUsageError
+            else
+              retry
+        waitForConnection <|> waitForTimeout
   where
-    onNewConn reuseVar = do
+    acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
@@ -176,23 +198,23 @@ use Pool{..} sess = do
           return $ Left $ ConnectionUsageError connErr
         Right connection -> do
           poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-          onLiveConn reuseVar (Entry connection now now uuid)
+          runSessionOnConnection reuseVar (Entry connection now now uuid)
 
-    onConn reuseVar entry = do
+    useAvailableConnection reuseVar entry = do
       now <- getMonotonicTimeNSec
       if entryIsAged poolMaxLifetime now entry then do
         Connection.release (entryConnection entry)
         poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
-        onNewConn reuseVar
+        acquireNewConnection reuseVar
       else
         if entryIsIdle poolMaxIdletime now entry then do
           Connection.release (entryConnection entry)
           poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
-          onNewConn reuseVar
+          acquireNewConnection reuseVar
         else do
-          onLiveConn reuseVar entry{entryUseTimeNSec = now}
+          runSessionOnConnection reuseVar entry{entryUseTimeNSec = now}
 
-    onLiveConn reuseVar entry = do
+    runSessionOnConnection reuseVar entry = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 

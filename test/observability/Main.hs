@@ -34,11 +34,11 @@ main = do
   -- copies so poolChan is never read from
   -- this means we have another thread running for the entire duration of the spec but this shouldn't be a problem since Haskell green threads are lightweight
   void $ forkIO $ forever $ readChan poolChan
-  metricsState <- Metrics.init (configDbPoolSize testCfg)
+  metricsState <- Metrics.init testCfg
   pool <-
     P.acquire $
       P.settings
-        [ P.size 3,
+        [ P.size (configDbPoolSize testCfg),
           P.acquisitionTimeout 10,
           P.agingTimeout 60,
           P.idlenessTimeout 60,

@@ -4,6 +4,7 @@
 
 module Observation.MetricsSpec where
 
+import Control.Concurrent.Async (replicateConcurrently_)
 import Data.List (lookup)
 import Network.Wai (Application)
 import Prometheus (Info (..), SampleGroup (..), getCounter, getVectorWith)
@@ -12,7 +13,7 @@ import Test.Hspec (SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (getState)
 
 import ObsHelper
-import PostgREST.Config (AppConfig (configDbSchemas))
+import PostgREST.Config (AppConfig (configDbPoolSize, configDbSchemas))
 import PostgREST.Metrics
   ( ConnStats (..)
   , MetricsState (..)
@@ -34,6 +35,7 @@ spec = describe "Server started with metrics enabled" $ do
         `shouldBe` [ "pgrst_db_pool_timeouts_total",
                      "pgrst_db_pool_available",
                      "pgrst_db_pool_waiting",
+                     "pgrst_db_pool_wait_time_seconds",
                      "pgrst_db_pool_max",
                      "pgrst_schema_cache_query_time_seconds",
                      "pgrst_schema_cache_last_reload_successful",
@@ -101,6 +103,44 @@ spec = describe "Server started with metrics enabled" $ do
         -- wait 1 sec to make sure we capture all potential schema cache loads
         -- (there should be none but we need to verify that)
         threadDelay $ 1 * sec
+
+  it "Should not track wait completed when there is no pool contention" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO
+      $ checkState'
+        metrics
+        [ -- we expect in use connections to be the same once finished
+          expectHistogramSatisfy @"poolWaitTimeSeconds" (==)
+        ]
+      $ do
+        let poolSize = configDbPoolSize testCfg
+        replicateConcurrently_ poolSize $
+          void $
+            AppState.usePool appState $
+              liftIO $
+                threadDelay 100
+        waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
+
+  it "Should track wait completed when there is pool contention" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO
+      $ checkState'
+        metrics
+        [ -- we expect in use connections to be the same once finished
+          expectHistogramSatisfy @"poolWaitTimeSeconds" (>)
+        ]
+      $ do
+        let poolSize = configDbPoolSize testCfg
+        replicateConcurrently_ (poolSize + 1) $
+          void $
+            AppState.usePool appState $
+              liftIO $
+                threadDelay 100
+        waitFor (1 * sec) "ConnectionWaitCompletedStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionWaitCompletedStatus _)) <- pure x]
 
   -- The test verifies we properly count in use connections
   -- The idea is to fork a worker thread that

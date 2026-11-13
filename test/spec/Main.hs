@@ -87,7 +87,7 @@ main = do
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool actualPgVersion baseCfg
-  metricsState <- Metrics.init (configDbPoolSize baseCfg)
+  metricsState <- Metrics.init baseCfg
 
   let
     initApp sCache config = do
