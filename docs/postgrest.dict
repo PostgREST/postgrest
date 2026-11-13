@@ -166,7 +166,6 @@ sql
 SQLSTATE
 sr
 SSL
-stateful
 stdout
 supervisees
 SvelteKit
