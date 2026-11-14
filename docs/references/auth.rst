@@ -168,6 +168,48 @@ It goes as follows:
 
 - If the JWT doesn't have a ``kid``, PostgREST  will try each key in the :ref:`jwt-secret` one by one until it finds one that works.
 
+.. _jwt_signing_algorithms:
+
+JWT Signing Algorithms
+----------------------
+
+PostgREST supports the following JWT signing algorithms:
+
+.. table::
+   :widths: auto
+
+   +-----------+----------------+-----------+
+   | Algorithm | Algorithm Type | Supported |
+   +===========+================+===========+
+   | None      | N/A            |    ❌     |
+   +-----------+----------------+-----------+
+   | HS256     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | HS384     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | HS512     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | RS256     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | RS384     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | RS512     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | ES256     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES384     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES512     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES256K    | EcDSA          |    ❌     |
+   +-----------+----------------+-----------+
+   | Ed25519   | EdDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | Ed448     | EdDSA          |    ✅     |
+   +-----------+----------------+-----------+
+
+PostgREST **rejects** JWTs that use ``alg=none``, since these are `unsecured JWTs <https://www.rfc-editor.org/info/rfc7519/#section-6>`_ i.e. they carry no signature to verify. We recommend using ``Ed25519`` algorithm for JWT signing and verification as it is the `fastest <https://ed25519.cr.yp.to/>`_ and least CPU intensive algorithm.
+
 .. _jwt_claims_validation:
 
 JWT Claims Validation
