@@ -80,6 +80,7 @@ js
 JSON
 JWK
 JWT
+JWTs
 jwt
 Keycloak
 Kubernetes
@@ -166,7 +167,6 @@ sql
 SQLSTATE
 sr
 SSL
-stateful
 stdout
 supervisees
 SvelteKit

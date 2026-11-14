@@ -168,6 +168,48 @@ It goes as follows:
 
 - If the JWT doesn't have a ``kid``, PostgREST  will try each key in the :ref:`jwt-secret` one by one until it finds one that works.
 
+.. _jwt_signing_algorithms:
+
+JWT Signing Algorithms
+----------------------
+
+PostgREST supports the following JWT signing algorithms:
+
+.. table::
+   :widths: auto
+
+   +-----------+----------------+-----------+
+   | Algorithm | Algorithm Type | Supported |
+   +===========+================+===========+
+   | None      | N/A            |    ❌     |
+   +-----------+----------------+-----------+
+   | HS256     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | HS384     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | HS512     | HMAC           |    ✅     |
+   +-----------+----------------+-----------+
+   | RS256     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | RS384     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | RS512     | RSA            |    ✅     |
+   +-----------+----------------+-----------+
+   | ES256     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES384     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES512     | EcDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | ES256K    | EcDSA          |    ❌     |
+   +-----------+----------------+-----------+
+   | Ed25519   | EdDSA          |    ✅     |
+   +-----------+----------------+-----------+
+   | Ed448     | EdDSA          |    ✅     |
+   +-----------+----------------+-----------+
+
+PostgREST **rejects** JWTs that use ``alg=none``, since these are `unsecured JWTs <https://www.rfc-editor.org/info/rfc7519/#section-6>`_ i.e. they carry no signature to verify. We recommend using ``Ed25519`` algorithm for JWT signing and verification as it is the `fastest <https://ed25519.cr.yp.to/>`_ and least CPU intensive algorithm.
+
 .. _jwt_claims_validation:
 
 JWT Claims Validation
@@ -249,17 +291,6 @@ Usage examples:
   - If JSON Path query returns multiple values, the first one gets selected.
   - Only when using the :ref:`file_config`, all ``$`` characters in the value must be escaped with an additional ``$`` char. For :ref:`env_variables_config` and :ref:`in_db_config`, only use a single ``$`` char.
   - In our implementation, only the `search()` function from `JSON Path Functions <https://www.rfc-editor.org/rfc/rfc9535.html#name-function-extensions>`_ is available for filtering.
-
-JWT Security
-------------
-
-There are at least three types of common critiques against using JWT: 1) against the standard itself, 2) against using libraries with known security vulnerabilities, and 3) against using JWT for web sessions. We'll briefly explain each critique, how PostgREST deals with it, and give recommendations for appropriate user action.
-
-The critique against the `JWT standard <https://datatracker.ietf.org/doc/html/rfc7519>`_ is voiced in detail `elsewhere on the web <https://web.archive.org/web/20230123041631/https://paragonie.com/blog/2017/03/jwt-json-web-tokens-is-bad-standard-that-everyone-should-avoid>`_. The most relevant part for PostgREST is the so-called :code:`alg=none` issue. Some servers implementing JWT allow clients to choose the algorithm used to sign the JWT. In this case, an attacker could set the algorithm to :code:`none`, remove the need for any signature at all and gain unauthorized access. The current implementation of PostgREST, however, does not allow clients to set the signature algorithm in the HTTP request, making this attack irrelevant. The critique against the standard is that it requires the implementation of the :code:`alg=none` at all.
-
-Another type of critique focuses on the misuse of JWT for maintaining web sessions. The basic recommendation is to `stop using JWT for sessions <https://web.archive.org/web/20260927025256/http://cryto.net/~joepie91/blog/2016/06/13/stop-using-jwt-for-sessions/>`_ because most, if not all, solutions to the problems that arise when you do, `do not work <https://web.archive.org/web/20260927025314/http://cryto.net/~joepie91/blog/2016/06/19/stop-using-jwt-for-sessions-part-2-why-your-solution-doesnt-work/>`_. The linked articles discuss the problems in depth but the essence of the problem is that JWT is not designed to be secure and stateful units for client-side storage and therefore not suited to session management.
-
-PostgREST uses JWT mainly for authentication and authorization purposes and encourages users to do the same. For web sessions, using cookies over HTTPS is good enough and well catered for by standard web frameworks.
 
 .. _custom_validation:
 
