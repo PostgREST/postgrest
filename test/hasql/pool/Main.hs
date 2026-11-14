@@ -66,7 +66,7 @@ main = do
     it "Simulation of connection error works" $ withDefaultPool $ \pool -> do
       res <- use pool $ closeConnSession >> selectOneSession
       shouldSatisfy res $ \case
-        Left (SessionUsageError (Session.QueryError _ _ (Session.ClientError _))) -> True
+        Left (SessionUsageError (Session.QueryError _ _ (Session.ClientError _) _)) -> True
         _ -> False
     it "Connection errors cause eviction of connection" $ withDefaultPool $ \pool -> do
       _ <- use pool $ closeConnSession >> selectOneSession

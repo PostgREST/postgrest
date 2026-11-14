@@ -80,7 +80,7 @@ actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly = headersOn
         ++ prefHeader
     bod
       | status == HTTP.status416 =
-          Error.errorPayload configClientErrorVerbosity $
+          Error.errorPayload configClientErrorVerbosity True $
             Error.ApiRequestErr $
               Error.InvalidRange $
                 Error.OutOfBounds (show $ RangeQuery.rangeOffset vTopLevelRange) (maybe "0" show rsTableTotal)
@@ -184,7 +184,7 @@ actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd = invMethod, cr
       RangeQuery.rangeStatusHeader vTopLevelRange rsQueryTotal rsTableTotal
     rsOrErrBody =
       if status == HTTP.status416 then
-        Error.errorPayload configClientErrorVerbosity $
+        Error.errorPayload configClientErrorVerbosity True $
           Error.ApiRequestErr $
             Error.InvalidRange $
               Error.OutOfBounds (show $ RangeQuery.rangeOffset vTopLevelRange) (maybe "0" show rsTableTotal)
