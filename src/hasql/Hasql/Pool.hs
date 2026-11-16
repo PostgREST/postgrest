@@ -154,22 +154,28 @@ use Pool{..} sess = do
       else
         retry
 
-  timeout <- do
-    delay <- registerDelay poolAcquisitionTimeout
-    return $ readTVar delay
-
-  join . atomically $ do
+  maybeActWithoutContention <- atomically $ do
     reuseVar <- readTVar poolReuseVar
-    let
-      waitForAvailableConnection = tryAvailableConnection reuseVar
-      waitForNewConnection = tryNewConnection reuseVar
-      waitForTimeout = do
-        timedOut <- timeout
-        if timedOut then
-          return . return . Left $ AcquisitionTimeoutUsageError
-        else
-          retry
-    waitForAvailableConnection <|> waitForNewConnection <|> waitForTimeout
+    optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
+
+  case maybeActWithoutContention of
+    Just act -> act
+    Nothing -> do
+      timeout <- do
+        delay <- registerDelay poolAcquisitionTimeout
+        return $ readTVar delay
+
+      join . atomically $ do
+        reuseVar <- readTVar poolReuseVar
+        let
+          waitForConnection = tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+          waitForTimeout = do
+            timedOut <- timeout
+            if timedOut then
+              return $ return $ Left AcquisitionTimeoutUsageError
+            else
+              retry
+        waitForConnection <|> waitForTimeout
   where
     acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
