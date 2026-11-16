@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [16.6] - 2026-11-16
+
 ### Changes
 
 - Fix no JSON response on Warp Internal Server Error by @taimoorzaeem in #5363
