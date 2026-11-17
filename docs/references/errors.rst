@@ -489,26 +489,26 @@ With ``verbose``, it returns ``code``, ``message``, ``details`` and ``hint``.
 
 .. code:: bash
 
-  curl "localhost:3000/itemsxx"
+  curl "localhost:3000/rpc/trigger_jov"
 
 .. code-block:: json
 
   {
-      "code": "PGRST205",
-      "message": "Could not find the table 'public.itemsxx' in the schema cache",
-      "details": "Perhaps you meant the table 'public.items'",
-      "hint": null
+      "code": "PGRST202",
+      "message": "Could not find the function test.trigger_jov without parameters in the schema cache",
+      "details": "Searched for the function test.trigger_jov without parameters, but no matches were found in the schema cache.",
+      "hint": "Perhaps you meant to call the function test.trigger_job"
   }
 
 With ``minimal``, just ``code`` and ``message`` is returned.
 
 .. code:: bash
 
-  curl "localhost:3000/itemsxx"
+  curl "localhost:3000/rpc/trigger_jov"
 
 .. code-block:: json
 
   {
-      "code": "PGRST205",
-      "message": "Could not find the table 'public.itemsxx' in the schema cache"
+      "code": "PGRST202",
+      "message": "Could not find the function test.trigger_jov without parameters in the schema cache"
   }
