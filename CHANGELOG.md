@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file. From versio
 - Raise the soft limit on open file descriptors to the hard limit on startup by @mkleczek
 - Add `pgrst_schema_cache_last_reload_successful` metric to `/metrics` endpoint by @taimoorzaeem in #4971
 - Improve JWT verification for the ES256 algorithm, ~x9 faster and reduces time by ~89% according to our benchmarks by @steve-chavez in #5403
+- Fix leaking of table names by removing `hint` from `PGRST205` error by @taimoorzaeem in #5408
 
 ### Migration to v18
 

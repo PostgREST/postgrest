@@ -892,9 +892,9 @@ validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan{select} forest)
 
 -- | Lookup table in the schema cache before creating read plan
 findTable :: QualifiedIdentifier -> SchemaCache -> Either Error QualifiedIdentifier
-findTable qi@QualifiedIdentifier{..} sc@SchemaCache{dbTables} =
+findTable qi@QualifiedIdentifier{..} SchemaCache{dbTables} =
   case HM.lookup qi dbTables of
-    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName sc
+    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName
     Just _ -> Right qi
 
 rootFilters :: [(EmbedPath, Filter)] -> [Filter]
