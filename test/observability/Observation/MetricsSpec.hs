@@ -12,7 +12,7 @@ import Test.Hspec (SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (getState)
 
 import ObsHelper
-import PostgREST.Config (AppConfig (configDbSchemas))
+import PostgREST.Config (AppConfig (configDbPoolSize, configDbSchemas))
 import PostgREST.Metrics
   ( ConnStats (..)
   , MetricsState (..)
@@ -34,6 +34,7 @@ spec = describe "Server started with metrics enabled" $ do
         `shouldBe` [ "pgrst_db_pool_timeouts_total",
                      "pgrst_db_pool_available",
                      "pgrst_db_pool_waiting",
+                     "pgrst_db_pool_wait_time_seconds",
                      "pgrst_db_pool_max",
                      "pgrst_schema_cache_query_time_seconds",
                      "pgrst_schema_cache_last_reload_successful",
@@ -101,6 +102,31 @@ spec = describe "Server started with metrics enabled" $ do
         -- wait 1 sec to make sure we capture all potential schema cache loads
         -- (there should be none but we need to verify that)
         threadDelay $ 1 * sec
+
+  it "Should track wait completed when there is pool contention" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO
+      $ checkState'
+        metrics
+        [ expectHistogramSatisfy @"poolWaitTimeSeconds" (>)
+        ]
+      $ do
+        let poolSize = configDbPoolSize testCfg
+        signal <- newEmptyMVar
+        let hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
+
+        -- exhaust the pool
+        replicateM_ poolSize $ forkIO hold
+        replicateM_ poolSize $ waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.InUseConnectionStatus)) <- pure x]
+
+        -- request one more connection so we have contention to observe ConnectionWaitCompletedStatus
+        void $ forkIO hold
+        waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@PoolRequest <- pure x]
+
+        putMVar signal ()
+        waitFor (1 * sec) "ConnectionWaitCompletedStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionWaitCompletedStatus _)) <- pure x]
 
   -- The test verifies we properly count in use connections
   -- The idea is to fork a worker thread that

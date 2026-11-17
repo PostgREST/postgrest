@@ -230,6 +230,7 @@ observationMessages = \case
   PoolInit poolSize ->
     pure $ "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
   PoolAcqTimeoutObs -> pure $ jsonMessage SQL.AcquisitionTimeoutUsageError
+  HasqlPoolObs (SQL.ConnectionWaitCompletedStatus ms) -> pure $ "Connection Pool waited " <> showMillis ms <> " milliseconds for a connection"
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
     pure $
       "Connection "

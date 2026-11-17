@@ -73,7 +73,7 @@ def test_stackoverflow_is_logged(level, defaultenv):
             postgrest.session.get("/")
 
         output = postgrest.read_stdout(nlines=10)
-        for _ in range(3):
+        for _ in range(4):
             output.extend(postgrest.read_stdout(nlines=10))
 
         found = any("Warp server: stack overflow" in line for line in output)

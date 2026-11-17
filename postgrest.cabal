@@ -386,6 +386,7 @@ test-suite observability
                       Observation.MetricsSpec
                       Observation.SchemaCacheSpec
   build-depends:      base              >= 4.9 && < 4.22
+                    , async             >= 2.1.1 && < 2.3
                     , base64-bytestring >= 1 && < 1.3
                     , bytestring        >= 0.10.8 && < 0.13
                     , postgrest:hasql
@@ -410,7 +411,7 @@ benchmark loadtest-pool
   hs-source-dirs:     test/bench/pool
   main-is:            Main.hs
   build-depends:      base >= 4.9 && < 4.22
-                    , async
+                    , async             >= 2.1.1 && < 2.3
                     , postgrest:hasql
                     , transformers
   ghc-options:        -threaded -rtsopts

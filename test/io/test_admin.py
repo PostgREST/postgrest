@@ -167,6 +167,7 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_schema_cache_last_reload_successful" in response.text
         assert "pgrst_db_pool_max" in response.text
         assert "pgrst_db_pool_waiting" in response.text
+        assert "pgrst_db_pool_wait_time_seconds" in response.text
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
 

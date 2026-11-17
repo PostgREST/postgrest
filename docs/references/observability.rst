@@ -206,6 +206,15 @@ pgrst_db_pool_waiting
 
 Requests waiting to acquire a pool connection
 
+pgrst_db_pool_wait_time_seconds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Histogram
+======== =======
+
+Time waiting to acquire contended pool connections (includes timeouts)
+
 pgrst_db_pool_max
 ~~~~~~~~~~~~~~~~~
 
