@@ -165,14 +165,24 @@ use Pool{..} sess = do
         delay <- registerDelay poolAcquisitionTimeout
         return $ readTVar delay
 
+      startWaitingTime <- getMonotonicTimeNSec
       join . atomically $ do
         reuseVar <- readTVar poolReuseVar
         let
-          waitForConnection = tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+          observeConnectionWaitTime = do
+            doneWaitingTime <- getMonotonicTimeNSec
+            let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
+            poolObserver $ ConnectionWaitCompletedStatus delta
+          waitForConnection = do
+            useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+            return $ do
+              observeConnectionWaitTime
+              useConnection
           waitForTimeout = do
             timedOut <- timeout
-            if timedOut then
-              return $ return $ Left AcquisitionTimeoutUsageError
+            if timedOut then return $ do
+              observeConnectionWaitTime
+              return $ Left AcquisitionTimeoutUsageError
             else
               retry
         waitForConnection <|> waitForTimeout
