@@ -34,14 +34,6 @@ POST http://postgrest/rpc/call_me
 
 OPTIONS http://postgrest/actors
 
-# Misspelled relations
-GET http://postgrest/actoxs?actor=eq.1
-Prefer: tx=commit
-
-# Misspelled relations on embeds
-GET http://postgrest/actors?select=*,rolws(*,films(*))
-Prefer: tx=commit
-
 # Misspelled function names
 GET http://postgrest/rpc/call_me_x?name=John
 Prefer: tx=commit

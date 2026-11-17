@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Changes
+
+- Fix leaking of table names by removing `hint` from `PGRST205` error by @taimoorzaeem in #5408
+
 ## [16.6] - 2026-11-16
 
 ### Changes

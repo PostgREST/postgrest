@@ -1,4 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -45,7 +44,6 @@ import Network.HTTP.Types.Status qualified as HTTP
 import PostgREST.Config (Verbosity (..))
 import PostgREST.Error.Types
 import PostgREST.MediaType (MediaType (..))
-import PostgREST.SchemaCache (SchemaCache (SchemaCache, dbTablesFuzzyIndex))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..), Schema)
 import PostgREST.SchemaCache.Relationship
   ( Cardinality (..)
@@ -257,7 +255,7 @@ instance ErrorBody SchemaCacheError where
       fmtPrms p = if null argumentKeys then " without parameters" else p
   message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
   message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
-  message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
+  message (TableNotFound schemaName relName) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
 
   details (NoRelBetween parent child embedHint schema _) = Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."
   details (AmbiguousRelBetween _ _ rels) = Just $ JSON.toJSONList (compressedRel <$> rels)
@@ -292,7 +290,6 @@ instance ErrorBody SchemaCacheError where
     where
       onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
   hint (AmbiguousRpc _) = Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-  hint (TableNotFound schemaName relName schemaCache) = JSON.String <$> tableNotFoundHint schemaName relName schemaCache
   hint _ = Nothing
 
 -- |
@@ -389,25 +386,15 @@ noRpcHint schema procName params allProcs overloadedProcs =
       | null overloadedProcs = getFuzzyHint HintProcedure fuzzySetOfProcs procName
       | otherwise = (procName <>) <$> getFuzzyHint HintParams fuzzySetOfParams (listToText params)
 
--- |
--- Do a fuzzy search in all tables in the same schema and return closest result
-tableNotFoundHint :: Text -> Text -> SchemaCache -> Maybe Text
-tableNotFoundHint schema tblName SchemaCache{dbTablesFuzzyIndex} =
-  fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
-  where
-    perhapsTable = (\fuzzySet -> getFuzzyHint HintTable fuzzySet tblName) =<< HM.lookup schema dbTablesFuzzyIndex
-
 data HintType
-  = HintTable
-  | HintProcedure
+  = HintProcedure
   | HintParams
 
 -- | Get hint using Fuzzy Search with at least 0.75 similarity score
 getFuzzyHint :: HintType -> Fuzzy.FuzzySet -> Text -> Maybe Text
 getFuzzyHint hintType =
-  let minScore = 0.75 :: Double -- used for table and procedure name hints
+  let minScore = 0.75 :: Double -- used for procedure name hints
   in  case hintType of
-        HintTable -> Fuzzy.getOneWithMinScore minScore
         HintProcedure -> Fuzzy.getOneWithMinScore minScore
         HintParams -> Fuzzy.getOne -- For params, we stick to `getOne` which defaults to 0.33 min score, not a security risk to reveal params
 
