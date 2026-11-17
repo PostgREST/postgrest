@@ -24,7 +24,6 @@ import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Catalog.Relationship (Relationship (..), RelationshipsMap)
 import PostgREST.Catalog.Routine (Routine (..))
 import PostgREST.MediaType (MediaType (..))
-import PostgREST.SchemaCache (SchemaCache (..))
 
 import Hasql.Pool qualified as SQL
 
@@ -88,7 +87,7 @@ data SchemaCacheError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | ColumnNotFound Text Text
-  | TableNotFound Text Text SchemaCache
+  | TableNotFound Text Text
   deriving (Show)
 
 -- JWT ERRORS: PGRST3XX
