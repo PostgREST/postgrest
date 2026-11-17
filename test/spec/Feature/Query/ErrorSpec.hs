@@ -242,12 +242,12 @@ spec withConfig = do
   -- By default, error verbosity is set to 'verbose', which returns all error
   -- fields. No need to test that explicitly.
   withConfig baseCfg{configClientErrorVerbosity = Minimal} $
-    describe "Test client-error-verbosity config" $
+    describe "test client-error-verbosity config" $
       it "hides details and hint when set to 'minimal'" $
-        request methodGet "/itemsx" [] ""
+        request methodGet "/rpc/sayhell" [] ""
           `shouldRespondWith` [json|{
-          "code":"PGRST205",
-          "message":"Could not find the table 'test.itemsx' in the schema cache"
+          "code":"PGRST202",
+          "message":"Could not find the function test.sayhell without parameters in the schema cache"
         }|]
             { matchStatus = 404
             }
