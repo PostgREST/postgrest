@@ -37,6 +37,8 @@ data ConnectionStatus
     --
     -- After it's done the status will transition to 'ReadyForUseConnectionStatus' or 'TerminatedConnectionStatus'.
     InUseConnectionStatus
+  | -- | Error releasing connection
+    TerminationErrorStatus ConnectionTerminationReason SomeException
   | -- | Connection terminated.
     TerminatedConnectionStatus ConnectionTerminationReason
   deriving (Show)

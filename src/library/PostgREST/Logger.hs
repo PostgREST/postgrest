@@ -84,6 +84,9 @@ observationLogger loggerState obs = do
     o@SchemaCacheEmptyObs ->
       when (logLevel >= LogError) $ do
         logWithZTime $ observationMessages o
+    o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.TerminationErrorStatus{})) -> do
+      when (logLevel >= LogError) $ do
+        logWithZTime $ observationMessages o
     o@(HasqlPoolObs _) -> do
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
@@ -243,6 +246,16 @@ observationMessages = \case
                    SQL.SessionFailedConnectionReadyForUseReason _ -> "session failure"
                    SQL.SessionSucceededConnectionReadyForUseReason -> "session success"
                SQL.InUseConnectionStatus -> " is used"
+               SQL.TerminationErrorStatus reason ex ->
+                 " failed to be released on "
+                   <> case reason of
+                     SQL.AgingConnectionTerminationReason -> "max lifetime"
+                     SQL.IdlenessConnectionTerminationReason -> "max idletime"
+                     SQL.ReleaseConnectionTerminationReason -> "release"
+                     SQL.NetworkErrorConnectionTerminationReason _ -> "network error"
+                     SQL.InitializationErrorTerminationReason _ -> "init failure"
+                   <> " due to exception: "
+                   <> showOnSingleLine '\t' (show ex)
                SQL.TerminatedConnectionStatus reason ->
                  " is terminated due to " <> case reason of
                    SQL.AgingConnectionTerminationReason -> "max lifetime"
