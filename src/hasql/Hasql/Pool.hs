@@ -88,16 +88,15 @@ acquire config = do
       let
         (agedEntries, unagedEntries) = partition (entryIsAged agingTimeoutNanos now) entries
         (idleEntries, liveEntries) = partition (entryIsIdle maxIdletimeNanos now) unagedEntries
+        reap reason entry = do
+          Connection.release (entryConnection entry)
+          atomically $ modifyTVar' capVar succ
+          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus reason))
+
       traverse_ (writeTQueue connectionQueue) liveEntries
       return $ do
-        forM_ agedEntries $ \entry -> do
-          Connection.release (entryConnection entry)
-          atomically $ modifyTVar' capVar succ
-          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
-        forM_ idleEntries $ \entry -> do
-          Connection.release (entryConnection entry)
-          atomically $ modifyTVar' capVar succ
-          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
+        forM_ agedEntries $ reap AgingConnectionTerminationReason
+        forM_ idleEntries $ reap IdlenessConnectionTerminationReason
 
   void . mkWeakIORef reaperRef $ do
     -- When the pool goes out of scope, stop the manager.
