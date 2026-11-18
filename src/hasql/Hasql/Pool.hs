@@ -88,16 +88,19 @@ acquire config = do
       let
         (agedEntries, unagedEntries) = partition (entryIsAged agingTimeoutNanos now) entries
         (idleEntries, liveEntries) = partition (entryIsIdle maxIdletimeNanos now) unagedEntries
+        -- we should abort this loop when we receive an async exception
         catchSync act handler =
           act `catch` \e ->
             case fromException e of
               Just (_ :: SomeAsyncException) -> throwIO e
               Nothing -> handler e
+        -- If the pool observer is buggy we have nowhere to send that error
+        -- so in this scenario missing an observation is acceptable since we should not abort the loop.
         observeOrFailSilently entry status = catchSync (Config.observationHandler config (ConnectionObservation (entryId entry) status)) (const $ pure ())
         reap reason entry = do
-          catchSync (Connection.release (entryConnection entry)) (const $ pure ())
+          catchSync (Connection.release (entryConnection entry)) (observeOrFailSilently entry . TerminationErrorStatus reason)
           atomically $ modifyTVar' capVar succ
-          catchSync (observeOrFailSilently entry $ TerminatedConnectionStatus reason) (const $ pure ())
+          observeOrFailSilently entry $ TerminatedConnectionStatus reason
 
       traverse_ (writeTQueue connectionQueue) liveEntries
       return $ do
