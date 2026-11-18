@@ -59,55 +59,41 @@ let
 
   treefmtNix = ((import treefmtNixSrc).evalModule pkgs ./nix/treefmt.nix).config.build;
 
+  withPgExtensions =
+    postgresql:
+    postgresql.withPackages (p: [
+      p.postgis
+      p.pg_safeupdate
+    ]);
+
   postgresqlVersions = [
     {
       name = "pg-19";
-      postgresql = pkgs.postgresql_19.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_19;
     }
     {
       name = "pg-18";
-      postgresql = pkgs.postgresql_18.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_18;
     }
     {
       name = "pg-17";
-      postgresql = pkgs.postgresql_17.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_17;
     }
     {
       name = "pg-16";
-      postgresql = pkgs.postgresql_16.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_16;
     }
     {
       name = "pg-15";
-      postgresql = pkgs.postgresql_15.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_15;
     }
     {
       name = "pg-14";
-      postgresql = pkgs.postgresql_14.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.postgresql_14;
     }
     {
       name = "oriole-18";
-      postgresql = pkgs.orioledb.withPackages (p: [
-        p.postgis
-        p.pg_safeupdate
-      ]);
+      postgresql = withPgExtensions pkgs.orioledb;
       config = "
           default_table_access_method = 'orioledb'
           shared_preload_libraries = 'orioledb, pg_stat_statements'
