@@ -64,6 +64,7 @@ let
     postgresql.withPackages (p: [
       p.postgis
       p.pg_safeupdate
+      (p.callPackage ./nix/tools/pathological.nix { })
     ]);
 
   postgresqlVersions = [

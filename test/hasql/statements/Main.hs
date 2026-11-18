@@ -165,6 +165,25 @@ main = hspec $ do
         conn
         `shouldReturn` Right "hello"
       preparedStatements conn `shouldReturn` Right ["SELECT $1", "SELECT $1"]
+
+  describe "Transactions interface" $ do
+    it "does a ROLLBACK when COMMIT fails" $
+      -- we need the postgres user instead of authenticator otherwise the LOAD fails with: access to library "pathological" is not allowed
+      withConnectionSettings [Setting.connection "user=postgres"] $ \conn -> do
+        Session.run (Session.sql "LOAD 'pathological'") conn `shouldReturn` Right ()
+
+        result <-
+          Session.run
+            ( Transaction.transactionNoRetry Transaction.ReadCommitted Transaction.Write $ do
+                Transaction.sql "SET LOCAL statement_timeout = '50ms'"
+                Transaction.sql "SET LOCAL pg_pathological.commit_delay = '1s'"
+            )
+            conn
+        result `shouldSatisfy` \case
+          Left (Session.QueryError "COMMIT" [] (Session.ResultError (Session.ServerError "57014" "canceling statement due to statement timeout" _ _))) -> True
+          _ -> False
+
+        runQuery conn "SELECT 1" `shouldReturn` Right 1
   where
     run session conn = first (show :: Session.SessionError -> Text) <$> Session.run session conn
     query sql =
