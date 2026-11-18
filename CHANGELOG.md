@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. From versio
 ## Unreleased
 
 ### Changes
-
+- Fix potential pool capacity leak in pool connection reaper by @diogob in #5416
 - Add pool contention time metric by @diogob in #5377
 - Speed up cases where there is no connection pool contention by avoiding a timer creation by @diogob in #5409
 - Add schema cache query logging on `log-query=true` and `log-level=info|debug` by @steve-chavez in #5285
