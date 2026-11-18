@@ -88,10 +88,16 @@ acquire config = do
       let
         (agedEntries, unagedEntries) = partition (entryIsAged agingTimeoutNanos now) entries
         (idleEntries, liveEntries) = partition (entryIsIdle maxIdletimeNanos now) unagedEntries
+        catchSync act handler =
+          act `catch` \e ->
+            case fromException e of
+              Just (_ :: SomeAsyncException) -> throwIO e
+              Nothing -> handler e
+        observeOrFailSilently entry status = catchSync (Config.observationHandler config (ConnectionObservation (entryId entry) status)) (const $ pure ())
         reap reason entry = do
-          Connection.release (entryConnection entry)
+          catchSync (Connection.release (entryConnection entry)) (const $ pure ())
           atomically $ modifyTVar' capVar succ
-          Config.observationHandler config (ConnectionObservation (entryId entry) (TerminatedConnectionStatus reason))
+          catchSync (observeOrFailSilently entry $ TerminatedConnectionStatus reason) (const $ pure ())
 
       traverse_ (writeTQueue connectionQueue) liveEntries
       return $ do
