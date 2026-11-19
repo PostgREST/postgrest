@@ -152,6 +152,14 @@ release Pool{..} =
       atomically $ modifyTVar' poolCapacity succ
       poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
 
+-- Used so we always return connection entries with
+-- their pool 'generation' flag
+-- keep slotReuse first so we can partially apply
+data Slot = Slot
+  { slotReuse :: TVar Bool,
+    slotEntry :: Entry
+  }
+
 -- | Use a connection from the pool to run a session and return the connection
 -- to the pool, when finished.
 --
@@ -163,23 +171,29 @@ release Pool{..} =
 -- __Warning:__ Due to the mechanism mentioned above you should avoid intercepting this error type from within sessions.
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess = do
-  acquireSlotAndRunSession
+  slotOrError <- acquireSlot
+  case slotOrError of
+    Left ex -> pure $ Left ex
+    Right slot -> runSessionOnSlot slot
   where
-    tryAvailableConnection reuseVar =
-      useAvailableConnection reuseVar <$> readTQueue poolConnectionQueue
+    tryAvailableConnection =
+      useAvailableConnection <$> readTQueue poolConnectionQueue
 
-    tryNewConnection reuseVar = do
+    tryNewConnection = do
       capVal <- readTVar poolCapacity
       if capVal > 0 then do
         writeTVar poolCapacity $! pred capVal
-        pure $ acquireNewConnection reuseVar
+        pure acquireNewConnection
       else
         retry
 
-    acquireSlotAndRunSession = do
-      maybeActWithoutContention <- atomically $ do
-        reuseVar <- readTVar poolReuseVar
-        optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
+    tryAcquireSlot = do
+      reuse <- readTVar poolReuseVar
+      act <- tryAvailableConnection <|> tryNewConnection
+      pure $ fmap (Slot reuse) <$> act
+
+    acquireSlot = do
+      maybeActWithoutContention <- atomically $ optional tryAcquireSlot
 
       case maybeActWithoutContention of
         Just act -> act
@@ -190,14 +204,13 @@ use Pool{..} sess = do
 
           startWaitingTime <- getMonotonicTimeNSec
           join . atomically $ do
-            reuseVar <- readTVar poolReuseVar
             let
               observeConnectionWaitTime = do
                 doneWaitingTime <- getMonotonicTimeNSec
                 let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
                 poolObserver $ ConnectionWaitCompletedStatus delta
               waitForConnection = do
-                useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+                useConnection <- tryAcquireSlot
                 pure $ do
                   observeConnectionWaitTime
                   useConnection
@@ -210,7 +223,7 @@ use Pool{..} sess = do
                   retry
             waitForConnection <|> waitForTimeout
 
-    acquireNewConnection reuseVar = do
+    acquireNewConnection = do
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
       poolObserver (ConnectionObservation uuid ConnectingConnectionStatus)
@@ -221,23 +234,23 @@ use Pool{..} sess = do
           pure $ Left $ ConnectionUsageError connErr
         Right connection -> do
           poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
-          runSessionOnConnection reuseVar (Entry connection now now uuid)
+          pure $ Right $ Entry connection now now uuid
 
-    useAvailableConnection reuseVar entry = do
+    useAvailableConnection entry = do
       now <- getMonotonicTimeNSec
       if entryIsAged poolMaxLifetime now entry then do
         Connection.release (entryConnection entry)
         poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus AgingConnectionTerminationReason))
-        acquireNewConnection reuseVar
+        acquireNewConnection
       else
         if entryIsIdle poolMaxIdletime now entry then do
           Connection.release (entryConnection entry)
           poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus IdlenessConnectionTerminationReason))
-          acquireNewConnection reuseVar
+          acquireNewConnection
         else do
-          runSessionOnConnection reuseVar entry{entryUseTimeNSec = now}
+          pure $ Right $ entry{entryUseTimeNSec = now}
 
-    runSessionOnConnection reuseVar entry = do
+    runSessionOnSlot Slot{slotReuse = reuseVar, slotEntry = entry} = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 
