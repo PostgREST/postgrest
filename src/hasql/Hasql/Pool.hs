@@ -163,9 +163,11 @@ release Pool{..} =
 -- __Warning:__ Due to the mechanism mentioned above you should avoid intercepting this error type from within sessions.
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess = do
-  let
+  acquireSlotAndRunSession
+  where
     tryAvailableConnection reuseVar =
       useAvailableConnection reuseVar <$> readTQueue poolConnectionQueue
+
     tryNewConnection reuseVar = do
       capVal <- readTVar poolCapacity
       if capVal > 0 then do
@@ -174,39 +176,40 @@ use Pool{..} sess = do
       else
         retry
 
-  maybeActWithoutContention <- atomically $ do
-    reuseVar <- readTVar poolReuseVar
-    optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
-
-  case maybeActWithoutContention of
-    Just act -> act
-    Nothing -> do
-      timeout <- do
-        delay <- registerDelay poolAcquisitionTimeout
-        pure $ readTVar delay
-
-      startWaitingTime <- getMonotonicTimeNSec
-      join . atomically $ do
+    acquireSlotAndRunSession = do
+      maybeActWithoutContention <- atomically $ do
         reuseVar <- readTVar poolReuseVar
-        let
-          observeConnectionWaitTime = do
-            doneWaitingTime <- getMonotonicTimeNSec
-            let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
-            poolObserver $ ConnectionWaitCompletedStatus delta
-          waitForConnection = do
-            useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
-            pure $ do
-              observeConnectionWaitTime
-              useConnection
-          waitForTimeout = do
-            timedOut <- timeout
-            if timedOut then pure $ do
-              observeConnectionWaitTime
-              pure $ Left AcquisitionTimeoutUsageError
-            else
-              retry
-        waitForConnection <|> waitForTimeout
-  where
+        optional (tryAvailableConnection reuseVar <|> tryNewConnection reuseVar)
+
+      case maybeActWithoutContention of
+        Just act -> act
+        Nothing -> do
+          timeout <- do
+            delay <- registerDelay poolAcquisitionTimeout
+            pure $ readTVar delay
+
+          startWaitingTime <- getMonotonicTimeNSec
+          join . atomically $ do
+            reuseVar <- readTVar poolReuseVar
+            let
+              observeConnectionWaitTime = do
+                doneWaitingTime <- getMonotonicTimeNSec
+                let delta = fromIntegral (doneWaitingTime - startWaitingTime) / 1000000
+                poolObserver $ ConnectionWaitCompletedStatus delta
+              waitForConnection = do
+                useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
+                pure $ do
+                  observeConnectionWaitTime
+                  useConnection
+              waitForTimeout = do
+                timedOut <- timeout
+                if timedOut then pure $ do
+                  observeConnectionWaitTime
+                  pure $ Left AcquisitionTimeoutUsageError
+                else
+                  retry
+            waitForConnection <|> waitForTimeout
+
     acquireNewConnection reuseVar = do
       now <- getMonotonicTimeNSec
       uuid <- Uuid.nextRandom
