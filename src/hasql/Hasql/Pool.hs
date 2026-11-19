@@ -250,13 +250,13 @@ use Pool{..} sess = do
         else do
           pure $ Right $ entry{entryUseTimeNSec = now}
 
-    runSessionOnSlot Slot{slotReuse = reuseVar, slotEntry = entry} = do
+    runSessionOnSlot slot@Slot{slotEntry = entry} = do
       poolObserver (ConnectionObservation (entryId entry) InUseConnectionStatus)
       sessRes <- try @SomeException (Session.run sess (entryConnection entry))
 
       case sessRes of
         Left exc -> do
-          returnConn
+          returnSlot slot
           throwIO exc
         Right (Left err) ->
           ErrorsDestruction.reset
@@ -267,25 +267,25 @@ use Pool{..} sess = do
                 pure $ Left $ SessionUsageError err
             )
             ( do
-                returnConn
+                returnSlot slot
                 poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus (SessionFailedConnectionReadyForUseReason err)))
                 pure $ Left $ SessionUsageError err
             )
             err
         Right (Right res) -> do
-          returnConn
+          returnSlot slot
           poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus SessionSucceededConnectionReadyForUseReason))
           pure $ Right res
-      where
-        returnConn =
-          join . atomically $ do
-            reuse <- readTVar reuseVar
-            if reuse then
-              unGetTQueue poolConnectionQueue entry $> pure ()
-            else pure $ do
-              Connection.release (entryConnection entry)
-              atomically $ modifyTVar' poolCapacity succ
-              poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
+
+    returnSlot Slot{slotReuse = reuseVar, slotEntry = entry} =
+      join . atomically $ do
+        reuse <- readTVar reuseVar
+        if reuse then
+          unGetTQueue poolConnectionQueue entry $> pure ()
+        else pure $ do
+          Connection.release (entryConnection entry)
+          atomically $ modifyTVar' poolCapacity succ
+          poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
 
 -- | Union over all errors that 'use' can result in.
 data UsageError
