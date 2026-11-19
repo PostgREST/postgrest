@@ -254,6 +254,7 @@ observationMessages = \case
                      SQL.ReleaseConnectionTerminationReason -> "release"
                      SQL.NetworkErrorConnectionTerminationReason _ -> "network error"
                      SQL.InitializationErrorTerminationReason _ -> "init failure"
+                     SQL.SessionExceptionTerminationReason _ -> "session exception"
                    <> " due to exception: "
                    <> showOnSingleLine '\t' (show ex)
                SQL.TerminatedConnectionStatus reason ->
@@ -263,6 +264,7 @@ observationMessages = \case
                    SQL.ReleaseConnectionTerminationReason -> "release"
                    SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
                    SQL.InitializationErrorTerminationReason _ -> "init failure"
+                   SQL.SessionExceptionTerminationReason ex -> "session exception: " <> showOnSingleLine '\t' (show ex)
            )
   PoolRequest ->
     pure "Trying to borrow a connection from pool"

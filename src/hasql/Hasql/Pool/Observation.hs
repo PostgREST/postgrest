@@ -64,4 +64,6 @@ data ConnectionTerminationReason
     ReleaseConnectionTerminationReason
   | -- | Initialization session failure.
     InitializationErrorTerminationReason Session.SessionError
+  | -- | An exception was raised during a session, safer to close the connection.
+    SessionExceptionTerminationReason SomeException
   deriving (Show)

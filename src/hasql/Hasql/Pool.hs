@@ -256,7 +256,10 @@ use Pool{..} sess = do
 
       case sessRes of
         Left exc -> do
-          returnSlot slot
+          -- Connection in unknown state close it and free its capacity instead.
+          Connection.release (entryConnection entry)
+          atomically $ modifyTVar' poolCapacity succ
+          poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus (SessionExceptionTerminationReason exc)))
           throwIO exc
         Right (Left err) ->
           ErrorsDestruction.reset
