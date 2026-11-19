@@ -111,7 +111,19 @@ acquire config = do
     -- When the pool goes out of scope, stop the manager.
     killThread managerTid
 
-  pure $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config)
+  pure
+    $ Pool
+      { poolSize = Config.size config,
+        poolConnectionSettings = Config.connectionSettings config,
+        poolAcquisitionTimeout = acqTimeoutMicros,
+        poolMaxLifetime = agingTimeoutNanos,
+        poolMaxIdletime = maxIdletimeNanos,
+        poolConnectionQueue = connectionQueue,
+        poolCapacity = capVar,
+        poolReuseVar = reuseVar,
+        poolReaperRef = reaperRef,
+        poolObserver = Config.observationHandler config
+      }
   where
     acqTimeoutMicros =
       div (fromIntegral (diffTimeToPicoseconds (Config.acquisitionTimeout config))) 1_000_000
