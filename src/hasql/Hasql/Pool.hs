@@ -103,7 +103,7 @@ acquire config = do
           observeOrFailSilently entry $ TerminatedConnectionStatus reason
 
       traverse_ (writeTQueue connectionQueue) liveEntries
-      return $ do
+      pure $ do
         forM_ agedEntries $ reap AgingConnectionTerminationReason
         forM_ idleEntries $ reap IdlenessConnectionTerminationReason
 
@@ -111,7 +111,7 @@ acquire config = do
     -- When the pool goes out of scope, stop the manager.
     killThread managerTid
 
-  return $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config)
+  pure $ Pool (Config.size config) (Config.connectionSettings config) acqTimeoutMicros agingTimeoutNanos maxIdletimeNanos connectionQueue capVar reuseVar reaperRef (Config.observationHandler config)
   where
     acqTimeoutMicros =
       div (fromIntegral (diffTimeToPicoseconds (Config.acquisitionTimeout config))) 1_000_000
@@ -135,7 +135,7 @@ release Pool{..} =
     newReuse <- newTVar True
     writeTVar poolReuseVar newReuse
     entries <- flushTQueue poolConnectionQueue
-    return $ forM_ entries $ \entry -> do
+    pure $ forM_ entries $ \entry -> do
       Connection.release (entryConnection entry)
       atomically $ modifyTVar' poolCapacity succ
       poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
@@ -158,7 +158,7 @@ use Pool{..} sess = do
       capVal <- readTVar poolCapacity
       if capVal > 0 then do
         writeTVar poolCapacity $! pred capVal
-        return $ acquireNewConnection reuseVar
+        pure $ acquireNewConnection reuseVar
       else
         retry
 
@@ -171,7 +171,7 @@ use Pool{..} sess = do
     Nothing -> do
       timeout <- do
         delay <- registerDelay poolAcquisitionTimeout
-        return $ readTVar delay
+        pure $ readTVar delay
 
       startWaitingTime <- getMonotonicTimeNSec
       join . atomically $ do
@@ -183,14 +183,14 @@ use Pool{..} sess = do
             poolObserver $ ConnectionWaitCompletedStatus delta
           waitForConnection = do
             useConnection <- tryAvailableConnection reuseVar <|> tryNewConnection reuseVar
-            return $ do
+            pure $ do
               observeConnectionWaitTime
               useConnection
           waitForTimeout = do
             timedOut <- timeout
-            if timedOut then return $ do
+            if timedOut then pure $ do
               observeConnectionWaitTime
-              return $ Left AcquisitionTimeoutUsageError
+              pure $ Left AcquisitionTimeoutUsageError
             else
               retry
         waitForConnection <|> waitForTimeout
@@ -203,7 +203,7 @@ use Pool{..} sess = do
         Left connErr -> do
           poolObserver (ConnectionObservation uuid (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) connErr))))
           atomically $ modifyTVar' poolCapacity succ
-          return $ Left $ ConnectionUsageError connErr
+          pure $ Left $ ConnectionUsageError connErr
         Right connection -> do
           poolObserver (ConnectionObservation uuid (ReadyForUseConnectionStatus EstablishedConnectionReadyForUseReason))
           runSessionOnConnection reuseVar (Entry connection now now uuid)
@@ -236,25 +236,25 @@ use Pool{..} sess = do
                 Connection.release (entryConnection entry)
                 atomically $ modifyTVar' poolCapacity succ
                 poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus (NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details))))
-                return $ Left $ SessionUsageError err
+                pure $ Left $ SessionUsageError err
             )
             ( do
                 returnConn
                 poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus (SessionFailedConnectionReadyForUseReason err)))
-                return $ Left $ SessionUsageError err
+                pure $ Left $ SessionUsageError err
             )
             err
         Right (Right res) -> do
           returnConn
           poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus SessionSucceededConnectionReadyForUseReason))
-          return $ Right res
+          pure $ Right res
       where
         returnConn =
           join . atomically $ do
             reuse <- readTVar reuseVar
             if reuse then
-              unGetTQueue poolConnectionQueue entry $> return ()
-            else return $ do
+              unGetTQueue poolConnectionQueue entry $> pure ()
+            else pure $ do
               Connection.release (entryConnection entry)
               atomically $ modifyTVar' poolCapacity succ
               poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
