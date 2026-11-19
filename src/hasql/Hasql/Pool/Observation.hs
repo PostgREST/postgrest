@@ -21,6 +21,8 @@ data Observation
     ConnectionWaitCompletedStatus
       Double
       -- ^ Time in milliseconds
+  | PoolRequest
+  | PoolRequestFullfilled
   deriving (Show)
 
 -- | Status of a connection.

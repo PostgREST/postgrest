@@ -60,8 +60,6 @@ data Observation
   | PoolAcqTimeoutObs
   | HasqlPoolObs SQL.Observation
   | ResponseObs (Maybe ByteString) Wai.Request Status (Maybe Integer)
-  | PoolRequest
-  | PoolRequestFullfilled
   | PoolFlushed
   | JwtCacheLookup Bool
   | JwtCacheEviction

@@ -84,6 +84,12 @@ observationLogger loggerState obs = do
     o@SchemaCacheEmptyObs ->
       when (logLevel >= LogError) $ do
         logWithZTime $ observationMessages o
+    o@(HasqlPoolObs SQL.PoolRequest) ->
+      when (logLevel >= LogDebug) $ do
+        logWithZTime $ observationMessages o
+    o@(HasqlPoolObs SQL.PoolRequestFullfilled) ->
+      when (logLevel >= LogDebug) $ do
+        logWithZTime $ observationMessages o
     o@(HasqlPoolObs _) -> do
       when (logLevel >= LogDebug) $ do
         logWithZTime $ observationMessages o
@@ -95,12 +101,6 @@ observationLogger loggerState obs = do
       when (logLevel >= LogInfo) $
         logWithZTime $
           observationMessages o
-    o@PoolRequest ->
-      when (logLevel >= LogDebug) $ do
-        logWithZTime $ observationMessages o
-    o@PoolRequestFullfilled ->
-      when (logLevel >= LogDebug) $ do
-        logWithZTime $ observationMessages o
     ResponseObs maybeRole req status contentLen ->
       when (shouldLogResponse logLevel status) $ do
         zTime <- getZonedTime
@@ -251,9 +251,9 @@ observationMessages = \case
                    SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
                    SQL.InitializationErrorTerminationReason _ -> "init failure"
            )
-  PoolRequest ->
+  HasqlPoolObs SQL.PoolRequest ->
     pure "Trying to borrow a connection from pool"
-  PoolRequestFullfilled ->
+  HasqlPoolObs SQL.PoolRequestFullfilled ->
     pure "Borrowed a connection from the pool"
   PoolFlushed ->
     pure "Database connection pool flushed"

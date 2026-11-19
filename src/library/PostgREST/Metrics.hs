@@ -106,9 +106,9 @@ observationMetrics MetricsState{..} obs = case obs of
   -- established connections.
   HasqlPoolObs (SQL.ConnectionObservation uuid status) -> trackConnections connTrack uuid status
   HasqlPoolObs (SQL.ConnectionWaitCompletedStatus ms) -> void $ observe poolWaitTimeSeconds $ ms / 1000
-  PoolRequest ->
+  HasqlPoolObs SQL.PoolRequest ->
     incGauge poolWaiting
-  PoolRequestFullfilled ->
+  HasqlPoolObs SQL.PoolRequestFullfilled ->
     decGauge poolWaiting
   SchemaCacheLoadedObs resTime _ -> do
     withLabel schemaCacheLoads "SUCCESS" incCounter
