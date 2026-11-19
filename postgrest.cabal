@@ -427,6 +427,7 @@ test-suite hasql-pool
                     , hspec             >= 2.3 && < 2.12
                     , protolude         >= 0.3.1 && < 0.4
                     , random            >= 1.2 && < 1.4
+                    , stm                       >= 2.5 && < 3
                     , text              >= 1.2.2 && < 2.2
                     , time              >= 1.6 && < 1.15
   ghc-options:        -threaded -O0 -fwrite-ide-info

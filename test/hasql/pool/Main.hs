@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Concurrent.STM
 import Data.Functor.Contravariant (contramap)
 import Data.Time (DiffTime, diffUTCTime, getCurrentTime)
 import Protolude
@@ -9,6 +10,7 @@ import Data.Text qualified as Text
 import System.Random.Stateful qualified as Random
 
 import Hasql.Pool
+import Hasql.Pool.Observation (ConnectionStatus (ConnectingConnectionStatus, TerminatedConnectionStatus), ConnectionTerminationReason (..), Observation (ConnectionObservation))
 
 import Hasql.Connection qualified as Connection
 import Hasql.Connection.Setting qualified as Connection.Setting
@@ -23,7 +25,8 @@ data PoolSettings = PoolSettings
   { poolSize :: Int,
     acquisitionTimeout :: DiffTime,
     maxLifetime :: DiffTime,
-    maxIdletime :: DiffTime
+    maxIdletime :: DiffTime,
+    observer :: Observation -> IO ()
   }
 
 defaultPoolSettings :: PoolSettings
@@ -32,32 +35,43 @@ defaultPoolSettings =
     { poolSize = 3,
       acquisitionTimeout = 10,
       maxLifetime = 1_800,
-      maxIdletime = 1_800
+      maxIdletime = 1_800,
+      observer = \_ -> pure ()
     }
+
+data TestError = TestError deriving (Eq, Show)
+
+instance Exception TestError
 
 main :: IO ()
 main = do
+  -- for test cases where we want to read observations
+  observations <- newTQueueIO
   -- libpq reads the connection parameters from the PG* variables
-  let connectionString = ""
   let
-    withPool PoolSettings{poolSize, acquisitionTimeout, maxLifetime, maxIdletime} connString =
+    connectionString = ""
+    withPool PoolSettings{poolSize, acquisitionTimeout, maxLifetime, maxIdletime, observer} connString =
       bracket
-        ( acquire
-            ( Config.settings
-                [ Config.size poolSize,
-                  Config.acquisitionTimeout acquisitionTimeout,
-                  Config.agingTimeout maxLifetime,
-                  Config.idlenessTimeout maxIdletime,
-                  Config.staticConnectionSettings
-                    [ Connection.Setting.connection
-                        connString
-                    ]
-                ]
-            )
+        ( do
+            void $ atomically $ flushTQueue observations
+            acquire
+              ( Config.settings
+                  [ Config.size poolSize,
+                    Config.acquisitionTimeout acquisitionTimeout,
+                    Config.agingTimeout maxLifetime,
+                    Config.idlenessTimeout maxIdletime,
+                    Config.observationHandler observer,
+                    Config.staticConnectionSettings
+                      [ Connection.Setting.connection
+                          connString
+                      ]
+                  ]
+              )
         )
         release
     withDefaultPool =
       withPool defaultPoolSettings connectionString
+    addToQueue = atomically . writeTQueue observations
 
   hspec . describe "" $ do
     it "Releases a spot in the pool when there is a query error" $ withDefaultPool $ \pool -> do
@@ -209,6 +223,29 @@ main = do
         threadDelay 1_000_000 -- 1s
         res4 <- use pool $ getSettingSession "testing.foo"
         res4 `shouldBe` Right Nothing
+    it "Should rethrow user supplied exception" $ withPool defaultPoolSettings connectionString $ \pool -> do
+      use pool (throwIO TestError) `shouldThrow` (== TestError)
+    it "Should observe a SessionExceptionTerminationReason on user supplied exception" $ withPool defaultPoolSettings{observer = addToQueue} connectionString $ \pool -> do
+      void $ try @SomeException $ use pool (throwIO TestError)
+      observationsList <- atomically $ flushTQueue observations
+      let matchTestError =
+            ( \case
+                (ConnectionObservation _ (TerminatedConnectionStatus (SessionExceptionTerminationReason ex))) -> fromException ex == Just TestError
+                _ -> False
+            )
+      observationsList `shouldSatisfy` any matchTestError
+    it "Should discard connection on user supplied exception instead of reusing" $ withPool defaultPoolSettings{poolSize = 1, observer = addToQueue} connectionString $ \pool -> do
+      void $ try @SomeException $ use pool (throwIO TestError)
+      void $ use pool $ pure ()
+      observationsList <- atomically $ flushTQueue observations
+      let
+        matchNewConnectionObservation =
+          ( \case
+              (ConnectionObservation _ ConnectingConnectionStatus) -> True
+              _ -> False
+          )
+        opensTwoConnections l = length (filter matchNewConnectionObservation l) == 2
+      observationsList `shouldSatisfy` opensTwoConnections
 
 tagConnection :: Text -> IO (Text, Text)
 tagConnection connectionString = do
