@@ -305,7 +305,7 @@ use Pool{..} sess =
           (CloseConnection reason, _) -> pure $ do
             Connection.release (entryConnection entry)
             atomically $ modifyTVar' poolCapacity succ
-            traverse_ observeTermination reason
+            observeTermination $ fromMaybe ReleaseConnectionTerminationReason reason
       where
         observeTermination = poolObserver . ConnectionObservation (entryId entry) . TerminatedConnectionStatus
 
