@@ -23,6 +23,10 @@ import PostgREST.Observation
 import Hasql.Pool.Observation qualified as SQL
 import PostgREST.AppState qualified as AppState
 
+data TestError = TestError deriving (Eq, Show)
+
+instance Exception TestError
+
 spec :: SpecWith (SpecState, Application)
 spec = describe "Server started with metrics enabled" $ do
   it "Should sample the metrics of the AppState" $ do
@@ -164,6 +168,20 @@ spec = describe "Server started with metrics enabled" $ do
 
         -- hanging thread was signaled and should return the connection
         waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
+
+  it "Should track in use connections correctly after session exception" $ do
+    SpecState{specAppState = appState, specMetrics = metrics, specObsChan} <- getState
+    let waitFor = waitForObs specObsChan
+
+    liftIO
+      $ checkState'
+        metrics
+        [ -- we expect in use connections to be the same once finished
+          inUseConnections (+ 0)
+        ]
+      $ do
+        void $ forkIO $ void $ try @SomeException $ AppState.usePool appState $ throwIO TestError
+        waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.TerminatedConnectionStatus _))) <- pure x]
   where
     -- prometheus-client api to handle vectors is convoluted
     schemaCacheLoads label =
