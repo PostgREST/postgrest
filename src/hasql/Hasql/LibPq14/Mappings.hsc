@@ -16,6 +16,8 @@ data ExecStatus
   | NonfatalError
   | FatalError
   | SingleTuple
+  | PipelineSync
+  | PipelineAbort
   deriving (Eq, Show)
 
 decodeExecStatus :: CInt -> Maybe ExecStatus
@@ -30,4 +32,12 @@ decodeExecStatus = \case
   (#const PGRES_NONFATAL_ERROR) -> Just NonfatalError
   (#const PGRES_FATAL_ERROR) -> Just FatalError
   (#const PGRES_SINGLE_TUPLE) -> Just SingleTuple
+  (#const PGRES_PIPELINE_SYNC) -> Just PipelineSync
+  (#const PGRES_PIPELINE_ABORTED) -> Just PipelineAbort
+  _ -> Nothing
+
+decodeBool :: CInt -> Maybe Bool
+decodeBool = \case
+  0 -> Just False
+  1 -> Just True
   _ -> Nothing

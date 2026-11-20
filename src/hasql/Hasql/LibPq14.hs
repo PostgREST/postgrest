@@ -6,18 +6,21 @@ module Hasql.LibPq14
 
     -- * Updated and new procedures
   , resultStatus
+  , enterPipelineMode
+  , exitPipelineMode
+  , pipelineSync
   )
 where
 
 import Database.PostgreSQL.LibPQ as Base hiding
   ( ExecStatus (..)
-  , PipelineStatus (..)
   , enterPipelineMode
   , exitPipelineMode
   , pipelineSync
   , resultStatus
-  , sendFlushRequest
   )
+
+import Database.PostgreSQL.LibPQ.Internal qualified as BaseInternal
 
 import Hasql.Prelude
 
@@ -32,6 +35,35 @@ resultStatus result = do
   -- it requires us to avoid using an open dependency range on it.
   ffiStatus <- withForeignPtr (unsafeCoerce result) Ffi.resultStatus
   decodeProcedureResult "resultStatus" Mappings.decodeExecStatus ffiStatus
+
+enterPipelineMode
+  :: Connection
+  -> IO Bool
+enterPipelineMode =
+  parameterlessProcedure "enterPipelineMode" Ffi.enterPipelineMode Mappings.decodeBool
+
+exitPipelineMode
+  :: Connection
+  -> IO Bool
+exitPipelineMode =
+  parameterlessProcedure "exitPipelineMode" Ffi.exitPipelineMode Mappings.decodeBool
+
+pipelineSync
+  :: Connection
+  -> IO Bool
+pipelineSync =
+  parameterlessProcedure "pipelineSync" Ffi.pipelineSync Mappings.decodeBool
+
+parameterlessProcedure
+  :: (Show a)
+  => String
+  -> (Ptr BaseInternal.PGconn -> IO a)
+  -> (a -> Maybe b)
+  -> Connection
+  -> IO b
+parameterlessProcedure label procedure decoder connection = do
+  ffiResult <- BaseInternal.withConn connection procedure
+  decodeProcedureResult label decoder ffiResult
 
 decodeProcedureResult
   :: (Show a)
