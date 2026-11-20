@@ -152,7 +152,7 @@ release Pool{..} =
       atomically $ modifyTVar' poolCapacity succ
       poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
 
-data SlotRelease = ReturnConnection | CloseConnection (Maybe ConnectionTerminationReason)
+data SlotRelease = ReturnConnection ConnectionReadyForUseReason | CloseConnection (Maybe ConnectionTerminationReason)
 
 -- Used so we always return connection entries with
 -- their pool 'generation' flag
@@ -175,9 +175,11 @@ data Slot = Slot
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess =
   bracket
-    acquireSlot (traverse_ releaseSlot) $ \case
-        Left ex -> pure $ Left ex
-        Right slot -> runSessionOnSlot slot
+    acquireSlot
+    (traverse_ releaseSlot)
+    $ \case
+      Left ex -> pure $ Left ex
+      Right slot -> runSessionOnSlot slot
   where
     tryAvailableConnection :: STM (IO (Either UsageError Entry))
     tryAvailableConnection =
@@ -266,25 +268,21 @@ use Pool{..} sess =
         Left exc -> do
           -- Connection in unknown state mark to close it and free its capacity instead.
           markSlot slot $ CloseConnection $ Just $ SessionExceptionTerminationReason exc
-          poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus (SessionExceptionTerminationReason exc)))
           throwIO exc
         Right (Left err) ->
           ErrorsDestruction.reset
             ( \details -> do
                 let reason = NetworkErrorConnectionTerminationReason (fmap (Text.decodeUtf8With Text.lenientDecode) details)
                 markSlot slot $ CloseConnection $ Just reason
-                poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus reason))
                 pure $ Left $ SessionUsageError err
             )
             ( do
-                markSlot slot ReturnConnection
-                poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus (SessionFailedConnectionReadyForUseReason err)))
+                markSlot slot $ ReturnConnection $ SessionFailedConnectionReadyForUseReason err
                 pure $ Left $ SessionUsageError err
             )
             err
         Right (Right res) -> do
-          markSlot slot ReturnConnection
-          poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus SessionSucceededConnectionReadyForUseReason))
+          markSlot slot $ ReturnConnection SessionSucceededConnectionReadyForUseReason
           pure $ Right res
 
     markSlot :: Slot -> SlotRelease -> IO ()
@@ -297,15 +295,19 @@ use Pool{..} sess =
         releaseAction <- readTVar releaseVar
         reuse <- readTVar reuseVar
         case (releaseAction, reuse) of
-          (ReturnConnection, True) ->
-            unGetTQueue poolConnectionQueue entry $> pure ()
-          (ReturnConnection, False) -> pure $ do
+          (ReturnConnection reason, True) -> do
+            unGetTQueue poolConnectionQueue entry
+            pure $ poolObserver (ConnectionObservation (entryId entry) (ReadyForUseConnectionStatus reason))
+          (ReturnConnection _, False) -> pure $ do
             Connection.release (entryConnection entry)
             atomically $ modifyTVar' poolCapacity succ
-            poolObserver (ConnectionObservation (entryId entry) (TerminatedConnectionStatus ReleaseConnectionTerminationReason))
-          _ -> pure $ do
+            observeTermination ReleaseConnectionTerminationReason
+          (CloseConnection reason, _) -> pure $ do
             Connection.release (entryConnection entry)
             atomically $ modifyTVar' poolCapacity succ
+            traverse_ observeTermination reason
+      where
+        observeTermination = poolObserver . ConnectionObservation (entryId entry) . TerminatedConnectionStatus
 
 -- | Union over all errors that 'use' can result in.
 data UsageError
