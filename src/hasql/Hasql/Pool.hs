@@ -175,7 +175,7 @@ data Slot = Slot
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess =
   bracket
-    acquireSlot (traverse_ returnSlot) $ \case
+    acquireSlot (traverse_ releaseSlot) $ \case
         Left ex -> pure $ Left ex
         Right slot -> runSessionOnSlot slot
   where
@@ -196,8 +196,8 @@ use Pool{..} sess =
     tryAcquireSlot = do
       reuse <- readTVar poolReuseVar
       act <- tryAvailableConnection <|> tryNewConnection
-      release <- newTVar (CloseConnection Nothing)
-      pure $ fmap (Slot reuse release) <$> act
+      releaseVar <- newTVar (CloseConnection Nothing)
+      pure $ fmap (Slot reuse releaseVar) <$> act
 
     acquireSlot :: IO (Either UsageError Slot)
     acquireSlot = do
@@ -291,8 +291,8 @@ use Pool{..} sess =
     markSlot Slot{slotRelease} =
       atomically . writeTVar slotRelease
 
-    returnSlot :: Slot -> IO ()
-    returnSlot Slot{slotReuse = reuseVar, slotRelease = releaseVar, slotEntry = entry} =
+    releaseSlot :: Slot -> IO ()
+    releaseSlot Slot{slotReuse = reuseVar, slotRelease = releaseVar, slotEntry = entry} =
       join . atomically $ do
         releaseAction <- readTVar releaseVar
         reuse <- readTVar reuseVar
