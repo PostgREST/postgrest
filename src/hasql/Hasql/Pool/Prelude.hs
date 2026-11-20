@@ -111,7 +111,7 @@ import GHC.IO.Exception as Exports
 import Numeric as Exports
 import System.Environment as Exports
 import System.Exit as Exports
-import System.IO as Exports (Handle, hClose)
+import System.IO as Exports (Handle, hClose, hPutStrLn, stderr)
 import System.IO.Error as Exports
 import System.IO.Unsafe as Exports
 import System.Mem as Exports
