@@ -60,6 +60,8 @@ data Pool = Pool
     --     connections.
     poolCapacity :: TVar Int,
     -- | Whether to return a connection to the pool.
+    -- | The nested TVars are so we can mark a current "generation" of connections to close and
+    -- | And immediately replace the inner state to the pool does not close connections opened after the relase
     poolReuseVar :: TVar (TVar Bool),
     -- | To stop the manager thread via garbage collection.
     poolReaperRef :: IORef (),
@@ -158,8 +160,13 @@ data SlotRelease = ReturnConnection ConnectionReadyForUseReason | CloseConnectio
 -- their pool 'generation' flag
 -- keep slotReuse & slotRelease first so we can partially apply
 data Slot = Slot
-  { slotReuse :: TVar Bool,
+  { -- | This is the inner TVar from poolReuse when the slot is acquired
+    -- | release will write on it to mark in use connection to be closed
+    slotReuse :: TVar Bool,
+    -- | This is how the result of the use of that slot will determine whether the connection has to be terminated or not.
+    -- Defaults to 'CloseConnection' so it is closed if never marked (e.g. on async exceptions).
     slotRelease :: TVar SlotRelease,
+    -- | The slot connection entry (which is our actual resource for the bracket)
     slotEntry :: Entry
   }
 
