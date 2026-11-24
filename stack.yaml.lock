@@ -61,12 +61,12 @@ packages:
   original:
     hackage: http2-5.4.0
 - completed:
-    hackage: jose-jwt-botan-0.13.0@sha256:91841f3274989c9956ba1a04a9e9fe42a8a320deb5a95d9a411329f4b89d82ce,4550
+    hackage: jose-jwt-botan-0.14.0@sha256:218f46c9dc1af163e2bf281d02c00a1128e37d7d562d702e13ce428c22155810,4590
     pantry-tree:
-      sha256: 87d0efde5c59916f7b664707c1a8fe265bb19eca2b0f0025eeecfbbceb6e2cd4
+      sha256: 8d3e3c407af1da4b553939d508a37d8065d0f043b7dbbc3cf2d0e11110c41a2b
       size: 1309
   original:
-    hackage: jose-jwt-botan-0.13.0
+    hackage: jose-jwt-botan-0.14.0
 - completed:
     hackage: warp-3.4.14@sha256:66b82af637f79ae4d39f7373b39491067f6d059b2581cb4caf18760f1d82e686,10066
     pantry-tree:

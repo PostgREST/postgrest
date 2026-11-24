@@ -50,8 +50,8 @@ _: prev: {
 
   jose-jwt-botan = prev.callHackageDirect {
     pkg = "jose-jwt-botan";
-    ver = "0.13.0";
-    sha256 = "sha256-Nnofzxe3BMUDzpiEF5lrOoeInLqzVna+W0pTW/tp4bw=";
+    ver = "0.14.0";
+    sha256 = "sha256-RZlosCdbvbqtf4yvRLniyAj7Qp5N19Q7P6lW3kpP8b8=";
   } { };
 
   # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
