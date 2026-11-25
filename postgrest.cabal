@@ -85,6 +85,7 @@ library hasql
                       Hasql.Statement
                       Hasql.Transaction
                       Hasql.Transaction.Sessions
+                      Hasql.LibPq14.Notices
   other-modules:      Hasql.Connection.Config
                       Hasql.Connection.Core
                       Hasql.Decoders.All

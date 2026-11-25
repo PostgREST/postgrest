@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Added
+
+- New `db-warnings-enabled` config: include PostgreSQL `RAISE WARNING` messages (severity, SQLSTATE, message, detail, hint) as a structured `warnings` array in error responses. Warnings are only surfaced when the request fails; successful responses are unaffected. Fixes #1071.
+
 ### Changes
 
 - Fix pool capacity leak by @diogob in #5416, #5420
