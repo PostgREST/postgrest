@@ -17,6 +17,9 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 * SET operators like `UNION, INTERSECT and EXCEPT <https://www.postgresql.org/docs/current/queries-union.html>`_.
 * More complicated joins than those provided by :ref:`resource_embedding`.
 * Geo-spatial queries that require an argument, like "points near (lat,lon)"
+* :ref:`selecting_string_literals`
+
+This limitation is by design. PostgREST is not "SQL over HTTP" — it is a deliberately scoped interface, and the query grammar does not aim to cover SQL in full.
 
 Unicode support
 ---------------
