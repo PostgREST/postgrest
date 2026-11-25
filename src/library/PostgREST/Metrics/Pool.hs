@@ -23,7 +23,7 @@ import Protolude
 import Focus qualified
 import StmHamt.SizedHamt qualified as SH
 
-import PostgREST.Metrics.Types (MetricsModule (..), collect)
+import PostgREST.Metrics.Types (MetricsModule, initMetricModule)
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
@@ -37,16 +37,20 @@ data PoolMetrics = PoolMetrics
   }
 
 init :: Int -> Int -> IO (PoolMetrics, MetricsModule)
-init configDbPoolSize configDbPoolAcquisitionTimeout = do
-  (metrics, samples) <- collect $ \create ->
-    PoolMetrics
-      <$> create (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
-      <*> create (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
-      <*> create (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
-      <*> create (histogram (Info "pgrst_db_pool_wait_time_seconds" "Time waiting to acquire contended pool connections (includes timeouts)") connectionWaitTimeBuckets)
-      <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
-  setGauge (poolMaxSize metrics) (fromIntegral configDbPoolSize)
-  pure (metrics, MetricsModule (onObservation metrics) samples)
+init configDbPoolSize configDbPoolAcquisitionTimeout =
+  initMetricModule
+    ( \create -> do
+        metrics <-
+          PoolMetrics
+            <$> create (counter (Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts"))
+            <*> create (Metric ((identity &&& dbPoolAvailable) <$> connectionTracker))
+            <*> create (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection"))
+            <*> create (histogram (Info "pgrst_db_pool_wait_time_seconds" "Time waiting to acquire contended pool connections (includes timeouts)") connectionWaitTimeBuckets)
+            <*> create (gauge (Info "pgrst_db_pool_max" "Max pool connections"))
+        setGauge (poolMaxSize metrics) (fromIntegral configDbPoolSize)
+        pure metrics
+    )
+    onObservation
   where
     maxWaitTime = max 0.1 $ fromIntegral configDbPoolAcquisitionTimeout
     numberOfBuckets = 12
