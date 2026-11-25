@@ -13,7 +13,7 @@ where
 import Prometheus
 import Protolude
 
-import PostgREST.Metrics.Types (MetricsModule (..), collect)
+import PostgREST.Metrics.Types (MetricsModule, initMetricModule)
 import PostgREST.Observation
 
 data SchemaCacheMetrics = SchemaCacheMetrics
@@ -23,13 +23,15 @@ data SchemaCacheMetrics = SchemaCacheMetrics
   }
 
 init :: IO (SchemaCacheMetrics, MetricsModule)
-init = do
-  (metrics, samples) <- collect $ \create ->
-    SchemaCacheMetrics
-      <$> create (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
-      <*> create (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
-      <*> create (gauge (Info "pgrst_schema_cache_last_reload_successful" "Whether the most recent schema cache reload succeeded (1) or failed (0)"))
-  pure (metrics, MetricsModule (onObservation metrics) samples)
+init =
+  initMetricModule
+    ( \create ->
+        SchemaCacheMetrics
+          <$> create (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded"))
+          <*> create (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
+          <*> create (gauge (Info "pgrst_schema_cache_last_reload_successful" "Whether the most recent schema cache reload succeeded (1) or failed (0)"))
+    )
+    onObservation
   where
     onObservation SchemaCacheMetrics{..} = \case
       SchemaCacheLoadedObs resTime _ -> do

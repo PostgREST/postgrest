@@ -5,7 +5,7 @@
 -- Description : The metrics of a concern, composed with those of others.
 module PostgREST.Metrics.Types
   ( MetricsModule (..)
-  , collect
+  , initMetricModule
   )
 where
 
@@ -39,3 +39,10 @@ collect build = do
     modifyIORef' samplers (<> [sample])
     pure value
   (metrics,) . fmap concat . sequence <$> readIORef samplers
+
+-- | Create metrics and MetricsModule without registering them, so
+-- several can be created in a process. Returns metrics with their MetricsModule
+initMetricModule :: ((forall s. Metric s -> IO s) -> IO a) -> (a -> ObservationHandler) -> IO (a, MetricsModule)
+initMetricModule build onObservation = do
+  (metrics, samples) <- collect build
+  pure (metrics, MetricsModule (onObservation metrics) samples)
