@@ -65,7 +65,7 @@ data Preferences
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
 --
 -- One header with comma-separated values can be used to set multiple preferences:
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
+-- >>> pPrint $ fromHeaders True ["count=exact"] [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -82,7 +82,7 @@ data Preferences
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
+-- >>> pPrint $ fromHeaders True ["count=exact"] [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -98,13 +98,13 @@ data Preferences
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders True [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders True [] [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders True $
+--   preferResolution . fromHeaders True [] $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -114,7 +114,7 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
+-- >>> pPrint $ fromHeaders True ["count=exact"] [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -126,12 +126,12 @@ data Preferences
 --     , preferMaxAffected = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
-fromHeaders :: Bool -> [HTTP.Header] -> Preferences
-fromHeaders allowTxDbOverride headers =
+fromHeaders :: Bool -> [ByteString] -> [HTTP.Header] -> Preferences
+fromHeaders allowTxDbOverride allowedCountPrefer headers =
   Preferences
     { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates],
       preferRepresentation = parsePrefs [Full, None, HeadersOnly],
-      preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount],
+      preferCount = parsePrefs countPrefList,
       preferTransaction = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing,
       preferMissing = parsePrefs [ApplyDefaults, ApplyNulls],
       preferHandling = parsePrefs [Strict, Lenient],
@@ -145,7 +145,7 @@ fromHeaders allowTxDbOverride headers =
     acceptedPrefs =
       mapToHeadVal [MergeDuplicates, IgnoreDuplicates]
         ++ mapToHeadVal [Full, None, HeadersOnly]
-        ++ mapToHeadVal [ExactCount, PlannedCount, EstimatedCount]
+        ++ mapToHeadVal countPrefList
         ++ mapToHeadVal [Commit, Rollback]
         ++ mapToHeadVal [ApplyDefaults, ApplyNulls]
         ++ mapToHeadVal [Strict, Lenient]
@@ -170,6 +170,9 @@ fromHeaders allowTxDbOverride headers =
 
     prefMap :: (ToHeaderValue a) => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
+
+    countPrefList = filter isCountAllowed [ExactCount, PlannedCount, EstimatedCount]
+    isCountAllowed c = toHeaderValue c `elem` allowedCountPrefer
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
 prefAppliedHeader Preferences{preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected} =

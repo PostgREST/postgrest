@@ -49,7 +49,7 @@ import PostgREST.Catalog.Identifiers
   , QualifiedIdentifier (..)
   , Schema
   )
-import PostgREST.Config (AppConfig (..), OpenAPIMode (..))
+import PostgREST.Config (AppConfig (..), OpenAPIMode (..), dumpDbCount)
 import PostgREST.Config.PgVersion (PgVersion, timezoneGucInvalid)
 import PostgREST.Error (ApiRequestError (..), RangeError (..))
 import PostgREST.MediaType (MediaType (..))
@@ -168,7 +168,9 @@ userApiRequest conf prefs req reqBody pgVer = do
 
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> Preferences.Preferences
-userPreferences conf req = Preferences.fromHeaders (configDbTxAllowOverride conf) $ requestHeaders req
+userPreferences conf req = Preferences.fromHeaders (configDbTxAllowOverride conf) buildAllowedCountPrefer $ requestHeaders req
+  where
+    buildAllowedCountPrefer = T.encodeUtf8 . ("count=" <>) . dumpDbCount <$> configDbCountAllowed conf
 
 -- | Obtains the Bearer Auth
 userBearerAuth :: Request -> Maybe ByteString

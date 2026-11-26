@@ -49,6 +49,7 @@ dbSettingsNames =
           "client_error_verbosity",
           "db_anon_role",
           "db_pre_config",
+          "db_count_allowed",
           "db_extra_search_path",
           "db_max_rows",
           "db_plan_enabled",
