@@ -29,20 +29,30 @@ instance Semigroup MetricsModule where
 instance Monoid MetricsModule where
   mempty = MetricsModule mempty (pure [])
 
+type CreateMetric = forall s. Metric s -> IO s
+
 -- | Create metrics with the given function, without registering them, so
 -- several can be created in a process. Returns them with their samples.
-collect :: ((forall s. Metric s -> IO s) -> IO a) -> IO (a, IO [SampleGroup])
+collect :: (CreateMetric -> IO a) -> IO (a, IO [SampleGroup])
 collect build = do
-  samplers <- newIORef []
-  metrics <- build $ \metric -> do
-    (value, sample) <- construct metric
-    modifyIORef' samplers (<> [sample])
-    pure value
-  (metrics,) . fmap concat . sequence <$> readIORef samplers
+  samplersRef <- newIORef []
+
+  let
+    createMetric :: CreateMetric
+    createMetric metric = do
+      (value, sampler) <- construct metric
+      modifyIORef' samplersRef (<> [sampler])
+      pure value
+
+  metrics <- build createMetric
+  samplers <- readIORef samplersRef
+
+  let sampleAll = concat <$> sequence samplers
+  pure (metrics, sampleAll)
 
 -- | Create metrics and MetricsModule without registering them, so
 -- several can be created in a process. Returns metrics with their MetricsModule
-initMetricModule :: ((forall s. Metric s -> IO s) -> IO a) -> (a -> ObservationHandler) -> IO (a, MetricsModule)
+initMetricModule :: (CreateMetric -> IO a) -> (a -> ObservationHandler) -> IO (a, MetricsModule)
 initMetricModule build onObservation = do
   (metrics, samples) <- collect build
   pure (metrics, MetricsModule (onObservation metrics) samples)
