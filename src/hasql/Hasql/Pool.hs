@@ -182,7 +182,7 @@ data Slot = Slot
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess =
   bracket
-    acquireSlot
+    (poolObserver PoolRequest >> acquireSlot)
     (traverse_ releaseSlot)
     $ \slotOrError -> do
       poolObserver PoolRequestFullfilled
@@ -212,7 +212,6 @@ use Pool{..} sess =
 
     acquireSlot :: IO (Either UsageError Slot)
     acquireSlot = do
-      poolObserver PoolRequest
       maybeActWithoutContention <- atomically $ optional tryAcquireSlot
 
       case maybeActWithoutContention of
