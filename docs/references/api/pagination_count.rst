@@ -60,6 +60,9 @@ In order to obtain the total size of the table (such as when rendering the last 
 
 This also works on views and :ref:`table_functions`.
 
+.. important::
+
+  Only ``exact`` is enabled by default. If you wish to make use of the others, add them to the :ref:`db-count-allowed` config.
 
 .. _exact_count:
 
