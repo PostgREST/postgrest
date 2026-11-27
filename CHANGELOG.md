@@ -22,12 +22,15 @@ All notable changes to this project will be documented in this file. From versio
 - Fix leaking of table names by removing `hint` from `PGRST205` error by @taimoorzaeem in #5408
 - Fix transaction staying aborted on COMMIT failure by @steve-chavez in #5391
 - Execute all the queries of a transaction in pipeline mode, configurable with `db-pipeline-mode` by @QuChen88 in #5253
+- Add `db-count-allowed` config to enable table counts in `Prefer: count=...` header by @laurenceisla in #2777
 
 ### Migration to v18
 
 - JWT verification now uses the `botan` C++ library by @steve-chavez in #5403
   + If you build from source you'll need to ensure `botan` is present as a dependency.
   + Static builds work as usual, they include the `botan` library.
+- The `Prefer` header values `count=enabled` and `count=estimated` are disabled by default by @laurenceisla in #2777
+  + To use them, add the options to the config, e.g. `db-count-allowed = exact, enabled, estimated`.
 
 ## [16.6] - 2026-11-16
 
