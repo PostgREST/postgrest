@@ -7,7 +7,7 @@ module ObsHelper where
 import Data.List.NonEmpty (fromList)
 import Data.String (String)
 import Network.HTTP.Types
-import Prometheus (Bucket, Counter, Gauge, Histogram, getCounter, getGauge, getHistogram)
+import Prometheus (Bucket, Counter, Histogram, Info (metricName), Sample (Sample), SampleGroup (SampleGroup), getCounter, getHistogram)
 import Protolude hiding (get, toS)
 import System.Timeout (timeout)
 import Test.Hspec
@@ -170,10 +170,18 @@ expectCounter = expectField @s intCounter
   where
     intCounter = ((round @Double @Int) <$>) . getCounter
 
-expectGauge :: forall s st m. (HasField s st Gauge, KnownSymbol s, MonadIO m) => (Int -> Int) -> StateCheck st m
-expectGauge = expectField @s intGauge
+expectGaugeFromSampleGroups :: Text -> (Int -> Int) -> StateCheck (IO [SampleGroup]) IO
+expectGaugeFromSampleGroups name = stateCheck (fmap readGauge) (T.unpack name,)
   where
-    intGauge = ((round @Double @Int) <$>) . getGauge
+    readGauge :: [SampleGroup] -> Int
+    readGauge groups =
+      fromMaybe (panic $ "invalid gauge: " <> name) $ do
+        SampleGroup _ _ samples <- findSamplesByName groups
+        Sample _ _ val <- findSampleValue samples
+        intFromSampleValue val
+    findSamplesByName = find (\(SampleGroup info _ _) -> metricName info == name)
+    findSampleValue = find (\(Sample n _ _) -> n == name)
+    intFromSampleValue val = round @Double @Int <$> readMaybe (T.unpack $ decodeUtf8 val)
 
 expectHistogramSatisfy :: forall s st m. (HasField s st Histogram, KnownSymbol s, MonadIO m) => (Map Bucket Int -> Map Bucket Int -> Bool) -> StateCheck st m
 expectHistogramSatisfy predicate =

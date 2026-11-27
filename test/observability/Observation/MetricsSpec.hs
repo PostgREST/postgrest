@@ -16,6 +16,7 @@ import PostgREST.Config (AppConfig (configDbPoolAcquisitionTimeout, configDbPool
 import PostgREST.Metrics (MetricsState (..))
 import PostgREST.Metrics.Pool (ConnStats (..), PoolMetrics (..), connectionCounts)
 import PostgREST.Metrics.SchemaCache (SchemaCacheMetrics (..))
+import PostgREST.Metrics.Types (MetricsModule (MetricsModule, moduleSamples))
 import PostgREST.Observation
 
 import Hasql.Pool.Observation qualified as SQL
@@ -131,11 +132,11 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "ConnectionWaitCompletedStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionWaitCompletedStatus _)) <- pure x]
 
   it "Should decrement poolWaiting gauge as soon as connection is acquired (before executing session)" $ do
-    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{metricsModule = MetricsModule{moduleSamples = metrics}}, specObsChan} <- getState
     liftIO
       $ checkState'
         metrics
-        [ expectGauge @"poolWaiting" (+ 0)
+        [ expectGaugeFromSampleGroups "pgrst_db_pool_waiting" (+ 0)
         ]
       $ do
         signal <- newEmptyMVar
@@ -151,11 +152,11 @@ spec = describe "Server started with metrics enabled" $ do
         waitFor (1 * sec) "ReadyForUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.ReadyForUseConnectionStatus _))) <- pure x]
 
   it "Should decrement poolWaiting gauge even when the thread times out" $ do
-    SpecState{specAppState = appState, specMetrics = MetricsState{poolMetrics = metrics}, specObsChan} <- getState
+    SpecState{specAppState = appState, specMetrics = MetricsState{metricsModule = MetricsModule{moduleSamples = metrics}}, specObsChan} <- getState
     liftIO
       $ checkState'
         metrics
-        [ expectGauge @"poolWaiting" (+ 0)
+        [ expectGaugeFromSampleGroups "pgrst_db_pool_waiting" (+ 0)
         ]
       $ do
         signal <- newEmptyMVar
