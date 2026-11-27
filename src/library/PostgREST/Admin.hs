@@ -1,5 +1,6 @@
 module PostgREST.Admin
   ( runAdmin
+  , admin
   )
 where
 
@@ -12,26 +13,22 @@ import Network.Socket qualified as NS
 import Network.Wai qualified as Wai
 import Network.Wai.Handler.Warp qualified as Warp
 
-import PostgREST.AppState (AppState, getConfig, killApp)
 import PostgREST.Config (AppConfig (..))
 import PostgREST.MediaType (MediaType (..), toContentType)
 import PostgREST.Metrics (metricsToText)
 import PostgREST.Network (resolveSocketToAddress)
-import PostgREST.Observation (Observation (..))
+import PostgREST.Observation (Observation (..), ObservationHandler)
 
 import PostgREST.AppState qualified as AppState
 
-runAdmin :: AppState -> Maybe NS.Socket -> IO Bool -> Warp.Settings -> IO ()
-runAdmin appState maybeAdminSocket checkMainAppLive settings = do
-  conf <- getConfig appState
+runAdmin :: ObservationHandler -> IO () -> AppConfig -> Maybe NS.Socket -> Warp.Settings -> Wai.Application -> IO ()
+runAdmin observer kill conf maybeAdminSocket settings adminApp =
   whenJust maybeAdminSocket $ \adminSocket -> do
     address <- resolveSocketToAddress adminSocket
     void . forkIO $
       handle onError $
         Warp.runSettingsSocket (adminServerSettings conf address) adminSocket adminApp
   where
-    adminApp = admin appState checkMainAppLive
-    observer = AppState.getObserver appState
     adminServerSettings config addr =
       settings
         & Warp.setBeforeMainLoop (observer $ AdminStartObs addr)
@@ -39,7 +36,7 @@ runAdmin appState maybeAdminSocket checkMainAppLive settings = do
 
     onError ex = do
       observer $ AdminServerCrashedObs ex
-      killApp appState -- Admin server crash is deemed unrecoverable, so we kill postgrest
+      kill -- Admin server crash is deemed unrecoverable, so we kill postgrest
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> IO Bool -> Wai.Application
