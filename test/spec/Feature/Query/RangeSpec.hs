@@ -1,12 +1,14 @@
 module Feature.Query.RangeSpec where
 
 import Network.HTTP.Types
+import Network.HTTP.Types.Header (hPreferenceApplied)
 import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
 import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..), DBCount (..))
 import SpecHelper
 
 spec :: SpecWithConfig
@@ -366,6 +368,132 @@ spec withConfig = withConfig baseCfg $ do
               }
 
     context "when count=planned" $ do
+      it "does not work when it's disabled" $ do
+        request
+          methodGet
+          "/items?select=id&id=gt.8"
+          [("Prefer", "count=planned")]
+          ""
+          `shouldRespondWith` [json|[{"id":9}, {"id":10}, {"id":11}, {"id":12}, {"id":13}, {"id":14}, {"id":15}]|]
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchHeaderAbsent hPreferenceApplied,
+                  "Content-Range" <:> "0-6/*"
+                ]
+            }
+
+    context "with range headers" $ do
+      context "of acceptable range" $ do
+        it "succeeds with partial content" $ do
+          r <-
+            request
+              methodGet
+              "/items"
+              (rangeHdrs $ ByteRangeFromTo 0 1)
+              ""
+          liftIO $ do
+            simpleHeaders r
+              `shouldSatisfy` matchHeader "Content-Range" "0-1/*"
+            simpleStatus r `shouldBe` ok200
+
+        it "understands open-ended ranges" $
+          request
+            methodGet
+            "/items"
+            (rangeHdrs $ ByteRangeFrom 0)
+            ""
+            `shouldRespondWith` 200
+
+        it "returns an empty body when there are no results" $
+          request
+            methodGet
+            "/menagerie"
+            (rangeHdrs $ ByteRangeFromTo 0 1)
+            ""
+            `shouldRespondWith` "[]"
+              { matchStatus = 200,
+                matchHeaders = ["Content-Range" <:> "*/*"]
+              }
+
+        it "allows one-item requests" $ do
+          r <-
+            request
+              methodGet
+              "/items"
+              (rangeHdrs $ ByteRangeFromTo 0 0)
+              ""
+          liftIO $ do
+            simpleHeaders r
+              `shouldSatisfy` matchHeader "Content-Range" "0-0/*"
+            simpleStatus r `shouldBe` ok200
+
+        it "handles ranges beyond collection length via truncation" $ do
+          r <-
+            request
+              methodGet
+              "/items"
+              (rangeHdrs $ ByteRangeFromTo 10 100)
+              ""
+          liftIO $ do
+            simpleHeaders r
+              `shouldSatisfy` matchHeader "Content-Range" "10-14/*"
+            simpleStatus r `shouldBe` ok200
+
+      context "of invalid range" $ do
+        it "fails with 416 for offside range" $
+          request
+            methodGet
+            "/items"
+            (rangeHdrs $ ByteRangeFromTo 1 0)
+            ""
+            `shouldRespondWith` [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"The lower boundary must be lower than or equal to the upper boundary in the Range header.",
+                "hint":null
+              }|]
+              { matchStatus = 416
+              }
+
+        it "refuses a range with nonzero start when there are no items" $
+          request
+            methodGet
+            "/menagerie"
+            (rangeHdrsWithCount $ ByteRangeFromTo 1 2)
+            ""
+            `shouldRespondWith` [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 0 rows.",
+                "hint":null
+              }|]
+              { matchStatus = 416,
+                matchHeaders =
+                  [ "Content-Range" <:> "*/0",
+                    "Content-Length" <:> "144"
+                  ]
+              }
+
+        it "refuses a range requesting start past last item" $
+          request
+            methodGet
+            "/items"
+            (rangeHdrsWithCount $ ByteRangeFromTo 100 199)
+            ""
+            `shouldRespondWith` [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 100 was requested, but there are only 15 rows.",
+                "hint":null
+              }|]
+              { matchStatus = 416,
+                matchHeaders = ["Content-Range" <:> "*/15"]
+              }
+
+specCount :: SpecWithConfig
+specCount withConfig = withConfig baseCfg{configDbCountAllowed = [DBCountPlanned]} $
+  describe "GET /items (with planned count enabled)" $ do
+    context "when count=planned" $ do
       it "obtains a filtered range" $ do
         request
           methodGet
@@ -491,110 +619,17 @@ spec withConfig = withConfig baseCfg $ do
                 ]
             }
 
-    context "with range headers" $ do
-      context "of acceptable range" $ do
-        it "succeeds with partial content" $ do
-          r <-
-            request
-              methodGet
-              "/items"
-              (rangeHdrs $ ByteRangeFromTo 0 1)
-              ""
-          liftIO $ do
-            simpleHeaders r
-              `shouldSatisfy` matchHeader "Content-Range" "0-1/*"
-            simpleStatus r `shouldBe` ok200
-
-        it "understands open-ended ranges" $
-          request
-            methodGet
-            "/items"
-            (rangeHdrs $ ByteRangeFrom 0)
-            ""
-            `shouldRespondWith` 200
-
-        it "returns an empty body when there are no results" $
-          request
-            methodGet
-            "/menagerie"
-            (rangeHdrs $ ByteRangeFromTo 0 1)
-            ""
-            `shouldRespondWith` "[]"
-              { matchStatus = 200,
-                matchHeaders = ["Content-Range" <:> "*/*"]
-              }
-
-        it "allows one-item requests" $ do
-          r <-
-            request
-              methodGet
-              "/items"
-              (rangeHdrs $ ByteRangeFromTo 0 0)
-              ""
-          liftIO $ do
-            simpleHeaders r
-              `shouldSatisfy` matchHeader "Content-Range" "0-0/*"
-            simpleStatus r `shouldBe` ok200
-
-        it "handles ranges beyond collection length via truncation" $ do
-          r <-
-            request
-              methodGet
-              "/items"
-              (rangeHdrs $ ByteRangeFromTo 10 100)
-              ""
-          liftIO $ do
-            simpleHeaders r
-              `shouldSatisfy` matchHeader "Content-Range" "10-14/*"
-            simpleStatus r `shouldBe` ok200
-
-      context "of invalid range" $ do
-        it "fails with 416 for offside range" $
-          request
-            methodGet
-            "/items"
-            (rangeHdrs $ ByteRangeFromTo 1 0)
-            ""
-            `shouldRespondWith` [json| {
-                "message":"Requested range not satisfiable",
-                "code":"PGRST103",
-                "details":"The lower boundary must be lower than or equal to the upper boundary in the Range header.",
-                "hint":null
-              }|]
-              { matchStatus = 416
-              }
-
-        it "refuses a range with nonzero start when there are no items" $
-          request
-            methodGet
-            "/menagerie"
-            (rangeHdrsWithCount $ ByteRangeFromTo 1 2)
-            ""
-            `shouldRespondWith` [json| {
-                "message":"Requested range not satisfiable",
-                "code":"PGRST103",
-                "details":"An offset of 1 was requested, but there are only 0 rows.",
-                "hint":null
-              }|]
-              { matchStatus = 416,
-                matchHeaders =
-                  [ "Content-Range" <:> "*/0",
-                    "Content-Length" <:> "144"
-                  ]
-              }
-
-        it "refuses a range requesting start past last item" $
-          request
-            methodGet
-            "/items"
-            (rangeHdrsWithCount $ ByteRangeFromTo 100 199)
-            ""
-            `shouldRespondWith` [json| {
-                "message":"Requested range not satisfiable",
-                "code":"PGRST103",
-                "details":"An offset of 100 was requested, but there are only 15 rows.",
-                "hint":null
-              }|]
-              { matchStatus = 416,
-                matchHeaders = ["Content-Range" <:> "*/15"]
-              }
+    context "when count=exact" $ do
+      it "does not work when disabled" $ do
+        request
+          methodGet
+          "/items?select=id&id=gt.8"
+          [("Prefer", "count=exact")]
+          ""
+          `shouldRespondWith` [json|[{"id":9}, {"id":10}, {"id":11}, {"id":12}, {"id":13}, {"id":14}, {"id":15}]|]
+            { matchStatus = 200,
+              matchHeaders =
+                [ matchHeaderAbsent hPreferenceApplied,
+                  "Content-Range" <:> "0-6/*"
+                ]
+            }

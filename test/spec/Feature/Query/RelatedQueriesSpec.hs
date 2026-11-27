@@ -1,11 +1,13 @@
 module Feature.Query.RelatedQueriesSpec where
 
 import Network.HTTP.Types
+import Network.HTTP.Types.Header (hPreferenceApplied)
 import Protolude hiding (get)
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config (AppConfig (..), DBCount (..))
 import SpecHelper
 
 spec :: SpecWithConfig
@@ -321,6 +323,49 @@ spec withConfig = withConfig baseCfg $ describe "related queries" $ do
               ]
           }
 
+    it "does not work with count=planned when disabled" $
+      request
+        methodGet
+        "/projects?select=name,clients(name)&clients=not.is.null"
+        [("Prefer", "count=planned")]
+        ""
+        `shouldRespondWith` [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                matchHeaderAbsent hPreferenceApplied,
+                "Content-Range" <:> "0-3/*"
+              ]
+          }
+
+    it "does not work with count=estimated when disabled" $
+      request
+        methodGet
+        "/projects?select=name,clients(name)&clients=not.is.null"
+        [("Prefer", "count=estimated")]
+        ""
+        `shouldRespondWith` [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                matchHeaderAbsent hPreferenceApplied,
+                "Content-Range" <:> "0-3/*"
+              ]
+          }
+
+specCount :: SpecWithConfig
+specCount withConfig = withConfig baseCfg{configDbCountAllowed = [DBCountPlanned, DBCountEstimated]} $
+  describe "related queries (with planned and estimated count enabled)" $ do
     it "works with count=planned" $ do
       request
         methodGet
@@ -410,5 +455,25 @@ spec withConfig = withConfig baseCfg $ describe "related queries" $ do
             matchHeaders =
               [ matchContentTypeJson,
                 "Content-Range" <:> "0-1/2"
+              ]
+          }
+
+    it "does not work with count=exact when disabled" $ do
+      request
+        methodGet
+        "/projects?select=name,clients(name)&clients=not.is.null"
+        [("Prefer", "count=exact")]
+        ""
+        `shouldRespondWith` [json|[
+          {"name":"Windows 7", "clients":{"name":"Microsoft"}},
+          {"name":"Windows 10", "clients":{"name":"Microsoft"}},
+          {"name":"IOS", "clients":{"name":"Apple"}},
+          {"name":"OSX", "clients":{"name":"Apple"}}
+        ]|]
+          { matchStatus = 200,
+            matchHeaders =
+              [ matchContentTypeJson,
+                matchHeaderAbsent hPreferenceApplied,
+                "Content-Range" <:> "0-3/*"
               ]
           }

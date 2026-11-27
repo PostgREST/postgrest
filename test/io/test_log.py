@@ -93,6 +93,7 @@ def test_log_query(level, defaultenv):
 
     env = {
         **defaultenv,
+        "PGRST_DB_COUNT_ALLOWED": "exact, planned, estimated",
         "PGRST_LOG_LEVEL": level,
         "PGRST_LOG_QUERY": "true",
     }

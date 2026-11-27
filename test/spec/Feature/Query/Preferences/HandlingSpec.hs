@@ -44,6 +44,16 @@ spec withConfig = withConfig baseCfg $
             { matchStatus = 400
             }
 
+      it "throws error on disallowed table counts" $ do
+        request methodGet "/items" [("Prefer", "handling=strict"), ("Prefer", "count=planned")] ""
+          `shouldRespondWith` [json|{"details":"Invalid preferences: count=planned","message":"Invalid preferences given with handling=strict","code":"PGRST122","hint":null}|]
+            { matchStatus = 400
+            }
+        request methodGet "/items" [("Prefer", "handling=strict"), ("Prefer", "count=estimated")] ""
+          `shouldRespondWith` [json|{"details":"Invalid preferences: count=estimated","message":"Invalid preferences given with handling=strict","code":"PGRST122","hint":null}|]
+            { matchStatus = 400
+            }
+
     context "check behaviour of Prefer: handling=lenient" $ do
       it "does not throw error when handling=lenient and invalid prefs" $
         request methodGet "/items" [("Prefer", "handling=lenient, anything")] ""
@@ -74,3 +84,9 @@ spec withConfig = withConfig baseCfg $
             { matchStatus = 200,
               matchHeaders = [matchContentTypeJson]
             }
+
+      it "does not throw error on disallowed table counts" $ do
+        request methodGet "/items?limit=0" [("Prefer", "handling=lenient"), ("Prefer", "count=planned")] ""
+          `shouldRespondWith` 200
+        request methodGet "/items?limit=0" [("Prefer", "handling=lenient"), ("Prefer", "count=estimated")] ""
+          `shouldRespondWith` 200
