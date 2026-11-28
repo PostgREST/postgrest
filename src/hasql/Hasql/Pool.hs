@@ -182,11 +182,13 @@ data Slot = Slot
 use :: Pool -> Session.Session a -> IO (Either UsageError a)
 use Pool{..} sess =
   bracket
-    acquireSlot
+    (poolObserver PoolRequest >> acquireSlot)
     (traverse_ releaseSlot)
-    $ \case
-      Left ex -> pure $ Left ex
-      Right slot -> runSessionOnSlot slot
+    $ \slotOrError -> do
+      poolObserver PoolRequestFullfilled
+      case slotOrError of
+        Left ex -> pure $ Left ex
+        Right slot -> runSessionOnSlot slot
   where
     tryAvailableConnection :: STM (IO (Either UsageError Entry))
     tryAvailableConnection =

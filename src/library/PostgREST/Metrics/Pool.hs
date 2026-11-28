@@ -77,10 +77,8 @@ init configDbPoolSize configDbPoolAcquisitionTimeout =
       -- established connections.
       HasqlPoolObs (SQL.ConnectionObservation uuid status) -> trackConnections connTrack uuid status
       HasqlPoolObs (SQL.ConnectionWaitCompletedStatus ms) -> void $ observe poolWaitTimeSeconds $ ms / 1000
-      PoolRequest ->
-        incGauge poolWaiting
-      PoolRequestFullfilled ->
-        decGauge poolWaiting
+      HasqlPoolObs SQL.PoolRequest -> incGauge poolWaiting
+      HasqlPoolObs SQL.PoolRequestFullfilled -> decGauge poolWaiting
       _ ->
         pure ()
 
