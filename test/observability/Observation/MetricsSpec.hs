@@ -118,14 +118,14 @@ spec = describe "Server started with metrics enabled" $ do
       $ do
         let poolSize = configDbPoolSize testCfg
         signal <- newEmptyMVar
-        let hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
+        let holdForSignal = hold appState signal
 
         -- exhaust the pool
-        replicateM_ poolSize $ forkIO hold
+        replicateM_ poolSize $ forkIO holdForSignal
         replicateM_ poolSize $ waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.InUseConnectionStatus)) <- pure x]
 
         -- request one more connection so we have contention to observe ConnectionWaitCompletedStatus
-        void $ forkIO hold
+        void $ forkIO holdForSignal
         waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
 
         putMVar signal ()
@@ -140,10 +140,8 @@ spec = describe "Server started with metrics enabled" $ do
         ]
       $ do
         signal <- newEmptyMVar
-        let
-          waitFor = waitForObs specObsChan
-          hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
-        void $ forkIO hold
+        let waitFor = waitForObs specObsChan
+        void $ forkIO $ hold appState signal
         waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
 
         waitFor (1 * sec) "PoolRequestFullfilled" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequestFullfilled) <- pure x]
@@ -164,14 +162,14 @@ spec = describe "Server started with metrics enabled" $ do
           waitFor = waitForObs specObsChan
           poolSize = configDbPoolSize testCfg
           poolAcquisitionTimeout = configDbPoolAcquisitionTimeout testCfg
-          hold = void $ AppState.usePool appState $ liftIO $ readMVar signal
+          holdForSignal = hold appState signal
 
         -- exhaust the pool
-        replicateM_ poolSize $ forkIO hold
+        replicateM_ poolSize $ forkIO holdForSignal
         replicateM_ poolSize $ waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ SQL.InUseConnectionStatus)) <- pure x]
 
         -- request one more connection so we have a connection timing out
-        void $ forkIO hold
+        void $ forkIO holdForSignal
         waitFor (1 * sec) "PoolRequest" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequest) <- pure x]
 
         waitFor ((1 + poolAcquisitionTimeout) * sec) "PoolRequestFullfilled" $ \x -> [o | o@(HasqlPoolObs SQL.PoolRequestFullfilled) <- pure x]
@@ -229,6 +227,7 @@ spec = describe "Server started with metrics enabled" $ do
         void $ forkIO $ void $ try @SomeException $ AppState.usePool appState $ throwIO TestError
         waitFor (1 * sec) "InUseConnectionStatus" $ \x -> [o | o@(HasqlPoolObs (SQL.ConnectionObservation _ (SQL.TerminatedConnectionStatus _))) <- pure x]
   where
+    hold appState signal = void $ AppState.usePool appState $ liftIO $ readMVar signal
     -- prometheus-client api to handle vectors is convoluted
     schemaCacheLoads label =
       expectField @"schemaCacheLoads" $
