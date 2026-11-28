@@ -8,6 +8,8 @@
 -- Description : Manages PostgREST configuration type and parser.
 module PostgREST.Config
   ( AppConfig (..)
+  , DBCount (..)
+  , dumpDbCount
   , Environment
   , JSPath
   , defaultRoleJSPathKey
@@ -85,6 +87,7 @@ data AppConfig = AppConfig
     configDbAnonRole :: Maybe BS.ByteString,
     configDbChannel :: Text,
     configDbChannelEnabled :: Bool,
+    configDbCountAllowed :: [DBCount],
     configDbExtraSearchPath :: [Text],
     configDbHoistedTxSettings :: [Text],
     configDbMaxRows :: Maybe Integer,
@@ -164,6 +167,15 @@ dumpOpenApiMode = \case
   OAIgnorePriv -> "ignore-privileges"
   OADisabled -> "disabled"
 
+data DBCount = DBCountExact | DBCountPlanned | DBCountEstimated
+  deriving (Eq)
+
+dumpDbCount :: DBCount -> Text
+dumpDbCount = \case
+  DBCountExact -> "exact"
+  DBCountPlanned -> "planned"
+  DBCountEstimated -> "estimated"
+
 -- | Dump the config
 toText :: AppConfig -> Text
 toText conf =
@@ -177,6 +189,7 @@ toText conf =
               ("db-anon-role", q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole),
               ("db-channel", q . configDbChannel),
               ("db-channel-enabled", T.toLower . show . configDbChannelEnabled),
+              ("db-count-allowed", q . T.intercalate "," . map dumpDbCount . configDbCountAllowed),
               ("db-extra-search-path", q . T.intercalate "," . configDbExtraSearchPath),
               ("db-hoisted-tx-settings", q . T.intercalate "," . configDbHoistedTxSettings),
               ("db-max-rows", maybe "\"\"" show . configDbMaxRows),
@@ -289,6 +302,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
+    <*> parseDbCountAllowed "db-count-allowed"
     <*> (maybe ["public"] splitOnCommasEmptyable <$> optStringEmptyable "db-extra-search-path")
     <*> (maybe defaultHoistedAllowList splitOnCommas <$> optString "db-hoisted-tx-settings")
     <*> optWithAlias
@@ -386,6 +400,19 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just asp
           | asp == serverPort -> fail "admin-server-port cannot be the same as server-port"
           | otherwise -> pure $ Just asp
+
+    parseDbCountAllowed :: C.Key -> C.Parser C.Config [DBCount]
+    parseDbCountAllowed k =
+      optStringEmptyable k >>= \case
+        Nothing -> pure [DBCountExact]
+        Just s -> traverse parseDbCount $ splitOnCommasEmptyable s
+          where
+            parseDbCount :: Text -> C.Parser C.Config DBCount
+            parseDbCount = \case
+              "exact" -> pure DBCountExact
+              "estimated" -> pure DBCountEstimated
+              "planned" -> pure DBCountPlanned
+              _ -> fail "Invalid DB count plan. Check your configuration"
 
     parseDbSchemas :: C.Key -> C.Key -> C.Parser C.Config (NonEmpty Text)
     parseDbSchemas k al =
@@ -732,6 +759,10 @@ exampleConfigFile =
       "",
       "## Enable in-database configuration",
       "db-config = true",
+      "",
+      "## List of allowed table count types to use in `Prefer: count=...` header.",
+      "## Allowed values: exact, planned, estimated",
+      "db-count-allowed = \"exact\"",
       "",
       "## Function for in-database configuration",
       "## db-pre-config = \"postgrest.pre_config\"",

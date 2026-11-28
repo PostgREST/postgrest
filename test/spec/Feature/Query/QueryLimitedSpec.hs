@@ -6,11 +6,11 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config (AppConfig (..))
+import PostgREST.Config (AppConfig (..), DBCount (..))
 import SpecHelper
 
 spec :: SpecWithConfig
-spec withConfig = withConfig (baseCfg{configDbMaxRows = Just 2}) $
+spec withConfig = withConfig (baseCfg{configDbMaxRows = Just 2, configDbCountAllowed = [DBCountEstimated]}) $
   describe "Requesting many items with server limits(max-rows) enabled" $ do
     it "restricts results" $
       get "/items?order=id"

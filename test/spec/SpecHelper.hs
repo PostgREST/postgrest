@@ -32,6 +32,7 @@ import Jose.Jwt qualified as JWT
 import PostgREST.Catalog.Identifiers (QualifiedIdentifier (..))
 import PostgREST.Config
   ( AppConfig (..)
+  , DBCount (..)
   , LogLevel (..)
   , OpenAPIMode (..)
   , Verbosity (..)
@@ -156,6 +157,7 @@ baseCfg =
           configDbAnonRole = Just "postgrest_test_anonymous",
           configDbChannel = mempty,
           configDbChannelEnabled = True,
+          configDbCountAllowed = [DBCountExact],
           configDbExtraSearchPath = [],
           configDbHoistedTxSettings = ["default_transaction_isolation", "plan_filter.statement_cost_limit", "statement_timeout"],
           configDbMaxRows = Nothing,

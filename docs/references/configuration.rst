@@ -348,6 +348,24 @@ db-config
 
    Enables the in-database configuration.
 
+.. _db-count-allowed:
+
+db-count-allowed
+----------------
+
+  =============== =======================
+  **Type**        String
+  **Default**     exact
+  **Reloadable**  Y
+  **Environment** PGRST_DB_COUNT_ALLOWED
+  **In-Database** pgrst.db_count_allowed
+  =============== =======================
+
+   List of allowed table count methods that can be used in the ``Prefer: count=<value>`` header.
+
+   Can be a mix of the following values: ``exact``, ``planned`` and ``estimated``. See :ref:`prefer_count`.
+
+
 .. _db-pre-config:
 
 db-pre-config
@@ -969,7 +987,7 @@ server-reuseport
   Enables ``SO_REUSEPORT`` on the TCP server socket. This allows multiple
   PostgREST processes to bind to the same :ref:`server-host` and
   :ref:`server-port` when the operating system supports it.
-  
+
   For example, two PostgREST processes can use the same configuration:
 
   .. code:: ini
